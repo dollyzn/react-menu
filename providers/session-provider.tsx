@@ -8,6 +8,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { setUser } from "@/redux/slices/auth";
 import isEqual from "lodash/isEqual";
+import { persistor } from "./redux-provider";
+import { redirectToLogin } from "@/utils/navigation";
 
 export interface LoginError {
   message: string;
@@ -50,21 +52,19 @@ export function SessionProvider({ children }: SessionProviderProps) {
             if (response.data && !isEqual(response.data, decodedUser)) {
               removeCookie();
               dispatch(setUser(null));
-              redirect();
+              redirectToLogin(router);
             }
           } catch (error) {
             removeCookie();
             dispatch(setUser(null));
-            redirect();
+            redirectToLogin(router);
           }
         } else {
-          redirect();
+          redirectToLogin(router);
         }
       }
     }
-    function redirect() {
-      router.push("/auth/login");
-    }
+
     fetchUser();
   }, []);
 
@@ -100,13 +100,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
   async function logout() {
     if (user) {
       try {
-        await api.post("/auth/logout");
+        await api.delete("/auth/logout");
       } catch (error: any) {
         console.error("Logout failed", error);
       }
     }
     removeCookie();
     dispatch(setUser(null));
+    persistor.purge();
   }
 
   return (

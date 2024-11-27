@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { decode } from "./lib/jwt";
 import { cookies } from "next/headers";
 
-const protectedRoutes = ["/dashboard"];
+const protectedRoutes = ["/manage"];
 const publicRoutes = ["/auth/login"];
 
 const cookieName = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME;
@@ -25,9 +25,9 @@ export async function middleware(req: NextRequest) {
   if (
     isPublicRoute &&
     session?.id &&
-    !req.nextUrl.pathname.startsWith("/dashboard")
+    !req.nextUrl.pathname.startsWith("/manage")
   ) {
-    return NextResponse.redirect(new URL("/dashboard", req.nextUrl));
+    return NextResponse.redirect(new URL("/manage", req.nextUrl));
   }
 
   return NextResponse.next();

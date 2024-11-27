@@ -51,7 +51,7 @@ export default function LoginPage() {
         password,
       });
 
-      router.push("/dashboard");
+      router.push("/manage");
     } catch (err) {
       const error = err as LoginError;
       form.setError("email", {
