@@ -19,7 +19,8 @@ export default class AuthController {
         httpOnly: true,
         sameSite: 'strict',
         secure: app.inProduction,
-        expires: new Date('9999-12-31T23:59:59.999Z'),
+        expires: new Date(2147483647 * 1000),
+        maxAge: undefined,
       })
     }
 
@@ -37,7 +38,8 @@ export default class AuthController {
         httpOnly: true,
         sameSite: 'strict',
         secure: app.inProduction,
-        expires: new Date('9999-12-31T23:59:59.999Z'),
+        expires: new Date(2147483647 * 1000),
+        maxAge: undefined,
       })
     }
 
