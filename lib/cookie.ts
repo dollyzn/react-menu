@@ -4,7 +4,7 @@ const COOKIE_NAME = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME;
 
 function setCookie(token: string) {
   cookie.set(COOKIE_NAME as string, token, {
-    expires: 7,
+    expires: new Date(2147483647 * 1000),
     secure: process.env.NODE_ENV === "production",
     sameSite: "strict",
   });
