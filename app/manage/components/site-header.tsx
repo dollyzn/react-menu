@@ -1,4 +1,3 @@
-import { ModeSwitcher } from "@/components/mode-switcher";
 import { MainNav } from "./main-nav";
 import { MobileNav } from "./mobile-nav";
 import { UserNav } from "./user-nav";

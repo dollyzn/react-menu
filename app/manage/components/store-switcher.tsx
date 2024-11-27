@@ -54,7 +54,9 @@ type PopoverTriggerProps = React.ComponentPropsWithoutRef<
   typeof PopoverTrigger
 >;
 
-interface StoreSwitcherProps extends PopoverTriggerProps {}
+interface StoreSwitcherProps extends PopoverTriggerProps {
+  className?: string;
+}
 
 export default function StoreSwitcher({ className }: StoreSwitcherProps) {
   const [open, setOpen] = React.useState(false);
