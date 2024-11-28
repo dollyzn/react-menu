@@ -43,21 +43,28 @@ export function MobileNav() {
         <div className="overflow-auto p-6">
           <div className="flex flex-col space-y-3">
             <MobileLink
-              href="/categories"
+              href="/manage/overview"
+              onOpenChange={setOpen}
+              className="text-muted-foreground"
+            >
+              Visão Geral
+            </MobileLink>
+            <MobileLink
+              href="/manage/categories"
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >
               Categorias
             </MobileLink>
             <MobileLink
-              href="/items"
+              href="/manage/items"
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >
               Items
             </MobileLink>
             <MobileLink
-              href="/addons"
+              href="/manage/addons"
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >

@@ -11,10 +11,21 @@ export function MainNav() {
     <div className="mr-4 hidden min-[576px]:flex items-center">
       <nav className="flex items-center gap-4 text-sm xl:gap-6">
         <Link
-          href="/categories"
+          href="/manage/overview"
           className={cn(
             "transition-colors hover:text-foreground/80",
-            pathname === "/categories"
+            pathname === "/manage/overview"
+              ? "text-foreground"
+              : "text-foreground/80"
+          )}
+        >
+          Visão Geral
+        </Link>
+        <Link
+          href="/manage/categories"
+          className={cn(
+            "transition-colors hover:text-foreground/80",
+            pathname === "/manage/categories"
               ? "text-foreground"
               : "text-foreground/80"
           )}
@@ -22,19 +33,23 @@ export function MainNav() {
           Categorias
         </Link>
         <Link
-          href="/items"
+          href="/manage/items"
           className={cn(
             "transition-colors hover:text-foreground/80",
-            pathname === "/items" ? "text-foreground" : "text-foreground/80"
+            pathname === "/manage/items"
+              ? "text-foreground"
+              : "text-foreground/80"
           )}
         >
           Items
         </Link>
         <Link
-          href="/addons"
+          href="/manage/addons"
           className={cn(
             "transition-colors hover:text-foreground/80",
-            pathname === "/addons" ? "text-foreground" : "text-foreground/80"
+            pathname === "/manage/addons"
+              ? "text-foreground"
+              : "text-foreground/80"
           )}
         >
           Adicionais

@@ -2,8 +2,8 @@
 
 import { useSession } from "@/providers/session-provider";
 
-export default function Dashboard() {
+export default function Store() {
   const { user } = useSession();
 
-  return <div>Hello, {user?.name}</div>;
+  return <div>Olá, {user?.name}</div>;
 }
