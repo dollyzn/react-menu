@@ -1,4 +1,12 @@
-import { ArrowLeft, MapPin, Search, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  CircleUserRound,
+  MapPin,
+  Search,
+  Star,
+  User,
+  UserRound,
+} from "lucide-react";
 import { ModeSwitcher } from "@/components/mode-switcher";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -6,17 +14,20 @@ import { Button } from "@/components/ui/button";
 import banner from "../public/banner.jpg";
 import logo from "../public/logo.png";
 import Image from "next/image";
+import { redirectToLogin } from "@/utils/navigation";
+import { useRouter } from "next/navigation";
 
 interface MenuHeaderProps {
   filter: string;
   setFilter: React.Dispatch<React.SetStateAction<string>>;
 }
 export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
+  const router = useRouter();
+
   return (
     <header className="flex flex-col w-full pt-8">
       {/* Search bar */}
-
-      <div className="py-4 z-50 flex items-center gap-2 fixed top-0 bg-background w-full max-w-[500px]">
+      <div className="py-4 z-50 flex items-center gap-2 fixed top-0 left-1/2 -translate-x-1/2 bg-background w-full min-[502px]:w-[500px] px-2">
         {filter && (
           <Button variant="outline" size="icon" onClick={() => setFilter("")}>
             <ArrowLeft />
@@ -33,6 +44,13 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
           />
         </div>
         <ModeSwitcher />
+        <Button
+          size="icon"
+          variant="outline"
+          onClick={() => redirectToLogin(router)}
+        >
+          <User />
+        </Button>
       </div>
 
       {!filter && (

@@ -7,9 +7,9 @@ export const api: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-let token: string | undefined;
-export function injectToken(_token: string | undefined) {
-  token = _token;
+let logout: (() => void) | undefined;
+export function injectLogout(_logout: (() => void) | undefined): void {
+  logout = _logout;
 }
 
 api.interceptors.request.use(async (config: InternalAxiosRequestConfig) => {
@@ -42,6 +42,7 @@ api.interceptors.response.use(
 
         case 401:
           error.code = "UNAUTHORIZED";
+          if (logout) logout();
           break;
 
         case 400:

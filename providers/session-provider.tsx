@@ -3,7 +3,7 @@ import { createContext, useContext, ReactNode, useEffect } from "react";
 import { encode, decode } from "../lib/jwt";
 import { setCookie, removeCookie, getCookie } from "../lib/cookie";
 import { useRouter } from "next/navigation";
-import { api } from "./request-provider";
+import { api, injectLogout } from "./request-provider";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { setUser } from "@/redux/slices/auth";
@@ -109,6 +109,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
     dispatch(setUser(null));
     persistor.purge();
   }
+
+  injectLogout(logout);
 
   return (
     <SessionContext.Provider value={{ user, login, logout }}>

@@ -23,7 +23,7 @@ export function ModeSwitcher() {
   }, []);
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <DropdownMenuTrigger asChild>
         <Button variant="outline" size="icon">
           {mounted ? (

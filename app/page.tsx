@@ -278,7 +278,7 @@ export default function Menu() {
 
   return (
     <main className="min-h-screen pb-8 flex justify-center">
-      <div className="w-full max-w-[500px]">
+      <div className="w-full max-w-[500px] px-2">
         <Tabs
           value={activeTab}
           onValueChange={(value) => {
