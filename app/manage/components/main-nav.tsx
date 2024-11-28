@@ -8,7 +8,7 @@ export function MainNav() {
   const pathname = usePathname();
 
   return (
-    <div className="mr-4 hidden min-[576px]:flex items-center">
+    <div className="mr-4 hidden sm:flex items-center">
       <nav className="flex items-center gap-4 text-sm xl:gap-6">
         <Link
           href="/manage/overview"

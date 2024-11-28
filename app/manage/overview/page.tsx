@@ -70,8 +70,8 @@ export default function Overview() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4">
+      <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
           <CardHeader>
             <CardTitle>Visão Geral</CardTitle>
           </CardHeader>
@@ -79,7 +79,7 @@ export default function Overview() {
             <OverviewChart />
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Itens Recentes</CardTitle>
           </CardHeader>
