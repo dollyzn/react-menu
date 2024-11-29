@@ -265,11 +265,17 @@ export default function Store() {
           </CardHeader>
           <CardContent className="px-6 py-0">
             <Tabs value={activeTab} className="w-full">
-              <TabsList className="w-full">
-                <TabsTrigger value="categories" className="flex-1">
+              <TabsList className="w-full cursor-not-allowed">
+                <TabsTrigger
+                  value="categories"
+                  className="flex-1 cursor-not-allowed"
+                >
                   Categorias
                 </TabsTrigger>
-                <TabsTrigger value="items" className="flex-1">
+                <TabsTrigger
+                  value="items"
+                  className="flex-1 cursor-not-allowed "
+                >
                   Produtos
                 </TabsTrigger>
               </TabsList>
@@ -284,13 +290,14 @@ export default function Store() {
                       { id: 5, name: "Porções" },
                       { id: 6, name: "Bebidas" },
                     ]}
+                    itemButton={<Button variant="ghost">Ver produtos</Button>}
                     onItemClick={(item) => handleCategoryClick(item)} // Click handler
                   />
                 </ScrollArea>
               </TabsContent>
               <TabsContent value="items">
                 <ScrollArea className="h-[258px] pr-4 py-0">
-                  <div className="flex items-center justify-between pb-2 sticky top-0 bg-background">
+                  <div className="flex items-center justify-between pb-2 sticky top-0 bg-background z-20">
                     <CardTitle>{selectedCategory?.name}</CardTitle>
                     <Button variant="ghost" size="sm" onClick={handleBack}>
                       <ArrowLeft className="mr-1 h-4 w-4" />
@@ -334,7 +341,6 @@ export default function Store() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Button
-              variant="outline"
               className="h-24 flex flex-col items-center justify-center"
               onClick={() => router.push("/manage/overview")}
             >
@@ -342,7 +348,6 @@ export default function Store() {
               Visão Geral
             </Button>
             <Button
-              variant="outline"
               className="h-24 flex flex-col items-center justify-center"
               onClick={() => router.push("/manage/categories")}
             >
@@ -350,7 +355,6 @@ export default function Store() {
               Categorias
             </Button>
             <Button
-              variant="outline"
               className="h-24 flex flex-col items-center justify-center"
               onClick={() => router.push("/manage/items")}
             >
@@ -358,7 +362,6 @@ export default function Store() {
               Items
             </Button>
             <Button
-              variant="outline"
               className="h-24 flex flex-col items-center justify-center"
               onClick={() => router.push("/manage/addons")}
             >

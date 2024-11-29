@@ -20,12 +20,17 @@ export interface Item {
   name: string;
 }
 
+type ItemButton = React.ReactElement<
+  React.ButtonHTMLAttributes<HTMLButtonElement>
+>;
+
 interface SortableItemProps {
   item: Item;
+  button?: ItemButton;
   onClick?: (item: Item) => void;
 }
 
-const SortableItem = ({ item, onClick }: SortableItemProps) => {
+const SortableItem = ({ item, button, onClick }: SortableItemProps) => {
   const {
     attributes,
     listeners,
@@ -47,14 +52,20 @@ const SortableItem = ({ item, onClick }: SortableItemProps) => {
       ref={setNodeRef}
       style={style}
       {...attributes}
-      className="flex items-center gap-2 p-3 bg-muted rounded-lg cursor-default"
-      onClick={() => (onClick ? onClick(item) : null)}
+      className="flex justify-between items-center gap-2 p-3 border bg-card rounded-lg cursor-default"
+      onClick={!button ? () => (onClick ? onClick(item) : null) : undefined}
     >
-      <GripVertical
-        {...listeners}
-        className="h-4 w-4 text-muted-foreground cursor-grab"
-      />
-      <span>{item.name}</span>
+      <div className="flex items-center gap-2">
+        <GripVertical
+          {...listeners}
+          className="h-4 w-4 text-muted-foreground cursor-grab"
+        />
+        <span>{item.name}</span>
+      </div>
+      {button &&
+        React.cloneElement(button, {
+          onClick: () => (onClick ? onClick(item) : null),
+        })}
     </div>
   );
 };
@@ -63,10 +74,12 @@ interface SortableListProps {
   items: Item[];
   onOrderChange?: (newOrder: Item[]) => void;
   onItemClick?: (item: Item) => void;
+  itemButton?: ItemButton;
 }
 
 export default function SortableList({
   items,
+  itemButton,
   onOrderChange,
   onItemClick,
 }: SortableListProps) {
@@ -118,15 +131,23 @@ export default function SortableList({
       >
         <div className="space-y-2">
           {_items.map((item) => (
-            <SortableItem key={item.id} item={item} onClick={onItemClick} />
+            <SortableItem
+              key={item.id}
+              item={item}
+              button={itemButton}
+              onClick={onItemClick}
+            />
           ))}
         </div>
       </SortableContext>
       <DragOverlay>
         {activeId ? (
-          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg shadow-lg cursor-default">
-            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grabbing" />
-            <span>{_items.find((item) => item.id === activeId)?.name}</span>
+          <div className="flex justify-between items-center gap-2 p-3 border bg-card rounded-lg shadow-lg cursor-default">
+            <div className="flex items-center gap-2">
+              <GripVertical className="h-4 w-4 text-muted-foreground cursor-grabbing" />
+              <span>{_items.find((item) => item.id === activeId)?.name}</span>
+            </div>
+            {itemButton && React.cloneElement(itemButton)}
           </div>
         ) : null}
       </DragOverlay>
