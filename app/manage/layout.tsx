@@ -16,7 +16,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
   useLayoutEffect(() => {
     if (!user) redirectToLogin(router);
-  }, []);
+  });
 
   return (
     <div data-wrapper="" className="border-border/40 dark:border-border">

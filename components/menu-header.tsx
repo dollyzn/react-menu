@@ -1,12 +1,4 @@
-import {
-  ArrowLeft,
-  CircleUserRound,
-  MapPin,
-  Search,
-  Star,
-  User,
-  UserRound,
-} from "lucide-react";
+import { ArrowLeft, MapPin, Search, Star, User } from "lucide-react";
 import { ModeSwitcher } from "@/components/mode-switcher";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -26,7 +18,6 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
 
   return (
     <header className="flex flex-col w-full pt-8">
-      {/* Search bar */}
       <div className="py-4 z-50 flex items-center gap-2 fixed top-0 left-1/2 -translate-x-1/2 bg-background w-full min-[502px]:w-[500px] px-2">
         {filter && (
           <Button variant="outline" size="icon" onClick={() => setFilter("")}>
@@ -55,8 +46,6 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
 
       {!filter && (
         <>
-          {" "}
-          {/* Menu banner */}
           <div className="relative h-48 w-full ">
             <Image
               priority
@@ -65,7 +54,6 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
               className="w-full h-full object-cover rounded-t-xl"
             />
           </div>
-          {/* Info */}
           <Card className="-mt-4 relative bg-zinc-50 dark:bg-black dark:text-white p-4 border-none">
             <div className="flex items-start gap-4">
               <div className="h-16 w-16 overflow-hidden">
@@ -82,26 +70,13 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
                     Aberto
                   </span>
                   <div className="flex gap-1 items-center">
-                    <Star
-                      size={16}
-                      className="fill-yellow-500 text-yellow-500"
-                    />
-                    <Star
-                      size={16}
-                      className="fill-yellow-500 text-yellow-500"
-                    />
-                    <Star
-                      size={16}
-                      className="fill-yellow-500 text-yellow-500"
-                    />
-                    <Star
-                      size={16}
-                      className="fill-yellow-500 text-yellow-500"
-                    />
-                    <Star
-                      size={16}
-                      className="fill-yellow-500 text-yellow-500"
-                    />
+                    {Array.from({ length: 5 }).map((_, index) => (
+                      <Star
+                        key={index}
+                        size={16}
+                        className="fill-yellow-500 text-yellow-500"
+                      />
+                    ))}
                   </div>
                 </div>
                 <div className="flex gap-1 items-center text-sm mt-1 text-zinc-400">
