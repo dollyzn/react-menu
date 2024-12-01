@@ -46,10 +46,18 @@ export default class AuthController {
     return user
   }
 
-  async logout({ auth }: HttpContext) {
+  async logout({ auth, response }: HttpContext) {
     const user = auth.user!
 
     await User.accessTokens.delete(user, user.currentAccessToken.identifier)
+
+    response.cookie(this.cookieName, '', {
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: app.inProduction,
+      expires: new Date(0),
+      maxAge: undefined,
+    })
 
     return { message: 'success' }
   }
