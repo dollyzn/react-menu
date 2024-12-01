@@ -2,7 +2,7 @@
 import { createContext, useContext, ReactNode, useEffect } from "react";
 import { encode, decode } from "../lib/jwt";
 import { setCookie, removeCookie, getCookie } from "../lib/cookie";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { api, injectLogout } from "./request-provider";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
@@ -35,14 +35,18 @@ interface SessionProviderProps {
   children: ReactNode;
 }
 
+const publicRoutes = ["/auth/login", "/"];
+
 export function SessionProvider({ children }: SessionProviderProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector((state: RootState) => state.auth.user);
 
   useEffect(() => {
     async function fetchUser() {
+      if (publicRoutes.includes(pathname)) return;
       const token = getCookie();
       if (token) {
         const decodedUser = decode(token);

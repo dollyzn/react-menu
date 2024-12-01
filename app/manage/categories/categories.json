@@ -1,0 +1,168 @@
+[
+  {
+    "id": "cat1",
+    "name": "Beverages",
+    "storeId": 101,
+    "description": "A wide selection of refreshing drinks, from sodas to freshly squeezed juices, perfect to complement your meal.",
+    "createdAt": "2024-11-30T10:00:00Z",
+    "updatedAt": "2024-11-30T10:00:00Z",
+    "items": [
+      { "id": "item1", "name": "Coca-Cola", "price": 2.5 },
+      { "id": "item2", "name": "Orange Juice", "price": 3.0 }
+    ]
+  },
+  {
+    "id": "cat2",
+    "name": "Appetizers",
+    "storeId": 102,
+    "description": "Start your meal with our flavorful appetizers, carefully crafted to tease your taste buds.",
+    "createdAt": "2024-11-29T15:30:00Z",
+    "updatedAt": "2024-11-29T16:00:00Z",
+    "items": [
+      { "id": "item3", "name": "French Fries", "price": 4.0 },
+      { "id": "item4", "name": "Spring Rolls", "price": 5.5 }
+    ]
+  },
+  {
+    "id": "cat3",
+    "name": "Main Courses",
+    "storeId": 103,
+    "description": "Delight in our hearty main courses, featuring a variety of cuisines to suit every palate.",
+    "createdAt": "2024-11-28T12:00:00Z",
+    "updatedAt": "2024-11-28T12:30:00Z",
+    "items": [
+      { "id": "item5", "name": "Grilled Chicken", "price": 12.0 },
+      { "id": "item6", "name": "Beef Steak", "price": 15.0 }
+    ]
+  },
+  {
+    "id": "cat4",
+    "name": "Desserts",
+    "storeId": 104,
+    "description": "Indulge in our sweet treats, a perfect ending to your meal with delicious and beautifully crafted desserts.",
+    "createdAt": "2024-11-27T11:00:00Z",
+    "updatedAt": "2024-11-27T11:15:00Z",
+    "items": [
+      { "id": "item7", "name": "Chocolate Cake", "price": 6.0 },
+      { "id": "item8", "name": "Ice Cream", "price": 3.5 }
+    ]
+  },
+  {
+    "id": "cat5",
+    "name": "Soups",
+    "storeId": 105,
+    "description": "Enjoy our selection of warm and comforting soups, perfect for any time of the day.",
+    "createdAt": "2024-11-26T14:00:00Z",
+    "updatedAt": "2024-11-26T14:20:00Z",
+    "items": [
+      { "id": "item9", "name": "Tomato Soup", "price": 4.5 },
+      { "id": "item10", "name": "Chicken Soup", "price": 5.0 }
+    ]
+  },
+  {
+    "id": "cat6",
+    "name": "Salads",
+    "storeId": 106,
+    "description": "Fresh and healthy salads made with crisp vegetables, delightful dressings, and premium ingredients.",
+    "createdAt": "2024-11-25T10:00:00Z",
+    "updatedAt": "2024-11-25T10:10:00Z",
+    "items": [
+      { "id": "item11", "name": "Caesar Salad", "price": 7.0 },
+      { "id": "item12", "name": "Greek Salad", "price": 6.5 }
+    ]
+  },
+  {
+    "id": "cat7",
+    "name": "Breakfast",
+    "storeId": 107,
+    "description": "Start your day right with our delicious breakfast options, crafted to energize your morning.",
+    "createdAt": "2024-11-24T08:00:00Z",
+    "updatedAt": "2024-11-24T08:30:00Z",
+    "items": [
+      { "id": "item13", "name": "Pancakes", "price": 5.0 },
+      { "id": "item14", "name": "Scrambled Eggs", "price": 4.0 }
+    ]
+  },
+  {
+    "id": "cat8",
+    "name": "Snacks",
+    "storeId": 108,
+    "description": "A range of quick bites and light snacks to keep you going throughout the day.",
+    "createdAt": "2024-11-23T13:00:00Z",
+    "updatedAt": "2024-11-23T13:10:00Z",
+    "items": [
+      { "id": "item15", "name": "Potato Chips", "price": 2.0 },
+      { "id": "item16", "name": "Pretzels", "price": 2.5 }
+    ]
+  },
+  {
+    "id": "cat9",
+    "name": "Vegan Options",
+    "storeId": 109,
+    "description": "Explore our plant-based menu featuring flavorful vegan dishes for a guilt-free dining experience.",
+    "createdAt": "2024-11-23T18:00:00Z",
+    "updatedAt": "2024-11-23T18:30:00Z",
+    "items": [
+      { "id": "item17", "name": "Vegan Burger", "price": 8.0 },
+      { "id": "item18", "name": "Vegan Pizza", "price": 9.0 }
+    ]
+  },
+  {
+    "id": "cat10",
+    "name": "Seafood",
+    "storeId": 110,
+    "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+    "createdAt": "2024-11-21T19:00:00Z",
+    "updatedAt": "2024-11-21T19:30:00Z",
+    "items": [
+      {
+        "id": "item19",
+        "name": "Grilled Salmon",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 13.5
+      },
+      {
+        "id": "item20",
+        "name": "Shrimp Pasta",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 12.0
+      },
+      {
+        "id": "item19",
+        "name": "Grilled Salmon",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 13.5
+      },
+      {
+        "id": "item20",
+        "name": "Shrimp Pasta",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 12.0
+      },
+      {
+        "id": "item19",
+        "name": "Grilled Salmon",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 13.5
+      },
+      {
+        "id": "item20",
+        "name": "Shrimp Pasta",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 12.0
+      },
+      {
+        "id": "item19",
+        "name": "Grilled Salmon",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 13.5
+      },
+      {
+        "id": "item20",
+        "name": "Shrimp Pasta",
+        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
+        "price": 12.0
+      }
+    ]
+  }
+]
