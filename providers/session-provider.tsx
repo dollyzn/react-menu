@@ -1,4 +1,5 @@
 "use client";
+
 import { createContext, useContext, ReactNode, useEffect } from "react";
 import { encode, decode } from "../lib/jwt";
 import { setCookie, removeCookie, getCookie } from "../lib/cookie";
@@ -25,6 +26,7 @@ interface SessionContextData {
     password: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  verify: (shouldRedirect?: boolean) => Promise<boolean>;
 }
 
 const SessionContext = createContext<SessionContextData>(
@@ -45,31 +47,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const user = useSelector((state: RootState) => state.auth.user);
 
   useEffect(() => {
-    async function fetchUser() {
-      if (publicRoutes.includes(pathname)) return;
-      const token = getCookie();
-      if (token) {
-        const decodedUser = decode(token);
-        if (decodedUser) {
-          try {
-            const response = await api.get<User>("/auth/me");
-            if (response.data && !isEqual(response.data, decodedUser)) {
-              removeCookie();
-              dispatch(setUser(null));
-              redirectToLogin(router);
-            }
-          } catch (error) {
-            removeCookie();
-            dispatch(setUser(null));
-            redirectToLogin(router);
-          }
-        } else {
-          redirectToLogin(router);
-        }
-      }
-    }
-
-    fetchUser();
+    verify(true);
   }, []);
 
   async function login({
@@ -116,8 +94,43 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   injectLogout(logout);
 
+  async function verify(shouldRedirect: boolean = false): Promise<boolean> {
+    const token = getCookie();
+    if (token) {
+      const decodedUser = decode(token);
+      if (decodedUser) {
+        try {
+          const response = await api.get<User>("/auth/me");
+          console.log(decodedUser);
+
+          if (response.data && !isEqual(response.data, decodedUser)) {
+            removeCookie();
+            dispatch(setUser(null));
+            if (shouldRedirect) redirect();
+            return false;
+          }
+        } catch (error) {
+          removeCookie();
+          dispatch(setUser(null));
+          if (shouldRedirect) redirect();
+          return false;
+        }
+      } else {
+        if (shouldRedirect) redirect();
+        return false;
+      }
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  function redirect() {
+    if (!publicRoutes.includes(pathname)) redirectToLogin(router);
+  }
+
   return (
-    <SessionContext.Provider value={{ user, login, logout }}>
+    <SessionContext.Provider value={{ user, login, logout, verify }}>
       {children}
     </SessionContext.Provider>
   );

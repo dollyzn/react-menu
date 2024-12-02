@@ -1,13 +1,13 @@
-import { ArrowLeft, MapPin, Search, Star, User } from "lucide-react";
-import { ModeSwitcher } from "@/components/mode-switcher";
+import { ArrowLeft, MapPin, Search, Star } from "lucide-react";
+import { ModeSwitcher } from "./mode-switcher";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import banner from "../public/banner.jpg";
-import logo from "../public/logo.png";
-import Image from "next/image";
-import { redirectToLogin } from "@/utils/navigation";
 import { useRouter } from "next/navigation";
+import { LoginDialog } from "./login-dialog";
+import banner from "../../public/banner.jpg";
+import logo from "../../public/logo.png";
+import Image from "next/image";
 
 interface MenuHeaderProps {
   filter: string;
@@ -35,13 +35,7 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
           />
         </div>
         <ModeSwitcher />
-        <Button
-          size="icon"
-          variant="outline"
-          onClick={() => redirectToLogin(router)}
-        >
-          <User />
-        </Button>
+        <LoginDialog />
       </div>
 
       {!filter && (

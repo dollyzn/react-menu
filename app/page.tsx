@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MenuHeader } from "@/components/menu-header";
+import { MenuHeader } from "./components/menu-header";
 import { Frown } from "lucide-react";
 
 type MenuItem = {
@@ -227,8 +227,6 @@ export default function Menu() {
     const observerCallback: IntersectionObserverCallback = (entries) => {
       entries.forEach((entry) => {
         if (entry.isIntersecting) {
-          console.log(entry.target.id, entry.isIntersecting);
-
           setActiveTab(entry.target.id);
           centerActiveTab(entry.target.id);
         }

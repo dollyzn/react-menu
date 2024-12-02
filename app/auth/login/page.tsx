@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Eye, EyeOff, Lock, User } from "lucide-react";
+import { Eye, EyeOff, Lock, User, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -73,12 +74,12 @@ export default function LoginPage() {
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl font-semibold">Login</CardTitle>
           <CardDescription>
-            Digite suas credencias para acessar sua conta
+            Digite suas credenciais para acessar sua conta
           </CardDescription>
         </CardHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 pb-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -142,10 +143,21 @@ export default function LoginPage() {
                 )}
               />
             </CardContent>
-            <CardFooter>
+            <CardFooter className="flex-col space-y-3">
               <Button className="w-full" type="submit" loading={isSubmitting}>
                 Entrar
               </Button>
+
+              <Link href="/" passHref>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                >
+                  <ArrowLeft />
+                  Página Principal
+                </Button>
+              </Link>
             </CardFooter>
           </form>
         </Form>
