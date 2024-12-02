@@ -8,4 +8,5 @@ interface Item {
   createdAt: string;
   updatedAt: string;
   category?: Omit<Category, "items">;
+  addons?: Omit<Addon, "items">[];
 }

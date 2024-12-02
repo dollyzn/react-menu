@@ -5,5 +5,5 @@ interface Category {
   description: string | null;
   createdAt: string;
   updatedAt: string;
-  items?: Omit<Item, "category">[];
+  items?: Omit<Item, "category", "addons">[];
 }

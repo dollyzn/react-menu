@@ -1,0 +1,52 @@
+[
+  {
+    "id": "addon1",
+    "storeId": 1,
+    "name": "Extra Cheese",
+    "description": "A generous portion of extra melted cheese.",
+    "price": 2.5,
+    "photoUrl": "https://example.com/images/extra-cheese.jpg",
+    "createdAt": "2024-11-30T10:00:00Z",
+    "updatedAt": "2024-11-30T10:00:00Z"
+  },
+  {
+    "id": "addon2",
+    "storeId": 1,
+    "name": "Bacon Bits",
+    "description": "Crispy bacon bits to add flavor to your meal.",
+    "price": 3.0,
+    "photoUrl": "https://example.com/images/bacon-bits.jpg",
+    "createdAt": "2024-11-30T11:00:00Z",
+    "updatedAt": "2024-11-30T11:00:00Z"
+  },
+  {
+    "id": "addon3",
+    "storeId": 2,
+    "name": "Avocado Slices",
+    "description": "Freshly sliced avocado.",
+    "price": 1.5,
+    "photoUrl": "https://example.com/images/avocado-slices.jpg",
+    "createdAt": "2024-11-29T09:30:00Z",
+    "updatedAt": "2024-11-29T09:30:00Z"
+  },
+  {
+    "id": "addon4",
+    "storeId": 2,
+    "name": "Spicy Mayo",
+    "description": "A spicy kick to enhance your dish.",
+    "price": 1.0,
+    "photoUrl": "https://example.com/images/spicy-mayo.jpg",
+    "createdAt": "2024-11-28T15:45:00Z",
+    "updatedAt": "2024-11-28T15:45:00Z"
+  },
+  {
+    "id": "addon5",
+    "storeId": 3,
+    "name": "Garlic Bread",
+    "description": "Toasted garlic bread, perfect as a side.",
+    "price": 2.0,
+    "photoUrl": "https://example.com/images/garlic-bread.jpg",
+    "createdAt": "2024-11-27T13:20:00Z",
+    "updatedAt": "2024-11-27T13:20:00Z"
+  }
+]
