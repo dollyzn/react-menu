@@ -148,7 +148,7 @@ export function RowActions({ row, table }: RowActionsProps<Category>) {
                   <span className="font-bold">{row.original.name}</span> junto
                   com todos os seus{" "}
                   <span className="font-bold">
-                    {row.original.items.length} itens
+                    {row.original.items?.length} itens
                   </span>{" "}
                   relacionados. Esta ação não pode ser desfeita.
                 </>

@@ -37,20 +37,7 @@ export function DataTableFacetedFilter<TData, TValue>({
   options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column?.getFacetedUniqueValues();
-
-  const selectedValues = React.useMemo(() => {
-    return new Set(column?.getFilterValue() as string[]);
-  }, [column]);
-
-  const searchParams = useSearchParams();
-  const searchValue = searchParams.get(title as string);
-
-  React.useEffect(() => {
-    if (searchValue && options.some((option) => option.value === searchValue)) {
-      selectedValues.add(searchValue);
-      column?.setFilterValue(Array.from(selectedValues));
-    }
-  }, [searchValue, selectedValues, options, column]);
+  const selectedValues = new Set(column?.getFilterValue() as string[]);
 
   return (
     <Popover>

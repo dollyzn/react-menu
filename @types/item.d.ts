@@ -7,5 +7,5 @@ interface Item {
   photoUrl: string | null;
   createdAt: string;
   updatedAt: string;
-  cetegory: Category;
+  category?: Omit<Category, "items">;
 }

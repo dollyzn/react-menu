@@ -5,6 +5,5 @@ interface Category {
   description: string | null;
   createdAt: string;
   updatedAt: string;
-  //store: Store;
-  items: Items[];
+  items?: Omit<Item, "category">[];
 }

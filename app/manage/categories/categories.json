@@ -7,8 +7,26 @@
     "createdAt": "2024-11-30T10:00:00Z",
     "updatedAt": "2024-11-30T10:00:00Z",
     "items": [
-      { "id": "item1", "name": "Coca-Cola", "price": 2.5 },
-      { "id": "item2", "name": "Orange Juice", "price": 3.0 }
+      {
+        "id": "item1",
+        "categoryId": "123",
+        "name": "Coca-Cola",
+        "description": "A refreshing carbonated soft drink.",
+        "price": 2.5,
+        "photoUrl": "https://example.com/coca-cola.jpg",
+        "createdAt": "2024-11-30T10:00:00Z",
+        "updatedAt": "2024-11-30T10:00:00Z"
+      },
+      {
+        "id": "item2",
+        "categoryId": "123",
+        "name": "Orange Juice",
+        "description": "Freshly squeezed orange juice.",
+        "price": 3.0,
+        "photoUrl": "https://example.com/orange-juice.jpg",
+        "createdAt": "2024-11-30T10:00:00Z",
+        "updatedAt": "2024-11-30T10:00:00Z"
+      }
     ]
   },
   {
@@ -19,8 +37,26 @@
     "createdAt": "2024-11-29T15:30:00Z",
     "updatedAt": "2024-11-29T16:00:00Z",
     "items": [
-      { "id": "item3", "name": "French Fries", "price": 4.0 },
-      { "id": "item4", "name": "Spring Rolls", "price": 5.5 }
+      {
+        "id": "item3",
+        "categoryId": "123",
+        "name": "French Fries",
+        "description": "Crispy golden french fries.",
+        "price": 4.0,
+        "photoUrl": "https://example.com/french-fries.jpg",
+        "createdAt": "2024-11-29T15:30:00Z",
+        "updatedAt": "2024-11-29T16:00:00Z"
+      },
+      {
+        "id": "item4",
+        "categoryId": "123",
+        "name": "Spring Rolls",
+        "description": "Vegetable spring rolls served with dipping sauce.",
+        "price": 5.5,
+        "photoUrl": "https://example.com/spring-rolls.jpg",
+        "createdAt": "2024-11-29T15:30:00Z",
+        "updatedAt": "2024-11-29T16:00:00Z"
+      }
     ]
   },
   {
@@ -31,8 +67,26 @@
     "createdAt": "2024-11-28T12:00:00Z",
     "updatedAt": "2024-11-28T12:30:00Z",
     "items": [
-      { "id": "item5", "name": "Grilled Chicken", "price": 12.0 },
-      { "id": "item6", "name": "Beef Steak", "price": 15.0 }
+      {
+        "id": "item5",
+        "categoryId": "123",
+        "name": "Grilled Chicken",
+        "description": "Juicy grilled chicken breast served with seasonal vegetables.",
+        "price": 12.0,
+        "photoUrl": "https://example.com/grilled-chicken.jpg",
+        "createdAt": "2024-11-28T12:00:00Z",
+        "updatedAt": "2024-11-28T12:30:00Z"
+      },
+      {
+        "id": "item6",
+        "categoryId": "123",
+        "name": "Beef Steak",
+        "description": "Tender beef steak cooked to perfection.",
+        "price": 15.0,
+        "photoUrl": "https://example.com/beef-steak.jpg",
+        "createdAt": "2024-11-28T12:00:00Z",
+        "updatedAt": "2024-11-28T12:30:00Z"
+      }
     ]
   },
   {
@@ -43,8 +97,26 @@
     "createdAt": "2024-11-27T11:00:00Z",
     "updatedAt": "2024-11-27T11:15:00Z",
     "items": [
-      { "id": "item7", "name": "Chocolate Cake", "price": 6.0 },
-      { "id": "item8", "name": "Ice Cream", "price": 3.5 }
+      {
+        "id": "item7",
+        "categoryId": "123",
+        "name": "Chocolate Cake",
+        "description": "Rich and moist chocolate cake topped with ganache.",
+        "price": 6.0,
+        "photoUrl": "https://example.com/chocolate-cake.jpg",
+        "createdAt": "2024-11-27T11:00:00Z",
+        "updatedAt": "2024-11-27T11:15:00Z"
+      },
+      {
+        "id": "item8",
+        "categoryId": "123",
+        "name": "Ice Cream",
+        "description": "A scoop of creamy vanilla ice cream.",
+        "price": 3.5,
+        "photoUrl": "https://example.com/ice-cream.jpg",
+        "createdAt": "2024-11-27T11:00:00Z",
+        "updatedAt": "2024-11-27T11:15:00Z"
+      }
     ]
   },
   {
@@ -55,8 +127,26 @@
     "createdAt": "2024-11-26T14:00:00Z",
     "updatedAt": "2024-11-26T14:20:00Z",
     "items": [
-      { "id": "item9", "name": "Tomato Soup", "price": 4.5 },
-      { "id": "item10", "name": "Chicken Soup", "price": 5.0 }
+      {
+        "id": "item9",
+        "categoryId": "123",
+        "name": "Tomato Soup",
+        "description": "Rich and creamy tomato soup served with croutons.",
+        "price": 4.5,
+        "photoUrl": "https://example.com/tomato-soup.jpg",
+        "createdAt": "2024-11-26T14:00:00Z",
+        "updatedAt": "2024-11-26T14:20:00Z"
+      },
+      {
+        "id": "item10",
+        "categoryId": "123",
+        "name": "Chicken Soup",
+        "description": "Classic chicken soup with herbs.",
+        "price": 5.0,
+        "photoUrl": "https://example.com/chicken-soup.jpg",
+        "createdAt": "2024-11-26T14:00:00Z",
+        "updatedAt": "2024-11-26T14:20:00Z"
+      }
     ]
   },
   {
@@ -67,8 +157,26 @@
     "createdAt": "2024-11-25T10:00:00Z",
     "updatedAt": "2024-11-25T10:10:00Z",
     "items": [
-      { "id": "item11", "name": "Caesar Salad", "price": 7.0 },
-      { "id": "item12", "name": "Greek Salad", "price": 6.5 }
+      {
+        "id": "item11",
+        "categoryId": "123",
+        "name": "Caesar Salad",
+        "description": "Crispy romaine lettuce with Caesar dressing, croutons, and parmesan.",
+        "price": 7.0,
+        "photoUrl": "https://example.com/caesar-salad.jpg",
+        "createdAt": "2024-11-25T10:00:00Z",
+        "updatedAt": "2024-11-25T10:10:00Z"
+      },
+      {
+        "id": "item12",
+        "categoryId": "123",
+        "name": "Greek Salad",
+        "description": "Fresh Greek salad with feta cheese, olives, and vinaigrette.",
+        "price": 6.5,
+        "photoUrl": "https://example.com/greek-salad.jpg",
+        "createdAt": "2024-11-25T10:00:00Z",
+        "updatedAt": "2024-11-25T10:10:00Z"
+      }
     ]
   },
   {
@@ -79,89 +187,25 @@
     "createdAt": "2024-11-24T08:00:00Z",
     "updatedAt": "2024-11-24T08:30:00Z",
     "items": [
-      { "id": "item13", "name": "Pancakes", "price": 5.0 },
-      { "id": "item14", "name": "Scrambled Eggs", "price": 4.0 }
-    ]
-  },
-  {
-    "id": "cat8",
-    "name": "Snacks",
-    "storeId": 108,
-    "description": "A range of quick bites and light snacks to keep you going throughout the day.",
-    "createdAt": "2024-11-23T13:00:00Z",
-    "updatedAt": "2024-11-23T13:10:00Z",
-    "items": [
-      { "id": "item15", "name": "Potato Chips", "price": 2.0 },
-      { "id": "item16", "name": "Pretzels", "price": 2.5 }
-    ]
-  },
-  {
-    "id": "cat9",
-    "name": "Vegan Options",
-    "storeId": 109,
-    "description": "Explore our plant-based menu featuring flavorful vegan dishes for a guilt-free dining experience.",
-    "createdAt": "2024-11-23T18:00:00Z",
-    "updatedAt": "2024-11-23T18:30:00Z",
-    "items": [
-      { "id": "item17", "name": "Vegan Burger", "price": 8.0 },
-      { "id": "item18", "name": "Vegan Pizza", "price": 9.0 }
-    ]
-  },
-  {
-    "id": "cat10",
-    "name": "Seafood",
-    "storeId": 110,
-    "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-    "createdAt": "2024-11-21T19:00:00Z",
-    "updatedAt": "2024-11-21T19:30:00Z",
-    "items": [
       {
-        "id": "item19",
-        "name": "Grilled Salmon",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 13.5
+        "id": "item13",
+        "categoryId": "123",
+        "name": "Pancakes",
+        "description": "Fluffy pancakes served with maple syrup.",
+        "price": 5.0,
+        "photoUrl": "https://example.com/pancakes.jpg",
+        "createdAt": "2024-11-24T08:00:00Z",
+        "updatedAt": "2024-11-24T08:30:00Z"
       },
       {
-        "id": "item20",
-        "name": "Shrimp Pasta",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 12.0
-      },
-      {
-        "id": "item19",
-        "name": "Grilled Salmon",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 13.5
-      },
-      {
-        "id": "item20",
-        "name": "Shrimp Pasta",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 12.0
-      },
-      {
-        "id": "item19",
-        "name": "Grilled Salmon",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 13.5
-      },
-      {
-        "id": "item20",
-        "name": "Shrimp Pasta",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 12.0
-      },
-      {
-        "id": "item19",
-        "name": "Grilled Salmon",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 13.5
-      },
-      {
-        "id": "item20",
-        "name": "Shrimp Pasta",
-        "description": "Dive into our selection of fresh seafood dishes, prepared with care to bring out natural flavors.",
-        "price": 12.0
+        "id": "item14",
+        "categoryId": "123",
+        "name": "Scrambled Eggs",
+        "description": "Creamy scrambled eggs served with toast.",
+        "price": 4.0,
+        "photoUrl": "https://example.com/scrambled-eggs.jpg",
+        "createdAt": "2024-11-24T08:00:00Z",
+        "updatedAt": "2024-11-24T08:30:00Z"
       }
     ]
   }

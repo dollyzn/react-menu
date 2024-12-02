@@ -7,6 +7,7 @@ import { Calendar, ChevronDown, History } from "lucide-react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -100,11 +101,12 @@ export const columns: ColumnDef<Category>[] = [
               <ChevronDown className="ml-2 h-4 w-4" />
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent>
             <DialogHeader>
-              <DialogTitle>
-                Itens da Categoria {row.getValue("name")}
-              </DialogTitle>
+              <DialogTitle>Itens da Categoria</DialogTitle>
+              <DialogDescription>
+                Lista dos itens da categoria {row.getValue("name")}
+              </DialogDescription>
             </DialogHeader>
             <Table>
               <TableHeader>
@@ -170,7 +172,6 @@ export const columns: ColumnDef<Category>[] = [
     cell: ({ row, table }) => <RowActions row={row} table={table} />,
     meta: {
       name: "Ações",
-      pinned: true,
     },
   },
 ];

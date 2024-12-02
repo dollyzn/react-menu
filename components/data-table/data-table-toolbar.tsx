@@ -56,7 +56,9 @@ export function DataTableToolbar<TData>({
               <DataTableFacetedFilter
                 key={columnConfig.key}
                 column={table.getColumn(columnConfig.key)}
-                title={table.getColumn(columnConfig.key)?.id || ""}
+                title={
+                  table.getColumn(columnConfig.key)?.columnDef.meta?.name || ""
+                }
                 options={columnConfig.filterOptions}
               />
             )
@@ -65,12 +67,7 @@ export function DataTableToolbar<TData>({
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => {
-              table.resetColumnFilters();
-              const url = new URL(window.location.href);
-              url.search = "";
-              window.history.replaceState(null, "", url);
-            }}
+            onClick={() => table.resetColumnFilters()}
             className="h-8 px-2 lg:px-3"
           >
             Resetar
