@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Calendar, ChevronDown, History } from "lucide-react";
+import { Calendar, ChevronDown, History, Package } from "lucide-react";
 
 import {
   Dialog,
@@ -25,6 +25,7 @@ import { ColumnsConfig } from "@/components/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HeaderActions } from "./table-header-actions";
 
 import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
@@ -117,13 +118,26 @@ export const columns: ColumnDef<Category>[] = [
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {items.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{item.name}</TableCell>
-                    <TableCell>{item.description}</TableCell>
-                    <TableCell>{formatCurrencyBRL(item.price)}</TableCell>
+                {items.length > 0 ? (
+                  items.map((item) => (
+                    <TableRow key={item.id}>
+                      <TableCell>{item.name}</TableCell>
+                      <TableCell>{item.description}</TableCell>
+                      <TableCell>{formatCurrencyBRL(item.price)}</TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={3} className="text-center">
+                      <div className="flex flex-col items-center justify-center py-4">
+                        <Package className="h-8 w-8 text-muted-foreground mb-2" />
+                        <span>
+                          Não há itens disponíveis para esta categoria
+                        </span>
+                      </div>
+                    </TableCell>
                   </TableRow>
-                ))}
+                )}
               </TableBody>
             </Table>
           </DialogContent>
@@ -169,7 +183,8 @@ export const columns: ColumnDef<Category>[] = [
 
   {
     id: "actions",
-    cell: ({ row, table }) => <RowActions row={row} table={table} />,
+    header: ({ table }) => <HeaderActions table={table} />,
+    cell: ({ row }) => <RowActions row={row} />,
     meta: {
       name: "Ações",
     },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Row, Table } from "@tanstack/react-table";
+import { Row } from "@tanstack/react-table";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -36,28 +36,14 @@ import {
 
 interface RowActionsProps<Category> {
   row: Row<Category>;
-  table: Table<Category>;
 }
 
-export function RowActions({ row, table }: RowActionsProps<Category>) {
+export function RowActions({ row }: RowActionsProps<Category>) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const selectedRows = table.getSelectedRowModel().rows;
-  const totalItems = selectedRows.reduce(
-    (acc, row) => acc + (row.original.items?.length || 0),
-    0
-  );
-
   const handleDelete = () => {
-    if (selectedRows.length > 1) {
-      console.log(
-        "Excluindo múltiplas categorias:",
-        selectedRows.map((r) => r.original)
-      );
-    } else {
-      console.log("Excluído:", row.original);
-    }
+    console.log("Excluído:", row.original);
     setIsDeleteModalOpen(false);
   };
 
@@ -132,27 +118,13 @@ export function RowActions({ row, table }: RowActionsProps<Category>) {
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              {selectedRows.length > 1 ? (
-                <>
-                  Isso excluirá{" "}
-                  <span className="font-bold">
-                    todas as {selectedRows.length} categorias
-                  </span>{" "}
-                  selecionadas junto com todos os{" "}
-                  <span className="font-bold">{totalItems} itens</span>{" "}
-                  relacionados. Esta ação não pode ser desfeita.
-                </>
-              ) : (
-                <>
-                  Isso excluirá a categoria{" "}
-                  <span className="font-bold">{row.original.name}</span> junto
-                  com todos os seus{" "}
-                  <span className="font-bold">
-                    {row.original.items?.length} itens
-                  </span>{" "}
-                  relacionados. Esta ação não pode ser desfeita.
-                </>
-              )}
+              Isso excluirá a categoria{" "}
+              <span className="font-bold">{row.original.name}</span> junto com
+              todos os seus{" "}
+              <span className="font-bold">
+                {row.original.items?.length} itens
+              </span>{" "}
+              relacionados. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

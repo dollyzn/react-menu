@@ -15,7 +15,8 @@
       "description": "A wide selection of refreshing drinks.",
       "createdAt": "2024-11-30T09:00:00Z",
       "updatedAt": "2024-11-30T09:30:00Z"
-    }
+    },
+    "addons": []
   },
   {
     "id": "item2",
@@ -33,7 +34,19 @@
       "description": "A wide selection of refreshing drinks.",
       "createdAt": "2024-11-30T09:00:00Z",
       "updatedAt": "2024-11-30T09:30:00Z"
-    }
+    },
+    "addons": [
+      {
+        "id": "addon1",
+        "storeId": 1,
+        "name": "Extra Ice",
+        "description": "Add extra ice to your drink.",
+        "price": 0.5,
+        "photoUrl": "https://example.com/images/extra-ice.jpg",
+        "createdAt": "2024-11-30T11:00:00Z",
+        "updatedAt": "2024-11-30T11:00:00Z"
+      }
+    ]
   },
   {
     "id": "item3",
@@ -51,7 +64,29 @@
       "description": "Delicious appetizers to start your meal.",
       "createdAt": "2024-11-29T14:00:00Z",
       "updatedAt": "2024-11-29T14:20:00Z"
-    }
+    },
+    "addons": [
+      {
+        "id": "addon2",
+        "storeId": 1,
+        "name": "Cheese Sauce",
+        "description": "Delicious cheese sauce to dip your fries.",
+        "price": 1.0,
+        "photoUrl": "https://example.com/images/cheese-sauce.jpg",
+        "createdAt": "2024-11-29T15:45:00Z",
+        "updatedAt": "2024-11-29T15:45:00Z"
+      },
+      {
+        "id": "addon3",
+        "storeId": 2,
+        "name": "Bacon Bits",
+        "description": "Crispy bacon bits sprinkled over fries.",
+        "price": 1.5,
+        "photoUrl": "https://example.com/images/bacon-bits.jpg",
+        "createdAt": "2024-11-29T16:00:00Z",
+        "updatedAt": "2024-11-29T16:00:00Z"
+      }
+    ]
   },
   {
     "id": "item4",
@@ -69,7 +104,8 @@
       "description": "Delicious appetizers to start your meal.",
       "createdAt": "2024-11-29T14:00:00Z",
       "updatedAt": "2024-11-29T14:20:00Z"
-    }
+    },
+    "addons": []
   },
   {
     "id": "item5",
@@ -87,7 +123,19 @@
       "description": "Hearty main courses to satisfy your hunger.",
       "createdAt": "2024-11-28T11:00:00Z",
       "updatedAt": "2024-11-28T11:30:00Z"
-    }
+    },
+    "addons": [
+      {
+        "id": "addon4",
+        "storeId": 3,
+        "name": "Garlic Sauce",
+        "description": "Homemade garlic sauce to complement your meal.",
+        "price": 1.0,
+        "photoUrl": "https://example.com/images/garlic-sauce.jpg",
+        "createdAt": "2024-11-28T15:00:00Z",
+        "updatedAt": "2024-11-28T15:00:00Z"
+      }
+    ]
   },
   {
     "id": "item6",
@@ -105,7 +153,8 @@
       "description": "Hearty main courses to satisfy your hunger.",
       "createdAt": "2024-11-28T11:00:00Z",
       "updatedAt": "2024-11-28T11:30:00Z"
-    }
+    },
+    "addons": []
   },
   {
     "id": "item7",
@@ -123,7 +172,19 @@
       "description": "Sweet treats to end your meal.",
       "createdAt": "2024-11-27T10:00:00Z",
       "updatedAt": "2024-11-27T10:20:00Z"
-    }
+    },
+    "addons": [
+      {
+        "id": "addon5",
+        "storeId": 4,
+        "name": "Vanilla Ice Cream",
+        "description": "A scoop of vanilla ice cream to accompany your dessert.",
+        "price": 2.0,
+        "photoUrl": "https://example.com/images/vanilla-ice-cream.jpg",
+        "createdAt": "2024-11-27T12:00:00Z",
+        "updatedAt": "2024-11-27T12:00:00Z"
+      }
+    ]
   },
   {
     "id": "item8",
@@ -141,7 +202,8 @@
       "description": "Sweet treats to end your meal.",
       "createdAt": "2024-11-27T10:00:00Z",
       "updatedAt": "2024-11-27T10:20:00Z"
-    }
+    },
+    "addons": []
   },
   {
     "id": "item9",
@@ -159,7 +221,8 @@
       "description": "Warm and comforting soups.",
       "createdAt": "2024-11-26T13:00:00Z",
       "updatedAt": "2024-11-26T13:30:00Z"
-    }
+    },
+    "addons": []
   },
   {
     "id": "item10",
@@ -177,6 +240,18 @@
       "description": "Warm and comforting soups.",
       "createdAt": "2024-11-26T13:00:00Z",
       "updatedAt": "2024-11-26T13:30:00Z"
-    }
+    },
+    "addons": [
+      {
+        "id": "addon6",
+        "storeId": 5,
+        "name": "Bread Croutons",
+        "description": "Fresh bread croutons to add extra crunch.",
+        "price": 0.8,
+        "photoUrl": "https://example.com/images/bread-croutons.jpg",
+        "createdAt": "2024-11-26T15:00:00Z",
+        "updatedAt": "2024-11-26T15:00:00Z"
+      }
+    ]
   }
 ]

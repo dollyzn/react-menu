@@ -36,24 +36,14 @@ import {
 
 interface RowActionsProps<Item> {
   row: Row<Item>;
-  table: Table<Item>;
 }
 
-export function RowActions({ row, table }: RowActionsProps<Item>) {
+export function RowActions({ row }: RowActionsProps<Item>) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  const selectedRows = table.getSelectedRowModel().rows;
-
   const handleDelete = () => {
-    if (selectedRows.length > 1) {
-      console.log(
-        "Excluindo múltiplos itens:",
-        selectedRows.map((r) => r.original)
-      );
-    } else {
-      console.log("Excluído:", row.original);
-    }
+    console.log("Excluído:", row.original);
     setIsDeleteModalOpen(false);
   };
 
@@ -128,19 +118,9 @@ export function RowActions({ row, table }: RowActionsProps<Item>) {
           <AlertDialogHeader>
             <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-              {selectedRows.length > 1 ? (
-                <>
-                  Isso excluirá todos os{" "}
-                  <span className="font-bold">{selectedRows.length} itens</span>{" "}
-                  selecionados. Esta ação não pode ser desfeita.
-                </>
-              ) : (
-                <>
-                  Isso excluirá o item{" "}
-                  <span className="font-bold">{row.original.name}</span>. Esta
-                  ação não pode ser desfeita.
-                </>
-              )}
+              Isso excluirá o item{" "}
+              <span className="font-bold">{row.original.name}</span>. Esta ação
+              não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

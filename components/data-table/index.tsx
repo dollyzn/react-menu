@@ -27,7 +27,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Search } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface FilterOptions {
@@ -110,7 +110,7 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
+            {table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -126,6 +126,24 @@ export function DataTable<TData, TValue>({
                   ))}
                 </TableRow>
               ))
+            ) : table.getCoreRowModel().rows.length > 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-52 text-center"
+                >
+                  <div className="max-w-[400px] mx-auto">
+                    <Search size={35} className="mx-auto mb-2" />
+                    <p className="text-lg font-semibold">
+                      Nenhum resultado encontrado
+                    </p>
+                    <p className="text-sm">
+                      Não encontramos registros que correspondam aos filtros
+                      aplicados. Tente alterar os filtros ou redefini-los.
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
             ) : (
               <TableRow>
                 <TableCell
@@ -135,7 +153,7 @@ export function DataTable<TData, TValue>({
                   <div className="max-w-[400px] mx-auto">
                     <AlertCircle size={35} className="mx-auto mb-2" />
                     <p className="text-lg font-semibold">
-                      Nenhum resultado encontrado
+                      Nenhum registro encontrado
                     </p>
                     <p className="text-sm">
                       Parece que ainda não há nenhum registro criado no sistema.
