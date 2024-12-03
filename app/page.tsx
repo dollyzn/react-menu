@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MenuHeader } from "./components/menu-header";
-import { Frown } from "lucide-react";
+import { Frown, ShoppingCart } from "lucide-react";
+import batata from "../public/batata.png";
+import Image from "next/image";
 
 type MenuItem = {
   nome: string;
@@ -319,22 +321,46 @@ export default function Menu() {
                 <h2 className="text-2xl font-semibold mb-4">{category.name}</h2>
                 <div className="space-y-4">
                   {category.items.map((item) => (
-                    <Card key={item.nome} className="p-4">
-                      <h3 className="text-lg font-semibold">{item.nome}</h3>
-                      <p className="text-gray-600 text-sm">{item.descricao}</p>
-                      <p className="text-green-600 font-bold mt-2">
-                        R$ {item.preco.toFixed(2)}
-                      </p>
+                    <Card key={item.nome} className="p-3 flex gap-4">
+                      <div className="w-24 h-24">
+                        <Image
+                          src={batata}
+                          alt="Batata frita"
+                          className="w-full h-full object-cover rounded-md"
+                        />
+                      </div>
+                      <div className="flex flex-col justify-between flex-grow gap-2">
+                        <div className="space-y-1">
+                          <h3 className="font-semibold">{item.nome}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {item.descricao}
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold">
+                          R$ {item.preco.toFixed(2)}
+                        </p>
+                      </div>
                     </Card>
                   ))}
                 </div>
               </div>
             ))
-          ) : (
-            <div className="flex flex-col items-center justify-center mt-10 text-center ">
+          ) : cardapio.length > 0 ? (
+            <div className="flex flex-col items-center justify-center mt-10 text-center">
               <Frown className="w-12 h-12 mb-4" />
               <p className="text-lg font-semibold">Nenhum produto encontrado</p>
               <p className="text-sm">Tente buscar por outro termo.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center mt-10 text-center">
+              <ShoppingCart className="w-10 h-10 mb-4" />
+              <p className="text-xl font-semibold mb-2">
+                Nenhum produto disponível
+              </p>
+              <p className="text-sm text-muted-foreground">
+                No momento, nosso cardápio está sem produtos. <br />
+                Tente novamente mais tarde.
+              </p>
             </div>
           )}
         </div>
