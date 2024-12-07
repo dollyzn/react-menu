@@ -1,0 +1,330 @@
+[
+  {
+    "name": "Pastéis Simples",
+    "itens": [
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Carne",
+        "descricao": "Recheado com Carne Moída e Temperada",
+        "preco": 12.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Queijo",
+        "descricao": "Queijo Derretido e Cremoso",
+        "preco": 12.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Frango",
+        "descricao": "Frango Desfiado e Temperado",
+        "preco": 12.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Presunto",
+        "descricao": "Presunto Triturado",
+        "preco": 12.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Calabresa",
+        "descricao": "Calabresa Triturada",
+        "preco": 12.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Brócolis",
+        "descricao": "Brócolis Destrinchado e Temperado",
+        "preco": 12.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Escarola",
+        "descricao": "Escarola Temperada Crua (cozinha por dentro do pastel)",
+        "preco": 12.0
+      }
+    ]
+  },
+
+  {
+    "name": "Pastéis Especiais",
+    "itens": [
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Pizza",
+        "descricao": "Queijo, Tomate e Orégano",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Calafrango",
+        "descricao": "Calabresa com Frango",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Palmito",
+        "descricao": "Palmito em Cubos Cozido, Temperado e Finalizado com Creme",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Bauru",
+        "descricao": "Presunto, Queijo e Orégano",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Camarão",
+        "descricao": "Camarão 7 Barbas Cozido, Temperado e Finalizado com Creme",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Carne Seca",
+        "descricao": "Carne Seca Triturada e Cozida",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Carne com Ovo",
+        "descricao": "Carne Moída com Ovo Cozido",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Carne com Queijo",
+        "descricao": "Carne Moída Acompanhada de Queijo à sua Escolha ",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de FranBacon",
+        "descricao": "Frango com Bacon em Pedaços",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Frango com Queijo",
+        "descricao": "Frango Cozido com Queijo à sua Escolha",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Brócolis com Queijo",
+        "descricao": "Brócolis Cozido com Queijo à sua Escolha",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Escarola com Queijo",
+        "descricao": "Escarola com Queijo à sua Escolha",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Presunto com Queijo",
+        "descricao": "Presunto com Queijo à sua Escolha",
+        "preco": 15.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Calabresa com Queijo",
+        "descricao": "Calabresa Triturada com Queijo à sua escolha",
+        "preco": 15.0
+      }
+    ]
+  },
+
+  {
+    "name": "Pastéis Selecionados",
+    "itens": [
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Portuguesa",
+        "descricao": "Ovo, Queijo, Presunto e Óregano",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel Vegetariano",
+        "descricao": "Brócolis, Queijo, Tomate e Azeitona",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel Vegano",
+        "descricao": "Brócolis, Escarola, Tomate e Azeitona",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de 4 Queijos",
+        "descricao": "Queijo, Catupiry, Cheddar e Parmesão",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel Frango Supremo",
+        "descricao": "Frango, Queijo, Tomate e Milho",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Camarão com Queijo",
+        "descricao": "Camarão com Queijo à sua Escolha",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Carne Seca com Queijo",
+        "descricao": "Carne Seca com Queijo à sua Escolha",
+        "preco": 18.0
+      }
+    ]
+  },
+
+  {
+    "name": "Pastéis Doces",
+    "itens": [
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Brigadeiro",
+        "descricao": "Chocolate Derretido",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de KitKat",
+        "descricao": "Creme de KitKat com Pedacinhos de KitKat",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Doce de Leite",
+        "descricao": "Recheado com Doce de leite",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel Romeu e Julieta",
+        "descricao": "Goiabada com queijo",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Nutella",
+        "descricao": "Creme de Avelã com Cacau e Leite",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Chocolate Branco",
+        "descricao": "Creme de Chocolate Branco",
+        "preco": 18.0
+      },
+      {
+        "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
+        "nome": "Pastel de Banana com Canela",
+        "descricao": "Banana Fatiada com Açúcar e Canela",
+        "preco": 18.0
+      }
+    ]
+  },
+
+  {
+    "name": "Adicionais",
+    "itens": [
+      {
+        "foto": "https://img.freepik.com/vetores-premium/sinal-de-adicao-verde-icone-do-vetor-simbolo-cruzado-de-orientacao-de-seguranca_87543-6379.jpg",
+        "nome": "Catupiry Extra",
+        "descricao": "Porção extra de catupiry",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://img.freepik.com/vetores-premium/sinal-de-adicao-verde-icone-do-vetor-simbolo-cruzado-de-orientacao-de-seguranca_87543-6379.jpg",
+        "nome": "Queijo Extra",
+        "descricao": "Porção extra de queijo",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://img.freepik.com/vetores-premium/sinal-de-adicao-verde-icone-do-vetor-simbolo-cruzado-de-orientacao-de-seguranca_87543-6379.jpg",
+        "nome": "Recheio Extra",
+        "descricao": "Adicional de Outro Recheio",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://www.cozinhatecnica.com/wp-content/uploads/2022/07/corte-o-tomate-em-cubinhos-1.jpg",
+        "nome": "Tomate",
+        "descricao": "Porção de Tomate",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://www.proteste.org.br/-/media/proteste/images/comparadores/teste%20de%20milho.jpg?rev=a008eabb-e9d4-4fe7-b3ce-b0a84a597cea&hash=4461DC2E6A2D2AA08ECDA3CF85CFF217",
+        "nome": "Milho",
+        "descricao": "Porção de Milho",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://vejario.abril.com.br/wp-content/uploads/2016/12/ovo-cozido.jpg?quality=70&strip=all",
+        "nome": "Ovo",
+        "descricao": "Um Ovo Cozido Inteiro",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://i.pinimg.com/736x/81/08/54/810854f5508cfc338d577f57d90aa9ba.jpg",
+        "nome": "Bacon",
+        "descricao": "Pedaços de Bacon",
+        "preco": 3.0
+      }
+    ]
+  },
+  {
+    "name": "Bebidas",
+    "itens": [
+      {
+        "foto": "https://a-static.mlcdn.com.br/800x560/refrigerante-coca-cola-lata-350ml-concha-y-toro-coca-cola/texasbom/ed60ee066c6511ee99c54201ac185056/6973e750fec2a106c1abf3a33fb0d4f7.jpeg",
+        "nome": "Refrigerante Coca-Cola",
+        "descricao": "Lata 350ml",
+        "preco": 5.0
+      },
+      {
+        "foto": "https://www.auau.com.br/image/cache/data/up_system/product-13806/pepsi-1000x1000.jpg",
+        "nome": "Refrigerante Pepsi",
+        "descricao": "Lata 350ml",
+        "preco": 4.8
+      },
+      {
+        "foto": "https://www.imigrantesbebidas.com.br/bebida/images/products/full/1935-refrigerante-guarana-antarctica-lata-350ml.jpg",
+        "nome": "Refrigerante Guaraná",
+        "descricao": "Lata 350ml",
+        "preco": 4.5
+      },
+      {
+        "foto": "https://tb0932.vtexassets.com/arquivos/ids/162415/112940.png?v=637705334878500000",
+        "nome": "Água Mineral",
+        "descricao": "Garrafa 500ml",
+        "preco": 3.0
+      },
+      {
+        "foto": "https://carrefourbrfood.vtexassets.com/arquivos/ids/18904682/agua-mineral-com-gas-crystal-500ml-1.jpg?v=637590231096200000",
+        "nome": "Água com Gás",
+        "descricao": "Garrafa 500ml",
+        "preco": 3.5
+      },
+      {
+        "foto": "https://giassi.vtexassets.com/arquivos/ids/2731935/Nectar-Maracuja-Del-Valle-Lata-290ml.png?v=638627089890970000",
+        "nome": "Suco de Maracujá",
+        "descricao": "Lata 290ml, Dell Valle",
+        "preco": 6.0
+      },
+      {
+        "foto": "https://hiperideal.vtexassets.com/arquivos/ids/225362/2173697.png?v=638629664223200000",
+        "nome": "Suco de Uva",
+        "descricao": "Copo 290ml, Dell Valle",
+        "preco": 6.5
+      }
+    ]
+  }
+]

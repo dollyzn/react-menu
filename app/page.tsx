@@ -5,183 +5,28 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MenuHeader } from "./components/menu-header";
 import { Frown, ShoppingCart } from "lucide-react";
-import batata from "../public/batata.png";
-import Image from "next/image";
+import NextImage from "next/image";
+import cardapio from "./data/categories.json";
+import { Lightbox } from "./components/lightbox";
 
 type MenuItem = {
   nome: string;
   descricao: string;
   preco: number;
+  foto: string;
 };
 
 type Category = {
   name: string;
-  items: MenuItem[];
+  itens: MenuItem[];
 };
 
-const cardapio: Category[] = [
-  // Bebidas
-  {
-    name: "Bebidas",
-    items: [
-      { nome: "Refrigerante Coca-Cola", descricao: "Lata 350ml", preco: 5.0 },
-      { nome: "Refrigerante Pepsi", descricao: "Lata 350ml", preco: 4.8 },
-      { nome: "Refrigerante Guaraná", descricao: "Lata 350ml", preco: 4.5 },
-      { nome: "Água Mineral", descricao: "Garrafa 500ml", preco: 3.0 },
-      { nome: "Água com Gás", descricao: "Garrafa 500ml", preco: 3.5 },
-      { nome: "Suco de Laranja", descricao: "Copo 300ml, natural", preco: 6.0 },
-      { nome: "Suco de Morango", descricao: "Copo 300ml, natural", preco: 6.5 },
-      {
-        nome: "Chá Gelado",
-        descricao: "Sabor limão ou pêssego, 300ml",
-        preco: 5.0,
-      },
-      { nome: "Milkshake de Chocolate", descricao: "Copo 400ml", preco: 10.0 },
-      { nome: "Milkshake de Morango", descricao: "Copo 400ml", preco: 10.0 },
-    ],
-  },
-  // Pastéis Simples
-  {
-    name: "Pastéis Simples",
-    items: [
-      {
-        nome: "Pastel de Carne",
-        descricao: "Recheado com carne moída temperada",
-        preco: 8.5,
-      },
-      {
-        nome: "Pastel de Queijo",
-        descricao: "Queijo derretido e cremoso",
-        preco: 7.5,
-      },
-      { nome: "Pastel de Frango", descricao: "Frango desfiado", preco: 9.0 },
-      {
-        nome: "Pastel de Presunto e Queijo",
-        descricao: "Presunto e queijo",
-        preco: 9.0,
-      },
-      {
-        nome: "Pastel de Palmito",
-        descricao: "Recheio de palmito temperado",
-        preco: 8.5,
-      },
-    ],
-  },
-  // Pastéis Selecionados
-  {
-    name: "Pastéis Selecionados",
-    items: [
-      {
-        nome: "Pastel de Camarão",
-        descricao: "Camarão com catupiry",
-        preco: 12.0,
-      },
-      {
-        nome: "Pastel de Bacalhau",
-        descricao: "Recheado com bacalhau desfiado",
-        preco: 13.0,
-      },
-      {
-        nome: "Pastel de Alho Poró",
-        descricao: "Alho-poró com queijo gruyère",
-        preco: 11.0,
-      },
-    ],
-  },
-  // Pastéis Especiais
-  {
-    name: "Pastéis Especiais",
-    items: [
-      {
-        nome: "Pastel de Carne Seca",
-        descricao: "Carne seca com requeijão",
-        preco: 10.0,
-      },
-      {
-        nome: "Pastel de Strogonoff",
-        descricao: "Strogonoff de carne ou frango",
-        preco: 11.5,
-      },
-      {
-        nome: "Pastel de Calabresa",
-        descricao: "Calabresa com queijo",
-        preco: 9.5,
-      },
-      {
-        nome: "Pastel de Quatro Queijos",
-        descricao: "Muçarela, parmesão, gorgonzola e catupiry",
-        preco: 12.0,
-      },
-    ],
-  },
-  // Pastéis Doces
-  {
-    name: "Pastéis Doces",
-    items: [
-      {
-        nome: "Pastel de Chocolate",
-        descricao: "Chocolate derretido",
-        preco: 10.0,
-      },
-      {
-        nome: "Pastel de Banana",
-        descricao: "Banana com canela e açúcar",
-        preco: 9.0,
-      },
-      {
-        nome: "Pastel de Doce de Leite",
-        descricao: "Recheado com doce de leite",
-        preco: 9.5,
-      },
-      {
-        nome: "Pastel Romeu e Julieta",
-        descricao: "Goiabada com queijo",
-        preco: 10.0,
-      },
-    ],
-  },
-  // Adicionais
-  {
-    name: "Adicionais",
-    items: [
-      {
-        nome: "Catupiry Extra",
-        descricao: "Porção extra de catupiry",
-        preco: 2.0,
-      },
-      { nome: "Queijo Extra", descricao: "Porção extra de queijo", preco: 2.0 },
-      { nome: "Molho de Pimenta", descricao: "Porção de molho", preco: 1.0 },
-      { nome: "Batata Frita", descricao: "Porção individual", preco: 5.0 },
-      { nome: "Azeitonas", descricao: "Porção de azeitonas", preco: 2.5 },
-    ],
-  },
-  // Sobremesas
-  {
-    name: "Sobremesas",
-    items: [
-      {
-        nome: "Sorvete",
-        descricao: "Bola de sorvete, diversos sabores",
-        preco: 6.0,
-      },
-      {
-        nome: "Petit Gateau",
-        descricao: "Bolo de chocolate com sorvete",
-        preco: 12.0,
-      },
-      {
-        nome: "Brownie",
-        descricao: "Brownie de chocolate com calda",
-        preco: 8.0,
-      },
-      {
-        nome: "Crepe Doce",
-        descricao: "Recheado com chocolate e morango",
-        preco: 10.0,
-      },
-    ],
-  },
-];
+interface Photo {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+}
 
 export default function Menu() {
   const [activeTab, setActiveTab] = useState<string>(cardapio[0].name);
@@ -264,7 +109,7 @@ export default function Menu() {
       const filtered = cardapio
         .map((category) => ({
           ...category,
-          items: category.items.filter(
+          items: category.itens.filter(
             (item) =>
               item.nome.toLowerCase().includes(query) ||
               item.descricao.toLowerCase().includes(query)
@@ -275,6 +120,48 @@ export default function Menu() {
       setFilteredMenu(filtered);
     }
   }, [filter]);
+
+  const [photos, setPhotos] = useState<Photo[]>();
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryOpen, setGalleryOpen] = useState(false);
+
+  async function loadImageDimensions(
+    url: string
+  ): Promise<{ width: number; height: number }> {
+    return new Promise((resolve) => {
+      const image = new Image();
+      image.src = url;
+      image.onload = () => {
+        resolve({ width: image.width, height: image.height });
+      };
+    });
+  }
+
+  async function handlePhotoClick(index: number, element: HTMLElement) {
+    const photos = await Promise.all(
+      cardapio.flatMap((category) =>
+        category.itens.map(async ({ foto, nome }) => {
+          const { width, height } = await loadImageDimensions(foto);
+          return {
+            src: foto,
+            alt: nome,
+            width: width,
+            height: height,
+            element,
+            msrc: foto,
+          };
+        })
+      )
+    );
+
+    setGalleryOpen(true);
+    setGalleryIndex(index);
+    setPhotos(photos);
+  }
+
+  let globalIndex = 0;
+
+  const refs = useRef<HTMLDivElement[]>([]);
 
   return (
     <main className="min-h-screen pb-8 flex justify-center">
@@ -320,28 +207,46 @@ export default function Menu() {
               >
                 <h2 className="text-2xl font-semibold mb-4">{category.name}</h2>
                 <div className="space-y-4">
-                  {category.items.map((item) => (
-                    <Card key={item.nome} className="p-3 flex gap-4">
-                      <div className="w-24 h-24">
-                        <Image
-                          src={batata}
-                          alt="Batata frita"
-                          className="w-full h-full object-cover rounded-md"
-                        />
-                      </div>
-                      <div className="flex flex-col justify-between flex-grow gap-2">
-                        <div className="space-y-1">
-                          <h3 className="font-semibold">{item.nome}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {item.descricao}
+                  {category.itens.map((item) => {
+                    const currentGlobalIndex = globalIndex;
+                    globalIndex += 1;
+
+                    return (
+                      <Card key={item.nome} className="p-3 flex gap-4">
+                        <div
+                          className="w-24 h-24 flex-shrink-0"
+                          ref={(el) => {
+                            if (el) refs.current[currentGlobalIndex] = el;
+                          }}
+                          onClick={() =>
+                            handlePhotoClick(
+                              currentGlobalIndex,
+                              refs.current[currentGlobalIndex]
+                            )
+                          }
+                        >
+                          <NextImage
+                            src={item.foto}
+                            width={96}
+                            height={96}
+                            alt="Batata frita"
+                            className="w-full h-full object-cover rounded-md"
+                          />
+                        </div>
+                        <div className="flex flex-col justify-between flex-grow gap-2">
+                          <div className="space-y-1">
+                            <h3 className="font-semibold">{item.nome}</h3>
+                            <p className="text-sm text-muted-foreground">
+                              {item.descricao}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold">
+                            R$ {item.preco.toFixed(2)}
                           </p>
                         </div>
-                        <p className="text-sm font-semibold">
-                          R$ {item.preco.toFixed(2)}
-                        </p>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
               </div>
             ))
@@ -365,6 +270,13 @@ export default function Menu() {
           )}
         </div>
       </div>
+
+      <Lightbox
+        images={photos}
+        open={galleryOpen}
+        index={galleryIndex}
+        setOpen={setGalleryOpen}
+      />
     </main>
   );
 }
