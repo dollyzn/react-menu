@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Row, Table } from "@tanstack/react-table";
+import { Row } from "@tanstack/react-table";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";

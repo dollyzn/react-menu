@@ -3,7 +3,6 @@ import { ModeSwitcher } from "./mode-switcher";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import { LoginDialog } from "./login-dialog";
 import banner from "../../public/banner.jpg";
 import logo from "../../public/logo.png";
@@ -14,8 +13,6 @@ interface MenuHeaderProps {
   setFilter: React.Dispatch<React.SetStateAction<string>>;
 }
 export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
-  const router = useRouter();
-
   return (
     <header className="flex flex-col w-full pt-8">
       <div className="py-4 z-50 flex items-center gap-2 fixed top-0 left-1/2 -translate-x-1/2 bg-background w-full min-[502px]:w-[500px] px-2">

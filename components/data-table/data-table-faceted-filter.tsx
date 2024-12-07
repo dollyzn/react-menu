@@ -1,5 +1,4 @@
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
 import { Column } from "@tanstack/react-table";
 import { Check, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";

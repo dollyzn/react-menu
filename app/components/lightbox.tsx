@@ -1,6 +1,14 @@
 import { useEffect, useRef } from "react";
 import PhotoSwipeLightbox from "photoswipe/lightbox";
-import { PreparedPhotoSwipeOptions } from "photoswipe";
+import { PhotoSwipeOptions } from "photoswipe";
+
+interface CustomPhotoSwipeOptions extends PhotoSwipeOptions {
+  getThumbBoundsFn?: (thumbIndex: number) => {
+    x: number;
+    y: number;
+    w: number;
+  };
+}
 
 /**
  * Interface para representar uma imagem no Lightbox
@@ -31,7 +39,7 @@ export const Lightbox = ({ images, open, index, setOpen }: LightboxProps) => {
 
   useEffect(() => {
     if (images && images.length > 0) {
-      const options: any = {
+      const options: Partial<CustomPhotoSwipeOptions> = {
         dataSource: images,
         bgOpacity: 0.95,
         indexIndicatorSep: " de ",

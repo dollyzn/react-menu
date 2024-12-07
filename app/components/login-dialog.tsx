@@ -22,11 +22,9 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTrigger,
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { verify } from "crypto";
 
 export function LoginDialog() {
   const router = useRouter();
