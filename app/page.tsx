@@ -8,6 +8,7 @@ import { Frown, ShoppingCart } from "lucide-react";
 import NextImage from "next/image";
 import cardapio from "./data/categories.json";
 import { Lightbox } from "./components/lightbox";
+import { SlideData } from "photoswipe";
 
 type MenuItem = {
   nome: string;
@@ -20,13 +21,6 @@ type Category = {
   name: string;
   itens: MenuItem[];
 };
-
-interface Photo {
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
-}
 
 export default function Menu() {
   const [activeTab, setActiveTab] = useState<string>(cardapio[0].name);
@@ -121,8 +115,7 @@ export default function Menu() {
     }
   }, [filter]);
 
-  const [photos, setPhotos] = useState<Photo[]>();
-  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [photo, setPhoto] = useState<SlideData>();
   const [galleryOpen, setGalleryOpen] = useState(false);
 
   async function loadImageDimensions(
@@ -137,30 +130,26 @@ export default function Menu() {
     });
   }
 
-  async function handlePhotoClick(index: number, element: HTMLElement) {
-    const photos = (
-      await Promise.all(
-        cardapio.flatMap((category) =>
-          category.itens.map(async ({ foto, nome }) => {
-            if (foto) {
-              const { width, height } = await loadImageDimensions(foto);
-              return {
-                src: foto,
-                alt: nome,
-                width: width,
-                height: height,
-                element,
-                msrc: foto,
-              };
-            }
-          })
-        )
-      )
-    ).filter((photo) => !!photo);
+  async function handlePhotoClick(
+    src: string,
+    alt: string,
+    element: HTMLElement
+  ) {
+    if (!src) return;
+
+    const { width, height } = await loadImageDimensions(src);
+
+    const photo = {
+      src,
+      msrc: src,
+      alt,
+      width: width,
+      height: height,
+      element,
+    };
 
     setGalleryOpen(true);
-    setGalleryIndex(index);
-    setPhotos(photos);
+    setPhoto(photo);
   }
 
   let globalIndex = 0;
@@ -228,7 +217,8 @@ export default function Menu() {
                           onClick={() =>
                             item.foto
                               ? handlePhotoClick(
-                                  currentGlobalIndex,
+                                  item.foto,
+                                  item.nome,
                                   refs.current[currentGlobalIndex]
                                 )
                               : null
@@ -293,10 +283,9 @@ export default function Menu() {
       </div>
 
       <Lightbox
-        images={photos}
         open={galleryOpen}
-        index={galleryIndex}
         setOpen={setGalleryOpen}
+        dataSource={photo}
       />
     </main>
   );
