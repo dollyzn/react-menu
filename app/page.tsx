@@ -138,21 +138,25 @@ export default function Menu() {
   }
 
   async function handlePhotoClick(index: number, element: HTMLElement) {
-    const photos = await Promise.all(
-      cardapio.flatMap((category) =>
-        category.itens.map(async ({ foto, nome }) => {
-          const { width, height } = await loadImageDimensions(foto);
-          return {
-            src: foto,
-            alt: nome,
-            width: width,
-            height: height,
-            element,
-            msrc: foto,
-          };
-        })
+    const photos = (
+      await Promise.all(
+        cardapio.flatMap((category) =>
+          category.itens.map(async ({ foto, nome }) => {
+            if (foto) {
+              const { width, height } = await loadImageDimensions(foto);
+              return {
+                src: foto,
+                alt: nome,
+                width: width,
+                height: height,
+                element,
+                msrc: foto,
+              };
+            }
+          })
+        )
       )
-    );
+    ).filter((photo) => !!photo);
 
     setGalleryOpen(true);
     setGalleryIndex(index);
@@ -209,29 +213,46 @@ export default function Menu() {
                 <div className="space-y-4">
                   {category.itens.map((item) => {
                     const currentGlobalIndex = globalIndex;
-                    globalIndex += 1;
+                    if (item.foto) globalIndex += 1;
 
                     return (
-                      <Card key={item.nome} className="p-3 flex gap-4">
+                      <Card
+                        key={item.nome + globalIndex}
+                        className="p-3 flex gap-4"
+                      >
                         <div
                           className="w-24 h-24 flex-shrink-0"
                           ref={(el) => {
                             if (el) refs.current[currentGlobalIndex] = el;
                           }}
                           onClick={() =>
-                            handlePhotoClick(
-                              currentGlobalIndex,
-                              refs.current[currentGlobalIndex]
-                            )
+                            item.foto
+                              ? handlePhotoClick(
+                                  currentGlobalIndex,
+                                  refs.current[currentGlobalIndex]
+                                )
+                              : null
                           }
                         >
-                          <NextImage
-                            src={item.foto}
-                            width={96}
-                            height={96}
-                            alt="Batata frita"
-                            className="w-full h-full object-cover rounded-md"
-                          />
+                          {item.foto ? (
+                            <NextImage
+                              src={item.foto}
+                              width={96}
+                              height={96}
+                              alt={item.nome}
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                          ) : (
+                            <NextImage
+                              src={
+                                "https://encrypted-tbn1.gstatic.com/images?q=tbn:ANd9GcT1GUdvrNUHuB2aSQ5u58RS9U79QC-Q819SQEXS013ASEyZSCOZ"
+                              }
+                              width={96}
+                              height={96}
+                              alt={item.nome}
+                              className="w-full h-full object-cover rounded-md"
+                            />
+                          )}
                         </div>
                         <div className="flex flex-col justify-between flex-grow gap-2">
                           <div className="space-y-1">

@@ -290,40 +290,118 @@
         "preco": 5.0
       },
       {
-        "foto": "https://www.auau.com.br/image/cache/data/up_system/product-13806/pepsi-1000x1000.jpg",
-        "nome": "Refrigerante Pepsi",
+        "foto": "",
+        "nome": "Refrigerante Coca-Cola Zero",
         "descricao": "Lata 350ml",
-        "preco": 4.8
+        "preco": 8.0
       },
       {
         "foto": "https://www.imigrantesbebidas.com.br/bebida/images/products/full/1935-refrigerante-guarana-antarctica-lata-350ml.jpg",
         "nome": "Refrigerante Guaraná",
         "descricao": "Lata 350ml",
-        "preco": 4.5
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "Refrigerante Guaraná Zero",
+        "descricao": "Lata 350ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "https://www.auau.com.br/image/cache/data/up_system/product-13806/pepsi-1000x1000.jpg",
+        "nome": "Refrigerante Sprite",
+        "descricao": "Lata 350ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "Refrigerante Schweppes",
+        "descricao": "Lata 350ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "Refrigerante Fanta Uva",
+        "descricao": "Lata 350ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "Refrigerante Fanta Laranja",
+        "descricao": "Lata 350ml",
+        "preco": 8.0
       },
       {
         "foto": "https://tb0932.vtexassets.com/arquivos/ids/162415/112940.png?v=637705334878500000",
         "nome": "Água Mineral",
         "descricao": "Garrafa 500ml",
-        "preco": 3.0
+        "preco": 5.0
+      },
+      {
+        "foto": "",
+        "nome": "Guaraviton Açai",
+        "descricao": "Garrafa 500ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "H2O",
+        "descricao": "Garrafa 500ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "H2O Limoneto",
+        "descricao": "Garrafa 500ml",
+        "preco": 8.0
       },
       {
         "foto": "https://carrefourbrfood.vtexassets.com/arquivos/ids/18904682/agua-mineral-com-gas-crystal-500ml-1.jpg?v=637590231096200000",
         "nome": "Água com Gás",
         "descricao": "Garrafa 500ml",
-        "preco": 3.5
+        "preco": 7.0
       },
       {
         "foto": "https://giassi.vtexassets.com/arquivos/ids/2731935/Nectar-Maracuja-Del-Valle-Lata-290ml.png?v=638627089890970000",
         "nome": "Suco de Maracujá",
-        "descricao": "Lata 290ml, Dell Valle",
-        "preco": 6.0
+        "descricao": "Lata 290ml, Del Valle",
+        "preco": 8.0
       },
       {
         "foto": "https://hiperideal.vtexassets.com/arquivos/ids/225362/2173697.png?v=638629664223200000",
         "nome": "Suco de Uva",
-        "descricao": "Copo 290ml, Dell Valle",
-        "preco": 6.5
+        "descricao": "Lata 290ml, Del Valle",
+        "preco": 8.0
+      },
+      {
+        "foto": "https://hiperideal.vtexassets.com/arquivos/ids/225362/2173697.png?v=638629664223200000",
+        "nome": "Suco de Pêssego",
+        "descricao": "Lata 290ml, Del Valle",
+        "preco": 8.0
+      },
+      {
+        "foto": "https://hiperideal.vtexassets.com/arquivos/ids/225362/2173697.png?v=638629664223200000",
+        "nome": "Suco de Goiaba",
+        "descricao": "Lata 290ml, Del Valle",
+        "preco": 8.0
+      },
+      {
+        "foto": "https://hiperideal.vtexassets.com/arquivos/ids/225362/2173697.png?v=638629664223200000",
+        "nome": "Suco de Manga",
+        "descricao": "Lata 290ml, Del Valle",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "Refrigerante Coca-Cola",
+        "descricao": "Garrafa 200ml",
+        "preco": 8.0
+      },
+      {
+        "foto": "",
+        "nome": "Refrigerante Coca-Cola Zero",
+        "descricao": "Garrafa 200ml",
+        "preco": 8.0
       }
     ]
   }
