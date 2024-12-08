@@ -52,7 +52,6 @@ export const Lightbox = ({ images, open, index, setOpen }: LightboxProps) => {
         secondaryZoomLevel: 1.3,
         wheelToZoom: true,
         showHideAnimationType: "zoom",
-
         getThumbBoundsFn: (thumbIndex: number) => {
           if (images && images[thumbIndex]?.element) {
             const thumb = images[thumbIndex].element!.getBoundingClientRect();
@@ -71,15 +70,8 @@ export const Lightbox = ({ images, open, index, setOpen }: LightboxProps) => {
       lightboxRef.current.on("close", () => {
         setOpen(false);
       });
-      lightboxRef.current.on("destroy", () => {
-        setOpen(false);
-      });
 
       lightboxRef.current.init();
-
-      if (open) {
-        lightboxRef.current.loadAndOpen(index > 0 ? index : 0);
-      }
     }
 
     return () => {
@@ -88,7 +80,15 @@ export const Lightbox = ({ images, open, index, setOpen }: LightboxProps) => {
         lightboxRef.current = null;
       }
     };
-  }, [images, open, index, setOpen]);
+  }, [images, setOpen]);
+
+  useEffect(() => {
+    if (open && lightboxRef.current) {
+      lightboxRef.current.loadAndOpen(index > 0 ? index : 0);
+    } else if (!open && lightboxRef.current) {
+      lightboxRef.current?.pswp?.close();
+    }
+  }, [open, index]);
 
   return null;
 };
