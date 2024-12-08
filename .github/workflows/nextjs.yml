@@ -1,4 +1,4 @@
-name: Build and deploy Next.js Application to VPS - react-menu-app
+name: Build and Deploy Next.js Application to VPS - react-menu-app
 
 on:
   push:
@@ -6,33 +6,41 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Install dependencies
-        run: yarn install
-
-      - name: Build application
-        run: yarn build
-
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.VPS_KEY }}
 
+      - name: Add VPS Host to Known Hosts
+        run: |
+          ssh-keyscan -p ${{ secrets.VPS_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
       - name: Deploy to VPS
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
-            set -e
+          ssh -p ${{ secrets.VPS_PORT }} -T ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} << 'EOF'
+            set -euo pipefail
             echo "Starting deployment..."
+            
+            # Navegar até o diretório do projeto
             cd ${{ secrets.VPS_PATH }}
-            git pull origin main
-            yarn install
+
+            # Atualizar o repositório com a última versão da branch main
+            echo "Pulling latest changes from repository..."
+            git fetch origin
+            git reset --hard origin/main
+
+            # Instalar dependências e construir o projeto
+            echo "Installing dependencies and building the project..."
+            yarn install --frozen-lockfile
             yarn build
-            pm2 restart all || yarn start
-            echo "Deployment completed."
+
+            # Reiniciar a aplicação com PM2
+            echo "Starting or restarting application with PM2..."
+            pm2 startOrRestart ~/ecosystem.config.js
+
+            echo "Deployment completed successfully!"
           EOF
