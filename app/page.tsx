@@ -109,13 +109,13 @@ export default function Menu() {
       const filtered = cardapio
         .map((category) => ({
           ...category,
-          items: category.itens.filter(
+          itens: category.itens.filter(
             (item) =>
               item.nome.toLowerCase().includes(query) ||
               item.descricao.toLowerCase().includes(query)
           ),
         }))
-        .filter((category) => category.items.length > 0);
+        .filter((category) => category.itens.length > 0);
 
       setFilteredMenu(filtered);
     }
@@ -211,13 +211,13 @@ export default function Menu() {
               >
                 <h2 className="text-2xl font-semibold mb-4">{category.name}</h2>
                 <div className="space-y-4">
-                  {category.itens.map((item) => {
+                  {category.itens.map((item, i) => {
                     const currentGlobalIndex = globalIndex;
                     if (item.foto) globalIndex += 1;
 
                     return (
                       <Card
-                        key={item.nome + globalIndex}
+                        key={`${index}${i}${currentGlobalIndex}`}
                         className="p-3 flex gap-4"
                       >
                         <div
