@@ -19,6 +19,7 @@ type MenuItem = {
 
 type Category = {
   name: string;
+  description: string;
   itens: MenuItem[];
 };
 
@@ -198,7 +199,10 @@ export default function Menu() {
                   sectionsRef.current[index] = el;
                 }}
               >
-                <h2 className="text-2xl font-semibold mb-4">{category.name}</h2>
+                <h2 className="text-2xl font-semibold mb-1">{category.name}</h2>
+                <p className="text-sm text-muted-foreground mb-3">
+                  {category.description}
+                </p>
                 <div className="space-y-4">
                   {category.itens.map((item, i) => {
                     const currentGlobalIndex = globalIndex;

@@ -1,6 +1,7 @@
 [
   {
     "name": "Pastéis Simples",
+    "description": "",
     "itens": [
       {
         "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
@@ -49,6 +50,7 @@
 
   {
     "name": "Pastéis Especiais",
+    "description": "",
     "itens": [
       {
         "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
@@ -145,6 +147,7 @@
 
   {
     "name": "Pastéis Selecionados",
+    "description": "",
     "itens": [
       {
         "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
@@ -193,6 +196,7 @@
 
   {
     "name": "Pastéis Premium",
+    "description": "Todos os Pasteis Premium acompanham Mussarela, Catupiry, Cheddar ou Cream Cheese",
     "itens": [
       {
         "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
@@ -211,6 +215,7 @@
 
   {
     "name": "Pastéis Doces",
+    "description": "",
     "itens": [
       {
         "foto": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQue9H7vijCn1BH5GmspUqQ9qC3IAuf42Nitw&s",
@@ -259,6 +264,7 @@
 
   {
     "name": "Adicionais",
+    "description": "",
     "itens": [
       {
         "foto": "https://img.freepik.com/vetores-premium/sinal-de-adicao-verde-icone-do-vetor-simbolo-cruzado-de-orientacao-de-seguranca_87543-6379.jpg",
@@ -306,6 +312,7 @@
   },
   {
     "name": "Bebidas",
+    "description": "",
     "itens": [
       {
         "foto": "https://a-static.mlcdn.com.br/800x560/refrigerante-coca-cola-lata-350ml-concha-y-toro-coca-cola/texasbom/ed60ee066c6511ee99c54201ac185056/6973e750fec2a106c1abf3a33fb0d4f7.jpeg",
