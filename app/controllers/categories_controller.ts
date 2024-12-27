@@ -7,7 +7,7 @@ export default class CategoriesController {
   async index({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.id)
 
-    return Category.query().where('storeId', storeId)
+    return Category.query().preload('items').where('storeId', storeId)
   }
 
   async show({ params }: HttpContext) {

@@ -37,6 +37,9 @@ export default class Store extends BaseModel {
   @column()
   declare isDefault: boolean
 
+  @column()
+  declare views: number
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -68,5 +71,11 @@ export default class Store extends BaseModel {
         status: store.status,
       })
     }
+  }
+
+  public async incrementViews() {
+    this.views += 1
+    await this.save()
+    return this
   }
 }

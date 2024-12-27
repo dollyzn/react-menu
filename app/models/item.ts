@@ -23,6 +23,9 @@ export default class Item extends BaseModel {
   @column()
   declare photoUrl: string | null
 
+  @column()
+  declare views: number
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -34,4 +37,10 @@ export default class Item extends BaseModel {
 
   @manyToMany(() => Addon)
   declare addons: ManyToMany<typeof Addon>
+
+  public async incrementViews() {
+    this.views += 1
+    await this.save()
+    return this
+  }
 }

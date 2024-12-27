@@ -13,7 +13,14 @@ export default class ItemsController {
   async show({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    return Item.query().where('id', id).preload('addons').preload('category').firstOrFail()
+    const item = await Item.query()
+      .where('id', id)
+      .preload('addons')
+      .preload('category')
+      .firstOrFail()
+    await item.incrementViews()
+
+    return item
   }
 
   async store({ request, params }: HttpContext) {

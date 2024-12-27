@@ -3,30 +3,17 @@ import { storeExistValidator } from '#validators/menu'
 import type { HttpContext } from '@adonisjs/core/http'
 
 export default class MenuController {
-  async show({ params, response }: HttpContext) {
+  async show({ params }: HttpContext) {
     const slug = await storeExistValidator.validate(params.slug)
 
-    const store = Store.query()
+    const store = await Store.query()
+      .preload('categories', (query) => {
+        query.preload('items', (query) => query.preload('addons'))
+      })
+      .where(slug ? { slug } : { is_default: true })
+      .firstOrFail()
 
-    if (slug) {
-      store
-        .where('slug', slug)
-        .preload('categories', (query) => {
-          query.preload('items', (query) => query.preload('addons'))
-        })
-        .first()
-    } else {
-      store
-        .where('is_default', true)
-        .preload('categories', (query) => {
-          query.preload('items', (query) => query.preload('addons'))
-        })
-        .first()
-    }
-
-    if (!store) {
-      return response.notFound({ message: 'Loja não encontrada' })
-    }
+    await store.incrementViews()
 
     return store
   }
