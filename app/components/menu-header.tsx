@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, MapPin, Search, Star } from "lucide-react";
 import { ModeSwitcher } from "./mode-switcher";
 import { Input } from "@/components/ui/input";
@@ -13,11 +15,47 @@ interface MenuHeaderProps {
   setFilter: React.Dispatch<React.SetStateAction<string>>;
 }
 export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const initialFilter = searchParams.get("q") || "";
+    setFilter(initialFilter);
+  }, [searchParams]);
+
+  const updateSearchParams = (newFilter: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    const currentFilter = searchParams.get("q");
+
+    if (newFilter) {
+      params.set("q", newFilter);
+    } else {
+      params.delete("q");
+    }
+
+    if (currentFilter !== null) {
+      router.replace(`?${params.toString()}`);
+    } else {
+      router.push(`?${params.toString()}`);
+    }
+  };
+
+  const handleFilterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newFilter = e.target.value;
+    setFilter(newFilter);
+    updateSearchParams(newFilter);
+  };
+
+  const clearFilter = () => {
+    setFilter("");
+    updateSearchParams("");
+  };
+
   return (
     <header className="flex flex-col w-full pt-8">
       <div className="py-4 z-50 flex items-center gap-2 fixed top-0 left-1/2 -translate-x-1/2 bg-background w-full min-[502px]:w-[500px] px-2">
         {filter && (
-          <Button variant="outline" size="icon" onClick={() => setFilter("")}>
+          <Button variant="outline" size="icon" onClick={clearFilter}>
             <ArrowLeft />
           </Button>
         )}
@@ -28,7 +66,7 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
             placeholder="Buscar produtos"
             className="pl-10"
             value={filter}
-            onChange={(e) => setFilter(e.target.value)}
+            onChange={handleFilterChange}
           />
         </div>
         <ModeSwitcher />

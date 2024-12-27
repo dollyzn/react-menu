@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MenuHeader } from "./components/menu-header";
 import { Frown, ShoppingCart } from "lucide-react";
-import NextImage from "next/image";
-import cardapio from "./data/categories.json";
 import { Lightbox } from "./components/lightbox";
 import { SlideData } from "photoswipe";
+import NextImage from "next/image";
+import cardapio from "./data/categories.json";
 
 type MenuItem = {
   nome: string;
@@ -24,9 +25,11 @@ type Category = {
 };
 
 export default function Menu() {
+  const searchParams = useSearchParams();
+
   const [activeTab, setActiveTab] = useState<string>(cardapio[0].name);
   const [showTabs, setShowTabs] = useState<boolean>(false);
-  const [filter, setFilter] = useState<string>("");
+  const [filter, setFilter] = useState<string>(searchParams.get("q") || "");
   const [filteredMenu, setFilteredMenu] = useState<Category[]>(cardapio);
   const sectionsRef = useRef<(HTMLHeadingElement | null)[]>([]);
   const tabsListRef = useRef<HTMLDivElement | null>(null);
