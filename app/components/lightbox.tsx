@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import PhotoSwipeLightbox from "photoswipe/lightbox";
 import { PhotoSwipeOptions, SlideData } from "photoswipe";
 
@@ -16,6 +17,13 @@ export const Lightbox = ({
   setOpen,
 }: LightboxProps) => {
   const lightboxRef = useRef<PhotoSwipeLightbox | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!dataSource && window.location.hash === "#pswp") {
+      router.replace(window.location.pathname, { scroll: false });
+    }
+  }, [dataSource, router]);
 
   useEffect(() => {
     if (!dataSource) return;
@@ -42,6 +50,9 @@ export const Lightbox = ({
       lightboxRef.current = new PhotoSwipeLightbox(options);
       lightboxRef.current.on("close", () => {
         setOpen(false);
+        if (window.location.hash === "#pswp") {
+          router.back();
+        }
       });
 
       lightboxRef.current.init();
@@ -53,15 +64,36 @@ export const Lightbox = ({
         lightboxRef.current = null;
       }
     };
-  }, [dataSource, setOpen]);
+  }, [dataSource, setOpen, router]);
 
   useEffect(() => {
+    const handlePopState = () => {
+      const isHashPswp = window.location.hash === "#pswp";
+
+      if (!lightboxRef.current) return;
+
+      if (isHashPswp && !open) {
+        setOpen(true);
+        lightboxRef.current.loadAndOpen(index && index > 0 ? index : 0);
+      } else if (!isHashPswp && open && lightboxRef.current.pswp) {
+        setOpen(false);
+        lightboxRef.current.pswp.close();
+      }
+    };
+
     if (open && lightboxRef.current) {
       lightboxRef.current.loadAndOpen(index && index > 0 ? index : 0);
+      router.push("#pswp", { scroll: false });
     } else if (!open && lightboxRef.current) {
       lightboxRef.current?.pswp?.close();
     }
-  }, [open, index]);
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [open, setOpen, index, router]);
 
   return null;
 };
