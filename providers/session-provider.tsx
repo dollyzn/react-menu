@@ -21,12 +21,20 @@ interface SessionContextData {
   login: ({
     email,
     password,
+    redirectToApp,
   }: {
     email: string;
     password: string;
+    redirectToApp?: boolean;
   }) => Promise<void>;
   logout: () => Promise<void>;
-  verify: (shouldRedirect?: boolean) => Promise<boolean>;
+  verify: ({
+    redirectToApp,
+    redirectToLogin,
+  }: {
+    redirectToApp?: boolean;
+    redirectToLogin?: boolean;
+  }) => Promise<boolean>;
 }
 
 const SessionContext = createContext<SessionContextData>(
@@ -47,15 +55,17 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const user = useSelector((state: RootState) => state.auth.user);
 
   useEffect(() => {
-    verify(true);
+    verify({ redirectToLogin: true });
   }, []);
 
   async function login({
     email,
     password,
+    redirectToApp,
   }: {
     email: string;
     password: string;
+    redirectToApp?: boolean;
   }): Promise<void> {
     try {
       const response = await api.post<User>("/auth/login", {
@@ -70,6 +80,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
       setCookie(token);
       dispatch(setUser(data));
+      if (redirectToApp) router.push("/manage");
     } catch (error: any) {
       const isCredentialsInvalid =
         error.response?.data?.message === "Invalid user credentials";
@@ -94,34 +105,40 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   injectLogout(logout);
 
-  async function verify(shouldRedirect: boolean = false): Promise<boolean> {
+  async function verify({
+    redirectToApp = false,
+    redirectToLogin = false,
+  }: {
+    redirectToApp?: boolean;
+    redirectToLogin?: boolean;
+  }): Promise<boolean> {
     const token = getCookie();
     if (token) {
       const decodedUser = decode(token);
       if (decodedUser) {
         try {
           const response = await api.get<User>("/auth/me");
-          console.log(decodedUser);
 
           if (response.data && !isEqual(response.data, decodedUser)) {
             removeCookie();
             dispatch(setUser(null));
-            if (shouldRedirect) redirect();
+            if (redirectToLogin) redirect();
             return false;
           }
         } catch (error) {
           removeCookie();
           dispatch(setUser(null));
-          if (shouldRedirect) redirect();
+          if (redirectToLogin) redirect();
           return false;
         }
       } else {
-        if (shouldRedirect) redirect();
+        if (redirectToLogin) redirect();
         return false;
       }
     } else {
       return false;
     }
+    if (redirectToApp) router.push("/manage");
     return true;
   }
 

@@ -50,9 +50,8 @@ export function LoginDialog() {
       await login({
         email,
         password,
+        redirectToApp: true,
       });
-
-      router.push("/manage");
     } catch (err) {
       const error = err as LoginError;
       form.setError("email", {
@@ -70,11 +69,10 @@ export function LoginDialog() {
 
   async function verifyUserSession() {
     setVerifyLoading(true);
-    const loggedIn = await verify();
+    const loggedIn = await verify({ redirectToApp: true });
     setVerifyLoading(false);
 
-    if (loggedIn) router.push("/manage");
-    else setIsOpen(true);
+    if (!loggedIn) setIsOpen(true);
   }
 
   return (

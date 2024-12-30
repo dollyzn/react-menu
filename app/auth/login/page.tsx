@@ -50,9 +50,8 @@ export default function LoginPage() {
       await login({
         email,
         password,
+        redirectToApp: true,
       });
-
-      router.push("/manage");
     } catch (err) {
       const error = err as LoginError;
       form.setError("email", {
