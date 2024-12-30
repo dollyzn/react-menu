@@ -1,5 +1,5 @@
 interface Store {
-  id: number;
+  id: string;
   name: string;
   status: StoreStatus;
   address: string | null;

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -31,24 +32,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-
-const groups = [
-  {
-    label: "Lojas",
-    stores: [
-      {
-        label: "Acme Inc.",
-        value: "acme-inc",
-      },
-      {
-        label: "Monsters Inc.",
-        value: "monsters",
-      },
-    ],
-  },
-];
-
-type Store = (typeof groups)[number]["stores"][number];
+import { useSelector } from "react-redux";
+import { RootState } from "@/redux/store";
+import { useParams } from "next/navigation";
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<
   typeof PopoverTrigger
@@ -59,11 +45,30 @@ interface StoreSwitcherProps extends PopoverTriggerProps {
 }
 
 export default function StoreSwitcher({ className }: StoreSwitcherProps) {
+  const { store } = useParams();
+  const router = useRouter();
+
+  const stores = useSelector(
+    (state: RootState) => state.auth.user?.stores || []
+  );
+
   const [open, setOpen] = React.useState(false);
   const [showNewTeamDialog, setShowNewTeamDialog] = React.useState(false);
-  const [selectedTeam, setSelectedTeam] = React.useState<Store>(
-    groups[0].stores[0]
-  );
+
+  const defaultStore = stores.find((s) => s.id === store) || stores[0];
+  const [selectedStore, setSelectedStore] = React.useState<Store>(defaultStore);
+
+  React.useEffect(() => {
+    if (defaultStore && selectedStore?.id !== defaultStore.id) {
+      setSelectedStore(defaultStore);
+    }
+  }, [store, stores]);
+
+  const handleStoreSelect = (store: Store) => {
+    setSelectedStore(store);
+    setOpen(false);
+    router.push(`/manage/${store.id}`);
+  };
 
   return (
     <Dialog open={showNewTeamDialog} onOpenChange={setShowNewTeamDialog}>
@@ -78,13 +83,16 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
           >
             <Avatar className="mr-2 h-5 w-5">
               <AvatarImage
-                src={`https://avatar.vercel.sh/${selectedTeam.value}.png`}
-                alt={selectedTeam.label}
-                className="grayscale"
+                src={
+                  selectedStore.photoUrl
+                    ? selectedStore.photoUrl
+                    : `https://avatar.vercel.sh/${selectedStore?.id}.png`
+                }
+                alt={selectedStore?.name || "Loja"}
               />
-              <AvatarFallback>SC</AvatarFallback>
+              <AvatarFallback>LO</AvatarFallback>
             </Avatar>
-            {selectedTeam.label}
+            {selectedStore?.name || "Selecione uma loja"}
             <ChevronsUpDown className="ml-auto opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -93,38 +101,38 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
             <CommandInput placeholder="Buscar loja..." />
             <CommandList>
               <CommandEmpty>Nenhuma loja encontrada.</CommandEmpty>
-              {groups.map((group) => (
-                <CommandGroup key={group.label} heading={group.label}>
-                  {group.stores.map((store) => (
-                    <CommandItem
-                      key={store.value}
-                      onSelect={() => {
-                        setSelectedTeam(store);
-                        setOpen(false);
-                      }}
-                      className="text-sm"
-                    >
-                      <Avatar className="mr-2 h-5 w-5">
-                        <AvatarImage
-                          src={`https://avatar.vercel.sh/${store.value}.png`}
-                          alt={store.label}
-                          className="grayscale"
-                        />
-                        <AvatarFallback>ST</AvatarFallback>
-                      </Avatar>
-                      {store.label}
-                      <Check
-                        className={cn(
-                          "ml-auto",
-                          selectedTeam.value === store.value
-                            ? "opacity-100"
-                            : "opacity-0"
-                        )}
+
+              <CommandGroup heading="Lojas">
+                {stores.map((store) => (
+                  <CommandItem
+                    key={store.id}
+                    value={store.id}
+                    onSelect={() => handleStoreSelect(store)}
+                    className="text-sm"
+                  >
+                    <Avatar className="mr-2 h-5 w-5">
+                      <AvatarImage
+                        src={
+                          store.photoUrl
+                            ? store.photoUrl
+                            : `https://avatar.vercel.sh/${store?.id}.png`
+                        }
+                        alt={store.name}
                       />
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              ))}
+                      <AvatarFallback>LO</AvatarFallback>
+                    </Avatar>
+                    {store.name}
+                    <Check
+                      className={cn(
+                        "ml-auto",
+                        selectedStore?.id === store.id
+                          ? "opacity-100"
+                          : "opacity-0"
+                      )}
+                    />
+                  </CommandItem>
+                ))}
+              </CommandGroup>
             </CommandList>
             <CommandSeparator />
             <CommandList>
