@@ -15,6 +15,7 @@ import ItemsController from '#controllers/items_controller'
 import AddonsController from '#controllers/addons_controller'
 import StoresController from '#controllers/stores_controller'
 import MenuController from '#controllers/menu_controller'
+import UsersController from '#controllers/users_controller'
 
 router.get('/', async () => {
   return {
@@ -34,6 +35,17 @@ router
       .use(middleware.auth())
   })
   .prefix('/auth')
+
+router
+  .group(() => {
+    router.get('/', [UsersController, 'index']).as('users.index')
+    router.get('/:id', [UsersController, 'show']).as('users.show')
+    router.post('/', [UsersController, 'store']).as('users.store')
+    router.put('/:id', [UsersController, 'update']).as('users.update')
+    router.delete('/:id', [UsersController, 'destroy']).as('users.destroy')
+  })
+  .use(middleware.auth())
+  .prefix('/users')
 
 router
   .group(() => {
