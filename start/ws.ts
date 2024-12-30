@@ -6,16 +6,18 @@ import logger from '@adonisjs/core/services/logger'
 let io: Server
 
 app.ready(() => {
-  io = new Server(server.getNodeServer())
+  if (app.getEnvironment() === 'web') {
+    io = new Server(server.getNodeServer())
 
-  io.on('connection', (socket) => {
-    socket.on('join-store', (storeId) => {
-      console.log(`Socket ${socket.id} joined store: ${storeId}`)
-      socket.join(`store-${storeId}`)
+    io.on('connection', (socket) => {
+      socket.on('join-store', (storeId) => {
+        console.log(`Socket ${socket.id} joined store: ${storeId}`)
+        socket.join(`store-${storeId}`)
+      })
     })
-  })
 
-  logger.info('Socket.IO server initialized')
+    logger.info('Socket.IO server initialized')
+  }
 })
 
 export const getSocket = (): Server => {
