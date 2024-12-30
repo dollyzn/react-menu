@@ -6,7 +6,7 @@ import Store from './store.js'
 
 export default class Category extends BaseModel {
   @column({ isPrimary: true })
-  declare id: string
+  declare id: number
 
   @column()
   declare storeId: number

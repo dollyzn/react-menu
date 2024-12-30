@@ -1,14 +1,22 @@
 import { DateTime } from 'luxon'
-import { BaseModel, beforeSave, beforeUpdate, column, hasMany } from '@adonisjs/lucid/orm'
-import type { HasMany } from '@adonisjs/lucid/types/relations'
+import {
+  BaseModel,
+  beforeSave,
+  beforeUpdate,
+  column,
+  hasMany,
+  manyToMany,
+} from '@adonisjs/lucid/orm'
+import type { HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import StoreStatus from '../enums/store-status.js'
 import Category from './category.js'
 import Addon from './addon.js'
 import { getSocket } from '#start/ws'
+import User from './user.js'
 
 export default class Store extends BaseModel {
   @column({ isPrimary: true })
-  declare id: number
+  declare id: string
 
   @column()
   declare name: string
@@ -51,6 +59,9 @@ export default class Store extends BaseModel {
 
   @hasMany(() => Addon)
   declare addons: HasMany<typeof Addon>
+
+  @manyToMany(() => User)
+  declare users: ManyToMany<typeof User>
 
   @beforeSave()
   public static async ensureSingleDefault(store: Store) {
