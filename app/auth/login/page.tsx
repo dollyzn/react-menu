@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -29,7 +28,6 @@ import { LoginSchema } from "@/schema";
 import { LoginError, useSession } from "@/providers/session-provider";
 
 export default function LoginPage() {
-  const router = useRouter();
   const { login } = useSession();
 
   const [showPassword, setShowPassword] = useState(false);

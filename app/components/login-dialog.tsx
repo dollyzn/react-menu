@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -27,7 +26,6 @@ import {
 } from "@/components/ui/dialog";
 
 export function LoginDialog() {
-  const router = useRouter();
   const { login, verify } = useSession();
 
   const [showPassword, setShowPassword] = useState(false);

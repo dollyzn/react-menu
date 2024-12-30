@@ -21,7 +21,7 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
   useEffect(() => {
     const initialFilter = searchParams.get("q") || "";
     setFilter(initialFilter);
-  }, [searchParams]);
+  }, [searchParams, setFilter]);
 
   const updateSearchParams = (newFilter: string) => {
     const params = new URLSearchParams(searchParams.toString());
