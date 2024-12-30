@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 
 import {
@@ -55,8 +55,8 @@ import SortableList, { Item } from "./components/sortable-list";
 import { CommentRatings } from "./components/rating";
 import StatusButton from "./components/status-button";
 
-import banner from "../../public/banner.jpg";
-import logo from "../../public/logo.png";
+import banner from "../../../public/banner.jpg";
+import logo from "../../../public/logo.png";
 
 export default function Store() {
   const router = useRouter();
@@ -280,7 +280,7 @@ export default function Store() {
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="categories">
-                <ScrollArea className="h-[258px] pr-4 pb-0 pt-1">
+                <ScrollArea className="h-[258px] pr-4 pb-0 mb-6 md:mb-0 pt-1">
                   <SortableList
                     items={[
                       { id: 1, name: "Pastéis Simples" },
@@ -291,7 +291,7 @@ export default function Store() {
                       { id: 6, name: "Bebidas" },
                     ]}
                     itemButton={<Button variant="ghost">Ver produtos</Button>}
-                    onItemClick={(item) => handleCategoryClick(item)} // Click handler
+                    onItemClick={(item) => handleCategoryClick(item)}
                   />
                 </ScrollArea>
               </TabsContent>
@@ -330,7 +330,6 @@ export default function Store() {
           </CardContent>
         </Card>
       </div>
-
       <Card className="md:col-span-2">
         <CardHeader>
           <CardTitle>Acessos Rápidos</CardTitle>
