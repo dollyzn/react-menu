@@ -33,6 +33,8 @@ export default class AuthController {
     const user = await User.verifyCredentials(email, password)
     const token = (await User.accessTokens.create(user)).toJSON()
 
+    await user.load('stores')
+
     if (this.sendCookie) {
       response.cookie(this.cookieName, token.token, {
         httpOnly: true,
@@ -65,8 +67,12 @@ export default class AuthController {
   async me({ auth }: HttpContext) {
     await auth.check()
 
+    const user = auth.user
+
+    await user?.load('stores')
+
     return {
-      ...auth.user?.toJSON(),
+      ...user?.toJSON(),
     }
   }
 }
