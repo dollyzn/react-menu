@@ -4,4 +4,5 @@ interface User {
   email: string;
   createdAt: string;
   updatedAt: string;
+  stores: Store[];
 }

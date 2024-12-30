@@ -80,7 +80,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
       setCookie(token);
       dispatch(setUser(data));
-      if (redirectToApp) router.push("/manage");
+
+      if (redirectToApp) {
+        if (data.stores && data.stores.length > 0) {
+          router.push(`/manage/${data.stores[0].id}`);
+        } else {
+          router.push("/manage");
+        }
+      }
     } catch (error: any) {
       const isCredentialsInvalid =
         error.response?.data?.message === "Invalid user credentials";
@@ -125,6 +132,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
             if (redirectToLogin) redirect();
             return false;
           }
+
+          if (redirectToApp) {
+            if (response.data.stores && response.data.stores.length > 0) {
+              router.push(`/manage/${response.data.stores[0].id}`);
+            } else {
+              router.push("/manage");
+            }
+          }
         } catch (error) {
           removeCookie();
           dispatch(setUser(null));
@@ -138,7 +153,6 @@ export function SessionProvider({ children }: SessionProviderProps) {
     } else {
       return false;
     }
-    if (redirectToApp) router.push("/manage");
     return true;
   }
 

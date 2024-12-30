@@ -26,7 +26,13 @@ export async function middleware(req: NextRequest) {
     session?.id &&
     !req.nextUrl.pathname.startsWith("/manage")
   ) {
-    return NextResponse.redirect(new URL("/manage", req.nextUrl));
+    if (session.stores && session.stores.length > 0) {
+      return NextResponse.redirect(
+        new URL(`/manage/${session.stores[0].id}`, req.nextUrl)
+      );
+    } else {
+      return NextResponse.redirect(new URL("/manage", req.nextUrl));
+    }
   }
 
   return NextResponse.next();
