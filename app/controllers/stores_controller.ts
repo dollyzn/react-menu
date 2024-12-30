@@ -1,5 +1,5 @@
 import Store from '#models/store'
-import { numberValidator } from '#validators/common'
+import { uuidValidator } from '#validators/common'
 import { storeValidator, updateValidator } from '#validators/store'
 import type { HttpContext } from '@adonisjs/core/http'
 
@@ -9,7 +9,7 @@ export default class StoresController {
   }
 
   async show({ params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.id)
 
     return Store.findOrFail(id)
   }
@@ -21,7 +21,7 @@ export default class StoresController {
   }
 
   async update({ params, request }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.id)
 
     const store = await Store.findOrFail(id)
 
@@ -33,7 +33,7 @@ export default class StoresController {
   }
 
   async destroy({ params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.id)
 
     const store = await Store.findOrFail(id)
 

@@ -1,5 +1,5 @@
 import User from '#models/user'
-import { numberValidator } from '#validators/common'
+import { uuidValidator } from '#validators/common'
 import { storeValidator, updateValidator } from '#validators/user'
 import type { HttpContext } from '@adonisjs/core/http'
 
@@ -9,7 +9,7 @@ export default class UsersController {
   }
 
   public async show({ params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.id)
 
     return User.query().preload('stores').where('id', id).firstOrFail()
   }
@@ -21,7 +21,7 @@ export default class UsersController {
   }
 
   public async update({ request, params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.id)
 
     const user = await User.findOrFail(id)
 
@@ -39,7 +39,7 @@ export default class UsersController {
   }
 
   public async destroy({ params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.id)
 
     const user = await User.findOrFail(id)
 

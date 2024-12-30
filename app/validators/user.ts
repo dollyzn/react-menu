@@ -4,7 +4,8 @@ const name = vine.string().trim()
 const password = vine.string().minLength(6).maxLength(512)
 const storeIds = vine.array(
   vine
-    .number()
+    .string()
+    .uuid()
     .exists(async (db, value) => await db.from('stores').select('id').where('id', value).first())
 )
 
