@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import Link, { LinkProps } from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 
 export function MobileNav() {
+  const { store } = useParams();
+
   const [open, setOpen] = React.useState(false);
 
   const onOpenChange = React.useCallback((open: boolean) => {
@@ -43,28 +45,28 @@ export function MobileNav() {
         <div className="overflow-auto p-6">
           <div className="flex flex-col space-y-3">
             <MobileLink
-              href="/manage/overview"
+              href={`/manage/${store}/overview`}
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >
               Visão Geral
             </MobileLink>
             <MobileLink
-              href="/manage/categories"
+              href={`/manage/${store}/categories`}
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >
               Categorias
             </MobileLink>
             <MobileLink
-              href="/manage/items"
+              href={`/manage/${store}/items`}
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >
               Items
             </MobileLink>
             <MobileLink
-              href="/manage/addons"
+              href={`/manage/${store}/addons`}
               onOpenChange={setOpen}
               className="text-muted-foreground"
             >

@@ -1,5 +1,6 @@
 "use client";
 
+import { useParams } from "next/navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -13,13 +14,15 @@ import { OverviewChart } from "./components/overview-chart";
 import { RecentItems } from "./components/recent-items";
 
 export default function Overview() {
+  const { store } = useParams();
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex items-center justify-between space-y-2">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/manage">Loja</BreadcrumbLink>
+              <BreadcrumbLink href={`/manage/${store}`}>Loja</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

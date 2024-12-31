@@ -1,3 +1,6 @@
+"use client";
+
+import { useParams } from "next/navigation";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -25,13 +28,15 @@ import { Label } from "@/components/ui/label";
 import addons from "./addons.json";
 
 export default function Addons() {
+  const { store } = useParams();
+
   return (
     <div className="space-y-4 p-4 md:p-6">
       <div className="flex items-center justify-between">
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="/manage">Loja</BreadcrumbLink>
+              <BreadcrumbLink href={`/manage/${store}`}>Loja</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

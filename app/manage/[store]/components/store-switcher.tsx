@@ -89,6 +89,7 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
                     : `https://avatar.vercel.sh/${selectedStore?.id}.png`
                 }
                 alt={selectedStore?.name || "Loja"}
+                className="object-contain"
               />
               <AvatarFallback>LO</AvatarFallback>
             </Avatar>
@@ -118,6 +119,7 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
                             : `https://avatar.vercel.sh/${store?.id}.png`
                         }
                         alt={store.name}
+                        className="object-contain"
                       />
                       <AvatarFallback>LO</AvatarFallback>
                     </Avatar>
