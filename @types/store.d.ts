@@ -1,7 +1,7 @@
 interface Store {
   id: string;
   name: string;
-  status: StoreStatus;
+  status: "open" | "closed" | "maintenance";
   address: string | null;
   instagramUrl: string | null;
   ifoodUrl: string | null;
@@ -15,11 +15,3 @@ interface Store {
   categories: Category[];
   addons: Addon[];
 }
-
-const StoreStatus = {
-  OPEN: "open",
-  CLOSED: "closed",
-  MAINTENANCE: "maintenance",
-} as const;
-
-type StoreStatus = (typeof StoreStatus)[keyof typeof StoreStatus];

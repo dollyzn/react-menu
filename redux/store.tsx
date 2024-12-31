@@ -14,6 +14,7 @@ import {
   createMigrate,
 } from "redux-persist";
 import auth, { AuthState } from "@/redux/slices/auth";
+import storeSlice, { StoreState } from "@/redux/slices/store";
 
 let devToolsEnabled = false;
 
@@ -28,7 +29,8 @@ if (typeof window !== "undefined") {
 }
 
 type PersistentData = {
-  auth: Partial<AuthState>;
+  auth?: Partial<AuthState>;
+  store?: Partial<StoreState>;
 };
 
 const persistentData: PersistentData = {
@@ -100,6 +102,7 @@ const config = {
 
 const reducers = combineReducers({
   auth,
+  store: storeSlice,
 });
 
 export type RootState = ReturnType<typeof reducers>;
