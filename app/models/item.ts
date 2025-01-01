@@ -9,7 +9,7 @@ export default class Item extends BaseModel {
   declare id: string
 
   @column()
-  declare categoryId: string
+  declare categoryId: number
 
   @column()
   declare name: string

@@ -9,7 +9,7 @@ export default class Category extends BaseModel {
   declare id: number
 
   @column()
-  declare storeId: number
+  declare storeId: string
 
   @column()
   declare name: string

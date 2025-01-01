@@ -5,9 +5,12 @@ const uuidValidator = vine.compile(vine.string().uuid())
 const numberValidator = vine.compile(vine.number())
 
 const storeExistValidator = vine.compile(
-  vine.number().exists(async (db, value) => {
-    return await db.from('stores').select('id').where('id', value).first()
-  })
+  vine
+    .string()
+    .uuid()
+    .exists(async (db, value) => {
+      return await db.from('stores').select('id').where('id', value).first()
+    })
 )
 
 storeExistValidator.messagesProvider = new SimpleMessagesProvider({
