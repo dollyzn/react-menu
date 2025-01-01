@@ -72,7 +72,15 @@ const SortableItem = ({ item, button, onClick }: SortableItemProps) => {
 
 interface SortableListProps {
   items: Item[];
-  onOrderChange?: (newOrder: Item[]) => void;
+  onOrderChange?: ({
+    item,
+    oldIndex,
+    newIndex,
+  }: {
+    item: Item;
+    oldIndex: number;
+    newIndex: number;
+  }) => void;
   onItemClick?: (item: Item) => void;
   itemButton?: ItemButton;
 }
@@ -106,11 +114,20 @@ export default function SortableList({
     const oldIndex = _items.findIndex((item) => item.id === active.id);
     const newIndex = _items.findIndex((item) => item.id === over.id);
 
+    if (oldIndex === newIndex) {
+      return;
+    }
+
     const newOrder = arrayMove(_items, oldIndex, newIndex);
     setItems(newOrder);
 
     if (onOrderChange) {
-      onOrderChange(newOrder);
+      const movedItem = _items[oldIndex];
+      onOrderChange({
+        item: movedItem,
+        oldIndex,
+        newIndex,
+      });
     }
   };
 

@@ -2,17 +2,30 @@ import { api } from "@/providers/request-provider";
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import { PURGE } from "redux-persist";
 
+interface Error {
+  message: string;
+  code: string;
+}
 export interface StoreState {
   loading: boolean;
-  data: Store | null;
-
-  error: { message: string; code: string } | null;
+  data: Store[] | null;
+  error: Error | null;
+  show: {
+    loading: boolean;
+    data: Store | null;
+    error: Error | null;
+  };
 }
 
 const initialState: StoreState = {
   loading: false,
   data: null,
   error: null,
+  show: {
+    loading: false,
+    data: null,
+    error: null,
+  },
 };
 
 export const show = createAsyncThunk<Store, string>(
@@ -37,19 +50,19 @@ const storeSlice = createSlice({
   extraReducers: (builder) => {
     //show actions
     builder.addCase(show.pending, (state) => {
-      state.loading = true;
-      state.error = null;
+      state.show.loading = true;
+      state.show.error = null;
     });
 
     builder.addCase(show.fulfilled, (state, action) => {
-      state.loading = false;
-      state.data = action.payload;
-      state.error = null;
+      state.show.loading = false;
+      state.show.data = action.payload;
+      state.show.error = null;
     });
 
     builder.addCase(show.rejected, (state, action) => {
-      state.loading = false;
-      state.error = {
+      state.show.loading = false;
+      state.show.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };

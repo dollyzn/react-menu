@@ -2,7 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import Image from "next/image";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
+
+import { show } from "@/redux/slices/store";
+import { index, updateOrder } from "@/redux/slices/category";
 
 import {
   ArrowLeft,
@@ -51,14 +55,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import Image from "next/image";
 
-import SortableList, { Item } from "./components/sortable-list";
+import SortableList from "./components/sortable-list";
 import { CommentRatings } from "./components/rating";
 import StatusButton from "./components/status-button";
-
-import { useDispatch, useSelector } from "react-redux";
-import { AppDispatch, RootState } from "@/redux/store";
-import { show } from "@/redux/slices/store";
 
 export default function Store() {
   const { store } = useParams();
@@ -68,18 +69,29 @@ export default function Store() {
 
   useEffect(() => {
     dispatch(show(store as string));
+    dispatch(index(store as string));
   }, []);
 
   const loading = useSelector((state: RootState) => state.store.loading);
-  const data = useSelector((state: RootState) => state.store.data);
+  const data = useSelector((state: RootState) => state.store.show.data);
+  const categories = useSelector((state: RootState) => state.category.data);
 
   const [focusAddress, setFocusAddress] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("categories");
-  const [selectedCategory, setSelectedCategory] = useState<Item | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null
+  );
 
-  const handleCategoryClick = (item: Item) => {
+  const handleCategoryClick = (item: Category) => {
     setSelectedCategory(item);
     setActiveTab("items");
+  };
+
+  const handleCategoryOrderChange = (newOrder: {
+    id: number;
+    order: number;
+  }) => {
+    dispatch(updateOrder(newOrder));
   };
 
   const handleBack = () => {
@@ -312,20 +324,25 @@ export default function Store() {
                   </TabsList>
                   <TabsContent value="categories">
                     <ScrollArea className="h-[258px] pr-4 pb-0 mb-6 md:mb-0 pt-1">
-                      <SortableList
-                        items={[
-                          { id: 1, name: "Pastéis Simples" },
-                          { id: 2, name: "Pastéis Especiais" },
-                          { id: 3, name: "Pastéis Selecionados" },
-                          { id: 4, name: "Pastéis Doces" },
-                          { id: 5, name: "Porções" },
-                          { id: 6, name: "Bebidas" },
-                        ]}
-                        itemButton={
-                          <Button variant="ghost">Ver produtos</Button>
-                        }
-                        onItemClick={(item) => handleCategoryClick(item)}
-                      />
+                      {categories && !!categories.length ? (
+                        <SortableList
+                          items={categories}
+                          itemButton={
+                            <Button variant="ghost">Ver produtos</Button>
+                          }
+                          onOrderChange={(newOrder) =>
+                            handleCategoryOrderChange({
+                              id: newOrder.item.id as number,
+                              order: newOrder.newIndex,
+                            })
+                          }
+                          onItemClick={(item) =>
+                            handleCategoryClick(item as Category)
+                          }
+                        />
+                      ) : (
+                        <div>Nenhuma categoria</div>
+                      )}
                     </ScrollArea>
                   </TabsContent>
                   <TabsContent value="items">
@@ -338,25 +355,13 @@ export default function Store() {
                         </Button>
                       </div>
 
-                      <SortableList
-                        items={[
-                          { id: 1, name: "Pastel de Palmito" },
-                          { id: 2, name: "Pastel de Palmito" },
-                          { id: 3, name: "Pastel de Catupiry" },
-                          { id: 4, name: "Pastel de Vegetariano" },
-                          { id: 5, name: "Pastel de Chocolate" },
-                          { id: 6, name: "Pastel de Palmito" },
-                          { id: 7, name: "Pastel de Presunto e Queijo" },
-                          { id: 8, name: "Pastel de Calabresa" },
-                          { id: 9, name: "Pastel de Queijo" },
-                          { id: 10, name: "Pastel de Pizza" },
-                          { id: 11, name: "Pastel de Frango" },
-                          { id: 12, name: "Pastel de Pizza" },
-                          { id: 13, name: "Pastel de Carne" },
-                          { id: 14, name: "Pastel de Vegetariano" },
-                          { id: 15, name: "Pastel de Calabresa" },
-                        ]}
-                      />
+                      {selectedCategory &&
+                      selectedCategory.items &&
+                      !!selectedCategory.items.length ? (
+                        <SortableList items={selectedCategory.items} />
+                      ) : (
+                        <div>Nenhum item</div>
+                      )}
                     </ScrollArea>
                   </TabsContent>
                 </Tabs>
