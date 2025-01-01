@@ -66,6 +66,9 @@ router
     router.get('/:id/items', [ItemsController, 'index']).as('items.index')
     router.post('/:storeId', [CategoriesController, 'store']).as('categories.store')
     router.put('/:id', [CategoriesController, 'update']).as('categories.update')
+    router
+      .patch('/update-order', [CategoriesController, 'updateOrder'])
+      .as('categories.updateOrder')
     router.delete('/:id', [CategoriesController, 'destroy']).as('categories.destroy')
   })
   .use(middleware.auth())

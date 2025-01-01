@@ -17,4 +17,13 @@ const updateValidator = vine.compile(
   })
 )
 
-export { storeValidator, updateValidator }
+const updateOrderValidator = vine.compile(
+  vine.object({
+    id: vine.number().exists(async (db, value) => {
+      return await db.from('categories').select('id').where('id', value).first()
+    }),
+    order: vine.number().min(0),
+  })
+)
+
+export { storeValidator, updateValidator, updateOrderValidator }
