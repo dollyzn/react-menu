@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
+import { useStoreSocket } from "@/hooks/socket";
 
-import { setStoreStatus, show, updateStatus } from "@/redux/slices/store";
+import { show, updateStatus } from "@/redux/slices/store";
 import { index, updateOrder } from "@/redux/slices/category";
 import {
   indexByCategory,
   updateOrder as updateItemOrder,
 } from "@/redux/slices/item";
-import { initializeSocket } from "@/lib/socket";
 
 import {
   AlertCircle,
@@ -72,6 +72,8 @@ export default function Store() {
   const { store } = useParams();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  useStoreSocket(store as string);
+
   const addressInRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -85,22 +87,6 @@ export default function Store() {
   const indexByCategoryLoading = useSelector(
     (state: RootState) => state.item.indexByCategory.loading
   );
-
-  useEffect(() => {
-    const socket = initializeSocket();
-
-    if (data?.id) {
-      socket.emit("join-store", data.id);
-
-      socket.on("store-status", (data) => {
-        dispatch(setStoreStatus(data));
-      });
-    }
-
-    return () => {
-      socket.off("store-status");
-    };
-  }, [data?.id, dispatch]);
 
   const [focusAddress, setFocusAddress] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("categories");

@@ -10,6 +10,7 @@ export interface StoreState {
   loading: boolean;
   data: Store[] | null;
   error: Error | null;
+  prevStore: string | null;
   show: {
     loading: boolean;
     data: Store | null;
@@ -25,6 +26,7 @@ const initialState: StoreState = {
   loading: false,
   data: null,
   error: null,
+  prevStore: null,
   show: {
     loading: false,
     data: null,
@@ -70,6 +72,9 @@ const storeSlice = createSlice({
   name: "store",
   initialState,
   reducers: {
+    setPrevStore(state, action: PayloadAction<string | null>) {
+      state.prevStore = action.payload;
+    },
     setStoreStatus: (
       state,
       action: PayloadAction<{ storeId: string; status: Store["status"] }>
@@ -136,5 +141,5 @@ const storeSlice = createSlice({
   },
 });
 
-export const { setStoreStatus } = storeSlice.actions;
+export const { setPrevStore, setStoreStatus } = storeSlice.actions;
 export default storeSlice.reducer;
