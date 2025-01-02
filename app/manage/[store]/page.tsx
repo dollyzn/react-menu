@@ -61,6 +61,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { UpdateBannerDialog } from "./components/update-banner-dialog";
+import { UpdatePhotoDialog } from "./components/update-photo-dialog";
 import { CommentRatings } from "./components/rating";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -160,6 +162,8 @@ export default function Store() {
                     <Image
                       src={data?.bannerUrl}
                       alt={data.name}
+                      width={685}
+                      height={190}
                       className="w-full h-full object-cover"
                     />
                   ) : (
@@ -167,32 +171,7 @@ export default function Store() {
                       Nenhum banner definido
                     </div>
                   )}
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        variant="secondary"
-                        size="sm"
-                        className="absolute bottom-4 right-4"
-                      >
-                        <Camera className="mr-2 h-4 w-4" />
-                        Alterar Banner
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Alterar Imagem do Banner</DialogTitle>
-                        <DialogDescription>
-                          Escolha uma nova imagem do banner para a loja
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                          <Label>Imagem do Banner</Label>
-                          <Input id="cover" type="file" accept="image/*" />
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
+                  <UpdateBannerDialog storeId={data.id} />
                 </div>
 
                 <div className="flex items-center gap-4">
@@ -212,31 +191,7 @@ export default function Store() {
                       />
                     )}
 
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          className="absolute -bottom-2 -right-2"
-                        >
-                          <Upload className="h-4 w-4" />
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Alterar Logo</DialogTitle>
-                          <DialogDescription>
-                            Escolha uma nova logo para a loja
-                          </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                          <div className="grid gap-2">
-                            <Label>Logo</Label>
-                            <Input id="logo" type="file" accept="image/*" />
-                          </div>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                    <UpdatePhotoDialog storeId={data.id} />
                   </div>
 
                   <div className="flex gap-2 flex-col">

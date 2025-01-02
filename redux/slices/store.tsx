@@ -16,6 +16,10 @@ export interface StoreState {
     data: Store | null;
     error: Error | null;
   };
+  updateImages: {
+    loading: boolean;
+    error: Error | null;
+  };
   updateStatus: {
     loading: boolean;
     error: Error | null;
@@ -30,6 +34,10 @@ const initialState: StoreState = {
   show: {
     loading: false,
     data: null,
+    error: null,
+  },
+  updateImages: {
+    loading: false,
     error: null,
   },
   updateStatus: {
@@ -52,6 +60,29 @@ export const show = createAsyncThunk<Store, string>(
     }
   }
 );
+
+export const updateImages = createAsyncThunk<
+  Store,
+  { id: string; banner?: File; photo?: File }
+>("store/updateImages", async ({ id, banner, photo }, { rejectWithValue }) => {
+  try {
+    const res = await api.patch(
+      `/stores/${id}/images`,
+      { banner, photo },
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return res.data as Store;
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
 
 export const updateStatus = createAsyncThunk<
   Store,
@@ -100,6 +131,35 @@ const storeSlice = createSlice({
     builder.addCase(show.rejected, (state, action) => {
       state.show.loading = false;
       state.show.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //updateImages actions
+    builder.addCase(updateImages.pending, (state) => {
+      state.updateImages.loading = true;
+      state.updateImages.error = null;
+    });
+
+    builder.addCase(updateImages.fulfilled, (state, action) => {
+      state.updateImages.loading = false;
+      if (state.show.data && state.show.data.id === action.payload.id) {
+        state.show.data = { ...state.show.data, ...action.payload };
+      }
+      if (state.data) {
+        state.data = state.data.map((store) =>
+          store.id === action.payload.id
+            ? { ...store, ...action.payload }
+            : store
+        );
+      }
+      state.updateImages.error = null;
+    });
+
+    builder.addCase(updateImages.rejected, (state, action) => {
+      state.updateImages.loading = false;
+      state.updateImages.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };
