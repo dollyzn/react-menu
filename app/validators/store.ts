@@ -46,4 +46,10 @@ const updateValidator = vine.compile(
   })
 )
 
-export { storeValidator, updateValidator }
+const updateStatusValidator = vine.compile(
+  vine.object({
+    status: vine.enum(Object.values(StoreStatus)),
+  })
+)
+
+export { storeValidator, updateValidator, updateStatusValidator }
