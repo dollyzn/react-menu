@@ -61,6 +61,14 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
   React.useEffect(() => {
     if (selectedStore?.id !== defaultStore.id) {
       setSelectedStore(defaultStore);
+    } else {
+      const updatedStore = stores.find((s) => s.id === selectedStore.id);
+      if (updatedStore && updatedStore.photoUrl !== selectedStore.photoUrl) {
+        setSelectedStore((prev) => ({
+          ...prev,
+          photoUrl: updatedStore.photoUrl,
+        }));
+      }
     }
   }, [store, stores, defaultStore, selectedStore]);
 

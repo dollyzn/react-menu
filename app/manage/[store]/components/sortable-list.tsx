@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -93,6 +93,10 @@ export default function SortableList({
 }: SortableListProps) {
   const [_items, setItems] = useState(items);
   const [activeId, setActiveId] = useState<string | number | null>(null);
+
+  useEffect(() => {
+    setItems(items);
+  }, [items]);
 
   const handleDragStart = ({ active }: { active: Active }) => {
     setActiveId(active.id);

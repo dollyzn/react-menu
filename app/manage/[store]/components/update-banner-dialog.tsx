@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AppDispatch } from "@/redux/store";
+import { AppDispatch, RootState } from "@/redux/store";
 import { updateImages } from "@/redux/slices/store";
+import { setUser } from "@/redux/slices/auth";
 
 import {
   Dialog,
@@ -49,6 +50,8 @@ const UpdateBannerSchema = z.object({
 export const UpdateBannerDialog = ({ storeId }: { storeId: string }) => {
   const dispatch = useDispatch<AppDispatch>();
 
+  const user = useSelector((state: RootState) => state.auth.user);
+
   const form = useForm<z.infer<typeof UpdateBannerSchema>>({
     resolver: zodResolver(UpdateBannerSchema),
     defaultValues: {
@@ -79,6 +82,19 @@ export const UpdateBannerDialog = ({ storeId }: { storeId: string }) => {
 
     if (updateImages.fulfilled.match(result)) {
       handleOpenChange();
+
+      if (user) {
+        const updatedUser: User = {
+          ...user,
+          stores: user.stores.map((store) =>
+            store.id === result.payload.id
+              ? { ...store, ...result.payload }
+              : store
+          ),
+        };
+
+        dispatch(setUser(updatedUser));
+      }
     }
 
     if (updateImages.rejected.match(result)) {
