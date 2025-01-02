@@ -13,6 +13,9 @@ package-lock.json
 # Frontend assets compiled code
 public/assets
 
+# Storage files
+storage
+
 # Build tools specific
 npm-debug.log
 yarn-error.log
