@@ -5,12 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 
-import { show } from "@/redux/slices/store";
+import { setStoreStatus, show, updateStatus } from "@/redux/slices/store";
 import { index, updateOrder } from "@/redux/slices/category";
 import {
   indexByCategory,
   updateOrder as updateItemOrder,
 } from "@/redux/slices/item";
+import { initializeSocket } from "@/lib/socket";
 
 import {
   AlertCircle,
@@ -60,11 +61,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { CommentRatings } from "./components/rating";
 import { toast } from "sonner";
 import Image from "next/image";
 
 import SortableList from "./components/sortable-list";
-import { CommentRatings } from "./components/rating";
 import StatusButton from "./components/status-button";
 
 export default function Store() {
@@ -76,7 +77,7 @@ export default function Store() {
   useEffect(() => {
     dispatch(show(store as string));
     dispatch(index(store as string));
-  }, []);
+  }, [dispatch, store]);
 
   const loading = useSelector((state: RootState) => state.store.loading);
   const data = useSelector((state: RootState) => state.store.show.data);
@@ -84,6 +85,22 @@ export default function Store() {
   const indexByCategoryLoading = useSelector(
     (state: RootState) => state.item.indexByCategory.loading
   );
+
+  useEffect(() => {
+    const socket = initializeSocket();
+
+    if (data?.id) {
+      socket.emit("join-store", data.id);
+
+      socket.on("store-status", (data) => {
+        dispatch(setStoreStatus(data));
+      });
+    }
+
+    return () => {
+      socket.off("store-status");
+    };
+  }, [data?.id, dispatch]);
 
   const [focusAddress, setFocusAddress] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("categories");
@@ -123,6 +140,10 @@ export default function Store() {
 
   const handleItemOrderChange = (newOrder: { id: number; order: number }) => {
     dispatch(updateItemOrder(newOrder));
+  };
+
+  const handleUpdateStatus = (id: string, status: Store["status"]) => {
+    dispatch(updateStatus({ id, status }));
   };
 
   return (
@@ -251,15 +272,27 @@ export default function Store() {
                               <StatusButton status={data.status} />
                             </DropdownMenuTrigger>
                             <DropdownMenuContent>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleUpdateStatus(data.id, "open")
+                                }
+                              >
                                 <CheckCircle className="h-4 w-4 text-green-600" />
                                 Aberto
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleUpdateStatus(data.id, "closed")
+                                }
+                              >
                                 <XCircle className="h-4 w-4 text-red-600" />
                                 Fechado
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  handleUpdateStatus(data.id, "maintenance")
+                                }
+                              >
                                 <Wrench className="h-4 w-4 text-yellow-600" />
                                 Em Manutenção
                               </DropdownMenuItem>

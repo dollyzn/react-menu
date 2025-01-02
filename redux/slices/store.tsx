@@ -1,5 +1,5 @@
 import { api } from "@/providers/request-provider";
-import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
+import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { PURGE } from "redux-persist";
 
 interface Error {
@@ -15,6 +15,10 @@ export interface StoreState {
     data: Store | null;
     error: Error | null;
   };
+  updateStatus: {
+    loading: boolean;
+    error: Error | null;
+  };
 }
 
 const initialState: StoreState = {
@@ -24,6 +28,10 @@ const initialState: StoreState = {
   show: {
     loading: false,
     data: null,
+    error: null,
+  },
+  updateStatus: {
+    loading: false,
     error: null,
   },
 };
@@ -43,10 +51,34 @@ export const show = createAsyncThunk<Store, string>(
   }
 );
 
+export const updateStatus = createAsyncThunk<
+  Store,
+  { id: string; status: Store["status"] }
+>("store/updateStatus", async ({ id, status }, { rejectWithValue }) => {
+  try {
+    const res = await api.patch(`/stores/${id}/status`, { status });
+    return res.data as Store;
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
+
 const storeSlice = createSlice({
   name: "store",
   initialState,
-  reducers: {},
+  reducers: {
+    setStoreStatus: (
+      state,
+      action: PayloadAction<{ storeId: string; status: Store["status"] }>
+    ) => {
+      if (state.show.data && state.show.data.id === action.payload.storeId) {
+        state.show.data.status = action.payload.status;
+      }
+    },
+  },
   extraReducers: (builder) => {
     //show actions
     builder.addCase(show.pending, (state) => {
@@ -68,6 +100,35 @@ const storeSlice = createSlice({
       };
     });
 
+    //updateStatus actions
+    builder.addCase(updateStatus.pending, (state) => {
+      state.updateStatus.loading = true;
+      state.updateStatus.error = null;
+    });
+
+    builder.addCase(updateStatus.fulfilled, (state, action) => {
+      state.updateStatus.loading = false;
+      if (state.show.data && state.show.data.id === action.payload.id) {
+        state.show.data = { ...state.show.data, ...action.payload };
+      }
+      if (state.data) {
+        state.data = state.data.map((store) =>
+          store.id === action.payload.id
+            ? { ...store, ...action.payload }
+            : store
+        );
+      }
+      state.updateStatus.error = null;
+    });
+
+    builder.addCase(updateStatus.rejected, (state, action) => {
+      state.updateStatus.loading = false;
+      state.updateStatus.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
     //purge slice
     builder.addCase(PURGE, () => {
       return initialState;
@@ -75,4 +136,5 @@ const storeSlice = createSlice({
   },
 });
 
+export const { setStoreStatus } = storeSlice.actions;
 export default storeSlice.reducer;

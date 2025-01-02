@@ -8,7 +8,6 @@ import { api, injectLogout } from "./request-provider";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { setUser } from "@/redux/slices/auth";
-import isEqual from "lodash/isEqual";
 import { persistor } from "./redux-provider";
 import { redirectToLogin } from "@/utils/navigation";
 
@@ -126,12 +125,19 @@ export function SessionProvider({ children }: SessionProviderProps) {
         try {
           const response = await api.get<User>("/auth/me");
 
-          if (response.data && !isEqual(response.data, decodedUser)) {
+          if (
+            !response.data ||
+            (response.data &&
+              (response.data.id !== decodedUser.id ||
+                response.data.email !== decodedUser.email))
+          ) {
             removeCookie();
             dispatch(setUser(null));
             if (redirectToLogin) redirect();
             return false;
           }
+
+          dispatch(setUser(response.data));
 
           if (redirectToApp) {
             if (response.data.stores && response.data.stores.length > 0) {

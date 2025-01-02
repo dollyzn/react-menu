@@ -1,6 +1,6 @@
 interface Category {
   id: number;
-  storeId: number;
+  storeId: string;
   name: string;
   description: string | null;
   order: number;

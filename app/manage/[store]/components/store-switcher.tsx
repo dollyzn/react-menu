@@ -59,10 +59,10 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
   const [selectedStore, setSelectedStore] = React.useState<Store>(defaultStore);
 
   React.useEffect(() => {
-    if (defaultStore && selectedStore?.id !== defaultStore.id) {
+    if (selectedStore?.id !== defaultStore.id) {
       setSelectedStore(defaultStore);
     }
-  }, [store, stores]);
+  }, [store, stores, defaultStore, selectedStore]);
 
   const handleStoreSelect = (store: Store) => {
     setSelectedStore(store);
@@ -84,7 +84,7 @@ export default function StoreSwitcher({ className }: StoreSwitcherProps) {
             <Avatar className="mr-2 h-5 w-5">
               <AvatarImage
                 src={
-                  selectedStore.photoUrl
+                  selectedStore?.photoUrl
                     ? selectedStore.photoUrl
                     : `https://avatar.vercel.sh/${selectedStore?.id}.png`
                 }
