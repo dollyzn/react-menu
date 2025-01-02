@@ -52,6 +52,7 @@ router
     router.get('/', [StoresController, 'index']).as('stores.index')
     router.get('/:id', [StoresController, 'show']).as('stores.show')
     router.get('/:id/categories', [CategoriesController, 'index']).as('categories.index')
+    router.get('/:id/items', [ItemsController, 'indexByStore']).as('items.indexByStore')
     router.get('/:id/addons', [AddonsController, 'index']).as('addons.index')
     router.post('/', [StoresController, 'store']).as('stores.store')
     router.put('/:id', [StoresController, 'update']).as('stores.update')
@@ -63,7 +64,7 @@ router
 router
   .group(() => {
     router.get('/:id', [CategoriesController, 'show']).as('categories.show')
-    router.get('/:id/items', [ItemsController, 'index']).as('items.index')
+    router.get('/:id/items', [ItemsController, 'indexByCategory']).as('items.indexByCategory')
     router.post('/:storeId', [CategoriesController, 'store']).as('categories.store')
     router.put('/:id', [CategoriesController, 'update']).as('categories.update')
     router

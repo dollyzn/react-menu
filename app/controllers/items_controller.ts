@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { uuidValidator } from '#validators/common'
+import { storeExistValidator, uuidValidator } from '#validators/common'
 import {
   categoryExistValidator,
   storeValidator,
@@ -10,10 +10,20 @@ import Item from '#models/item'
 import db from '@adonisjs/lucid/services/db'
 
 export default class ItemsController {
-  async index({ params }: HttpContext) {
+  async indexByCategory({ params }: HttpContext) {
     const categoryId = await categoryExistValidator.validate(params.id)
 
-    return Item.query().where('categoryId', categoryId)
+    return Item.query().where('categoryId', categoryId).orderBy('order', 'asc')
+  }
+
+  async indexByStore({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.id)
+
+    return Item.query()
+      .whereHas('category', (query) => {
+        query.where('storeId', storeId)
+      })
+      .orderBy('order', 'asc')
   }
 
   async show({ params }: HttpContext) {
