@@ -19,6 +19,15 @@ app.ready(() => {
         logger.info(`Socket ${socket.id} joined store: ${storeId}`)
         socket.join(`store-${storeId}`)
       })
+
+      socket.on('leave-store', (storeId) => {
+        logger.info(`Socket ${socket.id} left store: ${storeId}`)
+        socket.leave(`store-${storeId}`)
+      })
+
+      socket.on('disconnect', (reason) => {
+        logger.info(`Socket ${socket.id} disconnected: ${reason}`)
+      })
     })
 
     logger.info('Socket.IO server initialized')
