@@ -90,6 +90,9 @@ export default function Store() {
     (state: RootState) => state.category.loading
   );
   const categories = useSelector((state: RootState) => state.category.data);
+  const updateCategoryOrderLoading = useSelector(
+    (state: RootState) => state.category.updateOrder.loading
+  );
   const indexByCategoryLoading = useSelector(
     (state: RootState) => state.item.indexByCategory.loading
   );
@@ -374,6 +377,7 @@ export default function Store() {
                             Ver produtos
                           </Button>
                         }
+                        disabled={updateCategoryOrderLoading}
                         onOrderChange={(newOrder) =>
                           handleCategoryOrderChange({
                             id: newOrder.item.id as number,

@@ -27,10 +27,16 @@ type ItemButton = React.ReactElement<
 interface SortableItemProps {
   item: Item;
   button?: ItemButton;
+  disabled?: boolean;
   onClick?: (item: Item) => void;
 }
 
-const SortableItem = ({ item, button, onClick }: SortableItemProps) => {
+const SortableItem = ({
+  item,
+  button,
+  disabled,
+  onClick,
+}: SortableItemProps) => {
   const {
     attributes,
     listeners,
@@ -55,10 +61,18 @@ const SortableItem = ({ item, button, onClick }: SortableItemProps) => {
       className="flex justify-between items-center gap-2 p-3 border bg-card rounded-lg cursor-default"
       onClick={!button ? () => (onClick ? onClick(item) : null) : undefined}
     >
-      <div className="flex items-center gap-2">
+      <div
+        className={`flex items-center gap-2 ${
+          disabled ? "text-muted-foreground" : ""
+        }`}
+      >
         <GripVertical
           {...listeners}
-          className="h-4 w-4 text-muted-foreground cursor-grab"
+          className={`h-4 w-4 ${
+            disabled
+              ? "cursor-not-allowed text-muted"
+              : "cursor-grab text-muted-foreground"
+          }`}
         />
         <span>{item.name}</span>
       </div>
@@ -72,6 +86,7 @@ const SortableItem = ({ item, button, onClick }: SortableItemProps) => {
 
 interface SortableListProps {
   items: Item[];
+  disabled?: boolean;
   onOrderChange?: ({
     item,
     oldIndex,
@@ -88,6 +103,7 @@ interface SortableListProps {
 export default function SortableList({
   items,
   itemButton,
+  disabled,
   onOrderChange,
   onItemClick,
 }: SortableListProps) {
@@ -149,6 +165,7 @@ export default function SortableList({
       <SortableContext
         items={_items.map((item) => item.id)}
         strategy={verticalListSortingStrategy}
+        disabled={disabled}
       >
         <div className="space-y-2">
           {_items.map((item) => (
@@ -157,6 +174,7 @@ export default function SortableList({
               item={item}
               button={itemButton}
               onClick={onItemClick}
+              disabled={disabled}
             />
           ))}
         </div>
@@ -164,8 +182,18 @@ export default function SortableList({
       <DragOverlay>
         {activeId ? (
           <div className="flex justify-between items-center gap-2 p-3 border bg-card rounded-lg shadow-lg cursor-default">
-            <div className="flex items-center gap-2">
-              <GripVertical className="h-4 w-4 text-muted-foreground cursor-grabbing" />
+            <div
+              className={`flex items-center gap-2 ${
+                disabled ? "text-muted-foreground" : ""
+              }`}
+            >
+              <GripVertical
+                className={`h-4 w-4 ${
+                  disabled
+                    ? "text-muted cursor-not-allowed"
+                    : "text-muted-foreground cursor-grabbing"
+                }`}
+              />
               <span>{_items.find((item) => item.id === activeId)?.name}</span>
             </div>
             {itemButton && React.cloneElement(itemButton)}
