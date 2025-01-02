@@ -46,10 +46,29 @@ const updateValidator = vine.compile(
   })
 )
 
+const updateImagesValidator = vine.compile(
+  vine.object({
+    banner: vine
+      .file({
+        size: '2mb',
+        extnames: ['jpg', 'jpeg', 'png', 'webp'],
+      })
+      .optional()
+      .requiredIfMissing('photo'),
+    photo: vine
+      .file({
+        size: '2mb',
+        extnames: ['jpg', 'jpeg', 'png', 'webp'],
+      })
+      .optional()
+      .requiredIfMissing('banner'),
+  })
+)
+
 const updateStatusValidator = vine.compile(
   vine.object({
     status: vine.enum(Object.values(StoreStatus)),
   })
 )
 
-export { storeValidator, updateValidator, updateStatusValidator }
+export { storeValidator, updateValidator, updateImagesValidator, updateStatusValidator }

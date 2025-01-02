@@ -7,4 +7,5 @@ vine.messagesProvider = new SimpleMessagesProvider({
   'uuid': 'Este ID não é válido',
   'database.exists': 'Este registro não existe',
   'database.unique': 'Este {{field}} já está em uso',
+  'file.extname': 'Este arquivo não é suportado, apenas {{extnames}} são permitidos',
 })

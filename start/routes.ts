@@ -56,6 +56,7 @@ router
     router.get('/:id/addons', [AddonsController, 'index']).as('addons.index')
     router.post('/', [StoresController, 'store']).as('stores.store')
     router.put('/:id', [StoresController, 'update']).as('stores.update')
+    router.patch('/:id/images', [StoresController, 'updateImages']).as('stores.updateImages')
     router.patch('/:id/status', [StoresController, 'updateStatus']).as('stores.updateStatus')
     router.delete('/:id', [StoresController, 'destroy']).as('stores.destroy')
   })
