@@ -26,6 +26,9 @@ export default class Item extends BaseModel {
   @column()
   declare views: number
 
+  @column()
+  declare order: number
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

@@ -6,12 +6,9 @@ const price = vine.number().positive()
 const photoUrl = vine.string().optional()
 
 const categoryExistValidator = vine.compile(
-  vine
-    .string()
-    .uuid()
-    .exists(async (db, value) => {
-      return await db.from('categories').select('id').where('id', value).first()
-    })
+  vine.number().exists(async (db, value) => {
+    return await db.from('categories').select('id').where('id', value).first()
+  })
 )
 
 categoryExistValidator.messagesProvider = new SimpleMessagesProvider({
@@ -36,4 +33,16 @@ const updateValidator = vine.compile(
   })
 )
 
-export { categoryExistValidator, storeValidator, updateValidator }
+const updateOrderValidator = vine.compile(
+  vine.object({
+    id: vine
+      .string()
+      .uuid()
+      .exists(async (db, value) => {
+        return await db.from('items').select('id').where('id', value).first()
+      }),
+    order: vine.number().min(0),
+  })
+)
+
+export { categoryExistValidator, storeValidator, updateValidator, updateOrderValidator }

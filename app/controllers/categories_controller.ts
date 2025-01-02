@@ -55,12 +55,14 @@ export default class CategoriesController {
       if (order < item.order) {
         await trx
           .from('categories')
-          .whereBetween('order', [order, item.order - 1])
+          .where('store_id', item.storeId)
+          .andWhereBetween('order', [order, item.order - 1])
           .increment('order', 1)
       } else if (order > item.order) {
         await trx
           .from('categories')
-          .whereBetween('order', [item.order + 1, order])
+          .where('store_id', item.storeId)
+          .andWhereBetween('order', [item.order + 1, order])
           .decrement('order', 1)
       }
 
@@ -69,7 +71,10 @@ export default class CategoriesController {
 
       await trx.commit()
 
-      return Category.query().select('id', 'order', 'updatedAt').orderBy('order', 'asc')
+      return Category.query()
+        .where('storeId', item.storeId)
+        .select('id', 'order', 'updatedAt')
+        .orderBy('order', 'asc')
     } catch (error) {
       await trx.rollback()
       return response.status(500).send({

@@ -1,7 +1,13 @@
-import Item from '#models/item'
-import { uuidValidator } from '#validators/common'
-import { categoryExistValidator, storeValidator, updateValidator } from '#validators/item'
 import type { HttpContext } from '@adonisjs/core/http'
+import { uuidValidator } from '#validators/common'
+import {
+  categoryExistValidator,
+  storeValidator,
+  updateOrderValidator,
+  updateValidator,
+} from '#validators/item'
+import Item from '#models/item'
+import db from '@adonisjs/lucid/services/db'
 
 export default class ItemsController {
   async index({ params }: HttpContext) {
@@ -40,6 +46,45 @@ export default class ItemsController {
     item.merge(data)
 
     return item.save()
+  }
+
+  public async updateOrder({ request, response }: HttpContext) {
+    const { id, order } = await request.validateUsing(updateOrderValidator)
+
+    const item = await Item.query().where('id', id).firstOrFail()
+
+    const trx = await db.transaction()
+
+    try {
+      if (order < item.order) {
+        await trx
+          .from('items')
+          .where('category_id', item.categoryId)
+          .andWhereBetween('order', [order, item.order - 1])
+          .increment('order', 1)
+      } else if (order > item.order) {
+        await trx
+          .from('items')
+          .where('category_id', item.categoryId)
+          .andWhereBetween('order', [item.order + 1, order])
+          .decrement('order', 1)
+      }
+
+      item.merge({ order: order })
+      await item.useTransaction(trx).save()
+
+      await trx.commit()
+
+      return Item.query()
+        .where('categoryId', item.categoryId)
+        .select('id', 'order', 'updatedAt')
+        .orderBy('order', 'asc')
+    } catch (error) {
+      await trx.rollback()
+      return response.status(500).send({
+        message: 'Ocorreu um erro ao atualizar ordem',
+      })
+    }
   }
 
   async destroy({ params }: HttpContext) {

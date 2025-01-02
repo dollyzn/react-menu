@@ -8,7 +8,9 @@ export default class MenuController {
 
     const store = await Store.query()
       .preload('categories', (query) => {
-        query.preload('items', (query) => query.preload('addons'))
+        query
+          .orderBy('order', 'asc')
+          .preload('items', (query) => query.orderBy('order', 'asc').preload('addons'))
       })
       .where(slug ? { slug } : { is_default: true })
       .firstOrFail()
