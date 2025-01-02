@@ -6,6 +6,7 @@ import { ThemeProvider } from "@/providers/theme-provider";
 import { cn } from "@/lib/utils";
 import { ReduxProvider } from "@/providers/redux-provider";
 import { SessionProvider } from "@/providers/session-provider";
+import { Toaster } from "@/components/ui/sonner";
 
 export const metadata: Metadata = {
   title: "JJ Pastéis",
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
               >
                 {children}
               </div>
+              <Toaster />
             </SessionProvider>
           </ReduxProvider>
         </ThemeProvider>

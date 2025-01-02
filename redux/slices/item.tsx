@@ -31,7 +31,7 @@ const initialState: ItemState = {
   },
 };
 
-export const indexByCategory = createAsyncThunk<Item[], string>(
+export const indexByCategory = createAsyncThunk<Item[], number>(
   "item/indexByCategory",
   async (categoryId, { rejectWithValue }) => {
     try {

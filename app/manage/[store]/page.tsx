@@ -7,7 +7,10 @@ import { AppDispatch, RootState } from "@/redux/store";
 
 import { show } from "@/redux/slices/store";
 import { index, updateOrder } from "@/redux/slices/category";
-import { updateOrder as updateItemOrder } from "@/redux/slices/item";
+import {
+  indexByCategory,
+  updateOrder as updateItemOrder,
+} from "@/redux/slices/item";
 
 import {
   AlertCircle,
@@ -57,6 +60,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 import Image from "next/image";
 
 import SortableList from "./components/sortable-list";
@@ -77,6 +81,9 @@ export default function Store() {
   const loading = useSelector((state: RootState) => state.store.loading);
   const data = useSelector((state: RootState) => state.store.show.data);
   const categories = useSelector((state: RootState) => state.category.data);
+  const indexByCategoryLoading = useSelector(
+    (state: RootState) => state.item.indexByCategory.loading
+  );
 
   const [focusAddress, setFocusAddress] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("categories");
@@ -84,9 +91,27 @@ export default function Store() {
     null
   );
 
-  const handleCategoryClick = (item: Category) => {
-    setSelectedCategory(item);
-    setActiveTab("items");
+  const handleCategoryClick = async (item: Category) => {
+    const result = await dispatch(indexByCategory(item.id));
+    if (indexByCategory.fulfilled.match(result)) {
+      setSelectedCategory({ ...item, items: result.payload });
+      setActiveTab("items");
+    }
+
+    if (indexByCategory.rejected.match(result)) {
+      toast.error(
+        `Ocorreu um erro ao recuperar os itens da categoria ${item.name}`,
+        {
+          richColors: true,
+          closeButton: true,
+        }
+      );
+    }
+  };
+
+  const handleBack = () => {
+    setSelectedCategory(null);
+    setActiveTab("categories");
   };
 
   const handleCategoryOrderChange = (newOrder: {
@@ -98,11 +123,6 @@ export default function Store() {
 
   const handleItemOrderChange = (newOrder: { id: number; order: number }) => {
     dispatch(updateItemOrder(newOrder));
-  };
-
-  const handleBack = () => {
-    setSelectedCategory(null);
-    setActiveTab("categories");
   };
 
   return (
@@ -334,7 +354,12 @@ export default function Store() {
                         <SortableList
                           items={categories}
                           itemButton={
-                            <Button variant="ghost">Ver produtos</Button>
+                            <Button
+                              variant="ghost"
+                              disabled={indexByCategoryLoading}
+                            >
+                              Ver produtos
+                            </Button>
                           }
                           onOrderChange={(newOrder) =>
                             handleCategoryOrderChange({
