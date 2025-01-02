@@ -8,7 +8,12 @@ export default class CategoriesController {
   async index({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.id)
 
-    return Category.query().preload('items').where('storeId', storeId).orderBy('order', 'asc')
+    return Category.query()
+      .where('storeId', storeId)
+      .withCount('items', (query) => {
+        query.as('itemsCount')
+      })
+      .orderBy('order', 'asc')
   }
 
   async show({ params }: HttpContext) {

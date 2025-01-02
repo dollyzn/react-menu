@@ -31,4 +31,12 @@ export default class Category extends BaseModel {
 
   @hasMany(() => Item)
   declare items: HasMany<typeof Item>
+
+  serializeExtras() {
+    const itemsCount = this.$extras.itemsCount ? Number(this.$extras.itemsCount) : undefined
+
+    return {
+      itemsCount,
+    }
+  }
 }
