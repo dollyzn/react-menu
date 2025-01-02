@@ -7,8 +7,10 @@ import { AppDispatch, RootState } from "@/redux/store";
 
 import { show } from "@/redux/slices/store";
 import { index, updateOrder } from "@/redux/slices/category";
+import { updateOrder as updateItemOrder } from "@/redux/slices/item";
 
 import {
+  AlertCircle,
   ArrowLeft,
   Camera,
   CheckCircle,
@@ -92,6 +94,10 @@ export default function Store() {
     order: number;
   }) => {
     dispatch(updateOrder(newOrder));
+  };
+
+  const handleItemOrderChange = (newOrder: { id: number; order: number }) => {
+    dispatch(updateItemOrder(newOrder));
   };
 
   const handleBack = () => {
@@ -341,7 +347,17 @@ export default function Store() {
                           }
                         />
                       ) : (
-                        <div>Nenhuma categoria</div>
+                        <div className="text-muted-foreground text-center mt-16">
+                          <div className="flex flex-col items-center">
+                            <AlertCircle className="w-6 h-6 mb-2 text-muted-foreground" />
+                            <p className="text-sm">
+                              Nenhuma categoria encontrada.
+                            </p>
+                            <p className="text-xs">
+                              Adicione uma nova categoria e ela aparecerá aqui.
+                            </p>
+                          </div>
+                        </div>
                       )}
                     </ScrollArea>
                   </TabsContent>
@@ -358,9 +374,28 @@ export default function Store() {
                       {selectedCategory &&
                       selectedCategory.items &&
                       !!selectedCategory.items.length ? (
-                        <SortableList items={selectedCategory.items} />
+                        <SortableList
+                          items={selectedCategory.items}
+                          onOrderChange={(newOrder) =>
+                            handleItemOrderChange({
+                              id: newOrder.item.id as number,
+                              order: newOrder.newIndex,
+                            })
+                          }
+                        />
                       ) : (
-                        <div>Nenhum item</div>
+                        <div className="text-muted-foreground text-center mt-14">
+                          <div className="flex flex-col items-center">
+                            <AlertCircle className="w-6 h-6 mb-2 text-muted-foreground" />
+                            <p className="text-sm">
+                              Nenhum produto encontrado.
+                            </p>
+                            <p className="text-xs">
+                              Adicione uma novo item a esta categoria e ele
+                              aparecerá aqui.
+                            </p>
+                          </div>
+                        </div>
                       )}
                     </ScrollArea>
                   </TabsContent>
