@@ -47,7 +47,7 @@ const UpdateBannerSchema = z.object({
     }),
 });
 
-export const UpdateBannerDialog = ({ storeId }: { storeId: string }) => {
+export function UpdateBannerDialog({ storeId }: { storeId: string }) {
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector((state: RootState) => state.auth.user);
@@ -168,4 +168,4 @@ export const UpdateBannerDialog = ({ storeId }: { storeId: string }) => {
       </DialogContent>
     </Dialog>
   );
-};
+}

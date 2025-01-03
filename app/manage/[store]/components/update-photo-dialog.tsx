@@ -47,7 +47,7 @@ const UpdatePhotoSchema = z.object({
     }),
 });
 
-export const UpdatePhotoDialog = ({ storeId }: { storeId: string }) => {
+export function UpdatePhotoDialog({ storeId }: { storeId: string }) {
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector((state: RootState) => state.auth.user);
@@ -165,4 +165,4 @@ export const UpdatePhotoDialog = ({ storeId }: { storeId: string }) => {
       </DialogContent>
     </Dialog>
   );
-};
+}

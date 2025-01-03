@@ -16,6 +16,10 @@ export interface StoreState {
     data: Store | null;
     error: Error | null;
   };
+  update: {
+    loading: boolean;
+    error: Error | null;
+  };
   updateImages: {
     loading: boolean;
     error: Error | null;
@@ -34,6 +38,10 @@ const initialState: StoreState = {
   show: {
     loading: false,
     data: null,
+    error: null,
+  },
+  update: {
+    loading: false,
     error: null,
   },
   updateImages: {
@@ -60,6 +68,21 @@ export const show = createAsyncThunk<Store, string>(
     }
   }
 );
+
+export const update = createAsyncThunk<
+  Store,
+  { id: string; data: Partial<Store> }
+>("store/update", async ({ id, data }, { rejectWithValue }) => {
+  try {
+    const res = await api.put(`/stores/${id}`, data);
+    return res.data as Store;
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
 
 export const updateImages = createAsyncThunk<
   Store,
@@ -131,6 +154,28 @@ const storeSlice = createSlice({
     builder.addCase(show.rejected, (state, action) => {
       state.show.loading = false;
       state.show.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //update actions
+    builder.addCase(update.pending, (state) => {
+      state.update.loading = true;
+      state.update.error = null;
+    });
+
+    builder.addCase(update.fulfilled, (state, action) => {
+      state.update.loading = false;
+      if (state.show.data && state.show.data.id === action.payload.id) {
+        state.show.data = { ...state.show.data, ...action.payload };
+      }
+      state.update.error = null;
+    });
+
+    builder.addCase(update.rejected, (state, action) => {
+      state.update.loading = false;
+      state.update.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };
