@@ -28,6 +28,48 @@ export interface StoreState {
     loading: boolean;
     error: Error | null;
   };
+  dashboard: {
+    overview: {
+      loading: boolean;
+      data: Overview | null;
+      error: Error | null;
+    };
+    recentItems: {
+      loading: boolean;
+      data: Item[] | null;
+      error: Error | null;
+    };
+    chart: {
+      loading: boolean;
+      data: OverviewChart[] | null;
+      error: Error | null;
+    };
+  };
+}
+
+interface Overview {
+  accesses: {
+    total: number;
+    message: string;
+  };
+  categories: {
+    total: number;
+    message: string;
+  };
+  items: {
+    total: number;
+    message: string;
+  };
+  addons: {
+    total: number;
+    message: string;
+  };
+}
+
+interface OverviewChart {
+  date: string;
+  desktop: number;
+  mobile: number;
 }
 
 const initialState: StoreState = {
@@ -51,6 +93,23 @@ const initialState: StoreState = {
   updateStatus: {
     loading: false,
     error: null,
+  },
+  dashboard: {
+    overview: {
+      loading: false,
+      data: null,
+      error: null,
+    },
+    recentItems: {
+      loading: false,
+      data: null,
+      error: null,
+    },
+    chart: {
+      loading: false,
+      data: null,
+      error: null,
+    },
   },
 };
 
@@ -121,6 +180,51 @@ export const updateStatus = createAsyncThunk<
     });
   }
 });
+
+export const overview = createAsyncThunk<Overview, string>(
+  "store/dashboard/overview",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/stores/${id}/dashboard/overview`);
+      return res.data as Overview;
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
+
+export const recentItems = createAsyncThunk<Item[], string>(
+  "store/dashboard/recent-items",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/stores/${id}/dashboard/recent-items`);
+      return res.data as Item[];
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
+
+export const chart = createAsyncThunk<OverviewChart[], string>(
+  "store/dashboard/chart",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/stores/${id}/dashboard/chart`);
+      return res.data as OverviewChart[];
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
 
 const storeSlice = createSlice({
   name: "store",
@@ -234,6 +338,66 @@ const storeSlice = createSlice({
     builder.addCase(updateStatus.rejected, (state, action) => {
       state.updateStatus.loading = false;
       state.updateStatus.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //overview actions
+    builder.addCase(overview.pending, (state) => {
+      state.dashboard.overview.loading = true;
+      state.dashboard.overview.error = null;
+    });
+
+    builder.addCase(overview.fulfilled, (state, action) => {
+      state.dashboard.overview.loading = false;
+      state.dashboard.overview.data = action.payload;
+      state.dashboard.overview.error = null;
+    });
+
+    builder.addCase(overview.rejected, (state, action) => {
+      state.dashboard.overview.loading = false;
+      state.dashboard.overview.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //recentItems actions
+    builder.addCase(recentItems.pending, (state) => {
+      state.dashboard.recentItems.loading = true;
+      state.dashboard.recentItems.error = null;
+    });
+
+    builder.addCase(recentItems.fulfilled, (state, action) => {
+      state.dashboard.recentItems.loading = false;
+      state.dashboard.recentItems.data = action.payload;
+      state.dashboard.recentItems.error = null;
+    });
+
+    builder.addCase(recentItems.rejected, (state, action) => {
+      state.dashboard.recentItems.loading = false;
+      state.dashboard.recentItems.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //chart actions
+    builder.addCase(chart.pending, (state) => {
+      state.dashboard.chart.loading = true;
+      state.dashboard.chart.error = null;
+    });
+
+    builder.addCase(chart.fulfilled, (state, action) => {
+      state.dashboard.chart.loading = false;
+      state.dashboard.chart.data = action.payload;
+      state.dashboard.chart.error = null;
+    });
+
+    builder.addCase(chart.rejected, (state, action) => {
+      state.dashboard.chart.loading = false;
+      state.dashboard.chart.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };

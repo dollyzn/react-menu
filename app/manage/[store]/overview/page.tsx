@@ -34,22 +34,25 @@ export default function Overview() {
         </Breadcrumb>
       </div>
 
-      <OverviewInfo className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" />
+      <OverviewInfo
+        storeId={store as string}
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-4"
+      />
 
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
-        <OverviewBarChart className="lg:col-span-4" />
+        <OverviewBarChart storeId={store as string} className="lg:col-span-4" />
 
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Itens Recentes</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <RecentItems />
+            <RecentItems storeId={store as string} />
           </CardContent>
         </Card>
       </div>
 
-      <OverviewAreaChart />
+      <OverviewAreaChart storeId={store as string} />
     </div>
   );
 }
