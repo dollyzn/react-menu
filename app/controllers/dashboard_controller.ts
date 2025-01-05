@@ -14,31 +14,59 @@ export default class DashboardController {
     const fetchMetricData = async (
       model: LucidModel,
       queryCallback: (model: LucidModel) => ModelQueryBuilderContract<typeof model>,
-      intervals: { label: string; duration: object }[]
+      intervals: { label: string; duration: object; upperBound?: object }[]
     ) => {
       const currentTotal = await safeQuery(queryCallback(model).count('* as total').firstOrFail())
 
       const deltas = await Promise.all(
-        intervals.map(async ({ label, duration }): Promise<{ value: number; interval: string }> => {
-          const result = await safeQuery(
-            queryCallback(model)
-              .andWhere('createdAt', '>=', DateTime.now().minus(duration).toSQL())
-              .count('* as total')
-              .first()
-          )
+        intervals.map(
+          async ({ label, duration, upperBound }): Promise<{ value: number; interval: string }> => {
+            const query = queryCallback(model).andWhere(
+              'createdAt',
+              '>=',
+              DateTime.now().minus(duration).toSQL()
+            )
 
-          return { value: Number(result?.$extras.total), interval: label }
-        })
+            if (upperBound) {
+              query.andWhere('createdAt', '<', DateTime.now().minus(upperBound).toSQL())
+            }
+
+            const result = await safeQuery(query.count('* as total').first())
+
+            return { value: Number(result?.$extras.total), interval: label }
+          }
+        )
       )
 
       return {
         total: Number(currentTotal.$extras.total),
-        message: generateDynamicMessage(deltas),
+        message: generateDynamicMessage(deltas, intervals),
       }
     }
 
-    const generateDynamicMessage = (deltas: { value: number; interval: string }[]) => {
-      const mostRelevant = deltas.sort((a, b) => Math.abs(b.value) - Math.abs(a.value))[0]
+    const generateDynamicMessage = (
+      deltas: { value: number; interval: string }[],
+      intervals: { label: string; duration: object }[]
+    ) => {
+      const mostRelevant = deltas.sort((a, b) => {
+        if (Math.abs(b.value) !== Math.abs(a.value)) {
+          return Math.abs(b.value) - Math.abs(a.value)
+        }
+
+        const aIndex = intervals.findIndex((int) => int.label === a.interval)
+        const bIndex = intervals.findIndex((int) => int.label === b.interval)
+        return aIndex - bIndex
+      })[0]
+
+      const mostRelevantIndex = intervals.findIndex((int) => int.label === mostRelevant.interval)
+      if (mostRelevantIndex > 0) {
+        const previousInterval = intervals[mostRelevantIndex - 1]
+        const previousDelta = deltas.find((delta) => delta.interval === previousInterval.label)
+
+        if (previousDelta && mostRelevant.value < previousDelta.value + 5) {
+          return `+${previousDelta.value} ${previousDelta.interval}`
+        }
+      }
 
       if (mostRelevant.value > 0) return `+${mostRelevant.value} ${mostRelevant.interval}`
       if (mostRelevant.value === 0) return `Sem alterações ${mostRelevant.interval}`
@@ -58,9 +86,9 @@ export default class DashboardController {
 
     const intervals = [
       { label: 'na última hora', duration: { hours: 1 } },
-      { label: 'ontem', duration: { days: 1 } },
-      { label: 'na última semana', duration: { weeks: 1 } },
-      { label: 'no último mês', duration: { months: 1 } },
+      { label: 'ontem', duration: { days: 1 }, upperBound: { hours: 1 } },
+      { label: 'na última semana', duration: { weeks: 1 }, upperBound: { days: 1 } },
+      { label: 'no último mês', duration: { months: 1 }, upperBound: { weeks: 1 } },
     ]
 
     const [accesses, categories, items, addons] = await Promise.all([
