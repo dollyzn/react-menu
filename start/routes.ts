@@ -16,6 +16,7 @@ import AddonsController from '#controllers/addons_controller'
 import StoresController from '#controllers/stores_controller'
 import MenuController from '#controllers/menu_controller'
 import UsersController from '#controllers/users_controller'
+import DashboardController from '#controllers/dashboard_controller'
 
 router.get('/', async () => {
   return {
@@ -59,6 +60,11 @@ router
     router.patch('/:id/images', [StoresController, 'updateImages']).as('stores.updateImages')
     router.patch('/:id/status', [StoresController, 'updateStatus']).as('stores.updateStatus')
     router.delete('/:id', [StoresController, 'destroy']).as('stores.destroy')
+    router
+      .group(() => {
+        router.get('/overview', [DashboardController, 'overview']).as('stores.dashboard.overview')
+      })
+      .prefix('/:id/dashboard')
   })
   .use(middleware.auth())
   .prefix('/stores')
