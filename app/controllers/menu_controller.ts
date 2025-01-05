@@ -16,6 +16,7 @@ export default class MenuController {
       .firstOrFail()
 
     await store.incrementViews()
+    await store.loadStoreViewsCount()
 
     return store
   }

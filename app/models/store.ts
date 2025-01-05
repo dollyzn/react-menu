@@ -4,6 +4,7 @@ import {
   beforeSave,
   beforeUpdate,
   column,
+  computed,
   hasMany,
   manyToMany,
 } from '@adonisjs/lucid/orm'
@@ -13,6 +14,7 @@ import Category from './category.js'
 import Addon from './addon.js'
 import { getSocket } from '#start/ws'
 import User from './user.js'
+import StoreViews from './store_views.js'
 
 export default class Store extends BaseModel {
   @column({ isPrimary: true })
@@ -45,9 +47,6 @@ export default class Store extends BaseModel {
   @column()
   declare isDefault: boolean
 
-  @column()
-  declare views: number
-
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -62,6 +61,9 @@ export default class Store extends BaseModel {
 
   @manyToMany(() => User)
   declare users: ManyToMany<typeof User>
+
+  @hasMany(() => StoreViews)
+  declare storeViews: HasMany<typeof StoreViews>
 
   @beforeSave()
   public static async ensureSingleDefault(store: Store) {
@@ -84,9 +86,20 @@ export default class Store extends BaseModel {
     }
   }
 
+  @computed()
+  get views() {
+    return Number(this.$extras.storeViews_count || 0)
+  }
+
+  public async loadStoreViewsCount() {
+    const store: Store = this
+    await store.loadCount('storeViews')
+    return Number(this.$extras.storeViews_count || 0)
+  }
+
   public async incrementViews() {
-    this.views += 1
-    await this.save()
-    return this
+    const store: Store = this
+    await store.related('storeViews').create({})
+    return store
   }
 }
