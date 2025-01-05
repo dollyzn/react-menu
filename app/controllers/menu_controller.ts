@@ -1,9 +1,10 @@
+import type { HttpContext } from '@adonisjs/core/http'
 import Store from '#models/store'
 import { storeExistValidator } from '#validators/menu'
-import type { HttpContext } from '@adonisjs/core/http'
+import { UAParser } from 'ua-parser-js'
 
 export default class MenuController {
-  async show({ params }: HttpContext) {
+  async show({ params, request }: HttpContext) {
     const slug = await storeExistValidator.validate(params.slug)
 
     const store = await Store.query()
@@ -15,7 +16,10 @@ export default class MenuController {
       .where(slug ? { slug } : { is_default: true })
       .firstOrFail()
 
-    await store.incrementViews()
+    const { device } = UAParser(request.header('user-agent'))
+    const platform = device.is('mobile') ? 'mobile' : 'desktop'
+
+    await store.incrementViews(platform)
     await store.loadStoreViewsCount()
 
     return store

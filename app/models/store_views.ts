@@ -10,6 +10,9 @@ export default class StoreViews extends BaseModel {
   @column()
   declare storeId: string
 
+  @column()
+  declare platform: 'mobile' | 'desktop'
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

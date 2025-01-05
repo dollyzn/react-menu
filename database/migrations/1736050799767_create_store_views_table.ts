@@ -7,6 +7,7 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       table.uuid('store_id').notNullable().references('id').inTable('stores').onDelete('CASCADE')
+      table.enum('platform', ['mobile', 'desktop']).notNullable().defaultTo('desktop')
       table.timestamps(true, true)
     })
   }

@@ -4,7 +4,6 @@ import {
   beforeSave,
   beforeUpdate,
   column,
-  computed,
   hasMany,
   manyToMany,
 } from '@adonisjs/lucid/orm'
@@ -86,20 +85,24 @@ export default class Store extends BaseModel {
     }
   }
 
-  @computed()
-  get views() {
-    return Number(this.$extras.storeViews_count || 0)
-  }
-
   public async loadStoreViewsCount() {
     const store: Store = this
     await store.loadCount('storeViews')
     return Number(this.$extras.storeViews_count || 0)
   }
 
-  public async incrementViews() {
+  public async incrementViews(platform: 'mobile' | 'desktop') {
     const store: Store = this
-    await store.related('storeViews').create({})
+    await store.related('storeViews').create({
+      platform,
+    })
     return store
+  }
+
+  serializeExtras() {
+    const views = this.$extras.storeViews_count ? Number(this.$extras.storeViews_count) : undefined
+    return {
+      views,
+    }
   }
 }
