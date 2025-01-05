@@ -94,4 +94,44 @@ export default class DashboardController {
       .orderBy('createdAt', 'desc')
       .select('id', 'categoryId', 'name', 'price', 'createdAt')
   }
+
+  public async chart({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.id)
+
+    const startDate = DateTime.now().minus({ months: 3 }).startOf('day')
+    const endDate = DateTime.now().startOf('day')
+
+    const dateSequence = []
+    let currentDate = startDate
+    while (currentDate <= endDate) {
+      dateSequence.push(currentDate.toSQLDate())
+      currentDate = currentDate.plus({ days: 1 })
+    }
+
+    const results = await StoreViews.query()
+      .where('storeId', storeId)
+      .andWhere('createdAt', '>=', startDate.toSQL())
+      .orderBy('createdAt', 'asc')
+
+    const groupedResults = results.reduce(
+      (acc: Record<string, { date: string; desktop: number; mobile: number }>, row) => {
+        const date = row.createdAt.toSQLDate()
+        const platform = row.platform
+        if (date) {
+          if (!acc[date]) {
+            acc[date] = { date, desktop: 0, mobile: 0 }
+          }
+          acc[date][platform] += 1
+        }
+        return acc
+      },
+      {}
+    )
+
+    const finalResults = dateSequence.map((date) => {
+      return groupedResults[date] || { date, desktop: 0, mobile: 0 }
+    })
+
+    return finalResults
+  }
 }

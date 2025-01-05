@@ -24,6 +24,7 @@ router
         router
           .get('/recent-items', [DashboardController, 'recentItems'])
           .as('stores.dashboard.recentItems')
+        router.get('/chart', [DashboardController, 'chart']).as('stores.dashboard.chart')
       })
       .prefix('/:id/dashboard')
   })
