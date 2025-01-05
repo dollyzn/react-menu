@@ -63,7 +63,11 @@ export default class DashboardController {
         const previousInterval = intervals[mostRelevantIndex - 1]
         const previousDelta = deltas.find((delta) => delta.interval === previousInterval.label)
 
-        if (previousDelta && mostRelevant.value < previousDelta.value + 5) {
+        if (
+          previousDelta &&
+          mostRelevant.value <
+            (previousDelta.value > 0 ? previousDelta.value + 1 : previousDelta.value)
+        ) {
           return `+${previousDelta.value} ${previousDelta.interval}`
         }
       }
