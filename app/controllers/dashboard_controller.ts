@@ -79,4 +79,19 @@ export default class DashboardController {
 
     return { accesses, categories, items, addons }
   }
+
+  public async recentItems({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.id)
+
+    return Item.query()
+      .whereHas('category', (query) => {
+        query.where('storeId', storeId)
+      })
+      .preload('category', (query) => {
+        query.select('id', 'name')
+      })
+      .limit(10)
+      .orderBy('createdAt', 'desc')
+      .select('id', 'categoryId', 'name', 'price', 'createdAt')
+  }
 }

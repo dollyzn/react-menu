@@ -21,6 +21,9 @@ router
     router
       .group(() => {
         router.get('/overview', [DashboardController, 'overview']).as('stores.dashboard.overview')
+        router
+          .get('/recent-items', [DashboardController, 'recentItems'])
+          .as('stores.dashboard.recentItems')
       })
       .prefix('/:id/dashboard')
   })
