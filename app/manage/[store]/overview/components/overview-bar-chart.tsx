@@ -112,8 +112,8 @@ const chartData = [
 ];
 
 const chartConfig = {
-  views: {
-    label: "Page Views",
+  accesses: {
+    label: "Acessos",
   },
   desktop: {
     label: "Desktop",
@@ -204,7 +204,7 @@ export function OverviewBarChart({ className }: OverviewBarChartProps) {
               content={
                 <ChartTooltipContent
                   className="w-[150px]"
-                  nameKey="views"
+                  nameKey="accesses"
                   labelFormatter={(value) => {
                     return new Date(value).toLocaleDateString("pt-BR", {
                       month: "short",

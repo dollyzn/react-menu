@@ -121,8 +121,8 @@ const chartData = [
 ];
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
+  accesses: {
+    label: "Acessos",
   },
   desktop: {
     label: "Desktop",
