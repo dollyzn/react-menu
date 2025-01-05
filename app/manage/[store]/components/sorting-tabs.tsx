@@ -78,7 +78,7 @@ export function SortingTabs() {
           Produtos
         </TabsTrigger>
       </TabsList>
-      {categoriesLoading ? (
+      {categoriesLoading && !categories ? (
         <TabsContent value="categories">
           <ScrollArea className="h-[258px] pr-4 pb-0 mb-6 md:mb-0 pt-1">
             {Array.from({ length: 5 }).map((_, index) => (

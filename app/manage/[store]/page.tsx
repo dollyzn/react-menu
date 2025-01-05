@@ -92,7 +92,7 @@ export default function Store() {
               Gerencie as informações principais da loja
             </CardDescription>
           </CardHeader>
-          {loading || !data ? (
+          {(loading && !data) || !data ? (
             <CardContent className="space-y-3">
               <div className="relative h-[190px] md:h-[190px] w-full rounded-lg overflow-hidden">
                 <Skeleton className="w-full h-full flex items-center justify-center border rounded-lg text-muted-foreground" />
