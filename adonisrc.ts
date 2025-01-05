@@ -33,7 +33,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/database_provider'),
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/static/static_provider'),
-    () => import('@adonisjs/drive/drive_provider')
+    () => import('@adonisjs/drive/drive_provider'),
   ],
 
   /*
@@ -45,7 +45,7 @@ export default defineConfig({
   |
   */
   preloads: [
-    () => import('#start/routes'),
+    () => import('#start/routes/index'),
     () => import('#start/kernel'),
     () => import('#start/validator'),
     () => import('#start/app'),
@@ -79,8 +79,10 @@ export default defineConfig({
     ],
     forceExit: false,
   },
-  metaFiles: [{
-    pattern: 'public/**',
-    reloadServer: false,
-  }]
+  metaFiles: [
+    {
+      pattern: 'public/**',
+      reloadServer: false,
+    },
+  ],
 })
