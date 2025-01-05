@@ -9,13 +9,13 @@
 
 import router from '@adonisjs/core/services/router'
 
-import './auth.ts'
-import './user.ts'
-import './store.ts'
-import './category.ts'
-import './item.ts'
-import './addon.ts'
-import './menu.ts'
+import '#routes/auth'
+import '#routes/user'
+import '#routes/store'
+import '#routes/category'
+import '#routes/item'
+import '#routes/addon'
+import '#routes/menu'
 
 router.get('/', async () => {
   return {
