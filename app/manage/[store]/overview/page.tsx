@@ -10,8 +10,9 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { OverviewChart } from "./components/overview-chart";
+import { OverviewBarChart } from "./components/overview-bar-chart";
 import { RecentItems } from "./components/recent-items";
+import { OverviewAreaChart } from "./components/overview-area-chart";
 
 export default function Overview() {
   const { store } = useParams();
@@ -74,14 +75,8 @@ export default function Overview() {
         </Card>
       </div>
       <div className="grid gap-4 grid-cols-1 lg:grid-cols-7">
-        <Card className="lg:col-span-4">
-          <CardHeader>
-            <CardTitle>Visão Geral</CardTitle>
-          </CardHeader>
-          <CardContent className="pl-2">
-            <OverviewChart />
-          </CardContent>
-        </Card>
+        <OverviewBarChart className="lg:col-span-4" />
+
         <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>Itens Recentes</CardTitle>
@@ -91,6 +86,8 @@ export default function Overview() {
           </CardContent>
         </Card>
       </div>
+
+      <OverviewAreaChart />
     </div>
   );
 }
