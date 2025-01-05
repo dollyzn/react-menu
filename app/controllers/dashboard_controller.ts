@@ -124,7 +124,7 @@ export default class DashboardController {
       })
       .limit(10)
       .orderBy('createdAt', 'desc')
-      .select('id', 'categoryId', 'name', 'price', 'createdAt')
+      .select('id', 'categoryId', 'name', 'price', 'photoUrl', 'createdAt')
   }
 
   public async chart({ params }: HttpContext) {
