@@ -1,5 +1,6 @@
 import { api } from "@/providers/request-provider";
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { isEqual } from "lodash";
 import { PURGE } from "redux-persist";
 
 interface Error {
@@ -391,7 +392,9 @@ const storeSlice = createSlice({
 
     builder.addCase(chart.fulfilled, (state, action) => {
       state.dashboard.chart.loading = false;
-      state.dashboard.chart.data = action.payload;
+      if (!isEqual(state.dashboard.chart.data, action.payload)) {
+        state.dashboard.chart.data = action.payload;
+      }
       state.dashboard.chart.error = null;
     });
 
