@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
+import { categories } from "@/redux/slices/store";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -10,7 +15,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/data-table";
-import processos from "./categories.json";
 import { columns, columnsConfig } from "./components/columns";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
@@ -29,6 +33,16 @@ import { Label } from "@/components/ui/label";
 
 export default function Categories() {
   const { store } = useParams();
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    dispatch(categories(store as string));
+  }, [dispatch, store]);
+
+  const loading = useSelector(
+    (state: RootState) => state.store.categories.loading
+  );
+  const data = useSelector((state: RootState) => state.store.categories.data);
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -76,7 +90,8 @@ export default function Categories() {
       </div>
 
       <DataTable
-        data={processos}
+        loading={loading && !data}
+        data={data || []}
         columns={columns}
         columnsConfig={columnsConfig}
       />

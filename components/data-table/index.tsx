@@ -27,7 +27,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { AlertCircle, Search } from "lucide-react";
+import { AlertCircle, Loader2, Search } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 
 interface FilterOptions {
@@ -46,12 +46,14 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   columns: ColumnDef<TData, TValue>[];
   columnsConfig?: ColumnsConfig[];
+  loading?: boolean;
 }
 
 export function DataTable<TData, TValue>({
   data,
   columns,
   columnsConfig,
+  loading,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
@@ -110,7 +112,19 @@ export function DataTable<TData, TValue>({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length > 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-52 text-center"
+                >
+                  <div className="flex flex-col items-center justify-center">
+                    <Loader2 size={24} className="animate-spin mb-2" />
+                    Carregando...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : table.getRowModel().rows.length > 0 ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}

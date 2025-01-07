@@ -46,6 +46,11 @@ export interface StoreState {
       error: Error | null;
     };
   };
+  categories: {
+    loading: boolean;
+    data: Category[] | null;
+    error: Error | null;
+  };
 }
 
 interface Overview {
@@ -111,6 +116,11 @@ const initialState: StoreState = {
       data: null,
       error: null,
     },
+  },
+  categories: {
+    loading: false,
+    data: null,
+    error: null,
   },
 };
 
@@ -218,6 +228,21 @@ export const chart = createAsyncThunk<OverviewChart[], string>(
     try {
       const res = await api.get(`/stores/${id}/dashboard/chart`);
       return res.data as OverviewChart[];
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
+
+export const categories = createAsyncThunk<Category[], string>(
+  "store/categories",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/stores/${id}/categories`);
+      return res.data as Category[];
     } catch (error: any) {
       return rejectWithValue({
         ...error.response.data,
@@ -401,6 +426,26 @@ const storeSlice = createSlice({
     builder.addCase(chart.rejected, (state, action) => {
       state.dashboard.chart.loading = false;
       state.dashboard.chart.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //categories actions
+    builder.addCase(categories.pending, (state) => {
+      state.categories.loading = true;
+      state.categories.error = null;
+    });
+
+    builder.addCase(categories.fulfilled, (state, action) => {
+      state.categories.loading = false;
+      state.categories.data = action.payload;
+      state.categories.error = null;
+    });
+
+    builder.addCase(categories.rejected, (state, action) => {
+      state.categories.loading = false;
+      state.categories.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };

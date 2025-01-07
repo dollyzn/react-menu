@@ -2,32 +2,14 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Calendar, ChevronDown, History, Package } from "lucide-react";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+import { Calendar, History } from "lucide-react";
 import { ColumnsConfig } from "@/components/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HeaderActions } from "./table-header-actions";
+import { ItemsColumnDialog } from "./items-column-dialog";
 
-import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
 
 export const columns: ColumnDef<Category>[] = [
@@ -87,62 +69,13 @@ export const columns: ColumnDef<Category>[] = [
     },
   },
   {
-    id: "items",
-    accessorKey: "items",
+    id: "itemsCount",
+    accessorKey: "itemsCount",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Itens" />
     ),
     cell: ({ row }) => {
-      const items = row.getValue("items") as Item[];
-      return (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="ghost">
-              {items.length} Itens
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Itens da Categoria</DialogTitle>
-              <DialogDescription>
-                Lista dos itens da categoria {row.getValue("name")}
-              </DialogDescription>
-            </DialogHeader>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.length > 0 ? (
-                  items.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell>{item.name}</TableCell>
-                      <TableCell>{item.description}</TableCell>
-                      <TableCell>{formatCurrencyBRL(item.price)}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center">
-                      <div className="flex flex-col items-center justify-center py-4">
-                        <Package className="h-8 w-8 text-muted-foreground mb-2" />
-                        <span>
-                          Não há itens disponíveis para esta categoria
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DialogContent>
-        </Dialog>
-      );
+      return <ItemsColumnDialog row={row} />;
     },
     meta: {
       name: "Itens",
