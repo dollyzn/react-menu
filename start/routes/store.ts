@@ -10,7 +10,9 @@ router
   .group(() => {
     router.get('/', [StoresController, 'index']).as('stores.index')
     router.get('/:id', [StoresController, 'show']).as('stores.show')
-    router.get('/:id/categories', [CategoriesController, 'index']).as('categories.index')
+    router
+      .get('/:id/categories', [CategoriesController, 'indexByStore'])
+      .as('categories.indexByStore')
     router.get('/:id/items', [ItemsController, 'indexByStore']).as('items.indexByStore')
     router.get('/:id/addons', [AddonsController, 'index']).as('addons.index')
     router.post('/', [StoresController, 'store']).as('stores.store')

@@ -5,7 +5,11 @@ import Category from '#models/category'
 import db from '@adonisjs/lucid/services/db'
 
 export default class CategoriesController {
-  async index({ params }: HttpContext) {
+  async index({}: HttpContext) {
+    return Category.query().orderBy('order', 'asc')
+  }
+
+  async indexByStore({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.id)
 
     return Category.query()
