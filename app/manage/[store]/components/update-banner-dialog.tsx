@@ -47,7 +47,11 @@ const UpdateBannerSchema = z.object({
     }),
 });
 
-export function UpdateBannerDialog({ storeId }: { storeId: string }) {
+interface UpdateBannerDialogProps {
+  storeId: string;
+}
+
+export function UpdateBannerDialog({ storeId }: UpdateBannerDialogProps) {
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector((state: RootState) => state.auth.user);

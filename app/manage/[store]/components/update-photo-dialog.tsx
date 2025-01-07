@@ -47,7 +47,11 @@ const UpdatePhotoSchema = z.object({
     }),
 });
 
-export function UpdatePhotoDialog({ storeId }: { storeId: string }) {
+interface UpdatePhotoDialogProps {
+  storeId: string;
+}
+
+export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
   const dispatch = useDispatch<AppDispatch>();
 
   const user = useSelector((state: RootState) => state.auth.user);
