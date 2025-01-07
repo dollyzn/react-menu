@@ -121,9 +121,7 @@ export function RowActions({ row }: RowActionsProps<Category>) {
               Isso excluirá a categoria{" "}
               <span className="font-bold">{row.original.name}</span> junto com
               todos os seus{" "}
-              <span className="font-bold">
-                {row.original.items?.length} itens
-              </span>{" "}
+              <span className="font-bold">{row.original.itemsCount} itens</span>{" "}
               relacionados. Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>

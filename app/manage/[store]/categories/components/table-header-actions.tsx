@@ -25,7 +25,7 @@ export function HeaderActions({ table }: HeaderActionsProps<Category>) {
 
   const selectedRows = table.getSelectedRowModel().rows;
   const totalItems = selectedRows.reduce(
-    (acc, row) => acc + (row.original.items?.length || 0),
+    (acc, row) => acc + (row.original.itemsCount || 0),
     0
   );
 
@@ -72,7 +72,7 @@ export function HeaderActions({ table }: HeaderActionsProps<Category>) {
                 </span>{" "}
                 junto com todos os seus{" "}
                 <span className="font-bold">
-                  {selectedRows[0]?.original.items?.length} itens
+                  {selectedRows[0]?.original.itemsCount || 0} itens
                 </span>{" "}
                 relacionados. Esta ação não pode ser desfeita.
               </>
