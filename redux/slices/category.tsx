@@ -11,6 +11,15 @@ export interface CategoryState {
   loading: boolean;
   data: Category[] | null;
   error: Error | null;
+  indexByStore: {
+    loading: boolean;
+    data: Category[] | null;
+    error: Error | null;
+  };
+  store: {
+    loading: boolean;
+    error: Error | null;
+  };
   updateOrder: {
     loading: boolean;
     error: Error | null;
@@ -21,6 +30,15 @@ const initialState: CategoryState = {
   loading: false,
   data: null,
   error: null,
+  indexByStore: {
+    loading: false,
+    data: null,
+    error: null,
+  },
+  store: {
+    loading: false,
+    error: null,
+  },
   updateOrder: {
     loading: false,
     error: null,
@@ -41,6 +59,36 @@ export const index = createAsyncThunk<Category[], string>(
     }
   }
 );
+
+export const indexByStore = createAsyncThunk<Category[], string>(
+  "category/indexByStore",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/stores/${id}/categories`);
+      return res.data as Category[];
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
+
+export const store = createAsyncThunk<
+  Category,
+  { id: string; data: Partial<Category> }
+>("category/store", async ({ id, data }, { rejectWithValue }) => {
+  try {
+    const res = await api.post(`categories/${id}`, data);
+    return res.data as Category;
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
 
 export const updateOrder = createAsyncThunk<
   Pick<Category, "id" | "order" | "updatedAt">[],
@@ -77,6 +125,56 @@ const categorySlice = createSlice({
     builder.addCase(index.rejected, (state, action) => {
       state.loading = false;
       state.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //indexByStore actions
+    builder.addCase(indexByStore.pending, (state) => {
+      state.indexByStore.loading = true;
+      state.indexByStore.error = null;
+    });
+
+    builder.addCase(indexByStore.fulfilled, (state, action) => {
+      state.indexByStore.loading = false;
+      state.indexByStore.data = action.payload;
+      state.indexByStore.error = null;
+    });
+
+    builder.addCase(indexByStore.rejected, (state, action) => {
+      state.indexByStore.loading = false;
+      state.indexByStore.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //store actions
+    builder.addCase(store.pending, (state) => {
+      state.store.loading = true;
+      state.store.error = null;
+    });
+
+    builder.addCase(store.fulfilled, (state, action) => {
+      state.store.loading = false;
+      if (state.data) {
+        state.data = [...state.data, action.payload];
+      }
+      if (
+        state.indexByStore.data &&
+        state.indexByStore.data.some(
+          (category) => category.storeId === action.payload.storeId
+        )
+      ) {
+        state.indexByStore.data = [...state.indexByStore.data, action.payload];
+      }
+      state.store.error = null;
+    });
+
+    builder.addCase(store.rejected, (state, action) => {
+      state.store.loading = false;
+      state.store.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };

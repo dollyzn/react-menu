@@ -63,7 +63,7 @@ export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
     <Dialog open={open} onOpenChange={handleToggleDialog}>
       <DialogTrigger asChild>
         <Button variant="ghost" disabled={loading}>
-          {itemsCount} Itens
+          {itemsCount || 0} Itens
           {loadingCategory === id ? (
             <Loader2 className="ml-2 h-4 w-4 animate-spin" />
           ) : (
