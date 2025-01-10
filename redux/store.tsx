@@ -17,6 +17,7 @@ import auth, { AuthState } from "@/redux/slices/auth";
 import storeSlice, { StoreState } from "@/redux/slices/store";
 import category, { CategoryState } from "@/redux/slices/category";
 import item, { ItemState } from "@/redux/slices/item";
+import addon, { AddonState } from "./slices/addon";
 
 let devToolsEnabled = false;
 
@@ -35,6 +36,7 @@ type PersistentData = {
   store?: Partial<StoreState>;
   category?: Partial<CategoryState>;
   item?: Partial<ItemState>;
+  addon?: Partial<AddonState>;
 };
 
 const persistentData: PersistentData = {
@@ -109,6 +111,7 @@ const reducers = combineReducers({
   store: storeSlice,
   category,
   item,
+  addon,
 });
 
 export type RootState = ReturnType<typeof reducers>;

@@ -8,6 +8,11 @@ interface Error {
 }
 
 export interface ItemState {
+  indexByStore: {
+    loading: boolean;
+    data: Item[] | null;
+    error: Error | null;
+  };
   indexByCategory: {
     loading: boolean;
     data: Item[] | null;
@@ -20,6 +25,11 @@ export interface ItemState {
 }
 
 const initialState: ItemState = {
+  indexByStore: {
+    loading: false,
+    data: null,
+    error: null,
+  },
   indexByCategory: {
     loading: false,
     data: null,
@@ -30,6 +40,21 @@ const initialState: ItemState = {
     error: null,
   },
 };
+
+export const indexByStore = createAsyncThunk<Item[], string>(
+  "item/indexByStore",
+  async (storeId, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`stores/${storeId}/items`);
+      return res.data as Item[];
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
 
 export const indexByCategory = createAsyncThunk<Item[], number>(
   "item/indexByCategory",
@@ -66,6 +91,26 @@ const itemSlice = createSlice({
   initialState,
   reducers: {},
   extraReducers: (builder) => {
+    //indexByStore actions
+    builder.addCase(indexByStore.pending, (state) => {
+      state.indexByStore.loading = true;
+      state.indexByStore.error = null;
+    });
+
+    builder.addCase(indexByStore.fulfilled, (state, action) => {
+      state.indexByStore.loading = false;
+      state.indexByStore.data = action.payload;
+      state.indexByStore.error = null;
+    });
+
+    builder.addCase(indexByStore.rejected, (state, action) => {
+      state.indexByStore.loading = false;
+      state.indexByStore.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
     //indexByCategory actions
     builder.addCase(indexByCategory.pending, (state) => {
       state.indexByCategory.loading = true;

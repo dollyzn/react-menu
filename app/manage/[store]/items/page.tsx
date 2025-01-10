@@ -1,6 +1,11 @@
 "use client";
 
+import { useEffect } from "react";
 import { useParams } from "next/navigation";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
+import { indexByStore } from "@/redux/slices/item";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,9 +14,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { DataTable } from "@/components/data-table";
-import items from "./items.json";
-import { columns, columnsConfig } from "./components/columns";
+import { ColumnsConfig, DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import {
@@ -24,11 +27,41 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { columns } from "./components/columns";
 
 export default function Items() {
   const { store } = useParams();
+
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    dispatch(indexByStore(store as string));
+  }, [dispatch, store]);
+
+  const loading = useSelector(
+    (state: RootState) => state.item.indexByStore.loading
+  );
+  const data = useSelector((state: RootState) => state.item.indexByStore.data);
+
+  const categories = new Set(
+    data?.map(({ category }) => category?.name).filter(Boolean)
+  );
+
+  const columnsConfig: ColumnsConfig[] = [
+    {
+      key: "name",
+      searchable: true,
+    },
+    {
+      key: "category.name",
+      filterOptions: Array.from(categories).map((category) => ({
+        value: category as string,
+        label: category as string,
+      })),
+    },
+  ];
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -75,7 +108,12 @@ export default function Items() {
         </Dialog>
       </div>
 
-      <DataTable data={items} columns={columns} columnsConfig={columnsConfig} />
+      <DataTable
+        loading={loading && !data}
+        data={data || []}
+        columns={columns}
+        columnsConfig={columnsConfig}
+      />
     </div>
   );
 }

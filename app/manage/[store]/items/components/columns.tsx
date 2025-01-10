@@ -2,34 +2,16 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 
-import { Calendar, ChevronDown, History, Package } from "lucide-react";
+import { Calendar, History } from "lucide-react";
 
-import { ColumnsConfig } from "@/components/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { HeaderActions } from "./table-header-actions";
+import { AddonsColumnDialog } from "./addons-column-dialog";
+import { Badge } from "@/components/ui/badge";
 
 import { formatCurrencyBRL } from "@/utils/string";
-import { Badge } from "@/components/ui/badge";
-import items from "../items.json";
 import dayjs from "dayjs";
 
 export const columns: ColumnDef<Item>[] = [
@@ -116,62 +98,13 @@ export const columns: ColumnDef<Item>[] = [
     },
   },
   {
-    id: "addons",
-    accessorKey: "addons",
+    id: "addonsCount",
+    accessorKey: "addonsCount",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Adicionais" />
     ),
     cell: ({ row }) => {
-      const addons = row.getValue("addons") as Item[];
-      return (
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="ghost">
-              {addons.length} Adiciona{addons.length === 1 ? "l" : "is"}
-              <ChevronDown className="ml-2 h-4 w-4" />
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Adicionais do Item</DialogTitle>
-              <DialogDescription>
-                Lista dos adicionais do item {row.getValue("name")}
-              </DialogDescription>
-            </DialogHeader>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nome</TableHead>
-                  <TableHead>Descrição</TableHead>
-                  <TableHead>Valor</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {addons.length > 0 ? (
-                  addons.map((addon) => (
-                    <TableRow key={addon.id}>
-                      <TableCell>{addon.name}</TableCell>
-                      <TableCell>{addon.description}</TableCell>
-                      <TableCell>{formatCurrencyBRL(addon.price)}</TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center">
-                      <div className="flex flex-col items-center justify-center py-4">
-                        <Package className="h-8 w-8 text-muted-foreground mb-2" />
-                        <span>
-                          Não há adicionais disponíveis para este item
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </DialogContent>
-        </Dialog>
-      );
+      return <AddonsColumnDialog row={row} />;
     },
     meta: {
       name: "Adicionais",
@@ -216,21 +149,5 @@ export const columns: ColumnDef<Item>[] = [
     meta: {
       name: "Ações",
     },
-  },
-];
-
-const categories = new Set(items.map(({ category }) => category.name));
-
-export const columnsConfig: ColumnsConfig[] = [
-  {
-    key: "name",
-    searchable: true,
-  },
-  {
-    key: "category.name",
-    filterOptions: Array.from(categories).map((category) => ({
-      value: category,
-      label: category,
-    })),
   },
 ];
