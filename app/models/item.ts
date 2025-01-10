@@ -46,4 +46,12 @@ export default class Item extends BaseModel {
     await this.save()
     return this
   }
+
+  serializeExtras() {
+    const addonsCount = this.$extras.addonsCount ? Number(this.$extras.addonsCount) : undefined
+
+    return {
+      addonsCount,
+    }
+  }
 }

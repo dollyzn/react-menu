@@ -23,6 +23,10 @@ export default class ItemsController {
       .whereHas('category', (query) => {
         query.where('storeId', storeId)
       })
+      .preload('category')
+      .withCount('addons', (query) => {
+        query.as('addonsCount')
+      })
       .orderBy('order', 'asc')
   }
 

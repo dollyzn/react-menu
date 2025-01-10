@@ -14,7 +14,7 @@ router
       .get('/:id/categories', [CategoriesController, 'indexByStore'])
       .as('categories.indexByStore')
     router.get('/:id/items', [ItemsController, 'indexByStore']).as('items.indexByStore')
-    router.get('/:id/addons', [AddonsController, 'index']).as('addons.index')
+    router.get('/:id/addons', [AddonsController, 'indexByStore']).as('addons.indexByStore')
     router.post('/', [StoresController, 'store']).as('stores.store')
     router.put('/:id', [StoresController, 'update']).as('stores.update')
     router.patch('/:id/images', [StoresController, 'updateImages']).as('stores.updateImages')

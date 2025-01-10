@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 
 const name = vine.string().trim()
-const description = vine.string().optional()
+const description = vine.string().trim().optional()
 
 const storeValidator = vine.compile(
   vine.object({
