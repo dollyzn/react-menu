@@ -27,9 +27,13 @@ export function RecentItems({ storeId }: RecentItemsProps) {
   }, [dispatch, storeId]);
 
   const getAvatarFallback = (item: Item) => {
-    const categoryInitial = item.category?.name[0] || "";
-    const nameParts = item.name.split(" ");
-    const nameInitial = nameParts.length > 1 ? nameParts[1][0] : item.name[1];
+    const categoryName = item.category?.name || "";
+    const name = item.name || "";
+
+    const categoryInitial = categoryName[0] || "";
+    const nameInitial =
+      categoryName.split(" ")[1]?.[0] || categoryName[1] || name[0] || "";
+
     return `${categoryInitial}${nameInitial}`.toUpperCase();
   };
 
