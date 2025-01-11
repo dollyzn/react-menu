@@ -18,6 +18,10 @@ export interface ItemState {
     data: Item[] | null;
     error: Error | null;
   };
+  store: {
+    loading: boolean;
+    error: Error | null;
+  };
   updateOrder: {
     loading: boolean;
     error: Error | null;
@@ -33,6 +37,10 @@ const initialState: ItemState = {
   indexByCategory: {
     loading: false,
     data: null,
+    error: null,
+  },
+  store: {
+    loading: false,
     error: null,
   },
   updateOrder: {
@@ -70,6 +78,21 @@ export const indexByCategory = createAsyncThunk<Item[], number>(
     }
   }
 );
+
+export const store = createAsyncThunk<
+  Item,
+  { id: string; data: Partial<Item> }
+>("item/store", async ({ id, data }, { rejectWithValue }) => {
+  try {
+    const res = await api.post(`items/${id}`, data);
+    return res.data as Item;
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
 
 export const updateOrder = createAsyncThunk<
   Pick<Item, "id" | "order" | "updatedAt">[],
@@ -126,6 +149,47 @@ const itemSlice = createSlice({
     builder.addCase(indexByCategory.rejected, (state, action) => {
       state.indexByCategory.loading = false;
       state.indexByCategory.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //store actions
+    builder.addCase(store.pending, (state) => {
+      state.store.loading = true;
+      state.store.error = null;
+    });
+
+    builder.addCase(store.fulfilled, (state, action) => {
+      state.store.loading = false;
+      if (
+        state.indexByStore.data &&
+        state.indexByStore.data.some(
+          (item) =>
+            item.category &&
+            action.payload.category?.storeId.includes(item.category.storeId)
+        )
+      ) {
+        state.indexByStore.data = [action.payload, ...state.indexByStore.data];
+      }
+      if (
+        state.indexByCategory.data &&
+        state.indexByCategory.data.some(
+          (item) =>
+            item.category && action.payload.category?.id === item.category.id
+        )
+      ) {
+        state.indexByCategory.data = [
+          action.payload,
+          ...state.indexByCategory.data,
+        ];
+      }
+      state.store.error = null;
+    });
+
+    builder.addCase(store.rejected, (state, action) => {
+      state.store.loading = false;
+      state.store.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };

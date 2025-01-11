@@ -15,21 +15,8 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { ColumnsConfig, DataTable } from "@/components/data-table";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { columns } from "./components/columns";
+import { CreateItemDialog } from "./components/create-item-dialog";
 
 export default function Items() {
   const { store } = useParams();
@@ -78,34 +65,7 @@ export default function Items() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline">
-              <PlusCircle /> Criar item
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar novo item</DialogTitle>
-              <DialogDescription>
-                Preencha os campos para criar um novo item.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Item</Label>
-                <Input id="name" defaultValue="Pastéis Simples" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="address">Descrição</Label>
-                <Textarea id="address" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Criar Item</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <CreateItemDialog storeId={store as string} />
       </div>
 
       <DataTable
