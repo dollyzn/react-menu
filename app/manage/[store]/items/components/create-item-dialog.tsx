@@ -162,31 +162,29 @@ export function CreateItemDialog({ storeId }: CreateItemDialogProps) {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel htmlFor="categoryId">Categoria</FormLabel>
-                  <FormControl>
-                    <Select
-                      {...field}
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      disabled={isSubmitting}
-                    >
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isSubmitting}
+                  >
+                    <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecione uma categoria" />
                       </SelectTrigger>
-
-                      <SelectContent>
-                        <SelectGroup>
-                          {categories?.map((category) => (
-                            <SelectItem
-                              key={category.id}
-                              value={category.id.toString()}
-                            >
-                              {category.name}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectGroup>
+                        {categories?.map((category) => (
+                          <SelectItem
+                            key={category.id}
+                            value={category.id.toString()}
+                          >
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                   <FormMessage />
                 </FormItem>
               )}
