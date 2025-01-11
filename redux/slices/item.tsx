@@ -162,27 +162,36 @@ const itemSlice = createSlice({
 
     builder.addCase(store.fulfilled, (state, action) => {
       state.store.loading = false;
-      if (
-        state.indexByStore.data &&
-        state.indexByStore.data.some(
-          (item) =>
-            item.category &&
-            action.payload.category?.storeId.includes(item.category.storeId)
-        )
-      ) {
-        state.indexByStore.data = [action.payload, ...state.indexByStore.data];
+      if (state.indexByStore.data?.length) {
+        if (
+          state.indexByStore.data.some(
+            (item) =>
+              item.category &&
+              action.payload.category?.storeId.includes(item.category.storeId)
+          )
+        ) {
+          state.indexByStore.data = [
+            action.payload,
+            ...state.indexByStore.data,
+          ];
+        }
+      } else {
+        state.indexByStore.data = [action.payload];
       }
-      if (
-        state.indexByCategory.data &&
-        state.indexByCategory.data.some(
-          (item) =>
-            item.category && action.payload.category?.id === item.category.id
-        )
-      ) {
-        state.indexByCategory.data = [
-          action.payload,
-          ...state.indexByCategory.data,
-        ];
+      if (state.indexByCategory.data?.length) {
+        if (
+          state.indexByCategory.data.some(
+            (item) =>
+              item.category && action.payload.category?.id === item.category.id
+          )
+        ) {
+          state.indexByCategory.data = [
+            action.payload,
+            ...state.indexByCategory.data,
+          ];
+        }
+      } else {
+        state.indexByCategory.data = [action.payload];
       }
       state.store.error = null;
     });

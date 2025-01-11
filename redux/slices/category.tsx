@@ -158,16 +158,24 @@ const categorySlice = createSlice({
 
     builder.addCase(store.fulfilled, (state, action) => {
       state.store.loading = false;
-      if (state.data) {
+      if (state.data?.length) {
         state.data = [...state.data, action.payload];
+      } else {
+        state.data = [action.payload];
       }
-      if (
-        state.indexByStore.data &&
-        state.indexByStore.data.some(
-          (category) => category.storeId === action.payload.storeId
-        )
-      ) {
-        state.indexByStore.data = [...state.indexByStore.data, action.payload];
+      if (state.indexByStore.data?.length) {
+        if (
+          state.indexByStore.data.some(
+            (category) => category.storeId === action.payload.storeId
+          )
+        ) {
+          state.indexByStore.data = [
+            ...state.indexByStore.data,
+            action.payload,
+          ];
+        }
+      } else {
+        state.indexByStore.data = [action.payload];
       }
       state.store.error = null;
     });

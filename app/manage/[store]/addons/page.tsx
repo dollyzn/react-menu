@@ -1,6 +1,12 @@
 "use client";
 
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch, RootState } from "@/redux/store";
 import { useParams } from "next/navigation";
+
+import { indexByStore } from "@/redux/slices/addon";
+
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -11,24 +17,20 @@ import {
 } from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/data-table";
 import { columns, columnsConfig } from "./components/columns";
-import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import addons from "./addons.json";
+import { CreateAddonDialog } from "./components/create-addon-dialog";
 
 export default function Addons() {
   const { store } = useParams();
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    dispatch(indexByStore(store as string));
+  }, [dispatch, store]);
+
+  const loading = useSelector(
+    (state: RootState) => state.addon.indexByStore.loading
+  );
+  const data = useSelector((state: RootState) => state.addon.indexByStore.data);
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -45,38 +47,12 @@ export default function Addons() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline">
-              <PlusCircle /> Criar adicional
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Criar novo adicional</DialogTitle>
-              <DialogDescription>
-                Preencha os campos para criar um novo adicional.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Adicional</Label>
-                <Input id="name" defaultValue="Pastéis Simples" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="address">Descrição</Label>
-                <Textarea id="address" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Criar Adicional</Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <CreateAddonDialog storeId={store as string} />
       </div>
 
       <DataTable
-        data={addons}
+        loading={loading && !data}
+        data={data || []}
         columns={columns}
         columnsConfig={columnsConfig}
       />

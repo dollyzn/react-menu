@@ -1,17 +1,15 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-
 import { Calendar, History } from "lucide-react";
-
 import { ColumnsConfig } from "@/components/data-table";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HeaderActions } from "./table-header-actions";
 
 import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
-import { HeaderActions } from "./table-header-actions";
 
 export const columns: ColumnDef<Addon>[] = [
   {
