@@ -27,7 +27,7 @@ export default class ItemsController {
       .withCount('addons', (query) => {
         query.as('addonsCount')
       })
-      .orderBy('order', 'asc')
+      .orderBy('createdAt', 'desc')
   }
 
   async show({ params }: HttpContext) {
@@ -48,7 +48,10 @@ export default class ItemsController {
 
     const data = await request.validateUsing(storeValidator)
 
-    return Item.create({ categoryId, ...data })
+    const item = await Item.create({ categoryId, ...data })
+    await item.load('category')
+
+    return await item.refresh()
   }
 
   async update({ params, request }: HttpContext) {
