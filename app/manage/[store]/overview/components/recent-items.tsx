@@ -38,7 +38,7 @@ export function RecentItems({ storeId }: RecentItemsProps) {
   };
 
   return (
-    <ScrollArea className="h-[400px] p-6 py-0">
+    <ScrollArea className="h-[400px] p-6 pt-0 pb-4">
       {loading && !items ? (
         <div className="space-y-8">
           {Array.from({ length: 10 }).map((_, index) => (
