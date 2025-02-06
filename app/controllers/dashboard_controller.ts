@@ -48,29 +48,14 @@ export default class DashboardController {
       deltas: { value: number; interval: string }[],
       intervals: { label: string; duration: object }[]
     ) => {
-      const mostRelevant = deltas.sort((a, b) => {
-        if (Math.abs(b.value) !== Math.abs(a.value)) {
-          return Math.abs(b.value) - Math.abs(a.value)
-        }
-
+      const orderedDeltas = deltas.sort((a, b) => {
         const aIndex = intervals.findIndex((int) => int.label === a.interval)
         const bIndex = intervals.findIndex((int) => int.label === b.interval)
         return aIndex - bIndex
-      })[0]
+      })
 
-      const mostRelevantIndex = intervals.findIndex((int) => int.label === mostRelevant.interval)
-      if (mostRelevantIndex > 0) {
-        const previousInterval = intervals[mostRelevantIndex - 1]
-        const previousDelta = deltas.find((delta) => delta.interval === previousInterval.label)
-
-        if (
-          previousDelta &&
-          mostRelevant.value <
-            (previousDelta.value > 0 ? previousDelta.value + 1 : previousDelta.value)
-        ) {
-          return `+${previousDelta.value} ${previousDelta.interval}`
-        }
-      }
+      const mostRelevant =
+        orderedDeltas.find((delta) => delta.value > 0) || orderedDeltas[orderedDeltas.length - 1]
 
       if (mostRelevant.value > 0) return `+${mostRelevant.value} ${mostRelevant.interval}`
       if (mostRelevant.value === 0) return `Sem alterações ${mostRelevant.interval}`
