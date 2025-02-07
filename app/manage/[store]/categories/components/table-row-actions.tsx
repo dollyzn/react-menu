@@ -12,16 +12,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { UpdateCategoryDialog } from "./update-category-dialog";
+import { DeleteCategoryDialog } from "./delete-category-dialog";
 
 interface RowActionsProps<Category> {
   row: Row<Category>;
@@ -30,11 +22,6 @@ interface RowActionsProps<Category> {
 export function RowActions({ row }: RowActionsProps<Category>) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-  const handleDelete = () => {
-    console.log("Excluído:", row.original);
-    setIsDeleteModalOpen(false);
-  };
 
   return (
     <>
@@ -67,29 +54,11 @@ export function RowActions({ row }: RowActionsProps<Category>) {
         row={row}
       />
 
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Isso excluirá a categoria{" "}
-              <span className="font-bold">{row.original.name}</span> junto com
-              todos os seus{" "}
-              <span className="font-bold">{row.original.itemsCount} itens</span>{" "}
-              relacionados. Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteModalOpen(false)}>
-              Cancel
-            </AlertDialogCancel>
-
-            <Button variant="destructive" onClick={handleDelete}>
-              Excluir
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteCategoryDialog
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        row={row}
+      />
     </>
   );
 }

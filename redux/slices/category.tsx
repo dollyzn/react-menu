@@ -28,6 +28,14 @@ export interface CategoryState {
     loading: boolean;
     error: Error | null;
   };
+  destroy: {
+    loading: boolean;
+    error: Error | null;
+  };
+  bulkDelete: {
+    loading: boolean;
+    error: Error | null;
+  };
 }
 
 const initialState: CategoryState = {
@@ -48,6 +56,14 @@ const initialState: CategoryState = {
     error: null,
   },
   updateOrder: {
+    loading: false,
+    error: null,
+  },
+  destroy: {
+    loading: false,
+    error: null,
+  },
+  bulkDelete: {
     loading: false,
     error: null,
   },
@@ -120,6 +136,41 @@ export const updateOrder = createAsyncThunk<
   try {
     const res = await api.patch(`categories/update-order`, data);
     return res.data as Pick<Category, "id" | "order" | "updatedAt">[];
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
+
+export const destroy = createAsyncThunk<Category, number>(
+  "category/destroy",
+  async (id, { rejectWithValue }) => {
+    try {
+      const res = await api.delete(`categories/${id}`);
+      return res.data as Category;
+    } catch (error: any) {
+      return rejectWithValue({
+        ...error.response.data,
+        status: error.response.status,
+      });
+    }
+  }
+);
+
+export const bulkDelete = createAsyncThunk<
+  { deletedCategories: Category[]; failedDeletions: Category[] },
+  number[]
+>("category/bulkDelete", async (ids, { rejectWithValue }) => {
+  try {
+    const res = await api.post("categories/bulk-delete", {
+      ids,
+    });
+    return res.data as {
+      deletedCategories: Category[];
+      failedDeletions: Category[];
+    };
   } catch (error: any) {
     return rejectWithValue({
       ...error.response.data,
@@ -267,6 +318,67 @@ const categorySlice = createSlice({
     builder.addCase(updateOrder.rejected, (state, action) => {
       state.updateOrder.loading = false;
       state.updateOrder.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //destroy actions
+    builder.addCase(destroy.pending, (state) => {
+      state.destroy.loading = true;
+      state.destroy.error = null;
+    });
+
+    builder.addCase(destroy.fulfilled, (state, action) => {
+      state.destroy.loading = false;
+      if (state.data) {
+        state.data = state.data.filter(
+          (category) => category.id !== action.payload.id
+        );
+      }
+      if (state.indexByStore.data) {
+        state.indexByStore.data = state.indexByStore.data.filter(
+          (category) => category.id !== action.payload.id
+        );
+      }
+      state.destroy.error = null;
+    });
+
+    builder.addCase(destroy.rejected, (state, action) => {
+      state.destroy.loading = false;
+      state.destroy.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //bulkDelete actions
+    builder.addCase(bulkDelete.pending, (state) => {
+      state.bulkDelete.loading = true;
+      state.bulkDelete.error = null;
+    });
+
+    builder.addCase(bulkDelete.fulfilled, (state, action) => {
+      state.bulkDelete.loading = false;
+      const deletedIds = action.payload.deletedCategories.map(
+        (category) => category.id
+      );
+      if (state.data) {
+        state.data = state.data.filter(
+          (category) => !deletedIds.includes(category.id)
+        );
+      }
+      if (state.indexByStore.data) {
+        state.indexByStore.data = state.indexByStore.data.filter(
+          (category) => !deletedIds.includes(category.id)
+        );
+      }
+      state.bulkDelete.error = null;
+    });
+
+    builder.addCase(bulkDelete.rejected, (state, action) => {
+      state.bulkDelete.loading = false;
+      state.bulkDelete.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };
