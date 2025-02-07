@@ -26,4 +26,16 @@ const updateOrderValidator = vine.compile(
   })
 )
 
-export { storeValidator, updateValidator, updateOrderValidator }
+const bulkDeleteValidator = vine.compile(
+  vine.object({
+    ids: vine.array(
+      vine
+        .number()
+        .exists(
+          async (db, value) => await db.from('categories').select('id').where('id', value).first()
+        )
+    ),
+  })
+)
+
+export { storeValidator, updateValidator, updateOrderValidator, bulkDeleteValidator }

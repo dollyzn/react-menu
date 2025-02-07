@@ -7,6 +7,7 @@ router
   .group(() => {
     router.get('/:id', [CategoriesController, 'show']).as('categories.show')
     router.get('/:id/items', [ItemsController, 'indexByCategory']).as('items.indexByCategory')
+    router.post('/bulk-delete', [CategoriesController, 'bulkDelete']).as('categories.bulkDelete')
     router.post('/:storeId', [CategoriesController, 'store']).as('categories.store')
     router.put('/:id', [CategoriesController, 'update']).as('categories.update')
     router

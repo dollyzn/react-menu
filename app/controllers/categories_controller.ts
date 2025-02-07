@@ -1,6 +1,11 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { storeValidator, updateOrderValidator, updateValidator } from '#validators/category'
-import { storeExistValidator, uuidValidator } from '#validators/common'
+import {
+  bulkDeleteValidator,
+  storeValidator,
+  updateOrderValidator,
+  updateValidator,
+} from '#validators/category'
+import { numberValidator, storeExistValidator, uuidValidator } from '#validators/common'
 import Category from '#models/category'
 import db from '@adonisjs/lucid/services/db'
 
@@ -43,7 +48,7 @@ export default class CategoriesController {
   }
 
   async update({ params, request }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await numberValidator.validate(params.id)
 
     const category = await Category.findOrFail(id)
 
@@ -93,12 +98,36 @@ export default class CategoriesController {
   }
 
   async destroy({ params }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await numberValidator.validate(params.id)
 
     const category = await Category.findOrFail(id)
 
     await category.delete()
 
     return category
+  }
+
+  async bulkDelete({ request, response }: HttpContext) {
+    const { ids } = await request.validateUsing(bulkDeleteValidator)
+
+    const categories = await Category.query().whereIn('id', ids)
+
+    const deletedCategories: Category[] = []
+    const failedDeletions: Category[] = []
+
+    for (const category of categories) {
+      try {
+        await category.delete()
+        deletedCategories.push(category)
+      } catch (error) {
+        failedDeletions.push(category)
+      }
+    }
+
+    if (failedDeletions.length > 0) {
+      return response.status(207).send({ deletedCategories, failedDeletions })
+    }
+
+    return { deletedCategories, failedDeletions }
   }
 }
