@@ -56,6 +56,7 @@ export default function Categories() {
         data={data || []}
         columns={columns}
         columnsConfig={columnsConfig}
+        getRowId={(row) => `${row.id}`}
       />
     </div>
   );
