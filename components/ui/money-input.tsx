@@ -1,5 +1,5 @@
 import { useReducer } from "react";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, FieldValues, Path } from "react-hook-form";
 
 import {
   FormControl,
@@ -10,9 +10,9 @@ import {
 } from "./form";
 import { Input } from "./input";
 
-type TextInputProps = {
-  form: UseFormReturn<any>;
-  name: string;
+type TextInputProps<T extends FieldValues> = {
+  form: UseFormReturn<T>;
+  name: Path<T>;
   label: string;
   placeholder: string;
 };
@@ -26,22 +26,26 @@ const moneyFormatter = Intl.NumberFormat("pt-BR", {
   maximumFractionDigits: 2,
 });
 
-export default function MoneyInput({
+export default function MoneyInput<T extends FieldValues>({
   form,
   name,
   label,
   placeholder,
-}: TextInputProps) {
-  const initialValue = form.getValues()[name]
-    ? moneyFormatter.format(form.getValues()[name])
+}: TextInputProps<T>) {
+  const initialValue = form.getValues()[name] as number | undefined;
+  const formattedInitialValue = initialValue
+    ? moneyFormatter.format(initialValue)
     : "";
 
-  const [value, setValue] = useReducer((_: any, next: string) => {
+  const [value, setValue] = useReducer((_: string, next: string) => {
     const digits = next.replace(/\D/g, "");
     return moneyFormatter.format(Number(digits) / 100);
-  }, initialValue);
+  }, formattedInitialValue);
 
-  function handleChange(realChangeFn: Function, formattedValue: string) {
+  function handleChange(
+    realChangeFn: (value: number) => void,
+    formattedValue: string
+  ) {
     const digits = formattedValue.replace(/\D/g, "");
     const realValue = Number(digits) / 100;
     realChangeFn(realValue);
@@ -52,7 +56,6 @@ export default function MoneyInput({
       control={form.control}
       name={name}
       render={({ field }) => {
-        field.value = value;
         const _change = field.onChange;
 
         return (
