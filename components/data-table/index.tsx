@@ -55,7 +55,7 @@ export function DataTable<TData, TValue>({
   columns,
   columnsConfig,
   loading,
-  getRowId = (row) => (row as any).index,
+  getRowId,
 }: DataTableProps<TData, TValue>) {
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
