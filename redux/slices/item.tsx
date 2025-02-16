@@ -81,7 +81,7 @@ export const indexByCategory = createAsyncThunk<Item[], number>(
 
 export const store = createAsyncThunk<
   Item,
-  { id: string; data: Partial<Item> }
+  { id: string; data: Partial<Item & { addonIds?: string[] }> }
 >("item/store", async ({ id, data }, { rejectWithValue }) => {
   try {
     const res = await api.post(`items/${id}`, data);
