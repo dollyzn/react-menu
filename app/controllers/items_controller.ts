@@ -46,9 +46,17 @@ export default class ItemsController {
   async store({ request, params }: HttpContext) {
     const categoryId = await categoryExistValidator.validate(params.categoryId)
 
-    const data = await request.validateUsing(storeValidator)
+    const { addonIds, ...data } = await request.validateUsing(storeValidator)
 
     const item = await Item.create({ categoryId, ...data })
+
+    if (addonIds) {
+      await item.related('addons').sync(addonIds)
+      const countResult = await item.related('addons').query().count('* as total')
+      const addonsCount = countResult[0].$extras.total ?? 0
+      item.$extras = { addonsCount }
+    }
+
     await item.load('category')
 
     return await item.refresh()
@@ -59,7 +67,15 @@ export default class ItemsController {
 
     const item = await Item.findOrFail(id)
 
-    const data = await request.validateUsing(updateValidator)
+    const { addonIds, ...data } = await request.validateUsing(updateValidator)
+
+    if (addonIds) {
+      await item.related('addons').sync(addonIds)
+      const countResult = await item.related('addons').query().count('* as total')
+      const addonsCount = countResult[0].$extras.total ?? 0
+      item.$extras = { addonsCount }
+    }
+
     item.merge(data)
 
     return item.save()

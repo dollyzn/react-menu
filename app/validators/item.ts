@@ -4,6 +4,16 @@ const name = vine.string().trim()
 const description = vine.string().optional()
 const price = vine.number().positive()
 const photoUrl = vine.string().optional()
+const addonIds = vine
+  .array(
+    vine
+      .string()
+      .uuid()
+      .exists(async (db, value) => {
+        return await db.from('addons').select('id').where('id', value).first()
+      })
+  )
+  .optional()
 
 const categoryExistValidator = vine.compile(
   vine.number().exists(async (db, value) => {
@@ -21,6 +31,7 @@ const storeValidator = vine.compile(
     description,
     price,
     photoUrl,
+    addonIds,
   })
 )
 
@@ -30,6 +41,7 @@ const updateValidator = vine.compile(
     description,
     price: price.optional(),
     photoUrl,
+    addonIds,
   })
 )
 
