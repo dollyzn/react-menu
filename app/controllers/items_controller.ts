@@ -7,6 +7,7 @@ import {
   updateValidator,
 } from '#validators/item'
 import Item from '#models/item'
+import Addon from '#models/addon'
 import db from '@adonisjs/lucid/services/db'
 
 export default class ItemsController {
@@ -50,14 +51,21 @@ export default class ItemsController {
 
     const item = await Item.create({ categoryId, ...data })
 
+    await item.load('category')
+
     if (addonIds) {
-      await item.related('addons').sync(addonIds)
+      const validAddonIds = (
+        await Addon.query()
+          .whereIn('id', addonIds)
+          .andWhere('store_id', item.category.storeId)
+          .select('id')
+      ).map((addon) => addon.id)
+
+      await item.related('addons').sync(validAddonIds)
       const countResult = await item.related('addons').query().count('* as total')
       const addonsCount = countResult[0].$extras.total ?? 0
       item.$extras = { addonsCount }
     }
-
-    await item.load('category')
 
     return await item.refresh()
   }
@@ -69,14 +77,23 @@ export default class ItemsController {
 
     const { addonIds, ...data } = await request.validateUsing(updateValidator)
 
+    item.merge(data)
+
+    await item.load('category')
+
     if (addonIds) {
-      await item.related('addons').sync(addonIds)
+      const validAddonIds = (
+        await Addon.query()
+          .whereIn('id', addonIds)
+          .andWhere('store_id', item.category.storeId)
+          .select('id')
+      ).map((addon) => addon.id)
+
+      await item.related('addons').sync(validAddonIds)
       const countResult = await item.related('addons').query().count('* as total')
       const addonsCount = countResult[0].$extras.total ?? 0
       item.$extras = { addonsCount }
     }
-
-    item.merge(data)
 
     return item.save()
   }

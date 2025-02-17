@@ -3,6 +3,9 @@ import vine, { SimpleMessagesProvider } from '@vinejs/vine'
 const name = vine.string().trim()
 const description = vine.string().optional()
 const price = vine.number().positive()
+const categoryId = vine.number().exists(async (db, value) => {
+  return await db.from('categories').select('id').where('id', value).first()
+})
 const photoUrl = vine.string().optional()
 const addonIds = vine
   .array(
@@ -15,11 +18,7 @@ const addonIds = vine
   )
   .optional()
 
-const categoryExistValidator = vine.compile(
-  vine.number().exists(async (db, value) => {
-    return await db.from('categories').select('id').where('id', value).first()
-  })
-)
+const categoryExistValidator = vine.compile(categoryId)
 
 categoryExistValidator.messagesProvider = new SimpleMessagesProvider({
   'database.exists': 'Categoria não encontrada',
@@ -40,6 +39,7 @@ const updateValidator = vine.compile(
     name: name.optional(),
     description,
     price: price.optional(),
+    categoryId,
     photoUrl,
     addonIds,
   })
