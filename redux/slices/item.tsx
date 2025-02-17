@@ -22,6 +22,10 @@ export interface ItemState {
     loading: boolean;
     error: Error | null;
   };
+  update: {
+    loading: boolean;
+    error: Error | null;
+  };
   updateOrder: {
     loading: boolean;
     error: Error | null;
@@ -40,6 +44,10 @@ const initialState: ItemState = {
     error: null,
   },
   store: {
+    loading: false,
+    error: null,
+  },
+  update: {
     loading: false,
     error: null,
   },
@@ -85,6 +93,21 @@ export const store = createAsyncThunk<
 >("item/store", async ({ id, data }, { rejectWithValue }) => {
   try {
     const res = await api.post(`items/${id}`, data);
+    return res.data as Item;
+  } catch (error: any) {
+    return rejectWithValue({
+      ...error.response.data,
+      status: error.response.status,
+    });
+  }
+});
+
+export const update = createAsyncThunk<
+  Item,
+  { id: string; data: Partial<Item & { addonIds?: string[] }> }
+>("item/update", async ({ id, data }, { rejectWithValue }) => {
+  try {
+    const res = await api.put(`items/${id}`, data);
     return res.data as Item;
   } catch (error: any) {
     return rejectWithValue({
@@ -199,6 +222,35 @@ const itemSlice = createSlice({
     builder.addCase(store.rejected, (state, action) => {
       state.store.loading = false;
       state.store.error = {
+        message: action.error.message || "Ocorreu um erro",
+        code: action.error.code || "UNEXPECTED",
+      };
+    });
+
+    //update actions
+    builder.addCase(update.pending, (state) => {
+      state.update.loading = true;
+      state.update.error = null;
+    });
+
+    builder.addCase(update.fulfilled, (state, action) => {
+      state.update.loading = false;
+      if (state.indexByCategory.data) {
+        state.indexByCategory.data = state.indexByCategory.data.map((item) =>
+          item.id === action.payload.id ? { ...item, ...action.payload } : item
+        );
+      }
+      if (state.indexByStore.data) {
+        state.indexByStore.data = state.indexByStore.data.map((item) =>
+          item.id === action.payload.id ? { ...item, ...action.payload } : item
+        );
+      }
+      state.update.error = null;
+    });
+
+    builder.addCase(update.rejected, (state, action) => {
+      state.update.loading = false;
+      state.update.error = {
         message: action.error.message || "Ocorreu um erro",
         code: action.error.code || "UNEXPECTED",
       };

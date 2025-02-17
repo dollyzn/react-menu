@@ -14,17 +14,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
   AlertDialog,
   AlertDialogContent,
   AlertDialogCancel,
@@ -33,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { UpdateItemDialog } from "./update-item-dialog";
 
 interface RowActionsProps<Item> {
   row: Row<Item>;
@@ -45,11 +35,6 @@ export function RowActions({ row }: RowActionsProps<Item>) {
   const handleDelete = () => {
     console.log("Excluído:", row.original);
     setIsDeleteModalOpen(false);
-  };
-
-  const handleEdit = () => {
-    console.log("Editando:", row.original);
-    setIsEditModalOpen(false);
   };
 
   return (
@@ -77,41 +62,11 @@ export function RowActions({ row }: RowActionsProps<Item>) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Editar Item</DialogTitle>
-            <DialogDescription>
-              Atualize as informações deste item.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="name">Nome do Item</Label>
-              <Input id="name" defaultValue={row.original.name as string} />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                defaultValue={row.original.description as string}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="secondary"
-              onClick={() => setIsEditModalOpen(false)}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" onClick={handleEdit}>
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UpdateItemDialog
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        row={row}
+      />
 
       <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
         <AlertDialogContent>

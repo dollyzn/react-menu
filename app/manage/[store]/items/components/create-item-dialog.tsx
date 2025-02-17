@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 
-import { indexByStore } from "@/redux/slices/category";
-import { indexByStore as indexAddonsByStore } from "@/redux/slices/addon";
 import { store } from "@/redux/slices/item";
 
 import {
@@ -71,11 +69,7 @@ const CreateItemSchema = z.object({
   addonIds: z.array(z.string()).optional(),
 });
 
-interface CreateItemDialogProps {
-  storeId: string;
-}
-
-export function CreateItemDialog({ storeId }: CreateItemDialogProps) {
+export function CreateItemDialog() {
   const dispatch = useDispatch<AppDispatch>();
   const categories = useSelector(
     (state: RootState) => state.category.indexByStore.data
@@ -83,11 +77,6 @@ export function CreateItemDialog({ storeId }: CreateItemDialogProps) {
   const addons = useSelector(
     (state: RootState) => state.addon.indexByStore.data
   );
-
-  useEffect(() => {
-    dispatch(indexByStore(storeId));
-    dispatch(indexAddonsByStore(storeId));
-  }, [dispatch, storeId]);
 
   const form = useForm<z.infer<typeof CreateItemSchema>>({
     resolver: zodResolver(CreateItemSchema),

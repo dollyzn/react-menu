@@ -4,6 +4,9 @@ import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch, RootState } from "@/redux/store";
+
+import { indexByStore as indexCategoriesByStore } from "@/redux/slices/category";
+import { indexByStore as indexAddonsByStore } from "@/redux/slices/addon";
 import { indexByStore } from "@/redux/slices/item";
 
 import {
@@ -25,6 +28,8 @@ export default function Items() {
 
   useEffect(() => {
     dispatch(indexByStore(store as string));
+    dispatch(indexCategoriesByStore(store as string));
+    dispatch(indexAddonsByStore(store as string));
   }, [dispatch, store]);
 
   const loading = useSelector(
@@ -65,7 +70,7 @@ export default function Items() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        <CreateItemDialog storeId={store as string} />
+        <CreateItemDialog />
       </div>
 
       <DataTable
