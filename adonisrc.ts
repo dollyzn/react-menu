@@ -10,7 +10,7 @@ export default defineConfig({
   | will be scanned automatically from the "./commands" directory.
   |
   */
-  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands')],
+  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands'), () => import('@adonisjs/bouncer/commands')],
 
   /*
   |--------------------------------------------------------------------------
@@ -34,6 +34,11 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/static/static_provider'),
     () => import('@adonisjs/drive/drive_provider'),
+    () => import('@adonisjs/bouncer/bouncer_provider'),
+    () => import('@adonisjs/transmit/transmit_provider'),
+    () => import('@adonisjs/limiter/limiter_provider'),
+    () => import('@adonisjs/redis/redis_provider'),
+    () => import('@adonisjs/ally/ally_provider')
   ],
 
   /*
@@ -44,16 +49,19 @@ export default defineConfig({
   | List of modules to import before starting the application.
   |
   */
-  preloads: [
-    () => import('#start/routes/index'),
-    () => import('#start/kernel'),
-    () => import('#start/validator'),
-    () => import('#start/app'),
-    {
-      file: () => import('#start/ws'),
-      environment: ['web'],
-    },
-  ],
+  preloads: [() => import('#start/routes'), () => import('#start/kernel'), {
+    file: () => import('#start/app'),
+    environment: ['web'],
+  }, {
+    file: () => import('#start/validator'),
+    environment: ['web'],
+  }, {
+    file: () => import('#start/transmit'),
+    environment: ['web'],
+  }, {
+    file: () => import('#start/ws'),
+    environment: ['web'],
+  }],
 
   /*
   |--------------------------------------------------------------------------
