@@ -54,17 +54,17 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
 
-  GOOGLE_CLIENT_ID: Env.schema.string(),
-  GOOGLE_CLIENT_SECRET: Env.schema.string(),
-  GOOGLE_CALLBACK_URL: Env.schema.string(),
+  GOOGLE_CLIENT_ID: Env.schema.string.optional(),
+  GOOGLE_CLIENT_SECRET: Env.schema.string.optional(),
+  GOOGLE_CALLBACK_URL: Env.schema.string.optional(),
 
-  TWITTER_CLIENT_ID: Env.schema.string(),
-  TWITTER_CLIENT_SECRET: Env.schema.string(),
-  TWITTER_CALLBACK_URL: Env.schema.string(),
+  TWITTER_CLIENT_ID: Env.schema.string.optional(),
+  TWITTER_CLIENT_SECRET: Env.schema.string.optional(),
+  TWITTER_CALLBACK_URL: Env.schema.string.optional(),
 
-  FACEBOOK_CLIENT_ID: Env.schema.string(),
-  FACEBOOK_CLIENT_SECRET: Env.schema.string(),
-  FACEBOOK_CALLBACK_URL: Env.schema.string(),
+  FACEBOOK_CLIENT_ID: Env.schema.string.optional(),
+  FACEBOOK_CLIENT_SECRET: Env.schema.string.optional(),
+  FACEBOOK_CALLBACK_URL: Env.schema.string.optional(),
 
   HEALTH_CHECK_MONITORING_TOKEN: Env.schema.string(),
   HEALTH_CHECK_MONITORING_ALLOWLIST: Env.schema.string.optional(),
