@@ -3,6 +3,8 @@ import { loginValidator, registerValidator } from '#validators/auth'
 import app from '@adonisjs/core/services/app'
 import User from '#models/user'
 import env from '#start/env'
+import limiter from '@adonisjs/limiter/services/main'
+import AppException from '#exceptions/app_exception'
 
 export default class AuthController {
   private sendCookie = env.get('AUTH_COOKIE_ENABLED', false)
@@ -27,13 +29,35 @@ export default class AuthController {
     return user
   }
 
-  async login({ request, response }: HttpContext) {
+  async login({ request, response, auth }: HttpContext) {
     const { email, password } = await request.validateUsing(loginValidator)
 
-    const user = await User.verifyCredentials(email, password)
-    const token = (await User.accessTokens.create(user)).toJSON()
+    const loginLimiter = limiter.use({
+      requests: 5,
+      duration: '1 min',
+      blockDuration: '5 min',
+    })
 
-    await user.load('stores')
+    const key = `login_${request.ip()}_${email}`
+
+    const [error, user] = await loginLimiter.penalize(key, () =>
+      User.verifyCredentials(email, password)
+    )
+
+    if (error) {
+      throw new AppException(
+        `Muitas tentativas de login. Tente novamente após ${
+          error.response.availableIn > 60
+            ? Math.floor(error.response.availableIn / 60) + ' minutos'
+            : error.response.availableIn + ' segundos'
+        }`,
+        429
+      )
+    }
+
+    const token = (await auth.use('api').createToken(user)).toJSON()
+
+    await user.load((loader) => loader.preload('role', (query) => query.preload('permissions')))
 
     if (this.sendCookie) {
       response.cookie(this.cookieName, token.token, {
@@ -45,13 +69,17 @@ export default class AuthController {
       })
     }
 
-    return user
+    return {
+      success: true,
+      user: {
+        ...user.toJSON(),
+        tokenExpiresAt: token.expiresAt,
+      },
+    }
   }
 
   async logout({ auth, response }: HttpContext) {
-    const user = auth.user!
-
-    await User.accessTokens.delete(user, user.currentAccessToken.identifier)
+    const result = await auth.use('api').invalidateToken()
 
     response.cookie(this.cookieName, '', {
       httpOnly: true,
@@ -61,7 +89,12 @@ export default class AuthController {
       maxAge: undefined,
     })
 
-    return { message: 'success' }
+    return {
+      success: result,
+      message: result
+        ? 'Você foi deslogado com sucesso.'
+        : 'Ocorreu um erro ao tentar fazer logout.',
+    }
   }
 
   async me({ auth }: HttpContext) {
@@ -69,10 +102,22 @@ export default class AuthController {
 
     const user = auth.user
 
-    await user?.load('stores')
+    if (!user) {
+      return {
+        success: false,
+      }
+    }
+
+    await user.load((loader) => loader.preload('role', (query) => query.preload('permissions')))
+
+    const serializedUser = {
+      ...user.toJSON(),
+      tokenExpiresAt: user.currentAccessToken?.toJSON().expiresAt,
+    }
 
     return {
-      ...user?.toJSON(),
+      success: true,
+      user: serializedUser,
     }
   }
 }
