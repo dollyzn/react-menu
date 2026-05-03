@@ -7,6 +7,8 @@
 .yarn/install-state.gz
 package-lock.json
 
+/falealto-crm
+
 # testing
 /coverage
 

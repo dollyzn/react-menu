@@ -1,17 +1,17 @@
+import type { User } from "@/types/session";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { PURGE } from "redux-persist";
 
 export interface AuthState {
-  loading: boolean;
   user: User | null;
-
-  error: { message: string; code: string } | null;
+  isAuthenticated: boolean;
+  isSessionExpired: boolean;
 }
 
 const initialState: AuthState = {
-  loading: false,
   user: null,
-  error: null,
+  isAuthenticated: false,
+  isSessionExpired: false,
 };
 
 const authSlice = createSlice({
@@ -20,7 +20,14 @@ const authSlice = createSlice({
   reducers: {
     setUser: (state, action: PayloadAction<User | null>) => {
       state.user = action.payload;
-      state.loading = false;
+      if (action.payload) state.isAuthenticated = true;
+      else state.isAuthenticated = false;
+    },
+    setIsAuthenticated: (state, action: PayloadAction<boolean>) => {
+      state.isAuthenticated = action.payload;
+    },
+    setIsSessionExpired: (state, action: PayloadAction<boolean>) => {
+      state.isSessionExpired = action.payload;
     },
   },
   extraReducers: (builder) => {
@@ -31,5 +38,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { setUser } = authSlice.actions;
+export const { setUser, setIsAuthenticated, setIsSessionExpired } =
+  authSlice.actions;
 export default authSlice.reducer;

@@ -1,164 +1,52 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { Eye, EyeOff, Lock, User, ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { LoginSchema } from "@/schema";
-import { LoginError, useSession } from "@/providers/session-provider";
+import { LoginForm } from "./components/login-form";
+import { ThemeToggle } from "@/components/app/theme-toggle";
 
 export default function LoginPage() {
-  const { login } = useSession();
-
-  const [showPassword, setShowPassword] = useState(false);
-
-  const form = useForm<z.infer<typeof LoginSchema>>({
-    resolver: zodResolver(LoginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
-  });
-  const { isSubmitting } = form.formState;
-
-  async function onSubmit(data: z.infer<typeof LoginSchema>) {
-    const { email, password } = data;
-
-    try {
-      await login({
-        email,
-        password,
-        redirectToApp: true,
-      });
-    } catch (err) {
-      const error = err as LoginError;
-      form.setError("email", {
-        type: "manual",
-        message: "",
-      });
-      form.setError("password", {
-        type: "manual",
-        message: error.invalidCredentials
-          ? "E-mail ou senha inválidos."
-          : "Erro no servidor. Tente novamente mais tarde.",
-      });
-    }
-  }
-
   return (
-    <main className="min-h-screen flex items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-semibold">Login</CardTitle>
-          <CardDescription>
-            Digite suas credenciais para acessar sua conta
-          </CardDescription>
-        </CardHeader>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <CardContent className="space-y-4 pb-4">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <User
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                          size={18}
-                        />
-                        <Input
-                          placeholder="Seu e-mail de acesso"
-                          className="pl-10"
-                          {...field}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                          size={18}
-                        />
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Sua senha"
-                          className="pl-10"
-                          autoComplete="off"
-                          {...field}
-                          disabled={isSubmitting}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </CardContent>
-            <CardFooter className="flex-col space-y-3">
-              <Button className="w-full" type="submit" loading={isSubmitting}>
-                Entrar
-              </Button>
-
-              <Link href="/" passHref>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-muted-foreground"
-                >
-                  <ArrowLeft />
-                  Página Principal
-                </Button>
-              </Link>
-            </CardFooter>
-          </form>
-        </Form>
-      </Card>
+    <main className="relative flex min-h-dvh flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
+      <div className="absolute  right-4 top-4">
+        <ThemeToggle />
+      </div>
+      <div className="relative hidden h-full flex-col bg-muted p-10 lg:flex dark:border-r">
+        {/*     <AnimatedBackground /> */}
+        <div className="relative z-20 flex justify-end items-center text-lg font-medium text-primary-foreground">
+          FaleAlto CRM
+        </div>
+        <div className="relative z-20 mt-auto text-primary-foreground">
+          <span className="text-sm">Equipe FaleAlto</span>
+        </div>
+      </div>
+      <div className="mx-4 lg:p-8 lg:mx-0">
+        <div className="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[400px] lg:w-[350px] rounded-xl shadow-lg lg:shadow-none px-6 py-8 lg:p-0 border lg:border-0">
+          <div className="flex flex-col space-y-2">
+            <h1 className="text-2xl font-semibold tracking-tight flex gap-3 items-center">
+              FaleAlto
+            </h1>
+            <p className="text-sm text-muted-foreground">
+              Entre com suas credenciais para acessar o sistema
+            </p>
+          </div>
+          <LoginForm />
+          <p className="px-2 sm:px-8 text-center text-sm text-muted-foreground">
+            Ao continuar, você concorda com nossos{" "}
+            <Link
+              href="/terms"
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              Termos de Serviço
+            </Link>{" "}
+            e{" "}
+            <Link
+              href="/privacy"
+              className="underline underline-offset-4 hover:text-primary"
+            >
+              Política de Privacidade
+            </Link>
+            .
+          </p>
+        </div>
+      </div>
     </main>
   );
 }

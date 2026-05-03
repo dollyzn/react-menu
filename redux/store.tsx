@@ -14,67 +14,56 @@ import {
   createMigrate,
 } from "redux-persist";
 import auth, { AuthState } from "@/redux/slices/auth";
-import storeSlice, { StoreState } from "@/redux/slices/store";
-import category, { CategoryState } from "@/redux/slices/category";
-import item, { ItemState } from "@/redux/slices/item";
-import addon, { AddonState } from "./slices/addon";
+import storeUi from "@/redux/slices/store-ui";
+import { baseApi } from "@/redux/api/baseApi";
+import "@/redux/features";
 
 let devToolsEnabled = false;
 
 if (typeof window !== "undefined") {
   const url = window.location.href;
-
-  if (url.includes("localhost") || url.includes("127.0.0.1")) {
-    devToolsEnabled = true;
-  } else {
-    devToolsEnabled = false;
-  }
+  devToolsEnabled = url.includes("localhost") || url.includes("127.0.0.1");
 }
 
 type PersistentData = {
   auth?: Partial<AuthState>;
-  store?: Partial<StoreState>;
-  category?: Partial<CategoryState>;
-  item?: Partial<ItemState>;
-  addon?: Partial<AddonState>;
 };
 
-const persistentData: PersistentData = {
-  auth: {
-    loading: false,
-    error: null,
-  },
-};
+const persistentData: PersistentData = {};
 
-const deepMerge = (target: any, source: any): any => {
+const deepMerge = (target: unknown, source: unknown): unknown => {
   if (typeof target !== "object" || target === null) {
     return source;
   }
-
-  const merged = { ...target };
-  for (const key in source) {
+  if (typeof source !== "object" || source === null) {
+    return source;
+  }
+  const merged = { ...(target as Record<string, unknown>) };
+  for (const key in source as Record<string, unknown>) {
+    const srcVal = (source as Record<string, unknown>)[key];
+    const tgtVal = (target as Record<string, unknown>)[key];
     if (
-      typeof source[key] === "object" &&
-      source[key] !== null &&
-      !Array.isArray(source[key])
+      typeof srcVal === "object" &&
+      srcVal !== null &&
+      !Array.isArray(srcVal)
     ) {
-      merged[key] = deepMerge(target[key], source[key]);
+      merged[key] = deepMerge(tgtVal, srcVal);
     } else {
-      merged[key] = source[key];
+      merged[key] = srcVal;
     }
   }
-
   return merged;
 };
 
-const transform = createTransform(
-  (inboundState: any, key: keyof PersistentData) => {
-    return deepMerge(inboundState, persistentData[key]);
+const transform = createTransform<AuthState, AuthState, RootState>(
+  (inboundState, key) => {
+    if (key === "auth") {
+      return deepMerge(inboundState, persistentData.auth) as AuthState;
+    }
+    return inboundState;
   },
-
-  (outboundState: any) => {
-    return { ...outboundState };
-  }
+  (outboundState) => outboundState,
+  { whitelist: ["auth"] }
 );
 
 const migrations = {};
@@ -108,10 +97,8 @@ const config = {
 
 const reducers = combineReducers({
   auth,
-  store: storeSlice,
-  category,
-  item,
-  addon,
+  storeUi,
+  [baseApi.reducerPath]: baseApi.reducer,
 });
 
 export type RootState = ReturnType<typeof reducers>;
@@ -119,7 +106,7 @@ export type RootState = ReturnType<typeof reducers>;
 const reducer = persistReducer<RootState>(config, reducers);
 
 const store = configureStore({
-  reducer: reducer,
+  reducer,
   devTools: devToolsEnabled,
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -127,7 +114,7 @@ const store = configureStore({
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
       },
-    }),
+    }).concat(baseApi.middleware),
 });
 
 export type AppDispatch = typeof store.dispatch;

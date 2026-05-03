@@ -2,15 +2,15 @@
 
 import { useEffect } from "react";
 import { initializeSocket } from "@/lib/socket";
-import { useDispatch, useSelector } from "react-redux";
-import { setPrevStore, setStoreStatus } from "@/redux/slices/store";
-import { AppDispatch, RootState } from "@/redux/store";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { setPrevStore } from "@/redux/slices/store-ui";
+import { baseApi } from "@/redux/api/baseApi";
 
 const socket = initializeSocket();
 
 export const useStoreSocket = (store: string) => {
-  const dispatch = useDispatch<AppDispatch>();
-  const prevStore = useSelector((state: RootState) => state.store.prevStore);
+  const dispatch = useAppDispatch();
+  const prevStore = useAppSelector((state) => state.storeUi.prevStore);
 
   useEffect(() => {
     if (prevStore && prevStore !== store) {
@@ -24,7 +24,9 @@ export const useStoreSocket = (store: string) => {
     socket.on(
       "store-status",
       (data: { storeId: string; status: Store["status"] }) => {
-        dispatch(setStoreStatus(data));
+        dispatch(
+          baseApi.util.invalidateTags([{ type: "Store", id: data.storeId }])
+        );
       }
     );
 

@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { LoginSchema } from "@/schema";
-import { LoginError, useSession } from "@/providers/session-provider";
+import { LoginError, useSession } from "@/contexts/session-provider";
 import {
   Dialog,
   DialogContent,
@@ -48,7 +48,6 @@ export function LoginDialog() {
       await login({
         email,
         password,
-        redirectToApp: true,
       });
     } catch (err) {
       const error = err as LoginError;
@@ -67,7 +66,7 @@ export function LoginDialog() {
 
   async function verifyUserSession() {
     setVerifyLoading(true);
-    const loggedIn = await verify({ redirectToApp: true });
+    const loggedIn = await verify();
     setVerifyLoading(false);
 
     if (!loggedIn) setIsOpen(true);

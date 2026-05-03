@@ -1,4 +1,7 @@
 export function getErrorMessage(error: any, defaultMessage?: string): string {
+  if (error?.data?.error && typeof error.data.error === "string") {
+    return error.data.error;
+  }
   if (error.errors && Array.isArray(error.errors) && !!error.errors.length) {
     if (error.errors[0].message) {
       return error.errors[0].message;
