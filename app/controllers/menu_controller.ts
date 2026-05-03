@@ -1,27 +1,21 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import Store from '#models/store'
+import { inject } from '@adonisjs/core'
+import MenuService from '#services/menu_service'
 import { storeExistValidator } from '#validators/menu'
-import { UAParser } from 'ua-parser-js'
+import { ok } from '#helpers/api_response'
 
+@inject()
 export default class MenuController {
+  constructor(private menuService: MenuService) {}
+
   async show({ params, request }: HttpContext) {
     const slug = await storeExistValidator.validate(params.slug)
 
-    const store = await Store.query()
-      .preload('categories', (query) => {
-        query
-          .orderBy('order', 'asc')
-          .preload('items', (query) => query.orderBy('order', 'asc').preload('addons'))
-      })
-      .where(slug ? { slug } : { is_default: true })
-      .firstOrFail()
+    const store = await this.menuService.getPublicMenu(
+      slug ?? undefined,
+      request.header('user-agent') ?? null
+    )
 
-    const { device } = UAParser(request.header('user-agent'))
-    const platform = device.is('mobile') ? 'mobile' : 'desktop'
-
-    await store.incrementViews(platform)
-    await store.loadStoreViewsCount()
-
-    return store
+    return ok(store.serialize())
   }
 }

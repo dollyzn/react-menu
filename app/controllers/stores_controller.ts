@@ -1,4 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import StoreService from '#services/store_service'
 import { uuidValidator } from '#validators/common'
 import {
   storeValidator,
@@ -6,77 +8,60 @@ import {
   updateStatusValidator,
   updateValidator,
 } from '#validators/store'
-import drive from '@adonisjs/drive/services/main'
-import Store from '#models/store'
-import { cuid } from '@adonisjs/core/helpers'
+import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
+@inject()
 export default class StoresController {
-  async index({}: HttpContext) {
-    return Store.query()
+  constructor(private storeService: StoreService) {}
+
+  async index({ request }: HttpContext) {
+    const q = request.qs()
+    const stores = await this.storeService.list({
+      ...parsePagination(q),
+      filters: pickQueryFilters(q, ['name', 'status']),
+    })
+
+    return ok(stores.all(), stores.getMeta())
   }
 
   async show({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    return Store.findOrFail(id)
+    const store = await this.storeService.get(id)
+
+    return ok(store)
   }
 
   async store({ request }: HttpContext) {
     const data = await request.validateUsing(storeValidator)
 
-    return Store.create(data)
+    const store = await this.storeService.create(data)
+
+    return created(store, 'Loja criada com sucesso')
   }
 
   async update({ params, request }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    const store = await Store.findOrFail(id)
-
     const data = await request.validateUsing(updateValidator)
 
-    store.merge(data)
+    const store = await this.storeService.update(id, data)
 
-    return store.save()
+    return updated(store, 'Loja atualizada com sucesso')
   }
 
   async updateImages({ params, request }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    const store = await Store.findOrFail(id)
-
     const images = await request.validateUsing(updateImagesValidator)
 
-    if (images.banner) {
-      if (store.bannerUrl) {
-        const fileName = store.bannerUrl.split('/').pop()
-        const key = `banners/${fileName}`
-        if (fileName) await drive.use().delete(key)
-      }
+    const store = await this.storeService.updateImages(id, {
+      banner: images.banner,
+      photo: images.photo,
+    })
 
-      const key = `banners/${store.id}_${cuid()}.${images.banner.extname}`
-
-      await images.banner.moveToDisk(key)
-
-      store.merge({ bannerUrl: await drive.use().getUrl(key) })
-    }
-
-    if (images.photo) {
-      if (store.photoUrl) {
-        const fileName = store.photoUrl.split('/').pop()
-        const key = `photos/${fileName}`
-        if (fileName) await drive.use().delete(key)
-      }
-
-      const key = `photos/${store.id}_${cuid()}.${images.photo.extname}`
-
-      await images.photo.moveToDisk(key)
-
-      store.merge({ photoUrl: await drive.use().getUrl(key) })
-    }
-
-    await store.save()
-
-    return store
+    return updated(store, 'Imagens atualizadas com sucesso')
   }
 
   async updateStatus({ params, request }: HttpContext) {
@@ -84,22 +69,16 @@ export default class StoresController {
 
     const { status } = await request.validateUsing(updateStatusValidator)
 
-    const store = await Store.findOrFail(id)
+    const store = await this.storeService.update(id, { status })
 
-    store.merge({ status })
-
-    await store.save()
-
-    return store
+    return updated(store, 'Status da loja atualizado com sucesso')
   }
 
   async destroy({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    const store = await Store.findOrFail(id)
+    await this.storeService.remove(id)
 
-    await store.delete()
-
-    return store
+    return messageOnly('Loja excluída com sucesso')
   }
 }

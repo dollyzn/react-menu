@@ -1,0 +1,80 @@
+import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
+import drive from '@adonisjs/drive/services/main'
+import { cuid } from '@adonisjs/core/helpers'
+import type { MultipartFile } from '@adonisjs/core/bodyparser'
+import Store from '#models/store'
+import StoreRepository from '#repositories/store_repository'
+import type { StoreFindOptions, StoreListOptions } from '#types/store_query'
+
+export type StoreImagePayload = {
+  banner?: MultipartFile
+  photo?: MultipartFile
+}
+
+@inject()
+export default class StoreService {
+  constructor(private repo: StoreRepository) {}
+
+  async list(options?: StoreListOptions) {
+    return await this.repo.paginate(options)
+  }
+
+  async get(id: string, options?: StoreFindOptions) {
+    return await this.repo.findById(id, options)
+  }
+
+  async create(data: Partial<Store>) {
+    return await db.transaction(async (trx) => {
+      return await this.repo.create(data, trx)
+    })
+  }
+
+  async update(id: string, data: Partial<Store>) {
+    return await db.transaction(async (trx) => {
+      return await this.repo.update(id, data, trx)
+    })
+  }
+
+  async remove(id: string) {
+    return await db.transaction(async (trx) => {
+      await this.repo.delete(id, trx)
+    })
+  }
+
+  async all(options?: StoreFindOptions) {
+    return await this.repo.all(options)
+  }
+
+  async updateImages(id: string, images: StoreImagePayload) {
+    const store = await this.repo.requireById(id)
+    const disk = drive.use()
+
+    if (images.banner) {
+      if (store.bannerUrl) {
+        const fileName = store.bannerUrl.split('/').pop()
+        const key = `banners/${fileName}`
+        if (fileName) await disk.delete(key)
+      }
+
+      const key = `banners/${store.id}_${cuid()}.${images.banner.extname}`
+      await images.banner.moveToDisk(key)
+      store.merge({ bannerUrl: await disk.getUrl(key) })
+    }
+
+    if (images.photo) {
+      if (store.photoUrl) {
+        const fileName = store.photoUrl.split('/').pop()
+        const key = `photos/${fileName}`
+        if (fileName) await disk.delete(key)
+      }
+
+      const key = `photos/${store.id}_${cuid()}.${images.photo.extname}`
+      await images.photo.moveToDisk(key)
+      store.merge({ photoUrl: await disk.getUrl(key) })
+    }
+
+    await store.save()
+    return store
+  }
+}

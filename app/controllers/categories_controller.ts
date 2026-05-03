@@ -1,34 +1,39 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import CategoryService from '#services/category_service'
 import {
   bulkDeleteValidator,
   storeValidator,
   updateOrderValidator,
   updateValidator,
 } from '#validators/category'
-import { numberValidator, storeExistValidator, uuidValidator } from '#validators/common'
-import Category from '#models/category'
-import db from '@adonisjs/lucid/services/db'
+import { numberValidator, storeExistValidator } from '#validators/common'
+import { created, fail, messageOnly, ok, updated } from '#helpers/api_response'
 
+@inject()
 export default class CategoriesController {
+  constructor(private categoryService: CategoryService) {}
+
   async index({}: HttpContext) {
-    return Category.query().orderBy('order', 'asc')
+    const categories = await this.categoryService.all()
+
+    return ok(categories)
   }
 
   async indexByStore({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.id)
 
-    return Category.query()
-      .where('storeId', storeId)
-      .withCount('items', (query) => {
-        query.as('itemsCount')
-      })
-      .orderBy('order', 'asc')
+    const categories = await this.categoryService.getByStore(storeId)
+
+    return ok(categories)
   }
 
   async show({ params }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await numberValidator.validate(params.id)
 
-    return Category.findOrFail(id)
+    const category = await this.categoryService.get(id)
+
+    return ok(category)
   }
 
   async store({ params, request }: HttpContext) {
@@ -36,98 +41,52 @@ export default class CategoriesController {
 
     const data = await request.validateUsing(storeValidator)
 
-    const maxOrderResult = await Category.query()
-      .where('storeId', storeId)
-      .max('order as maxOrder')
-      .first()
+    const category = await this.categoryService.create({ storeId, ...data })
 
-    const maxOrder = maxOrderResult ? Number(maxOrderResult.$extras.maxOrder) : 0
-    const nextOrder = maxOrder + 1
-
-    return Category.create({ storeId, order: nextOrder, ...data })
+    return created(category, 'Categoria criada com sucesso')
   }
 
   async update({ params, request }: HttpContext) {
     const id = await numberValidator.validate(params.id)
 
-    const category = await Category.findOrFail(id)
-
     const data = await request.validateUsing(updateValidator)
-    category.merge(data)
 
-    return category.save()
+    const category = await this.categoryService.update(id, data)
+
+    return updated(category, 'Categoria atualizada com sucesso')
   }
 
-  public async updateOrder({ request, response }: HttpContext) {
+  async updateOrder({ request }: HttpContext) {
     const { id, order } = await request.validateUsing(updateOrderValidator)
 
-    const item = await Category.query().where('id', id).firstOrFail()
+    const category = await this.categoryService.updateOrder(id, order)
 
-    const trx = await db.transaction()
-
-    try {
-      if (order < item.order) {
-        await trx
-          .from('categories')
-          .where('store_id', item.storeId)
-          .andWhereBetween('order', [order, item.order - 1])
-          .increment('order', 1)
-      } else if (order > item.order) {
-        await trx
-          .from('categories')
-          .where('store_id', item.storeId)
-          .andWhereBetween('order', [item.order + 1, order])
-          .decrement('order', 1)
-      }
-
-      item.merge({ order: order })
-      await item.useTransaction(trx).save()
-
-      await trx.commit()
-
-      return Category.query()
-        .where('storeId', item.storeId)
-        .select('id', 'order', 'updatedAt')
-        .orderBy('order', 'asc')
-    } catch (error) {
-      await trx.rollback()
-      return response.status(500).send({
-        message: 'Ocorreu um erro ao atualizar ordem',
-      })
-    }
+    return updated(category, 'Ordem atualizada com sucesso')
   }
 
   async destroy({ params }: HttpContext) {
     const id = await numberValidator.validate(params.id)
 
-    const category = await Category.findOrFail(id)
+    await this.categoryService.remove(id)
 
-    await category.delete()
-
-    return category
+    return messageOnly('Categoria excluída com sucesso')
   }
 
-  async bulkDelete({ request, response }: HttpContext) {
+  async bulkDelete({ request }: HttpContext) {
     const { ids } = await request.validateUsing(bulkDeleteValidator)
 
-    const categories = await Category.query().whereIn('id', ids)
-
-    const deletedCategories: Category[] = []
-    const failedDeletions: Category[] = []
-
-    for (const category of categories) {
-      try {
-        await category.delete()
-        deletedCategories.push(category)
-      } catch (error) {
-        failedDeletions.push(category)
-      }
-    }
+    const { deletedCategories, failedDeletions } = await this.categoryService.bulkDelete(ids)
 
     if (failedDeletions.length > 0) {
-      return response.status(207).send({ deletedCategories, failedDeletions })
+      return fail('Algumas categorias não puderam ser excluídas', {
+        deletedCategories,
+        failedDeletions,
+      })
     }
 
-    return { deletedCategories, failedDeletions }
+    return {
+      ...ok(deletedCategories),
+      message: 'Categorias excluídas com sucesso',
+    }
   }
 }

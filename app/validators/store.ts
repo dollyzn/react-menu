@@ -1,5 +1,5 @@
 import vine from '@vinejs/vine'
-import StoreStatus from '../enums/store-status.js'
+import StoreStatus from '../enums/store_status.js'
 
 const name = vine.string().trim()
 const address = vine.string().trim().optional()

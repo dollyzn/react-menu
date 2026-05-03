@@ -8,7 +8,7 @@ import {
   manyToMany,
 } from '@adonisjs/lucid/orm'
 import type { HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
-import StoreStatus from '../enums/store-status.js'
+import StoreStatus from '../enums/store_status.js'
 import Category from './category.js'
 import Addon from './addon.js'
 import { getSocket } from '#start/ws'

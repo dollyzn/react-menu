@@ -1,5 +1,5 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
-import StoreStatus from '../../app/enums/store-status.js'
+import StoreStatus from '../../app/enums/store_status.js'
 
 export default class extends BaseSchema {
   protected tableName = 'stores'

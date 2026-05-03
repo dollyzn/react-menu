@@ -58,11 +58,11 @@ export default class SocialAuthController {
 
       await this.saveOrUpdateSocialAccount(provider, socialUser, user.id)
 
-      const token = (await auth.use('api').createToken(user)).toJSON()
+      const token = await auth.use('api').createToken(user)
       await user.load((loader) => loader.preload('role', (query) => query.preload('permissions')))
 
       if (this.sendCookie) {
-        response.cookie(this.cookieName, token.token, {
+        response.cookie(this.cookieName, token.toJSON().token, {
           httpOnly: true,
           sameSite: 'strict',
           secure: app.inProduction,

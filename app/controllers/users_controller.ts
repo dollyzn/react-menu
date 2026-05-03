@@ -1,50 +1,56 @@
-import User from '#models/user'
+import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import UserService from '#services/user_service'
 import { uuidValidator } from '#validators/common'
 import { storeValidator, updateValidator } from '#validators/user'
-import type { HttpContext } from '@adonisjs/core/http'
+import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
+@inject()
 export default class UsersController {
-  public async index({}: HttpContext) {
-    return User.query().preload('stores')
+  constructor(private userService: UserService) {}
+
+  async index({ request }: HttpContext) {
+    const q = request.qs()
+    const users = await this.userService.list({
+      ...parsePagination(q),
+      filters: pickQueryFilters(q, ['name', 'email']),
+    })
+
+    return ok(users.all(), users.getMeta())
   }
 
-  public async show({ params }: HttpContext) {
+  async show({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    return User.query().preload('stores').where('id', id).firstOrFail()
+    const user = await this.userService.get(id)
+
+    return ok(user)
   }
 
-  public async store({ request }: HttpContext) {
+  async store({ request }: HttpContext) {
     const data = await request.validateUsing(storeValidator)
 
-    return User.create(data)
+    const user = await this.userService.create(data)
+
+    return created(user, 'Usuário criado com sucesso')
   }
 
-  public async update({ request, params }: HttpContext) {
+  async update({ request, params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
-
-    const user = await User.findOrFail(id)
 
     const data = await request.validateUsing(updateValidator)
 
-    const { storeIds, ...userData } = data
+    const user = await this.userService.update(id, data)
 
-    user.merge(userData)
-    await user.save()
-
-    await user.related('stores').sync(data.storeIds)
-    await user.load('stores')
-
-    return user
+    return updated(user, 'Usuário atualizado com sucesso')
   }
 
-  public async destroy({ params }: HttpContext) {
+  async destroy({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    const user = await User.findOrFail(id)
+    await this.userService.remove(id)
 
-    await user.delete()
-
-    return user
+    return messageOnly('Usuário excluído com sucesso')
   }
 }

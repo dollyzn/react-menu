@@ -17,7 +17,7 @@ export default class Item extends BaseModel {
   @column()
   declare description: string | null
 
-  @column({ serialize: (value: string) => parseFloat(value) })
+  @column({ serialize: (value: string) => Number.parseFloat(value) })
   declare price: number
 
   @column()

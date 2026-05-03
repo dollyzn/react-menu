@@ -10,7 +10,11 @@ export default defineConfig({
   | will be scanned automatically from the "./commands" directory.
   |
   */
-  commands: [() => import('@adonisjs/core/commands'), () => import('@adonisjs/lucid/commands'), () => import('@adonisjs/bouncer/commands')],
+  commands: [
+    () => import('@adonisjs/core/commands'),
+    () => import('@adonisjs/lucid/commands'),
+    () => import('@adonisjs/bouncer/commands'),
+  ],
 
   /*
   |--------------------------------------------------------------------------
@@ -23,6 +27,7 @@ export default defineConfig({
   */
   providers: [
     () => import('@adonisjs/core/providers/app_provider'),
+    () => import('#providers/di_provider'),
     () => import('@adonisjs/core/providers/hash_provider'),
     {
       file: () => import('@adonisjs/core/providers/repl_provider'),
@@ -38,7 +43,7 @@ export default defineConfig({
     () => import('@adonisjs/transmit/transmit_provider'),
     () => import('@adonisjs/limiter/limiter_provider'),
     () => import('@adonisjs/redis/redis_provider'),
-    () => import('@adonisjs/ally/ally_provider')
+    () => import('@adonisjs/ally/ally_provider'),
   ],
 
   /*
@@ -49,19 +54,26 @@ export default defineConfig({
   | List of modules to import before starting the application.
   |
   */
-  preloads: [() => import('#start/routes'), () => import('#start/kernel'), {
-    file: () => import('#start/app'),
-    environment: ['web'],
-  }, {
-    file: () => import('#start/validator'),
-    environment: ['web'],
-  }, {
-    file: () => import('#start/transmit'),
-    environment: ['web'],
-  }, {
-    file: () => import('#start/ws'),
-    environment: ['web'],
-  }],
+  preloads: [
+    () => import('#start/routes'),
+    () => import('#start/kernel'),
+    {
+      file: () => import('#start/app'),
+      environment: ['web'],
+    },
+    {
+      file: () => import('#start/validator'),
+      environment: ['web'],
+    },
+    {
+      file: () => import('#start/transmit'),
+      environment: ['web'],
+    },
+    {
+      file: () => import('#start/ws'),
+      environment: ['web'],
+    },
+  ],
 
   /*
   |--------------------------------------------------------------------------

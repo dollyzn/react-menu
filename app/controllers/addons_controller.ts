@@ -1,29 +1,48 @@
-import Addon from '#models/addon'
+import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import AddonService from '#services/addon_service'
 import { itemExistValidator, storeValidator, updateValidator } from '#validators/addon'
 import { storeExistValidator, uuidValidator } from '#validators/common'
-import type { HttpContext } from '@adonisjs/core/http'
+import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
+@inject()
 export default class AddonsController {
-  async index({}: HttpContext) {
-    return Addon.query()
+  constructor(private addonService: AddonService) {}
+
+  async index({ request }: HttpContext) {
+    const q = request.qs()
+
+    const addons = await this.addonService.list({
+      ...parsePagination(q),
+      filters: pickQueryFilters(q, ['storeId', 'name']),
+    })
+
+    return ok(addons.all(), addons.getMeta())
   }
 
   async indexByStore({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.id)
 
-    return Addon.query().where('storeId', storeId)
+    const addons = await this.addonService.getByStore(storeId)
+
+    return ok(addons)
   }
 
   async indexByItem({ params }: HttpContext) {
     const itemId = await itemExistValidator.validate(params.id)
 
-    return Addon.query().whereHas('items', (query) => query.where('id', itemId))
+    const addons = await this.addonService.getByItem(itemId)
+
+    return ok(addons)
   }
 
   async show({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    return Addon.findOrFail(id)
+    const addon = await this.addonService.get(id)
+
+    return ok(addon)
   }
 
   async store({ params, request }: HttpContext) {
@@ -31,27 +50,26 @@ export default class AddonsController {
 
     const data = await request.validateUsing(storeValidator)
 
-    return Addon.create({ storeId, ...data })
+    const addon = await this.addonService.create({ storeId, ...data })
+
+    return created(addon, 'Complemento criado com sucesso')
   }
 
   async update({ params, request }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    const addons = await Addon.findOrFail(id)
-
     const data = await request.validateUsing(updateValidator)
-    addons.merge(data)
 
-    return addons.save()
+    const addon = await this.addonService.update(id, data)
+
+    return updated(addon, 'Complemento atualizado com sucesso')
   }
 
   async destroy({ params }: HttpContext) {
     const id = await uuidValidator.validate(params.id)
 
-    const addons = await Addon.findOrFail(id)
+    await this.addonService.remove(id)
 
-    await addons.delete()
-
-    return addons
+    return messageOnly('Complemento excluído com sucesso')
   }
 }
