@@ -1,6 +1,6 @@
 import vine, { SimpleMessagesProvider } from '@vinejs/vine'
 
-const storeExistValidator = vine.compile(
+const storeExistValidator = vine.create(
   vine
     .string()
     .regex(/^[a-z0-9-]+$/)

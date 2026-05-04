@@ -58,6 +58,20 @@ export default class AddonRepository {
     return addon
   }
 
+  async findByIdInStore(
+    id: string,
+    storeId: string,
+    options?: AddonFindOptions,
+    trx?: TransactionClientContract
+  ) {
+    const keys = resolveAddonPreloadKeys(options?.preload)
+    const query = this.query(trx ? { client: trx } : undefined).where('id', id).where('store_id', storeId)
+    applyAddonPreloads(query, keys)
+    const addon = await query.first()
+    if (!addon) throw new AppException('Complemento não encontrado', 404)
+    return addon
+  }
+
   async requireById(id: string, trx?: TransactionClientContract) {
     const query = this.query({ client: trx }).where('id', id)
     const addon = await query.first()
@@ -76,6 +90,17 @@ export default class AddonRepository {
     const keys = resolveAddonPreloadKeys(options?.preload ?? false)
     const query = this.query().whereHas('items', (q) => {
       q.where('items.id', itemId)
+    })
+    applyAddonPreloads(query, keys)
+    return await query.orderBy('created_at', 'desc')
+  }
+
+  async findByItemIdInStore(itemId: string, storeId: string, options?: AddonFindOptions) {
+    const keys = resolveAddonPreloadKeys(options?.preload ?? false)
+    const query = this.query().where('store_id', storeId).whereHas('items', (q) => {
+      q.where('items.id', itemId).whereHas('category', (cq) => {
+        cq.where('store_id', storeId)
+      })
     })
     applyAddonPreloads(query, keys)
     return await query.orderBy('created_at', 'desc')

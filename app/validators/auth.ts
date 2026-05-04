@@ -2,7 +2,7 @@ import vine from '@vinejs/vine'
 
 const password = vine.string().minLength(6).maxLength(512)
 
-const registerValidator = vine.compile(
+const registerValidator = vine.create(
   vine.object({
     name: vine.string().minLength(3).maxLength(64).trim(),
     email: vine
@@ -19,7 +19,7 @@ const registerValidator = vine.compile(
   })
 )
 
-const loginValidator = vine.compile(
+const loginValidator = vine.create(
   vine.object({
     email: vine.string().email().trim().normalizeEmail(),
     password,

@@ -7,7 +7,7 @@ const instagramUrl = vine.string().url().startsWith('https://www.instagram.com')
 const ifoodUrl = vine.string().url().startsWith('https://www.ifood.com.br').optional()
 const isDefault = vine.boolean().optional()
 
-const storeValidator = vine.compile(
+const storeValidator = vine.create(
   vine.object({
     name,
     address,
@@ -25,7 +25,7 @@ const storeValidator = vine.compile(
   })
 )
 
-const updateValidator = vine.compile(
+const updateValidator = vine.create(
   vine.object({
     name: name.optional(),
     address,
@@ -49,7 +49,7 @@ const updateValidator = vine.compile(
   })
 )
 
-const updateImagesValidator = vine.compile(
+const updateImagesValidator = vine.create(
   vine.object({
     banner: vine
       .file({
@@ -68,7 +68,7 @@ const updateImagesValidator = vine.compile(
   })
 )
 
-const updateStatusValidator = vine.compile(
+const updateStatusValidator = vine.create(
   vine.object({
     status: vine.enum(Object.values(StoreStatus)),
   })

@@ -20,6 +20,10 @@ export default class CategoryService {
     return await this.repo.findByStore(storeId, options)
   }
 
+  async getInStore(storeId: string, id: number, options?: CategoryFindOptions) {
+    return await this.repo.findByIdInStore(id, storeId, options)
+  }
+
   async create(data: Partial<Category>) {
     return await db.transaction(async (trx) => {
       const storeId = data.storeId!
@@ -36,8 +40,22 @@ export default class CategoryService {
     })
   }
 
+  async updateInStore(storeId: string, id: number, data: Partial<Category>) {
+    return await db.transaction(async (trx) => {
+      await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
+      return await this.repo.update(id, data, trx)
+    })
+  }
+
   async remove(id: number) {
     return await db.transaction(async (trx) => {
+      await this.repo.delete(id, trx)
+    })
+  }
+
+  async removeInStore(storeId: string, id: number) {
+    return await db.transaction(async (trx) => {
+      await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       await this.repo.delete(id, trx)
     })
   }
@@ -62,8 +80,34 @@ export default class CategoryService {
     })
   }
 
+  async updateOrderInStore(storeId: string, id: number, newOrder: number) {
+    await this.repo.findByIdInStore(id, storeId, { preload: false })
+    return this.updateOrder(id, newOrder)
+  }
+
   async bulkDelete(ids: number[]) {
     const categories = await Category.query().whereIn('id', ids)
+
+    const deletedCategories: Category[] = []
+    const failedDeletions: Category[] = []
+
+    for (const category of categories) {
+      try {
+        await category.delete()
+        deletedCategories.push(category)
+      } catch {
+        failedDeletions.push(category)
+      }
+    }
+
+    return {
+      deletedCategories,
+      failedDeletions,
+    }
+  }
+
+  async bulkDeleteForStore(storeId: string, ids: number[]) {
+    const categories = await Category.query().whereIn('id', ids).where('store_id', storeId)
 
     const deletedCategories: Category[] = []
     const failedDeletions: Category[] = []

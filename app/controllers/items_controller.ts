@@ -14,36 +14,39 @@ import { created, messageOnly, ok, updated } from '#helpers/api_response'
 export default class ItemsController {
   constructor(private itemService: ItemService) {}
 
-  async indexByCategory({ params }: HttpContext) {
-    const categoryId = await categoryExistValidator.validate(params.id)
-
-    const items = await this.itemService.getByCategory(categoryId)
-
-    return ok(items)
-  }
-
-  async indexByStore({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.id)
+  async index({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
 
     const items = await this.itemService.getByStore(storeId)
 
     return ok(items)
   }
 
-  async show({ params }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+  async indexByCategory({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const categoryId = await categoryExistValidator.validate(params.categoryId)
 
-    const item = await this.itemService.get(id)
+    const items = await this.itemService.getByCategoryInStore(storeId, categoryId)
+
+    return ok(items)
+  }
+
+  async show({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const itemId = await uuidValidator.validate(params.itemId)
+
+    const item = await this.itemService.getInStore(storeId, itemId)
 
     return ok(item)
   }
 
   async store({ request, params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
     const categoryId = await categoryExistValidator.validate(params.categoryId)
 
     const { addonIds, ...data } = await request.validateUsing(storeValidator)
 
-    const item = await this.itemService.create({
+    const item = await this.itemService.create(storeId, {
       categoryId,
       addonIds,
       ...data,
@@ -53,11 +56,12 @@ export default class ItemsController {
   }
 
   async update({ params, request }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const itemId = await uuidValidator.validate(params.itemId)
 
     const { addonIds, ...data } = await request.validateUsing(updateValidator)
 
-    const item = await this.itemService.update(id, {
+    const item = await this.itemService.update(storeId, itemId, {
       addonIds,
       ...data,
     })
@@ -65,18 +69,21 @@ export default class ItemsController {
     return updated(item, 'Item atualizado com sucesso')
   }
 
-  async updateOrder({ request }: HttpContext) {
+  async updateOrder({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+
     const { id, order } = await request.validateUsing(updateOrderValidator)
 
-    await this.itemService.updateOrder(id, order)
+    await this.itemService.updateOrderInStore(storeId, id, order)
 
     return messageOnly('Ordem atualizada com sucesso')
   }
 
   async destroy({ params }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const itemId = await uuidValidator.validate(params.itemId)
 
-    await this.itemService.remove(id)
+    await this.itemService.removeInStore(storeId, itemId)
 
     return messageOnly('Item excluído com sucesso')
   }

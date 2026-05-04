@@ -60,6 +60,20 @@ export default class CategoryRepository {
     return category
   }
 
+  async findByIdInStore(
+    id: number,
+    storeId: string,
+    options?: CategoryFindOptions,
+    trx?: TransactionClientContract
+  ) {
+    const keys = resolveCategoryPreloadKeys(options?.preload)
+    const query = this.query(trx ? { client: trx } : undefined).where('id', id).where('store_id', storeId)
+    applyCategoryPreloads(query, keys)
+    const category = await query.first()
+    if (!category) throw new AppException('Categoria não encontrada', 404)
+    return category
+  }
+
   async requireById(id: number, trx?: TransactionClientContract) {
     const query = this.query({ client: trx }).where('id', id)
     const category = await query.first()

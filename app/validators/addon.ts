@@ -5,7 +5,7 @@ const description = vine.string().trim().optional()
 const price = vine.number().positive()
 const photoUrl = vine.string().optional()
 
-const itemExistValidator = vine.compile(
+const itemExistValidator = vine.create(
   vine
     .string()
     .uuid()
@@ -14,7 +14,7 @@ const itemExistValidator = vine.compile(
     })
 )
 
-const storeValidator = vine.compile(
+const storeValidator = vine.create(
   vine.object({
     name,
     description,
@@ -23,7 +23,7 @@ const storeValidator = vine.compile(
   })
 )
 
-const updateValidator = vine.compile(
+const updateValidator = vine.create(
   vine.object({
     name: name.optional(),
     description,

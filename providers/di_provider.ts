@@ -40,7 +40,8 @@ export default class DiProvider {
     c.singleton(ItemService, async (resolver) => {
       return new ItemService(
         await resolver.make(ItemRepository),
-        await resolver.make(AddonRepository)
+        await resolver.make(AddonRepository),
+        await resolver.make(CategoryRepository)
       )
     })
     c.singleton(MenuService, async (resolver) => {

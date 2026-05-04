@@ -18,13 +18,13 @@ const addonIds = vine
   )
   .optional()
 
-const categoryExistValidator = vine.compile(categoryId)
+const categoryExistValidator = vine.create(categoryId)
 
 categoryExistValidator.messagesProvider = new SimpleMessagesProvider({
   'database.exists': 'Categoria não encontrada',
 })
 
-const storeValidator = vine.compile(
+const storeValidator = vine.create(
   vine.object({
     name,
     description,
@@ -34,7 +34,7 @@ const storeValidator = vine.compile(
   })
 )
 
-const updateValidator = vine.compile(
+const updateValidator = vine.create(
   vine.object({
     name: name.optional(),
     description,
@@ -45,7 +45,7 @@ const updateValidator = vine.compile(
   })
 )
 
-const updateOrderValidator = vine.compile(
+const updateOrderValidator = vine.create(
   vine.object({
     id: vine
       .string()

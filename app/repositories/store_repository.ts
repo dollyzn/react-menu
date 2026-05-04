@@ -105,4 +105,18 @@ export default class StoreRepository {
     if (!store) throw new AppException('Loja não encontrada', 404)
     return store
   }
+
+  async findForPublicMenuByStoreId(storeId: string) {
+    const query = this.query().preload('categories', (categoryQuery) => {
+      categoryQuery
+        .orderBy('order', 'asc')
+        .preload('items', (itemQuery) => itemQuery.orderBy('order', 'asc').preload('addons'))
+    })
+
+    query.where('id', storeId)
+
+    const store = await query.first()
+    if (!store) throw new AppException('Loja não encontrada', 404)
+    return store
+  }
 }

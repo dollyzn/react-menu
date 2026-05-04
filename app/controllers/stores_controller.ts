@@ -9,24 +9,13 @@ import {
   updateValidator,
 } from '#validators/store'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class StoresController {
   constructor(private storeService: StoreService) {}
 
-  async index({ request }: HttpContext) {
-    const q = request.qs()
-    const stores = await this.storeService.list({
-      ...parsePagination(q),
-      filters: pickQueryFilters(q, ['name', 'status']),
-    })
-
-    return ok(stores.all(), stores.getMeta())
-  }
-
   async show({ params }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.storeId)
 
     const store = await this.storeService.get(id)
 
@@ -42,7 +31,7 @@ export default class StoresController {
   }
 
   async update({ params, request }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.storeId)
 
     const data = await request.validateUsing(updateValidator)
 
@@ -52,7 +41,7 @@ export default class StoresController {
   }
 
   async updateImages({ params, request }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.storeId)
 
     const images = await request.validateUsing(updateImagesValidator)
 
@@ -65,7 +54,7 @@ export default class StoresController {
   }
 
   async updateStatus({ params, request }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.storeId)
 
     const { status } = await request.validateUsing(updateStatusValidator)
 
@@ -75,7 +64,7 @@ export default class StoresController {
   }
 
   async destroy({ params }: HttpContext) {
-    const id = await uuidValidator.validate(params.id)
+    const id = await uuidValidator.validate(params.storeId)
 
     await this.storeService.remove(id)
 

@@ -3,21 +3,21 @@ import vine from '@vinejs/vine'
 const name = vine.string().trim()
 const description = vine.string().trim().optional()
 
-const storeValidator = vine.compile(
+const storeValidator = vine.create(
   vine.object({
     name,
     description,
   })
 )
 
-const updateValidator = vine.compile(
+const updateValidator = vine.create(
   vine.object({
     name: name.optional(),
     description,
   })
 )
 
-const updateOrderValidator = vine.compile(
+const updateOrderValidator = vine.create(
   vine.object({
     id: vine.number().exists(async (db, value) => {
       return await db.from('categories').select('id').where('id', value).first()
@@ -26,7 +26,7 @@ const updateOrderValidator = vine.compile(
   })
 )
 
-const bulkDeleteValidator = vine.compile(
+const bulkDeleteValidator = vine.create(
   vine.object({
     ids: vine.array(
       vine

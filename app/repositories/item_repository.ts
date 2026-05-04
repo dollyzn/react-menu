@@ -63,11 +63,41 @@ export default class ItemRepository {
     return item
   }
 
+  async findByIdInStore(
+    id: string,
+    storeId: string,
+    options?: ItemFindOptions,
+    trx?: TransactionClientContract
+  ) {
+    const keys = resolveItemPreloadKeys(options?.preload)
+    const query = this.query(trx ? { client: trx } : undefined)
+      .where('id', id)
+      .whereHas('category', (q) => {
+        q.where('store_id', storeId)
+      })
+    applyItemPreloads(query, keys)
+    const item = await query.first()
+    if (!item) throw new AppException('Item não encontrado', 404)
+    return item
+  }
+
   async requireById(id: string, trx?: TransactionClientContract) {
     const query = this.query({ client: trx }).where('id', id)
     const item = await query.first()
     if (!item) throw new AppException('Item não encontrado', 404)
     return item
+  }
+
+  async findByCategoryInStore(storeId: string, categoryId: number, options?: ItemFindOptions) {
+    const keys =
+      options?.preload === undefined
+        ? (['addons'] as ItemPreloadKey[])
+        : resolveItemPreloadKeys(options.preload)
+    const query = this.query().where('category_id', categoryId).whereHas('category', (q) => {
+      q.where('store_id', storeId)
+    })
+    applyItemPreloads(query, keys)
+    return await query.orderBy('order', 'asc')
   }
 
   async findByCategory(categoryId: number, options?: ItemFindOptions) {

@@ -87,7 +87,9 @@ export default class AuthService {
 
     const serializedToken = accessToken.toJSON()
 
-    await user.load((loader) => loader.preload('role', (query) => query.preload('permissions')))
+    await user.load((loader) =>
+      loader.preload('stores').preload('role', (query) => query.preload('permissions'))
+    )
 
     if (serializedToken.token) {
       this.setAuthCookie(response, serializedToken.token)
@@ -115,7 +117,9 @@ export default class AuthService {
       return null
     }
 
-    await user.load((loader) => loader.preload('role', (query) => query.preload('permissions')))
+    await user.load((loader) =>
+      loader.preload('stores').preload('role', (query) => query.preload('permissions'))
+    )
 
     return {
       ...user.toJSON(),

@@ -9,7 +9,7 @@ const storeIds = vine.array(
     .exists(async (db, value) => await db.from('stores').select('id').where('id', value).first())
 )
 
-const storeValidator = vine.compile(
+const storeValidator = vine.create(
   vine.object({
     name,
     email: vine
@@ -25,7 +25,7 @@ const storeValidator = vine.compile(
   })
 )
 
-const updateValidator = vine.compile(
+const updateValidator = vine.create(
   vine.object({
     name,
     email: vine

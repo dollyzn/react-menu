@@ -9,7 +9,7 @@ export default class DashboardController {
   constructor(private dashboardService: DashboardService) {}
 
   async overview({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
 
     const data = await this.dashboardService.overview(storeId)
 
@@ -17,7 +17,7 @@ export default class DashboardController {
   }
 
   async recentItems({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
 
     const items = await this.dashboardService.recentItems(storeId)
 
@@ -25,7 +25,7 @@ export default class DashboardController {
   }
 
   async chart({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
 
     const chart = await this.dashboardService.chart(storeId)
 

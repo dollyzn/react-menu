@@ -1,10 +1,10 @@
 import vine, { SimpleMessagesProvider } from '@vinejs/vine'
 
-const uuidValidator = vine.compile(vine.string().uuid())
+const uuidValidator = vine.create(vine.string().uuid())
 
-const numberValidator = vine.compile(vine.number())
+const numberValidator = vine.create(vine.number())
 
-const storeExistValidator = vine.compile(
+const storeExistValidator = vine.create(
   vine
     .string()
     .uuid()

@@ -12,32 +12,44 @@ export default class AddonService {
     return await this.repo.paginate(options)
   }
 
-  async get(id: string, options?: AddonFindOptions) {
-    return await this.repo.findById(id, options)
+  async listInStore(storeId: string, options?: AddonListOptions) {
+    return await this.repo.paginate({
+      ...options,
+      filters: {
+        ...options?.filters,
+        storeId,
+      },
+    })
+  }
+
+  async getInStore(storeId: string, id: string, options?: AddonFindOptions) {
+    return await this.repo.findByIdInStore(id, storeId, options)
   }
 
   async getByStore(storeId: string, options?: AddonFindOptions) {
     return await this.repo.findByStore(storeId, options)
   }
 
-  async getByItem(itemId: string, options?: AddonFindOptions) {
-    return await this.repo.findByItemId(itemId, options)
+  async getByItemInStore(storeId: string, itemId: string, options?: AddonFindOptions) {
+    return await this.repo.findByItemIdInStore(itemId, storeId, options)
   }
 
-  async create(data: Partial<Addon>) {
+  async createForStore(storeId: string, data: Partial<Addon>) {
     return await db.transaction(async (trx) => {
-      return await this.repo.create(data, trx)
+      return await this.repo.create({ ...data, storeId }, trx)
     })
   }
 
-  async update(id: string, data: Partial<Addon>) {
+  async updateInStore(storeId: string, id: string, data: Partial<Addon>) {
     return await db.transaction(async (trx) => {
+      await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       return await this.repo.update(id, data, trx)
     })
   }
 
-  async remove(id: string) {
+  async removeInStore(storeId: string, id: string) {
     return await db.transaction(async (trx) => {
+      await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       await this.repo.delete(id, trx)
     })
   }

@@ -14,14 +14,8 @@ import { created, fail, messageOnly, ok, updated } from '#helpers/api_response'
 export default class CategoriesController {
   constructor(private categoryService: CategoryService) {}
 
-  async index({}: HttpContext) {
-    const categories = await this.categoryService.all()
-
-    return ok(categories)
-  }
-
-  async indexByStore({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.id)
+  async index({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
 
     const categories = await this.categoryService.getByStore(storeId)
 
@@ -29,9 +23,10 @@ export default class CategoriesController {
   }
 
   async show({ params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const id = await numberValidator.validate(params.categoryId)
 
-    const category = await this.categoryService.get(id)
+    const category = await this.categoryService.getInStore(storeId, id)
 
     return ok(category)
   }
@@ -47,35 +42,44 @@ export default class CategoriesController {
   }
 
   async update({ params, request }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const id = await numberValidator.validate(params.categoryId)
 
     const data = await request.validateUsing(updateValidator)
 
-    const category = await this.categoryService.update(id, data)
+    const category = await this.categoryService.updateInStore(storeId, id, data)
 
     return updated(category, 'Categoria atualizada com sucesso')
   }
 
-  async updateOrder({ request }: HttpContext) {
+  async updateOrder({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+
     const { id, order } = await request.validateUsing(updateOrderValidator)
 
-    const category = await this.categoryService.updateOrder(id, order)
+    const category = await this.categoryService.updateOrderInStore(storeId, id, order)
 
     return updated(category, 'Ordem atualizada com sucesso')
   }
 
   async destroy({ params }: HttpContext) {
-    const id = await numberValidator.validate(params.id)
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const id = await numberValidator.validate(params.categoryId)
 
-    await this.categoryService.remove(id)
+    await this.categoryService.removeInStore(storeId, id)
 
     return messageOnly('Categoria excluída com sucesso')
   }
 
-  async bulkDelete({ request }: HttpContext) {
+  async bulkDelete({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+
     const { ids } = await request.validateUsing(bulkDeleteValidator)
 
-    const { deletedCategories, failedDeletions } = await this.categoryService.bulkDelete(ids)
+    const { deletedCategories, failedDeletions } = await this.categoryService.bulkDeleteForStore(
+      storeId,
+      ids
+    )
 
     if (failedDeletions.length > 0) {
       return fail('Algumas categorias não puderam ser excluídas', {
