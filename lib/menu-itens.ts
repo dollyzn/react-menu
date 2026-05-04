@@ -7,9 +7,9 @@ import {
   Store,
 } from "lucide-react";
 
-/** Itens da sidebar dentro de `/manage/[storeId]`. */
+/** Itens da sidebar dentro de `/app/stores/[storeId]`. */
 export function getManageMenuItems(storeId: string): SidebarNavItem[] {
-  const base = `/manage/${storeId}`;
+  const base = `/app/stores/${storeId}`;
   return [
     {
       label: "Loja",

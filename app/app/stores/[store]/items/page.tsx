@@ -51,7 +51,9 @@ export default function Items() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href={`/manage/${store}`}>Loja</BreadcrumbLink>
+              <BreadcrumbLink href={`/app/stores/${store}`}>
+                Loja
+              </BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>

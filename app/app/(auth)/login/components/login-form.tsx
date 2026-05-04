@@ -47,12 +47,12 @@ export type LoginValues = z.infer<typeof LoginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
-  const { resolvedTheme } = useTheme();
+  //const { resolvedTheme } = useTheme();
 
-  const { login, verify } = useSession();
+  const { login } = useSession();
 
-  const [loading, setLoading] = useState<"google" | "linkedin" | null>(null);
-  const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
+  // const [loading, setLoading] = useState<"google" | "linkedin" | null>(null);
+  // const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
@@ -102,10 +102,12 @@ export function LoginForm() {
         type: "manual",
         message: error,
       });
-    } else router.push("/");
+    } else {
+      router.push("/app/stores");
+    }
   }
 
-  async function startSocialLogin(provider: "google" | "linkedin") {
+  /* async function startSocialLogin(provider: "google" | "linkedin") {
     setSocialAuthError(null);
     setLoading(provider);
 
@@ -159,9 +161,9 @@ export function LoginForm() {
     };
 
     window.addEventListener("message", listener);
-  }
+  } */
 
-  function openCenteredPopup(
+  /* function openCenteredPopup(
     provider: "google" | "linkedin",
     title: string,
     w: number,
@@ -229,17 +231,17 @@ export function LoginForm() {
     }
 
     return popup;
-  }
+  } */
 
   return (
     <div className="grid gap-6">
-      {socialAuthError && (
+      {/*       {socialAuthError && (
         <Alert variant="destructive">
           <ShieldUser />
           <AlertTitle>Não foi possível processar sua solicitação</AlertTitle>
           <AlertDescription>{socialAuthError}</AlertDescription>
         </Alert>
-      )}
+      )} */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <div className="space-y-4 pb-6">
@@ -259,7 +261,10 @@ export function LoginForm() {
                         placeholder="Seu e-mail de acesso"
                         className="pl-10"
                         {...field}
-                        disabled={isSubmitting || !!loading}
+                        disabled={
+                          isSubmitting
+                          //  || !!loading
+                        }
                       />
                     </div>
                   </FormControl>
@@ -301,7 +306,10 @@ export function LoginForm() {
                         className={cn("pl-10 pr-10", capsLockOn && "pr-16")}
                         autoComplete="off"
                         {...field}
-                        disabled={isSubmitting || !!loading}
+                        disabled={
+                          isSubmitting
+                          //  || !!loading
+                        }
                       />
                       <button
                         type="button"
@@ -344,7 +352,7 @@ export function LoginForm() {
             size="lg"
             className="w-full cursor-pointer"
             loading={isSubmitting}
-            disabled={!!loading}
+            // disabled={!!loading}
           >
             Entrar
           </Button>

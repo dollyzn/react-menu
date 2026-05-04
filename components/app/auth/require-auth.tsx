@@ -3,19 +3,19 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSession } from "@/contexts/session-provider";
+import { redirectToLogin } from "@/utils/navigation";
 
 interface RequireAuthProps {
   children: React.ReactNode;
 }
 
 export default function RequireAuth({ children }: RequireAuthProps) {
-  return children;
   const { user } = useSession();
   const router = useRouter();
 
   useEffect(() => {
     if (!user) {
-      router.replace("/auth/login");
+      redirectToLogin(router);
     }
   }, [user, router]);
 

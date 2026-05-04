@@ -2,7 +2,7 @@ import type { User } from "@/types/session";
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { PURGE } from "redux-persist";
 
-export interface AuthState {
+interface AuthState {
   user: User | null;
   isAuthenticated: boolean;
   isSessionExpired: boolean;

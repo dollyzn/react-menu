@@ -75,7 +75,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
   const handleStoreSelect = (next: Store) => {
     setSelectedStore(next);
     setOpen(false);
-    router.push(`/manage/${next.id}`);
+    router.push(`/app/stores/${next.id}`);
   };
 
   return (
@@ -134,9 +134,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
                     <Check
                       className={cn(
                         "ml-auto",
-                        selectedStore?.id === s.id
-                          ? "opacity-100"
-                          : "opacity-0"
+                        selectedStore?.id === s.id ? "opacity-100" : "opacity-0"
                       )}
                     />
                   </CommandItem>

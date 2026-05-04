@@ -1,7 +1,6 @@
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { HeaderUser } from "./header-user";
-import HeaderBreadcrumbs from "./header-breadcrumbs";
 import { StoreSwitcher } from "./store-switcher";
 
 export default function AppHeader() {
@@ -16,13 +15,7 @@ export default function AppHeader() {
         <div className="flex items-center gap-2 shrink-0 max-w-[min(200px,40vw)] sm:max-w-none">
           <StoreSwitcher className="border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground w-full sm:w-[200px]" />
         </div>
-        <Separator
-          orientation="vertical"
-          className="mx-2 data-[orientation=vertical]:h-4 bg-primary-foreground/60"
-        />
-        <h1 className="text-base font-medium min-w-0 flex-1 truncate">
-          <HeaderBreadcrumbs />
-        </h1>
+
         <div className="flex items-center justify-end ml-auto shrink-0">
           <nav className="flex items-center gap-2">
             <HeaderUser />

@@ -10,10 +10,9 @@ import {
   REGISTER,
   REHYDRATE,
   persistReducer,
-  createTransform,
   createMigrate,
 } from "redux-persist";
-import auth, { AuthState } from "@/redux/slices/auth";
+import auth from "@/redux/slices/auth";
 import storeUi from "@/redux/slices/store-ui";
 import { baseApi } from "@/redux/api/baseApi";
 import "@/redux/features";
@@ -24,47 +23,6 @@ if (typeof window !== "undefined") {
   const url = window.location.href;
   devToolsEnabled = url.includes("localhost") || url.includes("127.0.0.1");
 }
-
-type PersistentData = {
-  auth?: Partial<AuthState>;
-};
-
-const persistentData: PersistentData = {};
-
-const deepMerge = (target: unknown, source: unknown): unknown => {
-  if (typeof target !== "object" || target === null) {
-    return source;
-  }
-  if (typeof source !== "object" || source === null) {
-    return source;
-  }
-  const merged = { ...(target as Record<string, unknown>) };
-  for (const key in source as Record<string, unknown>) {
-    const srcVal = (source as Record<string, unknown>)[key];
-    const tgtVal = (target as Record<string, unknown>)[key];
-    if (
-      typeof srcVal === "object" &&
-      srcVal !== null &&
-      !Array.isArray(srcVal)
-    ) {
-      merged[key] = deepMerge(tgtVal, srcVal);
-    } else {
-      merged[key] = srcVal;
-    }
-  }
-  return merged;
-};
-
-const transform = createTransform<AuthState, AuthState, RootState>(
-  (inboundState, key) => {
-    if (key === "auth") {
-      return deepMerge(inboundState, persistentData.auth) as AuthState;
-    }
-    return inboundState;
-  },
-  (outboundState) => outboundState,
-  { whitelist: ["auth"] }
-);
 
 const migrations = {};
 
@@ -90,7 +48,6 @@ const config = {
   version: 0,
   key: "root",
   storage: getStorage(),
-  transforms: [transform],
   whitelist: ["auth"],
   migrate: createMigrate(migrations, { debug: devToolsEnabled }),
 };

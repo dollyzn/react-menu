@@ -37,7 +37,7 @@ export default function AnimatedBackground() {
   ];
   return (
     <div className="relative hidden h-full flex-col bg-muted p-6 lg:flex border-r">
-      <div className="absolute inset-0 bg-primary overflow-hidden">
+      <div className="absolute inset-0 -top-30 bg-primary overflow-hidden">
         <ThreeDMarquee images={images} className="h-auto" />
       </div>
       <div className="relative z-20 flex justify-end items-center text-lg font-medium text-primary-foreground">

@@ -1,17 +1,18 @@
-"use client";
-
-import AppHeader from "@/components/layout/app-header";
-import AppSidebar from "@/components/layout/app-sidebar";
-import RequireAuth from "@/components/auth/require-auth";
+import { cookies } from "next/headers";
+import AppHeader from "@/components/app/layout/app-header";
+import AppSidebar from "@/components/app/layout/app-sidebar";
+import RequireAuth from "@/components/app/auth/require-auth";
 import SessionExpiredModal from "@/components/app/session-expired-modal";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
-interface ManageShellProps {
+interface AppLayoutProps {
   children: React.ReactNode;
-  defaultOpen: boolean;
 }
 
-export function ManageShell({ children, defaultOpen }: ManageShellProps) {
+export default async function AppLayout({ children }: AppLayoutProps) {
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+
   return (
     <RequireAuth>
       <SidebarProvider defaultOpen={defaultOpen}>

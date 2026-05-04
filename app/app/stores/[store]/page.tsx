@@ -318,28 +318,28 @@ export default function Store() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Button
               className="h-24 flex flex-col items-center justify-center"
-              onClick={() => router.push(`/manage/${store}/overview`)}
+              onClick={() => router.push(`/app/stores/${store}/overview`)}
             >
               <LayoutDashboard className="w-6 h-6 mb-2" />
               Visão Geral
             </Button>
             <Button
               className="h-24 flex flex-col items-center justify-center"
-              onClick={() => router.push(`/manage/${store}/categories`)}
+              onClick={() => router.push(`/app/stores/${store}/categories`)}
             >
               <FolderTree className="w-6 h-6 mb-2" />
               Categorias
             </Button>
             <Button
               className="h-24 flex flex-col items-center justify-center"
-              onClick={() => router.push(`/manage/${store}/items`)}
+              onClick={() => router.push(`/app/stores/${store}/items`)}
             >
               <Package className="w-6 h-6 mb-2" />
               Items
             </Button>
             <Button
               className="h-24 flex flex-col items-center justify-center"
-              onClick={() => router.push(`/manage/${store}/addons`)}
+              onClick={() => router.push(`/app/stores/${store}/addons`)}
             >
               <PlusCircle className="w-6 h-6 mb-2" />
               Adicionais

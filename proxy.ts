@@ -1,44 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decode } from "./lib/jwt";
-import { cookies } from "next/headers";
+import { env } from "./lib/env";
 
-const publicRoutes = ["/auth/login"];
+const PUBLIC_ROUTES = ["/app/login", "/app/social"];
 
-const cookieName = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME;
+function isPublicRoute(path: string): boolean {
+  return PUBLIC_ROUTES.includes(path);
+}
+
+function isLoggedIn(req: NextRequest) {
+  const token = req.cookies.get(env.NEXT_PUBLIC_AUTH_COOKIE_NAME)?.value;
+
+  return Boolean(token);
+}
 
 export async function proxy(req: NextRequest) {
-  return NextResponse.next();
-  if (!cookieName)
-    throw new Error("NEXT_PUBLIC_AUTH_COOKIE_NAME must be defined in .env");
-
   const path = req.nextUrl.pathname;
-  const isProtectedRoute = path.startsWith("/manage");
-  const isPublicRoute = publicRoutes.includes(path);
 
-  const cookie = (await cookies()).get(cookieName)?.value;
-  const session = decode(cookie);
+  const isLogged = isLoggedIn(req);
+  const isPublic = isPublicRoute(path);
 
-  if (isProtectedRoute && !session?.id) {
-    //return NextResponse.redirect(new URL("/auth/login", req.nextUrl));
+  if (!isPublic && !isLogged) {
+    return NextResponse.redirect(new URL("/app/login", req.url));
   }
 
-  if (
-    isPublicRoute &&
-    session?.id &&
-    !req.nextUrl.pathname.startsWith("/manage")
-  ) {
-    if (session.stores && session.stores.length > 0) {
-      return NextResponse.redirect(
-        new URL(`/manage/${session.stores[0].id}`, req.nextUrl)
-      );
-    } else {
-      return NextResponse.redirect(new URL("/manage", req.nextUrl));
-    }
+  if (isPublic && isLogged) {
+    return NextResponse.redirect(new URL("/app/stores", req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|.*\\.png$).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest.webmanifest|apple-touch-icon.png|favicon-16x16.png|favicon-96x96.png|favicon.svg|icon-192x192.png|icon-512x512.png|og-image.png|sitemap.xml|robots.txt|sw.js).*)",
+  ],
 };
