@@ -24,6 +24,8 @@ export interface LoginProps {
 
 export interface LoginResponse {
   success: boolean;
-  user?: User;
+  data: {
+    user?: User;
+  };
   error?: string;
 }

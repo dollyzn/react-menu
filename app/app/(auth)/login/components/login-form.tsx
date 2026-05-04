@@ -8,7 +8,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { LoginSchema, LoginValues } from "@/schemas/auth";
 import { useSession } from "@/contexts/session-provider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -37,6 +36,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import * as z from "zod";
+
+export const LoginSchema = z.object({
+  email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
+  password: z.string().min(1, "Informe uma senha"),
+});
+
+export type LoginValues = z.infer<typeof LoginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
@@ -334,6 +341,7 @@ export function LoginForm() {
 
           <Button
             type="submit"
+            size="lg"
             className="w-full cursor-pointer"
             loading={isSubmitting}
             disabled={!!loading}
@@ -343,9 +351,9 @@ export function LoginForm() {
         </form>
       </Form>
 
-      <FieldSeparator>Ou continue com </FieldSeparator>
+      {/* <FieldSeparator>Ou continue com </FieldSeparator>
 
-      <Field className="grid gap-4 sm:grid-cols-2">
+          <Field className="grid gap-4 sm:grid-cols-2">
         <Button
           variant="outline"
           type="button"
@@ -370,7 +378,7 @@ export function LoginForm() {
           )}
           LinkedIn
         </Button>
-      </Field>
+      </Field> */}
     </div>
   );
 }

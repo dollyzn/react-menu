@@ -13,16 +13,15 @@ import {
 import { LogOut } from "lucide-react";
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
-import { redirectToLogin } from "@/utils/navigation";
+import { redirectToLogout } from "@/utils/navigation";
 import { ModeSwitcher } from "./mode-switcher";
 
 export function HeaderUser() {
   const router = useRouter();
-  const { user, logout } = useSession();
+  const { user } = useSession();
 
   async function handleLogout() {
-    await logout();
-    redirectToLogin(router);
+    redirectToLogout(router);
   }
 
   return (

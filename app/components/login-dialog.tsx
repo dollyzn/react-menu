@@ -15,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { LoginSchema } from "@/schema";
 import { LoginError, useSession } from "@/contexts/session-provider";
 import {
   Dialog,
@@ -24,6 +23,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+
+export const LoginSchema = z.object({
+  email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
+  password: z.string().min(1, "Informe uma senha"),
+});
+
+export type LoginValues = z.infer<typeof LoginSchema>;
 
 export function LoginDialog() {
   const { login, verify } = useSession();

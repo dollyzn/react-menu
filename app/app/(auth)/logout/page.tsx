@@ -5,8 +5,9 @@ import { AnimatePresence, delay, motion } from "framer-motion";
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
-import { Icons } from "@/components/app/icons";
 import { toast } from "sonner";
+import { redirectToLogin } from "@/utils/navigation";
+import { Icons } from "@/components/app/icons";
 
 export default function LogoutPage() {
   const { logout } = useSession();
@@ -22,7 +23,7 @@ export default function LogoutPage() {
           toast.success("Sessão encerrada com sucesso.", {
             id: "logout-success",
           });
-          router.replace("/auth/login");
+          redirectToLogin(router);
         }, 1500);
       }, 1000);
     },

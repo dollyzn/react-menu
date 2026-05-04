@@ -7,6 +7,7 @@ const publicRoutes = ["/auth/login"];
 const cookieName = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME;
 
 export async function proxy(req: NextRequest) {
+  return NextResponse.next();
   if (!cookieName)
     throw new Error("NEXT_PUBLIC_AUTH_COOKIE_NAME must be defined in .env");
 
@@ -18,7 +19,7 @@ export async function proxy(req: NextRequest) {
   const session = decode(cookie);
 
   if (isProtectedRoute && !session?.id) {
-    return NextResponse.redirect(new URL("/auth/login", req.nextUrl));
+    //return NextResponse.redirect(new URL("/auth/login", req.nextUrl));
   }
 
   if (

@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/contexts/session-provider";
-/* import { Icons } from "@/components/app/icons"; */
+import { Icons } from "@/components/app/icons";
 import { delay, motion } from "motion/react";
 import { request } from "@/lib/api";
 
@@ -91,7 +91,7 @@ export default function AuthSocialPage() {
     >
       <div className="relative">
         <div className="absolute inset-0 bg-primary rounded-full blur-xl animate-pulse" />
-        {/*   <Icons.logo className="size-8 fill-primary" /> */}
+        <Icons.logo className="size-8 fill-primary" />
       </div>
 
       <div>

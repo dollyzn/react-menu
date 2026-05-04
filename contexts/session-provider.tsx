@@ -29,7 +29,7 @@ import { persistor } from "./redux-provider";
 import { request } from "@/lib/api";
 import { ptBR } from "date-fns/locale";
 import { useNotification } from "./notification-provider";
-import { clearCookie } from "@/app/auth/actions";
+import { clearSessionCookie } from "@/app/app/(auth)/actions";
 
 export interface LoginError {
   message: string;
@@ -101,7 +101,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         if (!response.success)
           throw new RequestError(response.error || "Erro desconhecido");
 
-        const data = response.user;
+        const data = response.data.user;
 
         if (!data) throw new RequestError("Erro ao realizar login");
 
@@ -119,7 +119,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   async function logout() {
     if (user) {
       try {
-        await clearCookie();
+        await clearSessionCookie();
         await unsubscribe();
         await request({
           url: "/auth/logout",
@@ -160,14 +160,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
           continue;
         }
 
-        if (!response.success || !response?.user) {
+        if (!response.success || !response?.data?.user) {
           dispatch(setIsSessionExpired(true));
           return null;
         }
 
         dispatch(setIsSessionExpired(false));
-        dispatch(setUser(response.user));
-        return response.user;
+        dispatch(setUser(response.data.user));
+        return response.data.user;
       } catch (error) {
         dispatch(setIsSessionExpired(true));
         return null;
