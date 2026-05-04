@@ -1,6 +1,7 @@
 "use client";
 
 import { Row } from "@tanstack/react-table";
+import { useParams } from "next/navigation";
 import { useDeleteCategoryMutation } from "@/redux/features/category/categoryApi";
 import { toast } from "sonner";
 
@@ -28,6 +29,8 @@ export function DeleteCategoryDialog({
   onOpenChange,
   row,
 }: DeleteCategoryDialogProps) {
+  const { store } = useParams();
+  const storeId = store as string;
   const [deleteCategory, { isLoading: isDeleting }] =
     useDeleteCategoryMutation();
 
@@ -38,7 +41,10 @@ export function DeleteCategoryDialog({
 
   const handleDeleteCategory = async () => {
     try {
-      await deleteCategory(row.original.id).unwrap();
+      await deleteCategory({
+        storeId,
+        categoryId: row.original.id,
+      }).unwrap();
       handleOpenChange();
     } catch (err: unknown) {
       toast.error(

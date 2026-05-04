@@ -98,7 +98,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       });
 
       const response = await request({
-        url: "/notifications/subscribe",
+        url: "notifications/subscribe",
         method: "post",
         data: subscription,
         showErrorMessage: true,
@@ -128,7 +128,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       const subscription = await registration.pushManager.getSubscription();
 
       const response = await request({
-        url: "/notifications/unsubscribe",
+        url: "notifications/unsubscribe",
         method: "post",
         data: {
           endpoint: subscription?.endpoint,
@@ -165,7 +165,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       }
 
       const response = await request<BaseResponse & { subscribed: boolean }>({
-        url: "/notifications/check",
+        url: "notifications/check",
         method: "post",
         data: {
           endpoint: sub?.endpoint,

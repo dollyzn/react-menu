@@ -40,7 +40,10 @@ export function SortingTabs() {
 
   const handleCategoryClick = async (item: Category) => {
     try {
-      const result = await fetchItemsByCategory(item.id).unwrap();
+      const result = await fetchItemsByCategory({
+        storeId,
+        categoryId: item.id,
+      }).unwrap();
       setSelectedCategory({ ...item, items: result });
       setActiveTab("items");
     } catch {
@@ -71,11 +74,12 @@ export function SortingTabs() {
   };
 
   const handleItemOrderChange = (newOrder: {
-    id: number;
+    id: string;
     order: number;
   }) => {
     if (!selectedCategory) return;
     updateItemOrder({
+      storeId,
       categoryId: selectedCategory.id,
       id: newOrder.id,
       order: newOrder.order,
@@ -151,7 +155,7 @@ export function SortingTabs() {
               items={selectedCategory.items}
               onOrderChange={(newOrder) =>
                 handleItemOrderChange({
-                  id: newOrder.item.id as number,
+                  id: String(newOrder.item.id),
                   order: newOrder.newIndex,
                 })
               }

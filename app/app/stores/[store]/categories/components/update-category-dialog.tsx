@@ -1,6 +1,7 @@
 "use client";
 
 import { Row } from "@tanstack/react-table";
+import { useParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUpdateCategoryMutation } from "@/redux/features/category/categoryApi";
@@ -45,6 +46,8 @@ export function UpdateCategoryDialog({
   onOpenChange,
   row,
 }: UpdateCategoryDialogProps) {
+  const { store } = useParams();
+  const storeId = store as string;
   const [updateCategory, { isLoading: isSaving }] = useUpdateCategoryMutation();
 
   const form = useForm<z.infer<typeof UpdateCategorySchema>>({
@@ -68,7 +71,8 @@ export function UpdateCategoryDialog({
   ) => {
     try {
       await updateCategory({
-        id: row.original.id,
+        storeId,
+        categoryId: row.original.id,
         data,
       }).unwrap();
       handleOpenChange();

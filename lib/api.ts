@@ -4,11 +4,12 @@ import { setIsSessionExpired } from "@/redux/slices/auth";
 import { toast } from "sonner";
 import axios from "axios";
 import { env } from "./env";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 
 type ApiResponse<T> = BaseResponse & T;
 
 const api = axios.create({
-  baseURL: env.NEXT_PUBLIC_API_URL,
+  baseURL: getApiBaseUrl(),
   timeout: env.NEXT_PUBLIC_API_TIMEOUT,
   withCredentials: true,
 });
@@ -23,7 +24,7 @@ const buildParams = (
   if (pagination) {
     if (pagination.page !== undefined) params.page = pagination.page + 1;
     if (pagination.pageSize !== undefined)
-      params.per_page = pagination.pageSize;
+      params.perPage = pagination.pageSize;
   }
 
   if (sort) {
@@ -58,7 +59,9 @@ export const request = async <T>({
     const resData = response.data;
 
     if (!resData.success) {
-      resData.error = resData.error || errorMessage || "Erro inesperado";
+      const r = resData as BaseResponse & { message?: string };
+      resData.error =
+        r.error || r.message || errorMessage || "Erro inesperado";
     } else if (successMessage) {
       toast.success(successMessage);
     }
@@ -70,7 +73,14 @@ export const request = async <T>({
 
     if (axios.isAxiosError(error)) {
       code = error.response?.status || error.code || "";
-      message = error.response?.data?.error || errorMessages[code] || message;
+      const errBody = error.response?.data as
+        | { error?: string; message?: string }
+        | undefined;
+      message =
+        (typeof errBody?.message === "string" ? errBody.message : undefined) ||
+        errBody?.error ||
+        errorMessages[code] ||
+        message;
     }
 
     if (code !== 401 && showErrorMessage) {

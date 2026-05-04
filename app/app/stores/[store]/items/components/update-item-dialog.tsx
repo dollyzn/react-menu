@@ -86,7 +86,10 @@ export function UpdateItemDialog({
   const { data: categories } = useGetCategoriesByStoreIdQuery(storeId);
   const { data: addons } = useGetAddonsByStoreIdQuery(storeId);
   const { data: itemAddons = [], isFetching: itemAddonsLoading } =
-    useGetAddonsByItemIdQuery(row.original.id, { skip: !open });
+    useGetAddonsByItemIdQuery(
+      { storeId, itemId: row.original.id },
+      { skip: !open }
+    );
 
   const [updateItem, { isLoading: isSaving }] = useUpdateItemMutation();
 
@@ -112,7 +115,8 @@ export function UpdateItemDialog({
   const handleUpdateItem = async (data: z.infer<typeof UpdateItemSchema>) => {
     try {
       await updateItem({
-        id: row.original.id,
+        storeId,
+        itemId: row.original.id,
         data: { ...data, categoryId: Number(data.categoryId) },
       }).unwrap();
       handleOpenChange();

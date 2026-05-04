@@ -122,7 +122,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         await clearSessionCookie();
         await unsubscribe();
         await request({
-          url: "/auth/logout",
+          url: "auth/logout",
           method: "delete",
         });
       } catch (error: any) {

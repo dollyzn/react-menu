@@ -13,15 +13,19 @@ export const addonApi = baseApi.injectEndpoints({
           : [{ type: "Addon" as const, id: `store-${storeId}` }],
     }),
 
-    getAddonsByItemId: build.query<Addon[], string>({
-      query: (itemId) => `items/${itemId}/addons`,
-      providesTags: (result, _err, itemId) =>
+    getAddonsByItemId: build.query<
+      Addon[],
+      { storeId: string; itemId: string }
+    >({
+      query: ({ storeId, itemId }) =>
+        `stores/${storeId}/items/${itemId}/addons`,
+      providesTags: (result, _err, arg) =>
         result?.length
           ? [
               ...result.map((a) => ({ type: "Addon" as const, id: a.id })),
-              { type: "Addon" as const, id: `item-${itemId}` },
+              { type: "Addon" as const, id: `item-${arg.itemId}` },
             ]
-          : [{ type: "Addon" as const, id: `item-${itemId}` }],
+          : [{ type: "Addon" as const, id: `item-${arg.itemId}` }],
     }),
 
     createAddon: build.mutation<
@@ -29,7 +33,7 @@ export const addonApi = baseApi.injectEndpoints({
       { storeId: string; data: Partial<Addon> }
     >({
       query: ({ storeId, data }) => ({
-        url: `addons/${storeId}`,
+        url: `stores/${storeId}/addons`,
         method: "POST",
         body: data,
       }),
@@ -44,6 +48,5 @@ export const addonApi = baseApi.injectEndpoints({
 export const {
   useGetAddonsByStoreIdQuery,
   useGetAddonsByItemIdQuery,
-  useLazyGetAddonsByItemIdQuery,
   useCreateAddonMutation,
 } = addonApi;

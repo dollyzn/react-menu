@@ -115,7 +115,7 @@ export const CommentRatings = ({
 
   const displayRating = disabled
     ? initialRating
-    : hoverRating ?? focusRating ?? currentRating;
+    : (hoverRating ?? focusRating ?? currentRating);
 
   return (
     <div
@@ -149,8 +149,8 @@ export const CommentRatings = ({
               className={cn(
                 "relative cursor-pointer transition-transform",
                 isPartial
-                  ? "group-focus-visible:scale-[1.15] group-hover:scale-[1.2]"
-                  : "scale-1"
+                  ? "group-focus-visible:scale-115 group-hover:scale-120"
+                  : "scale-100"
               )}
               onMouseMove={(e) => handleMouseMove(e, starValue)}
               onClick={(e) => handleClick(e, starValue)}

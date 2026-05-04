@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 
 import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
+import DataTableColumnCell from "@/components/app/data-table/data-table-column-cell";
 
 export const columns: ColumnDef<Item>[] = [
   {
@@ -29,12 +30,14 @@ export const columns: ColumnDef<Item>[] = [
       />
     ),
     cell: ({ row }) => (
-      <Checkbox
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-        className="translate-y-[2px]"
-      />
+      <DataTableColumnCell>
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+          className="translate-y-[2px]"
+        />
+      </DataTableColumnCell>
     ),
     enableSorting: false,
     enableHiding: false,
@@ -47,9 +50,11 @@ export const columns: ColumnDef<Item>[] = [
       <DataTableColumnHeader column={column} title="Nome" />
     ),
     cell: ({ row }) => (
-      <span className="min-w-[150px] font-medium block">
-        {row.getValue("name")}
-      </span>
+      <DataTableColumnCell>
+        <span className="min-w-[150px] font-medium block">
+          {row.getValue("name")}
+        </span>
+      </DataTableColumnCell>
     ),
     meta: {
       name: "Nome",
@@ -62,9 +67,11 @@ export const columns: ColumnDef<Item>[] = [
       <DataTableColumnHeader column={column} title="Descrição" />
     ),
     cell: ({ row }) => (
-      <span className="min-w-[250px] max-w-[400px] truncate font-medium block">
-        {row.getValue("description")}
-      </span>
+      <DataTableColumnCell>
+        <span className="min-w-[250px] max-w-[400px] truncate font-medium block">
+          {row.getValue("description")}
+        </span>
+      </DataTableColumnCell>
     ),
     meta: {
       name: "Descrição",
@@ -76,7 +83,11 @@ export const columns: ColumnDef<Item>[] = [
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Preço" />
     ),
-    cell: ({ row }) => <div>{formatCurrencyBRL(row.getValue("price"))}</div>,
+    cell: ({ row }) => (
+      <DataTableColumnCell>
+        <div>{formatCurrencyBRL(row.getValue("price"))}</div>
+      </DataTableColumnCell>
+    ),
     meta: {
       name: "Preço",
     },
@@ -88,7 +99,11 @@ export const columns: ColumnDef<Item>[] = [
       <DataTableColumnHeader column={column} title="Categoria" />
     ),
     cell: ({ row }) => {
-      return <Badge variant="outline">{row.getValue("category.name")}</Badge>;
+      return (
+        <DataTableColumnCell>
+          <Badge variant="outline">{row.getValue("category.name")}</Badge>
+        </DataTableColumnCell>
+      );
     },
     meta: {
       name: "Categoria",
@@ -104,7 +119,11 @@ export const columns: ColumnDef<Item>[] = [
       <DataTableColumnHeader column={column} title="Adicionais" />
     ),
     cell: ({ row }) => {
-      return <AddonsColumnDialog row={row} />;
+      return (
+        <DataTableColumnCell>
+          <AddonsColumnDialog row={row} />
+        </DataTableColumnCell>
+      );
     },
     meta: {
       name: "Adicionais",
@@ -117,10 +136,12 @@ export const columns: ColumnDef<Item>[] = [
       <DataTableColumnHeader column={column} title="Criado em" />
     ),
     cell: ({ row }) => (
-      <div className="flex items-center min-w-[165px]">
-        {<Calendar className="mr-2 h-4 w-4 text-muted-foreground" />}
-        {dayjs(row.getValue("createdAt")).format("DD/MM/YYYY HH:mm")}
-      </div>
+      <DataTableColumnCell>
+        <div className="flex items-center min-w-[165px]">
+          {<Calendar className="mr-2 h-4 w-4 text-muted-foreground" />}
+          {dayjs(row.getValue("createdAt")).format("DD/MM/YYYY HH:mm")}
+        </div>
+      </DataTableColumnCell>
     ),
     meta: {
       name: "Criado em",
@@ -133,10 +154,12 @@ export const columns: ColumnDef<Item>[] = [
       <DataTableColumnHeader column={column} title="Atualizado em" />
     ),
     cell: ({ row }) => (
-      <div className="flex items-center min-w-[165px]">
-        {<History className="mr-2 h-4 w-4 text-muted-foreground" />}
-        {dayjs(row.getValue("updatedAt")).format("DD/MM/YYYY HH:mm")}
-      </div>
+      <DataTableColumnCell>
+        <div className="flex items-center min-w-[165px]">
+          {<History className="mr-2 h-4 w-4 text-muted-foreground" />}
+          {dayjs(row.getValue("updatedAt")).format("DD/MM/YYYY HH:mm")}
+        </div>
+      </DataTableColumnCell>
     ),
     meta: {
       name: "Atualizado em",
@@ -145,7 +168,11 @@ export const columns: ColumnDef<Item>[] = [
   {
     id: "actions",
     header: ({ table }) => <HeaderActions table={table} />,
-    cell: ({ row }) => <RowActions row={row} />,
+    cell: ({ row }) => (
+      <DataTableColumnCell>
+        <RowActions row={row} />
+      </DataTableColumnCell>
+    ),
     meta: {
       name: "Ações",
     },

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { Row } from "@tanstack/react-table";
 import { useGetItemsByCategoryIdQuery } from "@/redux/features/item/itemApi";
 
@@ -30,10 +31,12 @@ interface ItemsColumnDialogProps {
 }
 
 export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
+  const { store } = useParams();
+  const storeId = store as string;
   const [open, setOpen] = useState(false);
   const categoryId = row.original.id;
   const { data: items = [], isFetching } = useGetItemsByCategoryIdQuery(
-    categoryId,
+    { storeId, categoryId },
     { skip: !open }
   );
 

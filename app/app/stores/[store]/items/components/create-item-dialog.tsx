@@ -103,7 +103,8 @@ export function CreateItemDialog() {
 
     try {
       await createItem({
-        categoryId,
+        storeId,
+        categoryId: Number(categoryId),
         data: formData,
       }).unwrap();
       handleOpenChange();

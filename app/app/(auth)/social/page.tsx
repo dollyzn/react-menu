@@ -19,7 +19,7 @@ export default function AuthSocialPage() {
       if (!provider) return;
 
       const response = await request<{ url: string }>({
-        url: `/auth/social/${provider}/redirect`,
+        url: `auth/social/${provider}/redirect`,
       });
 
       if (!response.success || !response.url) {

@@ -188,7 +188,7 @@ export function DataTableToolbar<TData>({
     <>
       <div
         className={cn(
-          "flex flex-row items-center flex-wrap gap-2",
+          "flex flex-row items-center flex-wrap gap-2 pb-4",
           !isMobile && "justify-between"
         )}
       >
@@ -215,32 +215,31 @@ export function DataTableToolbar<TData>({
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
             transition={{ duration: 0.2 }}
-            className="my-0 relative"
           >
-            {scrollEffects.showLeft && (
-              <div className="pointer-events-none absolute left-0 top-0 h-full w-6 bg-gradient-to-r from-background to-transparent z-1" />
-            )}
-
-            {scrollEffects.showRight && (
-              <div className="pointer-events-none absolute right-0 top-0 h-full w-6 bg-gradient-to-l from-background to-transparent z-1" />
-            )}
-
-            <ScrollArea
-              ref={mergeRefs(
-                hoverScroll.containerRef,
-                scrollEffects.containerRef
+            <div className="relative pb-4">
+              {scrollEffects.showLeft && (
+                <div className="pointer-events-none absolute left-0 top-0 h-full w-6 bg-linear-to-r from-background to-transparent z-1" />
               )}
-              {...hoverScroll.events}
-              className="w-full mb-4"
-            >
-              <ScrollBar
-                orientation="horizontal"
-                className="-top-[13px] [&[data-state=visible]]:animate-in [&[data-state=hidden]]:animate-out fade-in fade-out duration-300"
-              />
-              <div className="flex w-max items-center gap-2">
-                {filterControls}
-              </div>
-            </ScrollArea>
+              {scrollEffects.showRight && (
+                <div className="pointer-events-none absolute right-0 top-0 h-full w-6 bg-linear-to-l from-background to-transparent z-1" />
+              )}
+              <ScrollArea
+                ref={mergeRefs(
+                  hoverScroll.containerRef,
+                  scrollEffects.containerRef
+                )}
+                {...hoverScroll.events}
+                className="w-full"
+              >
+                <ScrollBar
+                  orientation="horizontal"
+                  className="top-[-13px] data-[state=visible]:animate-in data-[state=hidden]:animate-out fade-in fade-out duration-300"
+                />
+                <div className="flex w-max items-center gap-2">
+                  {filterControls}
+                </div>
+              </ScrollArea>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

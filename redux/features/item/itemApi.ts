@@ -13,23 +13,31 @@ export const itemApi = baseApi.injectEndpoints({
           : [{ type: "Item" as const, id: `store-${storeId}` }],
     }),
 
-    getItemsByCategoryId: build.query<Item[], number>({
-      query: (categoryId) => `categories/${categoryId}/items`,
-      providesTags: (result, _err, categoryId) =>
+    getItemsByCategoryId: build.query<
+      Item[],
+      { storeId: string; categoryId: number }
+    >({
+      query: ({ storeId, categoryId }) =>
+        `stores/${storeId}/categories/${categoryId}/items`,
+      providesTags: (result, _err, arg) =>
         result?.length
           ? [
               ...result.map((i) => ({ type: "Item" as const, id: i.id })),
-              { type: "Item" as const, id: `category-${categoryId}` },
+              { type: "Item" as const, id: `category-${arg.categoryId}` },
             ]
-          : [{ type: "Item" as const, id: `category-${categoryId}` }],
+          : [{ type: "Item" as const, id: `category-${arg.categoryId}` }],
     }),
 
     createItem: build.mutation<
       Item,
-      { categoryId: string; data: Partial<Item & { addonIds?: string[] }> }
+      {
+        storeId: string;
+        categoryId: number;
+        data: Partial<Item & { addonIds?: string[] }>;
+      }
     >({
-      query: ({ categoryId, data }) => ({
-        url: `items/${categoryId}`,
+      query: ({ storeId, categoryId, data }) => ({
+        url: `stores/${storeId}/categories/${categoryId}/items`,
         method: "POST",
         body: data,
       }),
@@ -48,10 +56,14 @@ export const itemApi = baseApi.injectEndpoints({
 
     updateItem: build.mutation<
       Item,
-      { id: string; data: Partial<Item & { addonIds?: string[] }> }
+      {
+        storeId: string;
+        itemId: string;
+        data: Partial<Item & { addonIds?: string[] }>;
+      }
     >({
-      query: ({ id, data }) => ({
-        url: `items/${id}`,
+      query: ({ storeId, itemId, data }) => ({
+        url: `stores/${storeId}/items/${itemId}`,
         method: "PUT",
         body: data,
       }),
@@ -71,16 +83,17 @@ export const itemApi = baseApi.injectEndpoints({
     }),
 
     updateItemOrder: build.mutation<
-      Pick<Item, "id" | "order" | "updatedAt">[],
-      { categoryId: number; id: string | number; order: number }
+      void,
+      { storeId: string; categoryId: number; id: string; order: number }
     >({
-      query: ({ id, order }) => ({
-        url: `items/update-order`,
+      query: ({ storeId, id, order }) => ({
+        url: `stores/${storeId}/items/update-order`,
         method: "PATCH",
         body: { id, order },
       }),
       invalidatesTags: (_res, _err, arg) => [
         { type: "Item", id: `category-${arg.categoryId}` },
+        { type: "Item", id: `store-${arg.storeId}` },
       ],
     }),
   }),

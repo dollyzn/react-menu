@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useParams } from "next/navigation";
 import { Row } from "@tanstack/react-table";
 import { useGetAddonsByItemIdQuery } from "@/redux/features/addon/addonApi";
 
@@ -30,11 +31,14 @@ interface AddonsColumnDialogProps {
 }
 
 export function AddonsColumnDialog({ row }: AddonsColumnDialogProps) {
+  const { store } = useParams();
+  const storeId = store as string;
   const [open, setOpen] = useState(false);
   const itemId = row.original.id;
-  const { data: addons = [], isFetching } = useGetAddonsByItemIdQuery(itemId, {
-    skip: !open,
-  });
+  const { data: addons = [], isFetching } = useGetAddonsByItemIdQuery(
+    { storeId, itemId },
+    { skip: !open }
+  );
 
   const addonsCount = row.getValue("addonsCount") as number;
 
