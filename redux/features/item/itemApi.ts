@@ -1,16 +1,26 @@
 import { baseApi } from "@/redux/api/baseApi";
+import {
+  buildStoreListUrl,
+  type StoreScopedListArg,
+} from "@/redux/api/listQueryParams";
+import type { PaginatedList } from "@/types/paginated-list";
 
 export const itemApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getItemsByStoreId: build.query<Item[], string>({
-      query: (storeId) => `stores/${storeId}/items`,
-      providesTags: (result, _err, storeId) =>
-        result?.length
+    getItemsByStoreId: build.query<PaginatedList<Item>, StoreScopedListArg>({
+      query: (arg) =>
+        buildStoreListUrl(arg.storeId, "items", {
+          filters: arg.filters,
+          pagination: arg.pagination,
+          sort: arg.sort,
+        }),
+      providesTags: (result, _err, arg) =>
+        result?.data?.length
           ? [
-              ...result.map((i) => ({ type: "Item" as const, id: i.id })),
-              { type: "Item" as const, id: `store-${storeId}` },
+              ...result.data.map((i) => ({ type: "Item" as const, id: i.id })),
+              { type: "Item" as const, id: `store-${arg.storeId}` },
             ]
-          : [{ type: "Item" as const, id: `store-${storeId}` }],
+          : [{ type: "Item" as const, id: `store-${arg.storeId}` }],
     }),
 
     getItemsByCategoryId: build.query<

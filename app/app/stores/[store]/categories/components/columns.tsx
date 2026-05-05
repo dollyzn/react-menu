@@ -45,7 +45,11 @@ export const columns: ColumnDef<Category>[] = [
     accessorKey: "name",
 
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nome" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Nome"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
@@ -62,7 +66,11 @@ export const columns: ColumnDef<Category>[] = [
     id: "description",
     accessorKey: "description",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Descrição" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Descrição"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
@@ -79,7 +87,11 @@ export const columns: ColumnDef<Category>[] = [
     id: "itemsCount",
     accessorKey: "itemsCount",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Itens" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Itens"
+      />
     ),
     cell: ({ row }) => {
       return (
@@ -96,7 +108,11 @@ export const columns: ColumnDef<Category>[] = [
     id: "createdAt",
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Criado em" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Criado em"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
@@ -114,7 +130,11 @@ export const columns: ColumnDef<Category>[] = [
     id: "updatedAt",
     accessorKey: "updatedAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Atualizado em" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Atualizado em"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>

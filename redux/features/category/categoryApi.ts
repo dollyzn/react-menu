@@ -1,4 +1,9 @@
 import { baseApi } from "@/redux/api/baseApi";
+import {
+  buildStoreListUrl,
+  type StoreScopedListArg,
+} from "@/redux/api/listQueryParams";
+import type { PaginatedList } from "@/types/paginated-list";
 
 const categoryListTags = (storeId: string, categories: Category[]) => [
   ...categories.map((c) => ({ type: "Category" as const, id: String(c.id) })),
@@ -7,12 +12,20 @@ const categoryListTags = (storeId: string, categories: Category[]) => [
 
 export const categoryApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getCategoriesByStoreId: build.query<Category[], string>({
-      query: (storeId) => `stores/${storeId}/categories`,
-      providesTags: (result, _err, storeId) =>
-        result?.length
-          ? categoryListTags(storeId, result)
-          : [{ type: "Category" as const, id: `store-${storeId}` }],
+    getCategoriesByStoreId: build.query<
+      PaginatedList<Category>,
+      StoreScopedListArg
+    >({
+      query: (arg) =>
+        buildStoreListUrl(arg.storeId, "categories", {
+          filters: arg.filters,
+          pagination: arg.pagination,
+          sort: arg.sort,
+        }),
+      providesTags: (result, _err, arg) =>
+        result?.data?.length
+          ? categoryListTags(arg.storeId, result.data)
+          : [{ type: "Category" as const, id: `store-${arg.storeId}` }],
     }),
 
     createCategory: build.mutation<
@@ -62,22 +75,23 @@ export const categoryApi = baseApi.injectEndpoints({
       ],
     }),
 
-    deleteCategory: build.mutation<void, { storeId: string; categoryId: number }>(
-      {
-        query: ({ storeId, categoryId }) => ({
-          url: `stores/${storeId}/categories/${categoryId}`,
-          method: "DELETE",
-        }),
-        invalidatesTags: (_res, _err, arg) => [
-          { type: "Category", id: String(arg.categoryId) },
-          { type: "Category", id: `store-${arg.storeId}` },
-          { type: "Item", id: `store-${arg.storeId}` },
-        ],
-      }
-    ),
+    deleteCategory: build.mutation<
+      void,
+      { storeId: string; categoryId: number }
+    >({
+      query: ({ storeId, categoryId }) => ({
+        url: `stores/${storeId}/categories/${categoryId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Category", id: String(arg.categoryId) },
+        { type: "Category", id: `store-${arg.storeId}` },
+        { type: "Item", id: `store-${arg.storeId}` },
+      ],
+    }),
 
     bulkDeleteCategories: build.mutation<
-      { deletedCategories: Category[]; failedDeletions: Category[] },
+      { deletedCategories: Category[]; failedDeletions?: Category[] },
       { storeId: string; ids: number[] }
     >({
       query: ({ storeId, ids }) => ({

@@ -47,7 +47,11 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "name",
 
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Nome" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Nome"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
@@ -64,12 +68,16 @@ export const columns: ColumnDef<Item>[] = [
     id: "description",
     accessorKey: "description",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Descrição" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Descrição"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
         <span className="min-w-[250px] max-w-[400px] truncate font-medium block">
-          {row.getValue("description")}
+          {row.getValue("description") || "-"}
         </span>
       </DataTableColumnCell>
     ),
@@ -81,7 +89,11 @@ export const columns: ColumnDef<Item>[] = [
     id: "price",
     accessorKey: "price",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Preço" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Preço"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
@@ -96,7 +108,11 @@ export const columns: ColumnDef<Item>[] = [
     id: "category.name",
     accessorKey: "category.name",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Categoria" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Categoria"
+      />
     ),
     cell: ({ row }) => {
       return (
@@ -116,7 +132,11 @@ export const columns: ColumnDef<Item>[] = [
     id: "addonsCount",
     accessorKey: "addonsCount",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Adicionais" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Adicionais"
+      />
     ),
     cell: ({ row }) => {
       return (
@@ -133,7 +153,11 @@ export const columns: ColumnDef<Item>[] = [
     id: "createdAt",
     accessorKey: "createdAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Criado em" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Criado em"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
@@ -151,7 +175,11 @@ export const columns: ColumnDef<Item>[] = [
     id: "updatedAt",
     accessorKey: "updatedAt",
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Atualizado em" />
+      <DataTableColumnHeader
+        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+        column={column}
+        title="Atualizado em"
+      />
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>

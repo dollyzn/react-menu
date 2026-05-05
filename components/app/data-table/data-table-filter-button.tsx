@@ -74,7 +74,7 @@ export function DataTableFilterButton<TData, TValue>({
           <span className="capitalize">{columnName}</span>
           {hasFilter && (
             <>
-              <Separator orientation="vertical" className="mx-1 h-4" />
+              <Separator orientation="vertical" className="mx-1 h-4 my-auto" />
               <Badge
                 variant="secondary"
                 className="rounded-sm px-1 font-normal max-w-[80px]"

@@ -2,6 +2,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { HeaderUser } from "./header-user";
 import { StoreSwitcher } from "./store-switcher";
+import { ThemeTogglerButton } from "@/components/animate-ui/components/buttons/theme-toggler";
 
 export default function AppHeader() {
   return (
@@ -10,13 +11,23 @@ export default function AppHeader() {
         <SidebarTrigger className="-ml-1 text-primary-foreground" />
         <Separator
           orientation="vertical"
-          className="mx-2 data-[orientation=vertical]:h-4 bg-primary-foreground/60"
+          className="mx-2 data-[orientation=vertical]:h-4 bg-primary-foreground/60 my-auto"
         />
         <div className="flex items-center gap-2 shrink-0 max-w-[min(200px,40vw)] sm:max-w-none">
           <StoreSwitcher className="border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground w-full sm:w-[200px]" />
         </div>
 
-        <div className="flex items-center justify-end ml-auto shrink-0">
+        <div className="flex items-center justify-end ml-auto shrink-0 gap-2">
+          <ThemeTogglerButton
+            variant="secondary"
+            size="sm"
+            direction="tr-circle"
+            className="rounded-full"
+          />
+          <Separator
+            orientation="vertical"
+            className="data-[orientation=vertical]:h-4 bg-primary-foreground/60 my-auto"
+          />
           <nav className="flex items-center gap-2">
             <HeaderUser />
           </nav>

@@ -5,21 +5,12 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { useBulkDeleteCategoriesMutation } from "@/redux/features/category/categoryApi";
 
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
+import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 
 interface BulkDeleteCategoryDialogProps {
   rows: Row<Category>[];
@@ -57,7 +48,7 @@ export function BulkDeleteCategoryDialog({
       }).unwrap();
       handleOpenChange();
 
-      if (result.failedDeletions.length > 0)
+      if (result.failedDeletions && result.failedDeletions.length > 0)
         toast.error(
           `Ocorreu um erro ao excluir ${
             result.failedDeletions.length
@@ -86,74 +77,59 @@ export function BulkDeleteCategoryDialog({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogTrigger asChild>
-        <Button
-          size="icon"
-          className="h-8 w-8"
-          variant="ghost"
-          disabled={!rows.length}
-        >
-          <Trash2 />
-        </Button>
-      </AlertDialogTrigger>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {rows.length > 1 ? (
+    <AlertDialogDestructive
+      title="Tem certeza?"
+      description={
+        rows.length > 1 ? (
+          <>
+            Isso excluirá{" "}
+            <span className="font-bold">todas as {rows.length} categorias</span>
+            {totalItems > 0 ? (
               <>
-                Isso excluirá{" "}
-                <span className="font-bold">
-                  todas as {rows.length} categorias
-                </span>
-                {totalItems > 0 ? (
-                  <>
-                    {" "}
-                    selecionadas junto com todos os{" "}
-                    <span className="font-bold">{totalItems} itens</span>{" "}
-                    relacionados
-                  </>
-                ) : (
-                  ""
-                )}
-                . Esta ação não pode ser desfeita.
+                {" "}
+                selecionadas junto com todos os{" "}
+                <span className="font-bold">{totalItems} itens</span>{" "}
+                relacionados
               </>
             ) : (
-              <>
-                Isso excluirá a categoria{" "}
-                <span className="font-bold">{rows[0]?.original.name}</span>
-                {rows[0]?.original.itemsCount &&
-                rows[0]?.original.itemsCount > 0 ? (
-                  <>
-                    {" "}
-                    junto com todos os seus{" "}
-                    <span className="font-bold">
-                      {rows[0]?.original.itemsCount} itens
-                    </span>{" "}
-                    relacionados
-                  </>
-                ) : (
-                  ""
-                )}
-                . Esta ação não pode ser desfeita.
-              </>
+              ""
             )}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleOpenChange} disabled={busy}>
-            Cancelar
-          </AlertDialogCancel>
-          <Button
-            variant="destructive"
-            onClick={handleBulkDeleteCategory}
-            loading={busy}
-          >
-            {busy ? "Excluindo..." : "Excluir"}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+            . Esta ação não pode ser desfeita.
+          </>
+        ) : (
+          <>
+            Isso excluirá a categoria{" "}
+            <span className="font-bold">{rows[0]?.original.name}</span>
+            {rows[0]?.original.itemsCount &&
+            rows[0]?.original.itemsCount > 0 ? (
+              <>
+                {" "}
+                junto com todos os seus{" "}
+                <span className="font-bold">
+                  {rows[0]?.original.itemsCount} itens
+                </span>{" "}
+                relacionados
+              </>
+            ) : (
+              ""
+            )}
+            . Esta ação não pode ser desfeita.
+          </>
+        )
+      }
+      open={open}
+      onOpenChange={handleOpenChange}
+      loading={busy}
+      onConfirm={handleBulkDeleteCategory}
+    >
+      <Button
+        size="icon"
+        className="h-8 w-8"
+        variant="ghost"
+        disabled={!rows.length}
+      >
+        <Trash2 />
+      </Button>
+    </AlertDialogDestructive>
   );
 }

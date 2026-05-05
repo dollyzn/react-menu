@@ -46,8 +46,8 @@ export default function AppSidebar({
                 "data-[state=open]:hover:bg-sidebar data-[state=open]:hover:text-sidebar-foreground focus-visible:ring-0"
               )}
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg ">
-                <Icons.logo className="fill-primary p-1" />
+              <div className="flex size-8 aspect-square items-center justify-center rounded-lg">
+                <Icons.logo className="fill-primary p-1 size-full!" />
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-semibold">Cardápio</span>

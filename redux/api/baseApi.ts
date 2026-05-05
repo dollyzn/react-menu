@@ -50,7 +50,15 @@ function unwrapApiJson(body: unknown): unknown {
   if (envelope.success === false) return body;
 
   if ("data" in envelope && envelope.data !== undefined) {
-    return envelope.data;
+    const payload = envelope.data;
+    if (
+      envelope.meta !== undefined &&
+      typeof envelope.meta === "object" &&
+      Array.isArray(payload)
+    ) {
+      return { data: payload, meta: envelope.meta };
+    }
+    return payload;
   }
 
   return body;

@@ -17,6 +17,8 @@ import {
 import { Button } from "@/components/ui/button";
 
 import { getErrorMessage } from "@/utils/get-error-message";
+import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
+import { Trash2 } from "lucide-react";
 
 interface DeleteCategoryDialogProps {
   open: boolean;
@@ -49,7 +51,7 @@ export function DeleteCategoryDialog({
     } catch (err: unknown) {
       toast.error(
         getErrorMessage(
-          err as { data?: { error?: string }; message?: string },
+          err,
           `Ocorreu um erro ao excluir a categoria ${row.getValue(
             "name"
           )}. Por favor, tente novamente.`
@@ -63,42 +65,19 @@ export function DeleteCategoryDialog({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={handleOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-          <AlertDialogDescription>
-            Isso excluirá a categoria{" "}
-            <span className="font-bold">{row.original.name}</span>
-            {row.original.itemsCount && row.original.itemsCount > 0 ? (
-              <>
-                {" "}
-                junto com todos os seus{" "}
-                <span className="font-bold">
-                  {row.original.itemsCount} itens
-                </span>{" "}
-                relacionados
-              </>
-            ) : (
-              ""
-            )}
-            . Esta ação não pode ser desfeita.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel onClick={handleOpenChange} disabled={isDeleting}>
-            Cancelar
-          </AlertDialogCancel>
-
-          <Button
-            variant="destructive"
-            onClick={handleDeleteCategory}
-            loading={isDeleting}
-          >
-            {isDeleting ? "Excluindo..." : "Excluir"}
-          </Button>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
+    <AlertDialogDestructive
+      title="Tem certeza?"
+      description={
+        <>
+          Isso excluirá a categoria{" "}
+          <span className="font-bold">{row.original.name}</span>. Esta ação não
+          pode ser desfeita.
+        </>
+      }
+      open={open}
+      onOpenChange={handleOpenChange}
+      loading={isDeleting}
+      onConfirm={handleDeleteCategory}
+    />
   );
 }

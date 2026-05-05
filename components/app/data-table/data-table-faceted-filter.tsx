@@ -165,7 +165,7 @@ export function DataTableFacetedFilter<TData, TValue>({
           <ChevronsUpDown className="ml-auto opacity-50" />
           {hasSelectedValues && !loading && (
             <>
-              <Separator orientation="vertical" className="mx-1 h-4" />
+              <Separator orientation="vertical" className="mx-1 h-4 my-auto" />
               <Badge
                 variant="secondary"
                 className="rounded-sm px-1 font-normal lg:hidden"

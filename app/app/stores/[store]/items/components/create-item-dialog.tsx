@@ -3,9 +3,10 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useGetCategoriesByStoreIdQuery } from "@/redux/features/category/categoryApi";
 import { useGetAddonsByStoreIdQuery } from "@/redux/features/addon/addonApi";
+import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
 import { useCreateItemMutation } from "@/redux/features/item/itemApi";
 
 import {
@@ -17,14 +18,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form } from "@/components/ui/form";
 import {
   Select,
   SelectContent,
@@ -34,34 +28,40 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import { Check, PackagePlus, PlusCircle } from "lucide-react";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
+  InputGroup,
+  InputGroupAddon,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+import { PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import MoneyInput from "@/components/ui/money-input";
-
+import MultiCombobox from "@/components/app/multi-combobox";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 import { z } from "zod";
 
+const FORM_ID = "form-create-item";
+const NAME_MAX = 120;
+const DESC_MAX = 500;
+
 const CreateItemSchema = z.object({
-  name: z.string().min(1, "O nome é obrigatório."),
-  description: z.string().optional(),
+  name: z
+    .string()
+    .min(1, "O nome é obrigatório.")
+    .max(NAME_MAX, `No máximo ${NAME_MAX} caracteres.`),
+  description: z
+    .string()
+    .max(DESC_MAX, `No máximo ${DESC_MAX} caracteres.`)
+    .optional(),
   price: z
     .number()
     .min(0.01, "O preço é obrigatório e deve ser maior que zero."),
@@ -73,8 +73,14 @@ export function CreateItemDialog() {
   const { store } = useParams();
   const storeId = store as string;
 
-  const { data: categories } = useGetCategoriesByStoreIdQuery(storeId);
-  const { data: addons } = useGetAddonsByStoreIdQuery(storeId);
+  const { data: categoriesRes } = useGetCategoriesByStoreIdQuery(
+    storeListPrefetchArg(storeId)
+  );
+  const { data: addonsRes } = useGetAddonsByStoreIdQuery(
+    storeListPrefetchArg(storeId)
+  );
+  const categories = categoriesRes?.data ?? [];
+  const addons = addonsRes?.data ?? [];
   const [createItem, { isLoading: isSaving }] = useCreateItemMutation();
 
   const form = useForm<z.infer<typeof CreateItemSchema>>({
@@ -123,198 +129,186 @@ export function CreateItemDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <PlusCircle /> Criar item
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={handleOpenChange} modal>
+      <DialogTrigger
+        render={
+          <Button variant="outline">
+            <PlusCircle /> Criar item
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar novo item</DialogTitle>
           <DialogDescription>
-            Preencha os campos para criar um novo item.
+            Preencha os campos para criar um novo item no cardápio.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form
+            id={FORM_ID}
             onSubmit={form.handleSubmit(handleCreateItem)}
             className="space-y-4"
           >
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel htmlFor="name">Nome do Item</FormLabel>
-                  <FormControl>
-                    <Input id="name" {...field} disabled={busy} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel htmlFor="description">Descrição</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      id="description"
+            <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
+                    <Input
                       {...field}
+                      id={field.name}
                       disabled={busy}
+                      autoComplete="off"
+                      maxLength={NAME_MAX}
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Ex: Pastel de Queijo"
                     />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="categoryId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel htmlFor="categoryId">Categoria</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    disabled={busy}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
+
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="description"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
+                    <InputGroup>
+                      <InputGroupTextarea
+                        {...field}
+                        id={field.name}
+                        disabled={busy}
+                        rows={5}
+                        className="min-h-24"
+                        maxLength={DESC_MAX}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Ingredientes, tamanho, observações…"
+                      />
+                      <InputGroupAddon align="block-end">
+                        <InputGroupText className="tabular-nums">
+                          {field.value?.length ?? 0}/{DESC_MAX} caracteres
+                        </InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
+
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="categoryId"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={busy}
+                    >
+                      <SelectTrigger
+                        id={field.name}
+                        aria-invalid={fieldState.invalid}
+                      >
                         <SelectValue placeholder="Selecione uma categoria" />
                       </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectGroup>
-                        {categories?.map((category) => (
-                          <SelectItem
-                            key={category.id}
-                            value={category.id.toString()}
-                          >
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="addonIds"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Adicionais</FormLabel>
-                  <Popover modal>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start px-3"
-                      >
-                        <PackagePlus />
-                        Selecione os adicionais
-                        {!!field?.value?.length && field.value.length > 0 && (
-                          <>
-                            <Separator
-                              orientation="vertical"
-                              className="mx-2 h-4"
-                            />
-                            <Badge
-                              variant="secondary"
-                              className="rounded-sm px-1 font-normal lg:hidden"
+                      <SelectContent>
+                        <SelectGroup>
+                          {categories.map((category) => (
+                            <SelectItem
+                              key={category.id}
+                              value={category.id.toString()}
                             >
-                              {field.value.length}
-                            </Badge>
-                            <div className="hidden space-x-1 lg:flex">
-                              {field.value.length > 2 ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="rounded-sm px-1 font-normal"
-                                >
-                                  {field.value.length} selecionados
-                                </Badge>
-                              ) : (
-                                addons
-                                  ?.filter((addon) =>
-                                    field.value?.includes(addon.id)
-                                  )
-                                  .map((option) => (
-                                    <Badge
-                                      variant="secondary"
-                                      key={option.id}
-                                      className="rounded-sm px-1 font-normal"
-                                    >
-                                      {option.name}
-                                    </Badge>
-                                  ))
-                              )}
-                            </div>
-                          </>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[200px] p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar adicionais..." />
-                        <CommandList>
-                          <CommandEmpty className="py-6 px-3 text-center text-sm">
-                            Nenhum adicional encontrado.
-                          </CommandEmpty>
-                          <CommandGroup>
-                            {addons?.map((addon) => {
-                              const isSelected = field.value?.includes(
-                                addon.id
-                              );
-                              return (
-                                <CommandItem
-                                  key={addon.id}
-                                  value={addon.id}
-                                  onSelect={() => {
-                                    const newValue = isSelected
-                                      ? field?.value?.filter(
-                                          (id) => id !== addon.id
-                                        )
-                                      : [...(field.value || []), addon.id];
-                                    field.onChange(newValue);
-                                  }}
-                                >
-                                  <div
-                                    className={cn(
-                                      "mr-2 flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                                      isSelected
-                                        ? "bg-primary text-primary-foreground"
-                                        : "opacity-50 [&_svg]:invisible"
-                                    )}
-                                  >
-                                    <Check />
-                                  </div>
-                                  <span>{addon.name}</span>
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <MoneyInput
-              form={form}
-              label="Valor"
-              name="price"
-              placeholder="R$ 10,00"
-            />
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      O item ficará agrupado nesta categoria no menu.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="addonIds"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Adicionais</FieldLabel>
+                    <MultiCombobox
+                      id={field.name}
+                      items={addons}
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      getValue={(addon) => addon.id}
+                      getLabel={(addon) => addon.name}
+                      disabled={busy}
+                      invalid={fieldState.invalid}
+                      placeholder="Selecione os adicionais"
+                      emptyMessage="Nenhum adicional encontrado"
+                    />
+                    <FieldDescription>
+                      Opcional. Complementos vendidos junto com este item (busca
+                      e múltipla seleção).
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="price"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Adicionais</FieldLabel>
+                    <MoneyInput
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="R$ 10,00"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <FieldDescription>
+                      Preço unitário exibido no cardápio (em reais).
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+
             <DialogFooter>
-              <Button type="submit" loading={busy}>
-                {busy ? "Criando..." : "Criar Item"}
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => form.reset()}
+              >
+                Limpar
+              </Button>
+              <Button type="submit" form={FORM_ID} loading={busy}>
+                {busy ? "Criando..." : "Criar item"}
               </Button>
             </DialogFooter>
           </form>

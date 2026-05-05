@@ -6,6 +6,7 @@ import {
   useGetCategoriesByStoreIdQuery,
   useUpdateCategoryOrderMutation,
 } from "@/redux/features/category/categoryApi";
+import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
 import {
   useLazyGetItemsByCategoryIdQuery,
   useUpdateItemOrderMutation,
@@ -25,8 +26,9 @@ export function SortingTabs() {
   const { store } = useParams();
   const storeId = store as string;
 
-  const { data: categories = null, isLoading: categoriesLoading } =
-    useGetCategoriesByStoreIdQuery(storeId);
+  const { data: categoriesRes, isLoading: categoriesLoading } =
+    useGetCategoriesByStoreIdQuery(storeListPrefetchArg(storeId));
+  const categories = categoriesRes?.data ?? null;
   const [updateCategoryOrder, { isLoading: updateCategoryOrderLoading }] =
     useUpdateCategoryOrderMutation();
   const [fetchItemsByCategory, { isFetching: indexByCategoryLoading }] =
@@ -73,10 +75,7 @@ export function SortingTabs() {
     });
   };
 
-  const handleItemOrderChange = (newOrder: {
-    id: string;
-    order: number;
-  }) => {
+  const handleItemOrderChange = (newOrder: { id: string; order: number }) => {
     if (!selectedCategory) return;
     updateItemOrder({
       storeId,

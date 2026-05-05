@@ -1,16 +1,26 @@
 import { baseApi } from "@/redux/api/baseApi";
+import {
+  buildStoreListUrl,
+  type StoreScopedListArg,
+} from "@/redux/api/listQueryParams";
+import type { PaginatedList } from "@/types/paginated-list";
 
 export const addonApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getAddonsByStoreId: build.query<Addon[], string>({
-      query: (storeId) => `stores/${storeId}/addons`,
-      providesTags: (result, _err, storeId) =>
-        result?.length
+    getAddonsByStoreId: build.query<PaginatedList<Addon>, StoreScopedListArg>({
+      query: (arg) =>
+        buildStoreListUrl(arg.storeId, "addons", {
+          filters: arg.filters,
+          pagination: arg.pagination,
+          sort: arg.sort,
+        }),
+      providesTags: (result, _err, arg) =>
+        result?.data?.length
           ? [
-              ...result.map((a) => ({ type: "Addon" as const, id: a.id })),
-              { type: "Addon" as const, id: `store-${storeId}` },
+              ...result.data.map((a) => ({ type: "Addon" as const, id: a.id })),
+              { type: "Addon" as const, id: `store-${arg.storeId}` },
             ]
-          : [{ type: "Addon" as const, id: `store-${storeId}` }],
+          : [{ type: "Addon" as const, id: `store-${arg.storeId}` }],
     }),
 
     getAddonsByItemId: build.query<

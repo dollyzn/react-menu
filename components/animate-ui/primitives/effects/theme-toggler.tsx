@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import * as React from 'react';
-import { flushSync } from 'react-dom';
+import * as React from "react";
+import { flushSync } from "react-dom";
 
-type ThemeSelection = 'light' | 'dark' | 'system';
-type Resolved = 'light' | 'dark';
-type Direction = 'btt' | 'ttb' | 'ltr' | 'rtl';
+type ThemeSelection = "light" | "dark" | "system";
+type Resolved = "light" | "dark";
+type Direction = "btt" | "ttb" | "ltr" | "rtl" | "tr-circle";
 
 type ChildrenRender =
   | React.ReactNode
@@ -16,24 +16,26 @@ type ChildrenRender =
     }) => React.ReactNode);
 
 function getSystemEffective(): Resolved {
-  if (typeof window === 'undefined') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light';
+  if (typeof window === "undefined") return "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 function getClipKeyframes(direction: Direction): [string, string] {
   switch (direction) {
-    case 'ltr':
-      return ['inset(0 100% 0 0)', 'inset(0 0 0 0)'];
-    case 'rtl':
-      return ['inset(0 0 0 100%)', 'inset(0 0 0 0)'];
-    case 'ttb':
-      return ['inset(0 0 100% 0)', 'inset(0 0 0 0)'];
-    case 'btt':
-      return ['inset(100% 0 0 0)', 'inset(0 0 0 0)'];
+    case "ltr":
+      return ["inset(0 100% 0 0)", "inset(0 0 0 0)"];
+    case "rtl":
+      return ["inset(0 0 0 100%)", "inset(0 0 0 0)"];
+    case "ttb":
+      return ["inset(0 0 100% 0)", "inset(0 0 0 0)"];
+    case "btt":
+      return ["inset(100% 0 0 0)", "inset(0 0 0 0)"];
+    case "tr-circle":
+      return ["circle(0% at 100% 0%)", "circle(150% at 100% 0%)"];
     default:
-      return ['inset(0 100% 0 0)', 'inset(0 0 0 0)'];
+      return ["inset(0 100% 0 0)", "inset(0 0 0 0)"];
   }
 }
 
@@ -51,7 +53,7 @@ function ThemeToggler({
   resolvedTheme,
   setTheme,
   onImmediateChange,
-  direction = 'ltr',
+  direction = "ltr",
   children,
   ...props
 }: ThemeTogglerProps) {
@@ -77,16 +79,22 @@ function ThemeToggler({
     }
   }, [theme, resolvedTheme, preview]);
 
+  React.useEffect(() => {
+    if (theme !== current.effective && resolvedTheme !== current.resolved) {
+      setCurrent({ effective: theme, resolved: resolvedTheme });
+    }
+  }, [theme, resolvedTheme]);
+
   const [fromClip, toClip] = getClipKeyframes(direction);
 
   const toggleTheme = React.useCallback(
     async (theme: ThemeSelection) => {
-      const resolved = theme === 'system' ? getSystemEffective() : theme;
+      const resolved = theme === "system" ? getSystemEffective() : theme;
 
       setCurrent({ effective: theme, resolved });
       onImmediateChange?.(theme);
 
-      if (theme === 'system' && resolved === resolvedTheme) {
+      if (theme === "system" && resolved === resolvedTheme) {
         setTheme(theme);
         return;
       }
@@ -103,8 +111,8 @@ function ThemeToggler({
         flushSync(() => {
           setPreview({ effective: theme, resolved });
           document.documentElement.classList.toggle(
-            'dark',
-            resolved === 'dark',
+            "dark",
+            resolved === "dark"
           );
         });
       }).ready;
@@ -114,20 +122,20 @@ function ThemeToggler({
           { clipPath: [fromClip, toClip] },
           {
             duration: 700,
-            easing: 'ease-in-out',
-            pseudoElement: '::view-transition-new(root)',
-          },
+            easing: "ease-in-out",
+            pseudoElement: "::view-transition-new(root)",
+          }
         )
         .finished.finally(() => {
           setTheme(theme);
         });
     },
-    [onImmediateChange, resolvedTheme, fromClip, toClip, setTheme],
+    [onImmediateChange, resolvedTheme, fromClip, toClip, setTheme]
   );
 
   return (
     <React.Fragment {...props}>
-      {typeof children === 'function'
+      {typeof children === "function"
         ? children({
             effective: current.effective,
             resolved: current.resolved,

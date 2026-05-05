@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { fontMono, fontSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 export const metadata: Metadata = {
   title: {
@@ -99,7 +100,16 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
-    <html lang="pt-BR" data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html
+      lang="pt-BR"
+      data-scroll-behavior="smooth"
+      suppressHydrationWarning
+      className={cn(
+        "font-sans antialiased",
+        fontSans.variable,
+        fontMono.variable
+      )}
+    >
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -123,13 +133,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           }}
         />
       </head>
-      <body
-        className={cn(
-          "min-h-screen bg-background font-sans antialiased",
-          fontSans.variable,
-          fontMono.variable
-        )}
-      >
+      <body className="min-h-screen bg-background">
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -139,7 +143,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           <ReduxProvider>
             <NotificationProvider>
               <SessionProvider>
-                {children}
+                <TooltipProvider>{children}</TooltipProvider>
                 <Toaster closeButton richColors />
               </SessionProvider>
             </NotificationProvider>

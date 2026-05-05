@@ -44,16 +44,19 @@ export function AddonsColumnDialog({ row }: AddonsColumnDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" disabled={isFetching && open}>
-          {addonsCount || 0} Adiciona{addonsCount === 1 ? "l" : "is"}
-          {isFetching && open ? (
-            <Loader2 className="ml-2 h-4 w-4 animate-spin" />
-          ) : (
-            <ChevronDown className="ml-2 h-4 w-4" />
-          )}
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button variant="outline" disabled={isFetching && open}>
+            {addonsCount || 0} Adiciona{addonsCount === 1 ? "l" : "is"}
+            {isFetching && open ? (
+              <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ChevronDown className="ml-2 h-4 w-4" />
+            )}
+          </Button>
+        }
+      />
+
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Adicionais do Item</DialogTitle>
