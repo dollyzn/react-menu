@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -26,38 +27,50 @@ export function HeaderUser() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          className="relative h-8 w-8 rounded-full bg-background/30 hover:bg-background/60"
-        >
-          <Avatar className="h-8 w-8 rounded-full">
-            <AvatarImage
-              src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user?.name ?? "user"}`}
-              alt="Usuário"
-            />
-            <AvatarFallback>
-              {user?.name?.substring(0, 2)?.toUpperCase() ?? "US"}
-            </AvatarFallback>
-          </Avatar>
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="outline"
+            className="relative h-8 w-8 rounded-full bg-background/30 hover:bg-background/60"
+          />
+        }
+      >
+        <Avatar className="h-8 w-8 rounded-full">
+          <AvatarImage
+            src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user?.name ?? "user"}`}
+            alt="Usuário"
+          />
+          <AvatarFallback>
+            {user?.name?.substring(0, 2)?.toUpperCase() ?? "US"}
+          </AvatarFallback>
+        </Avatar>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="min-w-56 rounded-lg" align="end">
-        <DropdownMenuLabel className="font-normal">
-          <div className="grid flex-1 text-left text-sm leading-tight">
-            <span className="truncate font-medium">{user?.name}</span>
-            <span className="truncate text-xs text-muted-foreground">
-              {user?.email}
-            </span>
-          </div>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="font-normal">
+            <div className="grid flex-1 text-left text-sm leading-tight">
+              <span className="truncate font-medium">{user?.name}</span>
+              <span className="truncate text-xs text-muted-foreground">
+                {user?.email}
+              </span>
+            </div>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
+
         <DropdownMenuSeparator />
-        <ModeSwitcher />
+
+        <DropdownMenuGroup>
+          <ModeSwitcher />
+        </DropdownMenuGroup>
+
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" />
-          Sair
-        </DropdownMenuItem>
+
+        <DropdownMenuGroup>
+          <DropdownMenuItem onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sair
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

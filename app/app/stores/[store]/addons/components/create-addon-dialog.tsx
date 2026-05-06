@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateAddonMutation } from "@/redux/features/addon/addonApi";
 import { toast } from "sonner";
@@ -17,23 +17,36 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { PlusCircle } from "lucide-react";
+import { CopyPlus } from "lucide-react";
 import { z } from "zod";
 import { getErrorMessage } from "@/utils/get-error-message";
 import MoneyInput from "@/components/ui/money-input";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupText,
+  InputGroupTextarea,
+} from "@/components/ui/input-group";
+
+const NAME_MAX = 120;
+const DESC_MAX = 500;
 
 const CreateAddonSchema = z.object({
-  name: z.string().min(1, "O nome é obrigatório."),
-  description: z.string().optional(),
+  name: z
+    .string()
+    .min(1, "O nome é obrigatório.")
+    .max(NAME_MAX, `No máximo ${NAME_MAX} caracteres.`),
+  description: z
+    .string()
+    .max(DESC_MAX, `No máximo ${DESC_MAX} caracteres.`)
+    .optional(),
   price: z
     .number()
     .min(0.01, "O preço é obrigatório e deve ser maior que zero."),
@@ -62,7 +75,6 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
   const handleOpenChange = () => {
     if (busy && open) return;
     setOpen(!open);
-    form.reset();
   };
 
   const handleCreateAddon = async (data: z.infer<typeof CreateAddonSchema>) => {
@@ -85,11 +97,13 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button variant="outline">
-          <PlusCircle /> Criar adicional
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button variant="outline">
+            <CopyPlus /> Criar adicional
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar novo adicional</DialogTitle>
@@ -97,54 +111,100 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
             Preencha os campos para criar um novo adicional.
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleCreateAddon)}
-            className="space-y-4"
-          >
-            <FormField
-              control={form.control}
+        <form onSubmit={form.handleSubmit(handleCreateAddon)}>
+          <FieldGroup>
+            <Controller
               name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel htmlFor="name">Nome</FormLabel>
-                  <FormControl>
-                    <Input id="name" {...field} disabled={busy} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
               control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel htmlFor="description">Descrição</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      id="description"
-                      {...field}
-                      disabled={busy}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    autoComplete="off"
+                    maxLength={NAME_MAX}
+                    aria-invalid={fieldState.invalid}
+                    placeholder="Ex: Extra Bacon"
+                  />
+
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
               )}
             />
-            <MoneyInput
-              form={form}
-              label="Valor"
-              name="price"
-              placeholder="R$ 10,00"
+            <Controller
+              name="description"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
+                  <InputGroup>
+                    <InputGroupTextarea
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      rows={5}
+                      className="min-h-24"
+                      maxLength={DESC_MAX}
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Ingredientes, tamanho, observações…"
+                    />
+                    <InputGroupAddon align="block-end">
+                      <InputGroupText className="tabular-nums">
+                        {field.value?.length ?? 0}/{DESC_MAX} caracteres
+                      </InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
             />
-            <DialogFooter>
-              <Button type="submit" loading={busy}>
-                {busy ? "Criando..." : "Criar Addon"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+
+            <Controller
+              name="price"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
+                  <MoneyInput
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    placeholder="R$ 10,00"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>
+                    Preço unitário exibido no cardápio (em reais).
+                  </FieldDescription>
+
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+
+          <DialogFooter className="mt-4">
+            <Button
+              type="reset"
+              variant="outline"
+              disabled={busy}
+              onClick={() => form.reset()}
+            >
+              Limpar
+            </Button>
+            <Button type="submit" loading={busy}>
+              {busy ? "Criando..." : "Criar Addon"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

@@ -19,16 +19,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar />
         <SidebarInset className="contain-inline-size">
           <AppHeader />
-          <main className="@container/main flex flex-1 flex-col">
-            <div
-              data-wrapper=""
-              className="border-border/40 dark:border-border flex-1"
-            >
-              <div className="mx-auto w-full border-border/40 dark:border-border min-[1800px]:max-w-[1536px] min-[1800px]:border min-h-full">
-                {children}
-              </div>
-            </div>
-          </main>
+          <main className="@container/main container mx-auto">{children}</main>
         </SidebarInset>
       </SidebarProvider>
       <SessionExpiredModal />

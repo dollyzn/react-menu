@@ -1,6 +1,7 @@
 import { TableCell } from "@/components/ui/table";
 
-interface DataTableColumnHeaderProps extends React.HTMLAttributes<HTMLTableCellElement> {}
-export default function DataTableColumnCell(props: DataTableColumnHeaderProps) {
+export default function DataTableColumnCell(
+  props: React.HTMLAttributes<HTMLTableCellElement>
+) {
   return <TableCell {...props} />;
 }

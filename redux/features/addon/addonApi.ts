@@ -52,6 +52,34 @@ export const addonApi = baseApi.injectEndpoints({
         { type: "Store", id: storeId },
       ],
     }),
+
+    deleteAddonByStoreId: build.mutation<
+      void,
+      { storeId: string; addonId: string }
+    >({
+      query: ({ storeId, addonId }) => ({
+        url: `stores/${storeId}/addons/${addonId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Addon", id: String(arg.addonId) },
+        { type: "Addon", id: `store-${arg.storeId}` },
+      ],
+    }),
+
+    bulkDeleteAddonsByStoreId: build.mutation<
+      { deletedAddons: Addon[]; failedDeletions?: Addon[] },
+      { storeId: string; ids: string[] }
+    >({
+      query: ({ storeId, ids }) => ({
+        url: `stores/${storeId}/addons/bulk-delete`,
+        method: "POST",
+        body: { ids },
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Addon", id: `store-${arg.storeId}` },
+      ],
+    }),
   }),
 });
 
@@ -59,4 +87,6 @@ export const {
   useGetAddonsByStoreIdQuery,
   useGetAddonsByItemIdQuery,
   useCreateAddonMutation,
+  useDeleteAddonByStoreIdMutation,
+  useBulkDeleteAddonsByStoreIdMutation,
 } = addonApi;

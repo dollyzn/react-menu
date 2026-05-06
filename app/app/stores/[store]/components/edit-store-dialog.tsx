@@ -1,6 +1,6 @@
 "use client";
 
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useUpdateStoreMutation } from "@/redux/features/store/storeApi";
@@ -9,13 +9,12 @@ import { setUser } from "@/redux/slices/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
   Dialog,
   DialogContent,
@@ -132,109 +131,132 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
             Atualize as informações básicas da sua loja
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleSubmit)}
-            className="space-y-4"
-          >
-            <div className="grid gap-4 py-4">
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome da Loja</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Nome da Loja"
-                        disabled={busy}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          <FieldGroup>
+            <Controller
+              name="name"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Nome da Loja</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    placeholder="Nome da Loja"
+                    aria-invalid={fieldState.invalid}
+                  />
 
-              <FormField
-                control={form.control}
-                name="address"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="Endereço"
-                        disabled={busy}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="instagramUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL do Instagram</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="https://www.instagram.com/sualoja"
-                        disabled={busy}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+            <Controller
+              name="address"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Endereço</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    placeholder="Endereço"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  <FieldDescription>
+                    Endereço da loja resumido para o cardápio.
+                  </FieldDescription>
 
-              <FormField
-                control={form.control}
-                name="ifoodUrl"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>URL do iFood</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="https://www.ifood.com.br/sualoja"
-                        disabled={busy}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
 
-              <FormField
-                control={form.control}
-                name="slug"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Slug</FormLabel>
-                    <FormControl>
-                      <Input
-                        {...field}
-                        placeholder="slug-da-loja"
-                        disabled={busy}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit" loading={busy}>
-                {busy ? "Salvando..." : "Salvar Alterações"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+            <Controller
+              name="instagramUrl"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>URL do Instagram</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    placeholder="https://www.instagram.com/sualoja"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="ifoodUrl"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>URL do iFood</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    placeholder="https://www.ifood.com.br/sualoja"
+                    aria-invalid={fieldState.invalid}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+
+            <Controller
+              name="slug"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Slug</FieldLabel>
+                  <Input
+                    {...field}
+                    id={field.name}
+                    disabled={busy}
+                    placeholder="slug-da-loja"
+                    aria-invalid={fieldState.invalid}
+                  />
+
+                  <FieldDescription>
+                    Slug da loja utilizado para acessar o cardápio.
+                  </FieldDescription>
+
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
+              )}
+            />
+          </FieldGroup>
+          <DialogFooter>
+            <Button
+              type="reset"
+              variant="outline"
+              disabled={busy}
+              onClick={() => form.reset()}
+            >
+              Limpar
+            </Button>
+            <Button type="submit" loading={busy}>
+              {busy ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

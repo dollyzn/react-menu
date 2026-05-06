@@ -26,7 +26,7 @@ export const useTransformTableParams = ({
         }
         return acc;
       },
-      {} as { [key: string]: any }
+      {} as Record<string, unknown>
     );
   }, [filters]);
 

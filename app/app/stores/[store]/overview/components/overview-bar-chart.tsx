@@ -31,35 +31,42 @@ const chartConfig = {
   },
   desktop: {
     label: "Desktop",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   mobile: {
     label: "Mobile",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
 interface OverviewBarChartProps {
   className?: string;
   storeId: string;
+  chartData?: { date: string; desktop: number; mobile: number }[];
+  loading?: boolean;
 }
 
 export function OverviewBarChart({
   className,
   storeId,
+  chartData,
+  loading: loadingProp,
 }: OverviewBarChartProps) {
-  const { data, isLoading, isFetching } = useGetStoreChartQuery(storeId);
-  const loading = isLoading || (isFetching && !data);
+  const { data, isLoading, isFetching } = useGetStoreChartQuery(storeId, {
+    skip: !!chartData,
+  });
+  const resolvedData = chartData ?? data;
+  const loading = loadingProp ?? (isLoading || (isFetching && !resolvedData));
 
   const [activeChart, setActiveChart] =
     useState<keyof typeof chartConfig>("desktop");
 
   const total = useMemo(
     () => ({
-      desktop: data?.reduce((acc, curr) => acc + curr.desktop, 0) || 0,
-      mobile: data?.reduce((acc, curr) => acc + curr.mobile, 0) || 0,
+      desktop: resolvedData?.reduce((acc, curr) => acc + curr.desktop, 0) || 0,
+      mobile: resolvedData?.reduce((acc, curr) => acc + curr.mobile, 0) || 0,
     }),
-    [data]
+    [resolvedData]
   );
 
   return (
@@ -84,7 +91,7 @@ export function OverviewBarChart({
                 <span className="text-xs text-muted-foreground">
                   {chartConfig[chartKey].label}
                 </span>
-                {(loading && !data) || !data ? (
+                {(loading && !resolvedData) || !resolvedData ? (
                   <Skeleton className="h-8 w-14" />
                 ) : (
                   <span className="text-lg font-bold leading-none sm:text-3xl">
@@ -97,7 +104,7 @@ export function OverviewBarChart({
         </div>
       </CardHeader>
       <CardContent className="px-2 sm:p-6">
-        {(loading && !data) || !data ? (
+        {(loading && !resolvedData) || !resolvedData ? (
           <Skeleton className="h-[300px] w-full" />
         ) : (
           <ChartContainer
@@ -106,7 +113,7 @@ export function OverviewBarChart({
           >
             <BarChart
               accessibilityLayer
-              data={data}
+              data={resolvedData}
               dataKey={activeChart}
               margin={{
                 left: 12,

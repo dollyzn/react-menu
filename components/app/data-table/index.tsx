@@ -253,7 +253,7 @@ export function DataTable<TData, TValue>({
             table.getRowModel().rows.length > 0 &&
             table.getCoreRowModel().rows.length > 0 && (
               <div className="sticky h-0 overflow-visible top-0 z-5">
-                <Progress indeterminate className="bg-transparent delay-500" />
+                <Progress value={null} className="bg-transparent delay-500" />
               </div>
             )}
           {viewMode === "table" || !renderCard ? (
@@ -431,7 +431,7 @@ export function DataTable<TData, TValue>({
             table.getRowModel().rows.length > 0 &&
             table.getCoreRowModel().rows.length > 0 && (
               <div className="relative -top-1 h-0 overflow-visible">
-                <Progress indeterminate className="bg-transparent delay-100" />
+                <Progress value={null} className="bg-transparent delay-100" />
               </div>
             )}
           <ScrollBar

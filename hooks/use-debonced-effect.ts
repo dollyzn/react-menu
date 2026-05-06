@@ -1,21 +1,29 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+
+type EffectCallback = () => void | (() => void);
 
 const useDebouncedEffect = (
-  callback: () => any,
-  dependencies: unknown[] = [],
+  callback: EffectCallback,
+  dependencies: unknown[],
   delay = 500
 ) => {
+  const callbackRef = useRef(callback);
+
+  callbackRef.current = callback;
+
   useEffect(() => {
-    let cleanup: VoidFunction | null = null;
     const handler = setTimeout(() => {
-      cleanup = callback();
+      const cleanup = callbackRef.current();
+
+      if (typeof cleanup === "function") {
+        cleanup();
+      }
     }, delay);
 
     return () => {
       clearTimeout(handler);
-      typeof cleanup === "function" && cleanup();
     };
-  }, dependencies);
+  }, [...dependencies, delay]);
 };
 
 export default useDebouncedEffect;

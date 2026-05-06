@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import type { FilterGroup, FilterOption } from ".";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -152,53 +152,55 @@ export function DataTableFacetedFilter<TData, TValue>({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 border-dashed"
-          aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-          loading={loading}
-        >
-          {!loading && <ListFilter />}
-          <span className="capitalize">{columnName}</span>
-          <ChevronsUpDown className="ml-auto opacity-50" />
-          {hasSelectedValues && !loading && (
-            <>
-              <Separator orientation="vertical" className="mx-1 h-4 my-auto" />
-              <Badge
-                variant="secondary"
-                className="rounded-sm px-1 font-normal lg:hidden"
-              >
-                {selectedValues.size}
-              </Badge>
-              <div className="hidden space-x-1 lg:flex">
-                {selectedValues.size > 2 ? (
-                  <Badge
-                    variant="secondary"
-                    className="rounded-sm px-1 font-normal"
-                  >
-                    {selectedValues.size} selecionados
-                  </Badge>
-                ) : (
-                  Array.from(selectedValues).map((value, index) => {
-                    const option = findOptionByValue(value);
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 border-dashed"
+            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
+            loading={loading}
+          />
+        }
+      >
+        {!loading && <ListFilter />}
+        <span className="capitalize">{columnName}</span>
+        <ChevronsUpDown className="ml-auto opacity-50" />
+        {hasSelectedValues && !loading && (
+          <>
+            <Separator orientation="vertical" className="mx-1 my-auto h-4" />
+            <Badge
+              variant="secondary"
+              className="rounded-sm px-1 font-normal lg:hidden"
+            >
+              {selectedValues.size}
+            </Badge>
+            <div className="hidden space-x-1 lg:flex">
+              {selectedValues.size > 2 ? (
+                <Badge
+                  variant="secondary"
+                  className="rounded-sm px-1 font-normal"
+                >
+                  {selectedValues.size} selecionados
+                </Badge>
+              ) : (
+                Array.from(selectedValues).map((value, index) => {
+                  const option = findOptionByValue(value);
 
-                    return (
-                      <Badge
-                        variant="secondary"
-                        key={`selected-${index}`}
-                        className="rounded-sm px-1 font-normal"
-                      >
-                        {option?.label ?? value}
-                      </Badge>
-                    );
-                  })
-                )}
-              </div>
-            </>
-          )}
-        </Button>
+                  return (
+                    <Badge
+                      variant="secondary"
+                      key={`selected-${index}`}
+                      className="rounded-sm px-1 font-normal"
+                    >
+                      {option?.label ?? value}
+                    </Badge>
+                  );
+                })
+              )}
+            </div>
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[220px] p-0" align="start" sideOffset={8}>
         <Command>

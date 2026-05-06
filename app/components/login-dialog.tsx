@@ -2,19 +2,17 @@
 
 import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { z } from "zod";
 import { Eye, EyeOff, Loader2, Lock, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { LoginError, useSession } from "@/contexts/session-provider";
 import {
   Dialog,
@@ -100,80 +98,84 @@ export function LoginDialog() {
             </DialogDescription>
           </DialogHeader>
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
-              <FormField
-                control={form.control}
+          <form onSubmit={form.handleSubmit(onSubmit)}>
+            <FieldGroup>
+              <Controller
                 name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <User
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                          size={18}
-                        />
-                        <Input
-                          placeholder="Seu e-mail de acesso"
-                          className="pl-10"
-                          {...field}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
                 control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem className="my-4">
-                    <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Lock
-                          className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                          size={18}
-                        />
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Sua senha"
-                          className="pl-10"
-                          autoComplete="off"
-                          {...field}
-                          disabled={isSubmitting}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                        >
-                          {showPassword ? (
-                            <EyeOff className="h-5 w-5" />
-                          ) : (
-                            <Eye className="h-5 w-5" />
-                          )}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="login-dialog-email">E-mail</FieldLabel>
+                    <div className="relative">
+                      <User
+                        className="absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400"
+                        size={18}
+                      />
+                      <Input
+                        id="login-dialog-email"
+                        placeholder="Seu e-mail de acesso"
+                        className="pl-10"
+                        aria-invalid={fieldState.invalid}
+                        {...field}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
                 )}
               />
 
-              <Button
-                className="w-full mt-4"
-                type="submit"
-                loading={isSubmitting}
-              >
-                Entrar
-              </Button>
-            </form>
-          </Form>
+              <Controller
+                name="password"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="login-dialog-password">Senha</FieldLabel>
+                    <div className="relative">
+                      <Lock
+                        className="absolute left-3 top-1/2 -translate-y-1/2 transform text-gray-400"
+                        size={18}
+                      />
+                      <Input
+                        id="login-dialog-password"
+                        type={showPassword ? "text" : "password"}
+                        placeholder="Sua senha"
+                        className="pl-10"
+                        autoComplete="off"
+                        aria-invalid={fieldState.invalid}
+                        {...field}
+                        disabled={isSubmitting}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 transform text-gray-400"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-5 w-5" />
+                        ) : (
+                          <Eye className="h-5 w-5" />
+                        )}
+                      </button>
+                    </div>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+
+            <Button
+              className="mt-4 w-full"
+              type="submit"
+              loading={isSubmitting}
+            >
+              Entrar
+            </Button>
+          </form>
         </DialogContent>
       </Dialog>
     </>

@@ -61,40 +61,16 @@ function ThemeToggler({
     effective: ThemeSelection;
     resolved: Resolved;
   }>(null);
-  const [current, setCurrent] = React.useState<{
-    effective: ThemeSelection;
-    resolved: Resolved;
-  }>({
-    effective: theme,
-    resolved: resolvedTheme,
-  });
-
-  React.useEffect(() => {
-    if (
-      preview &&
-      theme === preview.effective &&
-      resolvedTheme === preview.resolved
-    ) {
-      setPreview(null);
-    }
-  }, [theme, resolvedTheme, preview]);
-
-  React.useEffect(() => {
-    if (theme !== current.effective && resolvedTheme !== current.resolved) {
-      setCurrent({ effective: theme, resolved: resolvedTheme });
-    }
-  }, [theme, resolvedTheme]);
 
   const [fromClip, toClip] = getClipKeyframes(direction);
 
   const toggleTheme = React.useCallback(
     async (theme: ThemeSelection) => {
       const resolved = theme === "system" ? getSystemEffective() : theme;
-
-      setCurrent({ effective: theme, resolved });
       onImmediateChange?.(theme);
 
       if (theme === "system" && resolved === resolvedTheme) {
+        setPreview(null);
         setTheme(theme);
         return;
       }
@@ -127,18 +103,22 @@ function ThemeToggler({
           }
         )
         .finished.finally(() => {
+          setPreview(null);
           setTheme(theme);
         });
     },
     [onImmediateChange, resolvedTheme, fromClip, toClip, setTheme]
   );
 
+  const effective = preview?.effective ?? theme;
+  const resolved = preview?.resolved ?? resolvedTheme;
+
   return (
     <React.Fragment {...props}>
       {typeof children === "function"
         ? children({
-            effective: current.effective,
-            resolved: current.resolved,
+            effective,
+            resolved,
             toggleTheme,
           })
         : children}

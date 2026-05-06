@@ -1,34 +1,20 @@
 "use client";
 
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { useSession } from "@/contexts/session-provider";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  ArrowBigUpDash,
-  Eye,
-  EyeOff,
-  Lock,
-  ShieldUser,
-  User,
-} from "lucide-react";
+import { ArrowBigUpDash, Eye, EyeOff, Lock, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import Link from "next/link";
-import { Field, FieldSeparator } from "@/components/ui/field";
-import { Icons } from "@/components/app/icons";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { useTheme } from "next-themes";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import {
   Tooltip,
   TooltipContent,
@@ -242,122 +228,115 @@ export function LoginForm() {
           <AlertDescription>{socialAuthError}</AlertDescription>
         </Alert>
       )} */}
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
-          <div className="space-y-4 pb-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <User
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                        size={18}
-                      />
-                      <Input
-                        placeholder="Seu e-mail de acesso"
-                        className="pl-10"
-                        {...field}
-                        disabled={
-                          isSubmitting
-                          //  || !!loading
-                        }
-                      />
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <FieldGroup className="pb-6">
+          <Controller
+            name="email"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor="login-email">E-mail</FieldLabel>
+                <div className="relative">
+                  <User
+                    className="absolute left-3 top-1/2 -translate-y-1/2 transform text-muted-foreground"
+                    size={18}
+                  />
+                  <Input
+                    id="login-email"
+                    placeholder="Seu e-mail de acesso"
+                    className="pl-10"
+                    aria-invalid={fieldState.invalid}
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                </div>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel asChild>
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="password">Senha</Label>
+          <Controller
+            name="password"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <div className="flex w-full items-center justify-between gap-2">
+                  <FieldLabel htmlFor="login-password">Senha</FieldLabel>
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-xs text-primary"
+                    type="button"
+                    nativeButton={false}
+                    render={<Link href="/esqueci-minha-senha" />}
+                  >
+                    Esqueceu a senha?
+                  </Button>
+                </div>
+                <div className="relative">
+                  <Lock
+                    className="absolute left-3 top-1/2 -translate-y-1/2 transform text-muted-foreground"
+                    size={18}
+                  />
+                  <Input
+                    id="login-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Sua senha"
+                    className={cn("pl-10 pr-10", capsLockOn && "pr-16")}
+                    autoComplete="off"
+                    aria-invalid={fieldState.invalid}
+                    {...field}
+                    disabled={isSubmitting}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 transform text-muted-foreground"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
+                    <span className="sr-only">
+                      {showPassword ? "Esconder senha" : "Mostrar senha"}
+                    </span>
+                  </button>
+                  <TooltipProvider>
+                    {capsLockOn && (
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <div className="absolute right-10 top-1/2 -translate-y-1/2 transform text-muted-foreground" />
+                          }
+                        >
+                          <ArrowBigUpDash className="size-5" />
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom">
+                          <p>Caps Lock está ativado</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
+                  </TooltipProvider>
+                </div>
+                {fieldState.invalid && (
+                  <FieldError errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+        </FieldGroup>
 
-                      <Button
-                        variant="link"
-                        className="p-0 h-auto text-xs text-primary"
-                        type="button"
-                        asChild
-                      >
-                        <Link href="/esqueci-minha-senha">
-                          Esqueceu a senha?
-                        </Link>
-                      </Button>
-                    </div>
-                  </FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Lock
-                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                        size={18}
-                      />
-                      <Input
-                        type={showPassword ? "text" : "password"}
-                        placeholder="Sua senha"
-                        className={cn("pl-10 pr-10", capsLockOn && "pr-16")}
-                        autoComplete="off"
-                        {...field}
-                        disabled={
-                          isSubmitting
-                          //  || !!loading
-                        }
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5" />
-                        ) : (
-                          <Eye className="h-5 w-5" />
-                        )}
-                        <span className="sr-only">
-                          {showPassword ? "Esconder senha" : "Mostrar senha"}
-                        </span>
-                      </button>
-                      <TooltipProvider>
-                        {capsLockOn && (
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <div className="absolute right-10 top-1/2 transform -translate-y-1/2 text-muted-foreground">
-                                <ArrowBigUpDash className="size-5" />
-                              </div>
-                            </TooltipTrigger>
-                            <TooltipContent side="bottom">
-                              <p>Caps Lock está ativado</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                      </TooltipProvider>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
-
-          <Button
-            type="submit"
-            size="lg"
-            className="w-full cursor-pointer"
-            loading={isSubmitting}
-            // disabled={!!loading}
-          >
-            Entrar
-          </Button>
-        </form>
-      </Form>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full cursor-pointer"
+          loading={isSubmitting}
+        >
+          Entrar
+        </Button>
+      </form>
 
       {/* <FieldSeparator>Ou continue com </FieldSeparator>
 

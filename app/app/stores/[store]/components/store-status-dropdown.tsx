@@ -28,32 +28,34 @@ export function StoreStatusDropdown({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          className={cn(
-            "h-auto py-1 text-white",
-            status === "open" && "bg-green-600 hover:bg-green-700",
-            status === "closed" && "bg-red-600 hover:bg-red-700",
-            status === "maintenance" && "bg-yellow-600 hover:bg-yellow-700"
-          )}
-          size="sm"
-        >
-          {status === "open" && "Aberto"}
-          {status === "closed" && "Fechado"}
-          {status === "maintenance" && "Em Manutenção"}
-        </Button>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            className={cn(
+              "h-auto py-1 text-white",
+              status === "open" && "bg-green-600 hover:bg-green-700",
+              status === "closed" && "bg-red-600 hover:bg-red-700",
+              status === "maintenance" && "bg-yellow-600 hover:bg-yellow-700"
+            )}
+            size="sm"
+          />
+        }
+      >
+        {status === "open" && "Aberto"}
+        {status === "closed" && "Fechado"}
+        {status === "maintenance" && "Em Manutenção"}
       </DropdownMenuTrigger>
-      <DropdownMenuContent>
+      <DropdownMenuContent className="min-w-40">
         <DropdownMenuItem onClick={() => handleUpdateStatus("open")}>
-          <CheckCircle className="h-4 w-4 text-green-600" />
+          <CheckCircle className="size-4 shrink-0 text-green-600" />
           Aberto
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleUpdateStatus("closed")}>
-          <XCircle className="h-4 w-4 text-red-600" />
+          <XCircle className="size-4 shrink-0 text-red-600" />
           Fechado
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => handleUpdateStatus("maintenance")}>
-          <Wrench className="h-4 w-4 text-yellow-600" />
+          <Wrench className="size-4 shrink-0 text-yellow-600" />
           Em Manutenção
         </DropdownMenuItem>
       </DropdownMenuContent>

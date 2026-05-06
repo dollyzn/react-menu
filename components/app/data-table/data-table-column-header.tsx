@@ -40,21 +40,23 @@ export function DataTableColumnHeader<TData, TValue>({
     <div className={cn("flex items-center space-x-2", className)}>
       <DropdownMenu>
         <div className="flex items-center gap-1">
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="-ml-3 h-8 data-[state=open]:bg-accent"
-            >
-              <span className={titleClassName}>{title}</span>
-              {column.getIsSorted() === "desc" ? (
-                <ArrowDown />
-              ) : column.getIsSorted() === "asc" ? (
-                <ArrowUp />
-              ) : (
-                <ChevronsUpDown />
-              )}
-            </Button>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                variant="ghost"
+                size="sm"
+                className="-ml-3 h-8 data-[state=open]:bg-accent"
+              />
+            }
+          >
+            <span className={titleClassName}>{title}</span>
+            {column.getIsSorted() === "desc" ? (
+              <ArrowDown />
+            ) : column.getIsSorted() === "asc" ? (
+              <ArrowUp />
+            ) : (
+              <ChevronsUpDown />
+            )}
           </DropdownMenuTrigger>
           {column.getIsSorted() && (
             <Button
@@ -67,7 +69,7 @@ export function DataTableColumnHeader<TData, TValue>({
             </Button>
           )}
         </div>
-        <DropdownMenuContent align="start">
+        <DropdownMenuContent align="start" className="min-w-40">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <ArrowUp className="h-3.5 w-3.5 text-muted-foreground/70" />
             Menor para Maior

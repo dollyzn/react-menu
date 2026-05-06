@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,19 +18,12 @@ type MenuItem = {
   foto: string;
 };
 
-type Category = {
-  name: string;
-  description: string;
-  itens: MenuItem[];
-};
-
 export default function Menu() {
   const searchParams = useSearchParams();
 
   const [activeTab, setActiveTab] = useState<string>(cardapio[0].name);
   const [showTabs, setShowTabs] = useState<boolean>(false);
   const [filter, setFilter] = useState<string>(searchParams.get("q") || "");
-  const [filteredMenu, setFilteredMenu] = useState<Category[]>(cardapio);
   const sectionsRef = useRef<(HTMLHeadingElement | null)[]>([]);
   const tabsListRef = useRef<HTMLDivElement | null>(null);
 
@@ -99,24 +92,22 @@ export default function Menu() {
     };
   }, []);
 
-  useEffect(() => {
+  const filteredMenu = useMemo(() => {
     if (filter.trim() === "") {
-      setFilteredMenu(cardapio);
-    } else {
-      const query = filter.toLowerCase();
-      const filtered = cardapio
-        .map((category) => ({
-          ...category,
-          itens: category.itens.filter(
-            (item) =>
-              item.nome.toLowerCase().includes(query) ||
-              item.descricao.toLowerCase().includes(query)
-          ),
-        }))
-        .filter((category) => category.itens.length > 0);
-
-      setFilteredMenu(filtered);
+      return cardapio;
     }
+
+    const query = filter.toLowerCase();
+    return cardapio
+      .map((category) => ({
+        ...category,
+        itens: category.itens.filter(
+          (item) =>
+            item.nome.toLowerCase().includes(query) ||
+            item.descricao.toLowerCase().includes(query)
+        ),
+      }))
+      .filter((category) => category.itens.length > 0);
   }, [filter]);
 
   const [photo, setPhoto] = useState<SlideData>();

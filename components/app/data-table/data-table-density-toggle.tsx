@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -55,35 +56,37 @@ export function DataTableDensityToggle({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
-          <LayoutDashboard />
-          <span className=" sm:whitespace-nowrap">
-            {currentOption?.label || "Densidade"}
-          </span>
-          <ChevronsUpDown className="ml-auto opacity-50" />
-        </Button>
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size="sm" className="h-8" />}
+      >
+        <LayoutDashboard />
+        <span className="sm:whitespace-nowrap">
+          {currentOption?.label || "Densidade"}
+        </span>
+        <ChevronsUpDown className="ml-auto opacity-50" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuLabel>Densidade da Tabela</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        {densityOptions.map((option) => (
-          <DropdownMenuItem
-            key={option.value}
-            onClick={() => setDensity(option.value as DensityOption)}
-            className={cn(
-              "cursor-pointer",
-              currentDensity === option.value && "bg-accent"
-            )}
-          >
-            <div className="flex flex-col">
-              <span>{option.label}</span>
-              <span className="text-xs text-muted-foreground">
-                {option.description}
-              </span>
-            </div>
-          </DropdownMenuItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel>Densidade da Tabela</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {densityOptions.map((option) => (
+            <DropdownMenuItem
+              key={option.value}
+              onClick={() => setDensity(option.value as DensityOption)}
+              className={cn(
+                "cursor-pointer",
+                currentDensity === option.value && "bg-accent"
+              )}
+            >
+              <div className="flex flex-col">
+                <span>{option.label}</span>
+                <span className="text-xs text-muted-foreground">
+                  {option.description}
+                </span>
+              </div>
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarIcon } from "lucide-react";
 import type { Column } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
@@ -50,28 +50,23 @@ export function DataTableDateRangeFilter<TData, TValue>({
 }: DataTableDateRangeFilterProps<TData, TValue>) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange>({
-    from: undefined,
-    to: undefined,
+  const [dateRange, setDateRange] = useState<DateRange>(() => {
+    const filterValue = column?.getFilterValue() as DateRange | undefined;
+    return filterValue ?? { from: undefined, to: undefined };
   });
 
   const Wrapper = isMobile ? Drawer : Popover;
   const WrapperTrigger = isMobile ? DrawerTrigger : PopoverTrigger;
   const WrapperContent = isMobile ? DrawerContent : PopoverContent;
 
-  // Sync with column filter value
-  useEffect(() => {
-    const filterValue = column?.getFilterValue() as DateRange | undefined;
-
-    if (filterValue) {
-      setDateRange({
-        from: filterValue.from,
-        to: filterValue.to,
-      });
-    } else {
-      setDateRange({ from: undefined, to: undefined });
-    }
-  }, [column?.getFilterValue()]);
+  const handleDateRangeChange = useCallback(
+    (range: DateRange | undefined) => {
+      const nextRange = range || { from: undefined, to: undefined };
+      setDateRange(nextRange);
+      column?.setFilterValue(range);
+    },
+    [column]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -94,15 +89,10 @@ export function DataTableDateRangeFilter<TData, TValue>({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, presets, dateRange]);
+  }, [open, presets, dateRange, handleDateRangeChange]);
 
   const columnName = title || column?.columnDef.meta?.name || "Data";
   const hasSelectedValues = dateRange.from || dateRange.to;
-
-  const handleDateRangeChange = (range: DateRange | undefined) => {
-    setDateRange(range || { from: undefined, to: undefined });
-    column?.setFilterValue(range);
-  };
 
   const handleClearFilters = () => {
     setDateRange({ from: undefined, to: undefined });
@@ -136,27 +126,26 @@ export function DataTableDateRangeFilter<TData, TValue>({
 
   return (
     <Wrapper open={open} onOpenChange={setOpen}>
-      <WrapperTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 border-dashed"
-          aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-        >
-          <CalendarIcon />
-          <span className="capitalize">{columnName}</span>
-          {hasSelectedValues && (
-            <>
-              <Separator orientation="vertical" className="mx-1 h-4" />
-              <Badge
-                variant="secondary"
-                className="rounded-sm px-1 font-normal"
-              >
-                {formatDateRange()}
-              </Badge>
-            </>
-          )}
-        </Button>
+      <WrapperTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 border-dashed"
+            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
+          />
+        }
+      >
+        <CalendarIcon />
+        <span className="capitalize">{columnName}</span>
+        {hasSelectedValues && (
+          <>
+            <Separator orientation="vertical" className="mx-1 my-auto h-4" />
+            <Badge variant="secondary" className="rounded-sm px-1 font-normal">
+              {formatDateRange()}
+            </Badge>
+          </>
+        )}
       </WrapperTrigger>
       <WrapperContent
         className={
@@ -274,16 +263,10 @@ export function DatePresetsSelect({
     )?.shortcut;
   }
 
-  const [value, setValue] = useState<string | undefined>(
-    findPreset(selected?.from, selected?.to)
+  const value = useMemo(
+    () => findPreset(selected?.from, selected?.to),
+    [selected, presets]
   );
-
-  useEffect(() => {
-    const preset = findPreset(selected?.from, selected?.to);
-    if (preset !== value) {
-      setValue(preset);
-    }
-  }, [selected, presets]);
 
   return (
     <Select
@@ -373,17 +356,17 @@ function CustomDateRange({
           </Label>
 
           <Popover open={startOpen} onOpenChange={setStartOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                id="date-picker"
-                className="w-full justify-between font-normal"
-              >
-                {selected?.from
-                  ? formatDatePt(selected.from)
-                  : "Selecionar data"}
-                <CalendarIcon className="size-3.5" />
-              </Button>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  id="date-picker"
+                  className="w-full justify-between font-normal"
+                />
+              }
+            >
+              {selected?.from ? formatDatePt(selected.from) : "Selecionar data"}
+              <CalendarIcon className="size-3.5" />
             </PopoverTrigger>
             <PopoverContent className="w-auto overflow-hidden p-0" align="end">
               <Calendar
@@ -420,15 +403,17 @@ function CustomDateRange({
           </Label>
 
           <Popover open={endOpen} onOpenChange={setEndOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                id="date-picker"
-                className="w-full justify-between font-normal"
-              >
-                {selected?.to ? formatDatePt(selected.to) : "Selecionar data"}
-                <CalendarIcon className="size-3.5" />
-              </Button>
+            <PopoverTrigger
+              render={
+                <Button
+                  variant="outline"
+                  id="date-picker"
+                  className="w-full justify-between font-normal"
+                />
+              }
+            >
+              {selected?.to ? formatDatePt(selected.to) : "Selecionar data"}
+              <CalendarIcon className="size-3.5" />
             </PopoverTrigger>
             <PopoverContent className="w-auto overflow-hidden p-0" align="end">
               <Calendar

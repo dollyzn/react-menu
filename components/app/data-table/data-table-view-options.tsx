@@ -47,12 +47,10 @@ export default function DataTableViewOptions<TData>({
 
   return (
     <Popover modal>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
-          <Settings2 />
-          Visualização
-          <ChevronsUpDown className="ml-auto opacity-50" />
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" size="sm" className="h-8" />}>
+        <Settings2 />
+        Visualização
+        <ChevronsUpDown className="ml-auto opacity-50" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-44 p-0">
         <Command>

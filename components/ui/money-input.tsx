@@ -33,11 +33,7 @@ export default function MoneyInput({
     return Number(digits) / 100;
   };
 
-  const [display, setDisplay] = React.useState(format(value));
-
-  React.useEffect(() => {
-    setDisplay(format(value));
-  }, [value]);
+  const display = format(value);
 
   return (
     <Input
@@ -50,7 +46,6 @@ export default function MoneyInput({
         const parsed = parse(raw);
         onChange?.(parsed);
 
-        setDisplay(format(parsed));
       }}
       onBlur={onBlur}
     />

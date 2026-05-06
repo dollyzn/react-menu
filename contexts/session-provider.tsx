@@ -51,7 +51,12 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   const ref = useRef<NodeJS.Timeout | null>(null);
 
-  const checkTokenExpiration = useCallback(() => {
+  const expireSession = useCallback(() => {
+    dispatch(setIsSessionExpired(true));
+    if (ref.current) clearTimeout(ref.current);
+  }, [dispatch]);
+
+  function checkTokenExpiration() {
     if (!user?.tokenExpiresAt) return;
 
     const expirationTime = parseISO(user.tokenExpiresAt);
@@ -74,20 +79,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
       checkTokenExpiration,
       Math.max(timeUntilExpiration, 0)
     );
-  }, [user]);
-
-  const expireSession = () => {
-    dispatch(setIsSessionExpired(true));
-    if (ref.current) clearTimeout(ref.current);
-  };
+  }
 
   useDebouncedEffect(() => {
     if (user) checkTokenExpiration();
-  }, [user, checkTokenExpiration]);
-
-  useDebouncedEffect(() => {
-    verify();
-  }, []);
+  }, [user?.tokenExpiresAt]);
 
   const login = useCallback(
     async ({ email, password }: LoginProps) => {
@@ -113,7 +109,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
           : "Não foi possível efetuar o login. Por favor, tente novamente mais tarde.";
       }
     },
-    [setUser, request]
+    [dispatch]
   );
 
   async function logout() {
@@ -125,7 +121,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
           url: "auth/logout",
           method: "delete",
         });
-      } catch (error: any) {
+      } catch (error) {
         console.error("Logout failed", error);
       }
     }
@@ -168,14 +164,18 @@ export function SessionProvider({ children }: SessionProviderProps) {
         dispatch(setIsSessionExpired(false));
         dispatch(setUser(response.data.user));
         return response.data.user;
-      } catch (error) {
+      } catch {
         dispatch(setIsSessionExpired(true));
         return null;
       }
     }
 
     return null;
-  }, [setUser, request]);
+  }, [dispatch, isAuthenticated]);
+
+  useDebouncedEffect(() => {
+    verify();
+  }, [verify]);
 
   return (
     <SessionContext.Provider

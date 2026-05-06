@@ -15,7 +15,7 @@ const api = axios.create({
 });
 
 const buildParams = (
-  baseParams: Record<string, any> = {},
+  baseParams: Record<string, unknown> = {},
   pagination?: Pagination,
   sort?: string | string[]
 ) => {

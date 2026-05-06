@@ -26,12 +26,10 @@ export function NavItems({ items }: NavItemsProps) {
             tooltip={item.label}
             isActive={item.url === pathname}
             onClick={() => isMobile && toggleSidebar()}
-            asChild
+            render={<NavLinkWrapper to={item.url} />}
           >
-            <NavLinkWrapper to={item.url}>
-              {item.icon && <item.icon />}
-              <span className="truncate">{item.label}</span>
-            </NavLinkWrapper>
+            {item.icon && <item.icon />}
+            <span className="truncate">{item.label}</span>
           </SidebarMenuButton>
         </SidebarMenuItem>
       ))}

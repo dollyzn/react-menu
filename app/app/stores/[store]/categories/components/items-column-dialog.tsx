@@ -44,15 +44,17 @@ export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="secondary" disabled={isFetching && open}>
-          {itemsCount || 0} Ite{itemsCount === 1 ? "m" : "ns"}
-          {isFetching && open ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <ChevronDown className="size-4" />
-          )}
-        </Button>
+      <DialogTrigger
+        render={
+          <Button variant="secondary" disabled={isFetching && open} />
+        }
+      >
+        {itemsCount || 0} Ite{itemsCount === 1 ? "m" : "ns"}
+        {isFetching && open ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : (
+          <ChevronDown className="size-4" />
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

@@ -7,7 +7,7 @@ export default function LoginPage() {
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0">
       <div className="absolute  right-4 top-4">
-        <ThemeTogglerButton />
+        <ThemeTogglerButton direction="tr-circle" />
       </div>
 
       <AnimatedBackground />

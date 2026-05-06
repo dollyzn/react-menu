@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter, useParams } from "next/navigation";
-import { Check, ChevronsUpDown, PlusCircle } from "lucide-react";
+import { BookmarkPlus, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -49,31 +49,9 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
   const [open, setOpen] = React.useState(false);
   const [showNewTeamDialog, setShowNewTeamDialog] = React.useState(false);
 
-  const defaultStore = stores.find((s) => s.id === store) || stores[0];
-  const [selectedStore, setSelectedStore] = React.useState<Store | undefined>(
-    defaultStore
-  );
-
-  React.useEffect(() => {
-    if (selectedStore?.id !== defaultStore?.id) {
-      setSelectedStore(defaultStore);
-    } else if (selectedStore) {
-      const updatedStore = stores.find((s) => s.id === selectedStore.id);
-      if (updatedStore && updatedStore.photoUrl !== selectedStore.photoUrl) {
-        setSelectedStore((prev) =>
-          prev
-            ? {
-                ...prev,
-                photoUrl: updatedStore.photoUrl,
-              }
-            : undefined
-        );
-      }
-    }
-  }, [store, stores, defaultStore, selectedStore]);
+  const selectedStore = stores.find((s) => s.id === store) || stores[0];
 
   const handleStoreSelect = (next: Store) => {
-    setSelectedStore(next);
     setOpen(false);
     router.push(`/app/stores/${next.id}`);
   };
@@ -81,29 +59,31 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
   return (
     <Dialog open={showNewTeamDialog} onOpenChange={setShowNewTeamDialog}>
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            aria-label="Selecionar loja"
-            className={cn("w-[200px] justify-between", className)}
-          >
-            <Avatar className="mr-2 h-5 w-5">
-              <AvatarImage
-                src={
-                  selectedStore?.photoUrl
-                    ? selectedStore.photoUrl
-                    : `https://avatar.vercel.sh/${selectedStore?.id}.png`
-                }
-                alt={selectedStore?.name || "Loja"}
-                className="object-contain"
-              />
-              <AvatarFallback>LO</AvatarFallback>
-            </Avatar>
-            {selectedStore?.name || "Selecione uma loja"}
-            <ChevronsUpDown className="ml-auto opacity-50" />
-          </Button>
+        <PopoverTrigger
+          render={
+            <Button
+              variant="outline"
+              role="combobox"
+              aria-expanded={open}
+              aria-label="Selecionar loja"
+              className={cn("w-[200px] justify-between", className)}
+            />
+          }
+        >
+          <Avatar className="mr-2 h-5 w-5">
+            <AvatarImage
+              src={
+                selectedStore?.photoUrl
+                  ? selectedStore.photoUrl
+                  : `https://avatar.vercel.sh/${selectedStore?.id}.png`
+              }
+              alt={selectedStore?.name || "Loja"}
+              className="object-contain"
+            />
+            <AvatarFallback>LO</AvatarFallback>
+          </Avatar>
+          {selectedStore?.name || "Selecione uma loja"}
+          <ChevronsUpDown className="ml-auto opacity-50" />
         </PopoverTrigger>
         <PopoverContent className="w-[200px] p-0">
           <Command>
@@ -117,8 +97,9 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
                     value={s.id}
                     onSelect={() => handleStoreSelect(s)}
                     className="text-sm"
+                    data-checked={selectedStore?.id === s.id}
                   >
-                    <Avatar className="mr-2 h-5 w-5">
+                    <Avatar className="size-5">
                       <AvatarImage
                         src={
                           s.photoUrl
@@ -131,12 +112,6 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
                       <AvatarFallback>LO</AvatarFallback>
                     </Avatar>
                     {s.name}
-                    <Check
-                      className={cn(
-                        "ml-auto",
-                        selectedStore?.id === s.id ? "opacity-100" : "opacity-0"
-                      )}
-                    />
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -144,16 +119,18 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
             <CommandSeparator />
             <CommandList>
               <CommandGroup>
-                <DialogTrigger asChild>
-                  <CommandItem
-                    onSelect={() => {
-                      setOpen(false);
-                      setShowNewTeamDialog(true);
-                    }}
-                  >
-                    <PlusCircle className="h-5 w-5" />
-                    Criar Loja
-                  </CommandItem>
+                <DialogTrigger
+                  render={
+                    <CommandItem
+                      onSelect={() => {
+                        setOpen(false);
+                        setShowNewTeamDialog(true);
+                      }}
+                    />
+                  }
+                >
+                  <BookmarkPlus className="size-5" />
+                  Criar Loja
                 </DialogTrigger>
               </CommandGroup>
             </CommandList>

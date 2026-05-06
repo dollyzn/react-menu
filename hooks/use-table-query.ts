@@ -9,13 +9,13 @@ import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { Meta, Pagination } from "@/types/request";
 import { getMetaTotal } from "@/types/paginated-list";
 
-type UseQueryResult<R, A> = {
+type UseQueryResult<R> = {
   data?: R;
   isFetching: boolean;
-  refetch: () => any;
+  refetch: () => unknown;
 };
 
-type UseQueryHook<R, A> = (arg: A) => UseQueryResult<R, A>;
+type UseQueryHook<R, A> = (arg: A) => UseQueryResult<R>;
 
 export interface UseTableQueryOptions {
   initialPagination?: PaginationState;

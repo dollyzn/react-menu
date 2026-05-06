@@ -4,21 +4,8 @@ import { Row } from "@tanstack/react-table";
 import { useParams } from "next/navigation";
 import { useDeleteCategoryMutation } from "@/redux/features/category/categoryApi";
 import { toast } from "sonner";
-
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-
 import { getErrorMessage } from "@/utils/get-error-message";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
-import { Trash2 } from "lucide-react";
 
 interface DeleteCategoryDialogProps {
   open: boolean;

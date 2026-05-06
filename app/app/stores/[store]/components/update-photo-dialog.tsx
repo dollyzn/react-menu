@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { useUpdateStoreImagesMutation } from "@/redux/features/store/storeApi";
@@ -18,13 +18,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -106,15 +104,17 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        <Button
-          variant="secondary"
-          size="sm"
-          className="absolute  -bottom-2 -right-2"
-        >
-          <Upload className="h-4 w-4" />
-        </Button>
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          <Button
+            variant="secondary"
+            size="sm"
+            className="absolute -bottom-2 -right-2"
+          >
+            <Upload className="h-4 w-4" />
+          </Button>
+        }
+      />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Alterar Logo</DialogTitle>
@@ -122,41 +122,42 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
             Escolha uma nova imagem da logo para a loja
           </DialogDescription>
         </DialogHeader>
-        <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(handleUpdatePhoto)}
-            className="space-y-4"
-          >
-            <FormField
-              control={form.control}
+        <form onSubmit={form.handleSubmit(handleUpdatePhoto)}>
+          <FieldGroup>
+            <Controller
               name="photo"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel htmlFor="photo">Imagem da logo</FormLabel>
-                  <FormControl>
-                    <Input
-                      id="photo"
-                      type="file"
-                      accept=".jpg, .jpeg, .png, .webp"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        field.onChange(file || null);
-                      }}
-                      disabled={busy}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor="store-photo-upload">Imagem da logo</FieldLabel>
+                  <Input
+                    id="store-photo-upload"
+                    type="file"
+                    accept=".jpg, .jpeg, .png, .webp"
+                    aria-invalid={fieldState.invalid}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      field.onChange(file ?? undefined);
+                    }}
+                    onBlur={field.onBlur}
+                    name={field.name}
+                    ref={field.ref}
+                    disabled={busy}
+                  />
+                  {fieldState.invalid && (
+                    <FieldError errors={[fieldState.error]} />
+                  )}
+                </Field>
               )}
             />
+          </FieldGroup>
 
-            <DialogFooter>
-              <Button type="submit" loading={busy}>
-                {busy ? "Atualizando..." : "Atualizar Logo"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+          <DialogFooter className="mt-4">
+            <Button type="submit" loading={busy}>
+              {busy ? "Atualizando..." : "Atualizar Logo"}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

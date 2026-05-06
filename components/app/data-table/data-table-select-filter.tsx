@@ -101,35 +101,37 @@ export function DataTableSelectFilter<TData, TValue>({
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 border-dashed"
-          aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-          loading={loading}
-        >
-          {!loading && <ListFilter />}
-          <div className="flex items-center gap-1 truncate">
-            {!hasFilter && <span className="capitalize">{columnName}</span>}
-            {hasFilter && (
-              <>
-                <span className="text-sm font-medium mr-1 capitalize">
-                  {columnName}:
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 border-dashed"
+            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
+            loading={loading}
+          />
+        }
+      >
+        {!loading && <ListFilter />}
+        <div className="flex items-center gap-1 truncate">
+          {!hasFilter && <span className="capitalize">{columnName}</span>}
+          {hasFilter && (
+            <>
+              <span className="mr-1 text-sm font-medium capitalize">
+                {columnName}:
+              </span>
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-1 rounded-sm px-1 font-normal"
+              >
+                <span className="max-w-[100px] truncate">
+                  {selectedOption?.label}
                 </span>
-                <Badge
-                  variant="secondary"
-                  className="rounded-sm px-1 font-normal flex items-center gap-1"
-                >
-                  <span className="truncate max-w-[100px]">
-                    {selectedOption?.label}
-                  </span>
-                </Badge>
-              </>
-            )}
-          </div>
-          <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-        </Button>
+              </Badge>
+            </>
+          )}
+        </div>
+        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
       </PopoverTrigger>
       <PopoverContent className="p-0 w-[220px]" align="start" sideOffset={8}>
         <Command>

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 interface DataTableFilterButtonProps<TData, TValue> {
   column: Column<TData, TValue>;
@@ -25,13 +25,14 @@ export function DataTableFilterButton<TData, TValue>({
     (column.getFilterValue() as string) || ""
   );
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    setFilterValue((column.getFilterValue() as string) || "");
-  }, [column.getFilterValue()]);
+  const currentFilterValue = (column.getFilterValue() as string) || "";
 
   const handleOpenChange = (open: boolean) => {
     setOpen(open);
+    if (open) {
+      setFilterValue(currentFilterValue);
+      return;
+    }
     if (!open && filterValue !== column.getFilterValue()) {
       column.setFilterValue(filterValue || undefined);
     }
@@ -59,33 +60,33 @@ export function DataTableFilterButton<TData, TValue>({
     setOpen(false);
   };
 
-  const hasFilter = !!column.getFilterValue();
+  const hasFilter = !!currentFilterValue;
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 border-dashed gap-1"
-          aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-        >
-          <Funnel />
-          <span className="capitalize">{columnName}</span>
-          {hasFilter && (
-            <>
-              <Separator orientation="vertical" className="mx-1 h-4 my-auto" />
-              <Badge
-                variant="secondary"
-                className="rounded-sm px-1 font-normal max-w-[80px]"
-              >
-                <div className="truncate">
-                  {column.getFilterValue() as string}
-                </div>
-              </Badge>
-            </>
-          )}
-        </Button>
+      <PopoverTrigger
+        render={
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 gap-1 border-dashed"
+            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
+          />
+        }
+      >
+        <Funnel />
+        <span className="capitalize">{columnName}</span>
+        {hasFilter && (
+          <>
+            <Separator orientation="vertical" className="mx-1 my-auto h-4" />
+            <Badge
+              variant="secondary"
+              className="max-w-[80px] rounded-sm px-1 font-normal"
+            >
+              <div className="truncate">{currentFilterValue}</div>
+            </Badge>
+          </>
+        )}
       </PopoverTrigger>
       <PopoverContent className="w-[250px] p-3" align="start" sideOffset={8}>
         <div className="space-y-4">

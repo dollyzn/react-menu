@@ -36,15 +36,17 @@ export function HeaderActions({ table }: HeaderActionsProps<Item>) {
 
   return (
     <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-      <AlertDialogTrigger asChild>
-        <Button
-          size="icon"
-          className="h-8 w-8"
-          variant="ghost"
-          disabled={!selectedRows.length}
-        >
-          <Trash2 />
-        </Button>
+      <AlertDialogTrigger
+        render={
+          <Button
+            size="icon"
+            className="h-8 w-8"
+            variant="ghost"
+            disabled={!selectedRows.length}
+          />
+        }
+      >
+        <Trash2 />
       </AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>

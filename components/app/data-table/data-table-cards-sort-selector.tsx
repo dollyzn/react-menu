@@ -25,12 +25,10 @@ export default function DataTableCardsSortSelector<TData>({
 }: DataTableCardsSortSelectorProps<TData>) {
   return (
     <Popover modal>
-      <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8">
-          <ArrowDownUp />
-          Ordenar
-          <ChevronsUpDown className="ml-auto opacity-50" />
-        </Button>
+      <PopoverTrigger render={<Button variant="outline" size="sm" className="h-8" />}>
+        <ArrowDownUp />
+        Ordenar
+        <ChevronsUpDown className="ml-auto opacity-50" />
       </PopoverTrigger>
       <PopoverContent align="end" className="w-44 p-0">
         <Command>

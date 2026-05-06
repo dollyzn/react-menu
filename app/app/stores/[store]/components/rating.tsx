@@ -17,13 +17,17 @@ const ratingVariants = {
   },
 };
 
+interface IconProps extends React.SVGProps<SVGSVGElement> {
+  size?: number;
+}
+
 interface RatingsProps extends React.HTMLAttributes<HTMLDivElement> {
   rating: number;
   totalStars?: number;
   size?: number;
   fill?: boolean;
   precision?: number; // Precision for fractional ratings
-  Icon?: React.ReactElement<any>;
+  Icon?: React.ReactElement<React.SVGProps<SVGSVGElement>>;
   variant?: keyof typeof ratingVariants;
   onRatingChange?: (rating: number) => void;
   disabled?: boolean;
@@ -135,7 +139,7 @@ export const CommentRatings = ({
       aria-label="Rating"
       {...props}
     >
-      <div className="flex gap-[1px] items-center w-fit group-focus-visible:ring-1 group-focus-visible:ring-ring group-focus-visible:rounded-md p-[1px]">
+      <div className="flex gap-px items-center w-fit group-focus-visible:ring-1 group-focus-visible:ring-ring group-focus-visible:rounded-md p-px">
         {[...Array(totalStars)].map((_, i) => {
           const starValue = i + 1;
           const isFull = displayRating >= starValue;
@@ -157,7 +161,8 @@ export const CommentRatings = ({
               style={{ width: size, height: size }}
             >
               {React.cloneElement(Icon, {
-                size,
+                width: size,
+                height: size,
                 className: cn(
                   fill && isFull ? "fill-current stroke-1" : "fill-transparent",
                   isFull
@@ -177,7 +182,8 @@ export const CommentRatings = ({
                   }}
                 >
                   {React.cloneElement(Icon, {
-                    size,
+                    width: size,
+                    height: size,
                     className: cn("fill-current", ratingVariants[variant].star),
                   })}
                 </div>

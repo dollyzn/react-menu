@@ -39,31 +39,40 @@ const chartConfig = {
   },
   desktop: {
     label: "Desktop",
-    color: "hsl(var(--chart-1))",
+    color: "var(--chart-1)",
   },
   mobile: {
     label: "Mobile",
-    color: "hsl(var(--chart-2))",
+    color: "var(--chart-2)",
   },
 } satisfies ChartConfig;
 
 interface OverviewAreaChartProps {
   className?: string;
   storeId: string;
+  chartData?: { date: string; desktop: number; mobile: number }[];
+  loading?: boolean;
 }
 
 export function OverviewAreaChart({
   className,
   storeId,
+  chartData,
+  loading: loadingProp,
 }: OverviewAreaChartProps) {
-  const { data: chartData, isLoading, isFetching } =
-    useGetStoreChartQuery(storeId);
-  const loading = isLoading || (isFetching && !chartData);
+  const {
+    data: queriedChartData,
+    isLoading,
+    isFetching,
+  } = useGetStoreChartQuery(storeId, { skip: !!chartData });
+  const resolvedChartData = chartData ?? queriedChartData;
+  const loading =
+    loadingProp ?? (isLoading || (isFetching && !resolvedChartData));
 
   const [timeRange, setTimeRange] = useState("90d");
 
   const filteredData =
-    chartData?.filter((item) => {
+    resolvedChartData?.filter((item) => {
       const date = dayjs(item.date);
       const referenceDate = dayjs();
       let daysToSubtract = 0;
@@ -118,7 +127,7 @@ export function OverviewAreaChart({
         </Select>
       </CardHeader>
       <CardContent className="px-2 pt-4 sm:px-6 sm:pt-6">
-        {loading && !chartData ? (
+        {loading && !resolvedChartData ? (
           <Skeleton className="h-[250px] w-full" />
         ) : (
           <ChartContainer

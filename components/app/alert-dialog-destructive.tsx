@@ -1,3 +1,4 @@
+import * as React from "react";
 import { Trash2Icon } from "lucide-react";
 
 import {
@@ -34,7 +35,9 @@ export function AlertDialogDestructive({
 }: AlertDialogDestructiveProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogTrigger asChild>{children}</AlertDialogTrigger>
+      {React.isValidElement(children) ? (
+        <AlertDialogTrigger render={children} />
+      ) : null}
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
           <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
