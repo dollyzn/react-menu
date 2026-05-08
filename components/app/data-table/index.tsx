@@ -239,7 +239,7 @@ export function DataTable<TData, TValue>({
   };
 
   return (
-    <div>
+    <div className="overflow-x-hidden">
       <DataTableToolbar
         table={table}
         columnsConfig={columnsConfig}
@@ -260,7 +260,7 @@ export function DataTable<TData, TValue>({
         >
           <ScrollBar
             orientation="horizontal"
-            className="h-3 [&>*:first-child]:bg-primary data-[state=visible]:animate-in data-[state=hidden]:animate-out fade-in fade-out duration-300"
+            className="[&>*:first-child]:bg-primary data-[state=visible]:animate-in data-[state=hidden]:animate-out fade-in fade-out duration-300"
             style={{ top: "-15px" }}
           />
           {loading &&
@@ -450,7 +450,7 @@ export function DataTable<TData, TValue>({
             )}
           <ScrollBar
             orientation="horizontal"
-            className="h-3 [&>*:first-child]:bg-primary data-[state=visible]:animate-in data-[state=hidden]:animate-out fade-in fade-out duration-300"
+            className="[&>*:first-child]:bg-primary data-[state=visible]:animate-in data-[state=hidden]:animate-out fade-in fade-out duration-300"
             style={{ bottom: "-15px" }}
           />
         </ScrollArea>
