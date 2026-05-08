@@ -6,17 +6,10 @@ import { useTableQuery } from "@/hooks/use-table-query";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/data-table";
 import { columns, columnsConfig } from "./components/columns";
 import { CreateCategoryDialog } from "./components/create-category-dialog";
+import { ManagementPageShell } from "../components/management-page-shell";
 
 export default function Categories() {
   const { store } = useParams();
@@ -42,25 +35,11 @@ export default function Categories() {
   );
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/app/stores/${store}`}>
-                Loja
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Categorias</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <CreateCategoryDialog storeId={storeId} />
-      </div>
-
+    <ManagementPageShell
+      storeId={storeId}
+      pageLabel="Categorias"
+      action={<CreateCategoryDialog storeId={storeId} />}
+    >
       <DataTable<Category, unknown>
         tableId={`categories-${storeId}`}
         loading={table.loading}
@@ -68,7 +47,6 @@ export default function Categories() {
         rowCount={table.rowCount}
         columns={columns}
         columnsConfig={columnsConfig}
-        wrapperClassName="rounded-lg shadow-md"
         className="bg-card"
         getRowId={(row) => `${row.id}`}
         externalPagination={table.pagination}
@@ -78,6 +56,6 @@ export default function Categories() {
         externalColumnFilters={table.filters}
         onExternalColumnFiltersChange={table.setFilters}
       />
-    </div>
+    </ManagementPageShell>
   );
 }

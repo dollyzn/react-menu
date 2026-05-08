@@ -12,17 +12,10 @@ import {
 } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { ColumnsConfig, DataTable } from "@/components/data-table";
-import { columns } from "./components/columns";
+import { columns, renderItemCard } from "./components/columns";
 import { CreateItemDialog } from "./components/create-item-dialog";
+import { ManagementPageShell } from "../components/management-page-shell";
 
 export default function Items() {
   const { store } = useParams();
@@ -73,25 +66,11 @@ export default function Items() {
   );
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/app/stores/${store}`}>
-                Loja
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Items</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <CreateItemDialog />
-      </div>
-
+    <ManagementPageShell
+      storeId={storeId}
+      pageLabel="Itens"
+      action={<CreateItemDialog />}
+    >
       <DataTable<Item, unknown>
         tableId={`items-${storeId}`}
         loading={table.loading && table.data.length === 0}
@@ -99,7 +78,6 @@ export default function Items() {
         rowCount={table.rowCount}
         columns={columns}
         columnsConfig={columnsConfig}
-        wrapperClassName="rounded-lg shadow-md"
         className="bg-card"
         externalPagination={table.pagination}
         onExternalPaginationChange={table.setPagination}
@@ -107,7 +85,9 @@ export default function Items() {
         onExternalSortingChange={table.setSorting}
         externalColumnFilters={table.filters}
         onExternalColumnFiltersChange={table.setFilters}
+        renderCard={renderItemCard}
+        defaultCardsOnMobile
       />
-    </div>
+    </ManagementPageShell>
   );
 }

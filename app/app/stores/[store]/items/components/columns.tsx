@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@tanstack/react-table";
 
 import { Calendar, History } from "lucide-react";
 
@@ -10,10 +10,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { HeaderActions } from "./table-header-actions";
 import { AddonsColumnDialog } from "./addons-column-dialog";
 import { Badge } from "@/components/ui/badge";
-
 import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
 import DataTableColumnCell from "@/components/app/data-table/data-table-column-cell";
+import { ItemCard } from "./item-card";
 
 export const columns: ColumnDef<Item>[] = [
   {
@@ -204,3 +204,7 @@ export const columns: ColumnDef<Item>[] = [
     },
   },
 ];
+
+export function renderItemCard(row: Row<Item>) {
+  return <ItemCard row={row} />;
+}

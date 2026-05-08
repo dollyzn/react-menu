@@ -87,6 +87,7 @@ interface DataTableProps<TData, TValue> {
   defaultDensity?: DensityOption;
   renderCard?: (row: Row<TData>) => React.ReactNode;
   defaultViewMode?: ViewMode;
+  defaultCardsOnMobile?: boolean;
   cardsContainerClassName?: string;
   defaultVisibility?: DefaultVisibility;
   externalSorting?: SortingState;
@@ -120,6 +121,7 @@ export function DataTable<TData, TValue>({
   defaultDensity,
   renderCard,
   defaultViewMode,
+  defaultCardsOnMobile,
   cardsContainerClassName,
   defaultVisibility,
   externalSorting,
@@ -188,6 +190,14 @@ export function DataTable<TData, TValue>({
     }
   }, [defaultVisibility]);
 
+  useEffect(() => {
+    if (!renderCard || !defaultCardsOnMobile || typeof window === "undefined")
+      return;
+    if (window.innerWidth < 768 && viewMode !== "cards") {
+      setViewMode("cards");
+    }
+  }, [defaultCardsOnMobile, renderCard, setViewMode, viewMode]);
+
   const table = useReactTable({
     data,
     columns,
@@ -242,7 +252,11 @@ export function DataTable<TData, TValue>({
 
       <div className="space-y-4 relative">
         <ScrollArea
-          className={cn("rounded-md border relative", wrapperClassName)}
+          className={cn(
+            "rounded-lg relative",
+            viewMode === "table" && "border",
+            wrapperClassName
+          )}
         >
           <ScrollBar
             orientation="horizontal"
@@ -371,7 +385,7 @@ export function DataTable<TData, TValue>({
           ) : (
             <div
               className={cn(
-                "grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3",
+                "grid grid-cols-1 gap-3 p-1 sm:grid-cols-2 lg:grid-cols-3",
                 cardsContainerClassName
               )}
             >

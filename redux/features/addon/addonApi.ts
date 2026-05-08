@@ -53,6 +53,21 @@ export const addonApi = baseApi.injectEndpoints({
       ],
     }),
 
+    updateAddonByStoreId: build.mutation<
+      Addon,
+      { storeId: string; addonId: string; data: Partial<Addon> }
+    >({
+      query: ({ storeId, addonId, data }) => ({
+        url: `stores/${storeId}/addons/${addonId}`,
+        method: "PUT",
+        body: data,
+      }),
+      invalidatesTags: (res, _err, arg) => [
+        { type: "Addon", id: String(res?.id ?? arg.addonId) },
+        { type: "Addon", id: `store-${arg.storeId}` },
+      ],
+    }),
+
     deleteAddonByStoreId: build.mutation<
       void,
       { storeId: string; addonId: string }
@@ -87,6 +102,7 @@ export const {
   useGetAddonsByStoreIdQuery,
   useGetAddonsByItemIdQuery,
   useCreateAddonMutation,
+  useUpdateAddonByStoreIdMutation,
   useDeleteAddonByStoreIdMutation,
   useBulkDeleteAddonsByStoreIdMutation,
 } = addonApi;

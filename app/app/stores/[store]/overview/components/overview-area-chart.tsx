@@ -106,7 +106,10 @@ export function OverviewAreaChart({
           <CardTitle>Visão Geral - Mobile e Desktop</CardTitle>
           <CardDescription>{getDescription()}</CardDescription>
         </div>
-        <Select value={timeRange} onValueChange={setTimeRange}>
+        <Select
+          value={timeRange}
+          onValueChange={(value) => setTimeRange(value ?? "90d")}
+        >
           <SelectTrigger
             className="w-[160px] rounded-lg sm:ml-auto"
             aria-label="Select a value"

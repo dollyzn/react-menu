@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Row } from "@tanstack/react-table";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,29 +13,18 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogCancel,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { UpdateItemDialog } from "./update-item-dialog";
+import { DeleteItemDialog } from "./delete-item-dialog";
+import { VariantProps } from "class-variance-authority";
 
 interface RowActionsProps<Item> {
   row: Row<Item>;
+  size?: VariantProps<typeof buttonVariants>["size"];
 }
 
-export function RowActions({ row }: RowActionsProps<Item>) {
+export function RowActions({ row, size = "icon" }: RowActionsProps<Item>) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-  const handleDelete = () => {
-    console.log("Excluído:", row.original);
-    setIsDeleteModalOpen(false);
-  };
 
   return (
     <>
@@ -44,7 +33,8 @@ export function RowActions({ row }: RowActionsProps<Item>) {
           render={
             <Button
               variant="ghost"
-              className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+              size={size}
+              className="flex p-0 data-[state=open]:bg-muted"
             />
           }
         >
@@ -70,27 +60,11 @@ export function RowActions({ row }: RowActionsProps<Item>) {
         row={row}
       />
 
-      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Isso excluirá o item{" "}
-              <span className="font-bold">{row.original.name}</span>. Esta ação
-              não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setIsDeleteModalOpen(false)}>
-              Cancelar
-            </AlertDialogCancel>
-
-            <Button variant="destructive" onClick={handleDelete}>
-              Excluir
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteItemDialog
+        open={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        row={row}
+      />
     </>
   );
 }

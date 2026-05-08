@@ -92,6 +92,31 @@ export const itemApi = baseApi.injectEndpoints({
       },
     }),
 
+    deleteItemByStoreId: build.mutation<void, { storeId: string; itemId: string }>({
+      query: ({ storeId, itemId }) => ({
+        url: `stores/${storeId}/items/${itemId}`,
+        method: "DELETE",
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Item", id: String(arg.itemId) },
+        { type: "Item", id: `store-${arg.storeId}` },
+      ],
+    }),
+
+    bulkDeleteItemsByStoreId: build.mutation<
+      { deletedItems: Item[]; failedDeletions?: Item[] },
+      { storeId: string; ids: string[] }
+    >({
+      query: ({ storeId, ids }) => ({
+        url: `stores/${storeId}/items/bulk-delete`,
+        method: "POST",
+        body: { ids },
+      }),
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Item", id: `store-${arg.storeId}` },
+      ],
+    }),
+
     updateItemOrder: build.mutation<
       void,
       { storeId: string; categoryId: number; id: string; order: number }
@@ -115,5 +140,7 @@ export const {
   useLazyGetItemsByCategoryIdQuery,
   useCreateItemMutation,
   useUpdateItemMutation,
+  useDeleteItemByStoreIdMutation,
+  useBulkDeleteItemsByStoreIdMutation,
   useUpdateItemOrderMutation,
 } = itemApi;

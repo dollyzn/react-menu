@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@tanstack/react-table";
 import { Calendar, History } from "lucide-react";
 import { ColumnsConfig } from "@/components/data-table";
 import { DataTableColumnHeader } from "@/components/app/data-table/data-table-column-header";
@@ -11,6 +11,7 @@ import { HeaderActions } from "./table-header-actions";
 import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
 import DataTableColumnCell from "@/components/app/data-table/data-table-column-cell";
+import { AddonCard } from "./addon-card";
 
 export const columns: ColumnDef<Addon>[] = [
   {
@@ -157,6 +158,10 @@ export const columns: ColumnDef<Addon>[] = [
     },
   },
 ];
+
+export function renderAddonCard(row: Row<Addon>) {
+  return <AddonCard row={row} />;
+}
 
 export const columnsConfig: ColumnsConfig[] = [
   {

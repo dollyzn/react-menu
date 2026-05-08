@@ -6,17 +6,10 @@ import { useTableQuery } from "@/hooks/use-table-query";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { DataTable } from "@/components/data-table";
-import { columns, columnsConfig } from "./components/columns";
+import { columns, columnsConfig, renderAddonCard } from "./components/columns";
 import { CreateAddonDialog } from "./components/create-addon-dialog";
+import { ManagementPageShell } from "../components/management-page-shell";
 
 export default function Addons() {
   const { store } = useParams();
@@ -38,25 +31,11 @@ export default function Addons() {
   );
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
-      <div className="flex items-center justify-between">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href={`/app/stores/${store}`}>
-                Loja
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Adicionais</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        <CreateAddonDialog storeId={storeId} />
-      </div>
-
+    <ManagementPageShell
+      storeId={storeId}
+      pageLabel="Adicionais"
+      action={<CreateAddonDialog storeId={storeId} />}
+    >
       <DataTable
         tableId={`addons-${storeId}`}
         loading={table.loading}
@@ -64,7 +43,6 @@ export default function Addons() {
         rowCount={table.rowCount}
         columns={columns}
         columnsConfig={columnsConfig}
-        wrapperClassName="rounded-lg shadow-md"
         className="bg-card"
         externalPagination={table.pagination}
         onExternalPaginationChange={table.setPagination}
@@ -72,7 +50,9 @@ export default function Addons() {
         onExternalSortingChange={table.setSorting}
         externalColumnFilters={table.filters}
         onExternalColumnFiltersChange={table.setFilters}
+        renderCard={renderAddonCard}
+        defaultCardsOnMobile
       />
-    </div>
+    </ManagementPageShell>
   );
 }

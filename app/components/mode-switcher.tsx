@@ -1,8 +1,7 @@
 "use client";
 
-import { Moon, Sun, SunMoon, Loader2 } from "lucide-react";
+import { Moon, Sun, SunMoon } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -12,49 +11,38 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function ModeSwitcher() {
-  const { theme, setTheme } = useTheme();
-
-  const currentTheme = theme ?? "light";
-
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { resolvedTheme, theme, setTheme } = useTheme();
+  const currentTheme =
+    theme === "system" ? "system" : (resolvedTheme ?? "light");
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
-          {mounted ? (
-            <>
-              <Sun
-                className={`absolute h-5 w-5 transition-all ${
-                  currentTheme === "light"
-                    ? "opacity-100 scale-100"
-                    : "opacity-0 scale-0"
-                }`}
-              />
-              <Moon
-                className={`absolute h-5 w-5 transition-all ${
-                  currentTheme === "dark"
-                    ? "opacity-100 scale-100"
-                    : "opacity-0 scale-0"
-                }`}
-              />
-              <SunMoon
-                className={`absolute h-5 w-5 transition-all ${
-                  currentTheme === "system"
-                    ? "opacity-100 scale-100"
-                    : "opacity-0 scale-0"
-                }`}
-              />
-            </>
-          ) : (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          )}
-          <span className="sr-only">Alternar tema</span>
-        </Button>
+      <DropdownMenuTrigger render={<Button variant="outline" size="icon" />}>
+        <>
+          <Sun
+            className={`absolute h-5 w-5 transition-all ${
+              currentTheme === "light"
+                ? "opacity-100 scale-100"
+                : "opacity-0 scale-0"
+            }`}
+          />
+          <Moon
+            className={`absolute h-5 w-5 transition-all ${
+              currentTheme === "dark"
+                ? "opacity-100 scale-100"
+                : "opacity-0 scale-0"
+            }`}
+          />
+          <SunMoon
+            className={`absolute h-5 w-5 transition-all ${
+              currentTheme === "system"
+                ? "opacity-100 scale-100"
+                : "opacity-0 scale-0"
+            }`}
+          />
+        </>
+
+        <span className="sr-only">Alternar tema</span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => setTheme("light")}>
