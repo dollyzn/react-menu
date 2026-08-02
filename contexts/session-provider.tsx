@@ -115,12 +115,12 @@ export function SessionProvider({ children }: SessionProviderProps) {
   async function logout() {
     if (user) {
       try {
-        await clearSessionCookie();
         await unsubscribe();
         await request({
           url: "auth/logout",
           method: "delete",
         });
+        await clearSessionCookie();
       } catch (error) {
         console.error("Logout failed", error);
       }

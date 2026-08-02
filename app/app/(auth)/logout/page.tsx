@@ -15,11 +15,11 @@ export default function LogoutPage() {
   const [redirecting, setRedirecting] = useState(false);
 
   useDebouncedEffect(
-    async () => {
+    () => {
       delay(async () => {
         await logout();
         setRedirecting(true);
-        setTimeout(() => {
+        delay(() => {
           toast.success("Sessão encerrada com sucesso.", {
             id: "logout-success",
           });
@@ -28,7 +28,7 @@ export default function LogoutPage() {
       }, 1000);
     },
     [logout],
-    50
+    200
   );
 
   return (

@@ -20,18 +20,17 @@ import {
 import { ModeSwitcher } from "./mode-switcher";
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
-import { redirectToLogin } from "@/utils/navigation";
+import { redirectToLogout } from "@/utils/navigation";
 
 export function NavUser() {
   const { isMobile } = useSidebar();
-  const { user, logout } = useSession();
+  const { user } = useSession();
   const router = useRouter();
 
   if (!user) return null;
 
   async function handleLogout() {
-    await logout();
-    redirectToLogin(router);
+    redirectToLogout(router);
   }
 
   return (
