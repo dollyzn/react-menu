@@ -53,4 +53,25 @@ export default class AddonService {
       await this.repo.delete(id, trx)
     })
   }
+
+  async bulkDeleteForStore(storeId: string, ids: string[]) {
+    const addons = await Addon.query().whereIn('id', ids).where('store_id', storeId)
+
+    const deletedAddons: Addon[] = []
+    const failedDeletions: Addon[] = []
+
+    for (const addon of addons) {
+      try {
+        await addon.delete()
+        deletedAddons.push(addon)
+      } catch {
+        failedDeletions.push(addon)
+      }
+    }
+
+    return {
+      deletedAddons,
+      failedDeletions,
+    }
+  }
 }

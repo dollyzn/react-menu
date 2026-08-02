@@ -9,17 +9,26 @@ import {
 } from '#validators/category'
 import { numberValidator, storeExistValidator } from '#validators/common'
 import { created, fail, messageOnly, ok, updated } from '#helpers/api_response'
+import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class CategoriesController {
   constructor(private categoryService: CategoryService) {}
 
-  async index({ params }: HttpContext) {
+  async index({ request, params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
+    const q = request.qs()
 
-    const categories = await this.categoryService.getByStore(storeId)
+    const categories = await this.categoryService.list({
+      ...parsePagination(q),
+      preload: false,
+      filters: {
+        storeId,
+        ...pickQueryFilters(q, ['name']),
+      },
+    })
 
-    return ok(categories)
+    return ok(categories.all(), categories.getMeta())
   }
 
   async show({ params }: HttpContext) {

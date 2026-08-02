@@ -1,9 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import AddonService from '#services/addon_service'
-import { itemExistValidator, storeValidator, updateValidator } from '#validators/addon'
+import {
+  bulkDeleteValidator,
+  itemExistValidator,
+  storeValidator,
+  updateValidator,
+} from '#validators/addon'
 import { storeExistValidator, uuidValidator } from '#validators/common'
-import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { created, fail, messageOnly, ok, updated } from '#helpers/api_response'
 import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
@@ -68,5 +73,28 @@ export default class AddonsController {
     await this.addonService.removeInStore(storeId, addonId)
 
     return messageOnly('Complemento excluído com sucesso')
+  }
+
+  async bulkDelete({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+
+    const { ids } = await request.validateUsing(bulkDeleteValidator)
+
+    const { deletedAddons, failedDeletions } = await this.addonService.bulkDeleteForStore(
+      storeId,
+      ids
+    )
+
+    if (failedDeletions.length > 0) {
+      return fail('Alguns adicionais não puderam ser excluídos', {
+        deletedAddons,
+        failedDeletions,
+      })
+    }
+
+    return {
+      ...ok(deletedAddons),
+      message: 'Adicionais excluídos com sucesso',
+    }
   }
 }

@@ -29,6 +29,10 @@ export default class ItemService {
     return await this.repo.findByStore(storeId, options)
   }
 
+  async listInStore(storeId: string, options?: ItemListOptions) {
+    return await this.repo.paginateInStore(storeId, options)
+  }
+
   async getByCategoryInStore(storeId: string, categoryId: number, options?: ItemFindOptions) {
     await this.categoryRepo.findByIdInStore(categoryId, storeId, { preload: false })
     return await this.repo.findByCategoryInStore(storeId, categoryId, options)
@@ -37,7 +41,12 @@ export default class ItemService {
   async create(storeId: string, data: Partial<Item> & { addonIds?: string[] }) {
     return await db.transaction(async (trx) => {
       const { addonIds, ...itemData } = data
-      await this.categoryRepo.findByIdInStore(itemData.categoryId!, storeId, { preload: false }, trx)
+      await this.categoryRepo.findByIdInStore(
+        itemData.categoryId!,
+        storeId,
+        { preload: false },
+        trx
+      )
 
       const item = await this.repo.create(itemData, trx)
 
@@ -59,7 +68,12 @@ export default class ItemService {
       await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       const { addonIds, ...itemData } = data
       if (itemData.categoryId !== undefined) {
-        await this.categoryRepo.findByIdInStore(itemData.categoryId, storeId, { preload: false }, trx)
+        await this.categoryRepo.findByIdInStore(
+          itemData.categoryId,
+          storeId,
+          { preload: false },
+          trx
+        )
       }
 
       const item = await this.repo.update(id, itemData, trx)

@@ -11,6 +11,7 @@ export type ItemFindOptions = {
 export type ItemListFilters = {
   categoryId?: number | number[]
   name?: string | string[]
+  categoryName?: string | string[]
 }
 
 export type ItemListOptions = {

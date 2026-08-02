@@ -42,6 +42,10 @@ export default class CategoryRepository {
     whereEqOrInColumn(query, 'store_id', storeId)
     whereLikeAnyColumn(query, 'name', name)
 
+    query.withCount('items', (iq) => {
+      iq.as('itemsCount')
+    })
+
     return query.orderBy('order', 'asc')
   }
 

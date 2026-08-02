@@ -9,17 +9,24 @@ import {
   updateValidator,
 } from '#validators/item'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class ItemsController {
   constructor(private itemService: ItemService) {}
 
-  async index({ params }: HttpContext) {
+  async index({ request, params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
+    const q = request.qs()
 
-    const items = await this.itemService.getByStore(storeId)
+    const items = await this.itemService.listInStore(storeId, {
+      ...parsePagination(q),
+      filters: {
+        ...pickQueryFilters(q, ['name', 'category_name']),
+      },
+    })
 
-    return ok(items)
+    return ok(items.all(), items.getMeta())
   }
 
   async indexByCategory({ params }: HttpContext) {

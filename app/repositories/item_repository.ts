@@ -93,9 +93,11 @@ export default class ItemRepository {
       options?.preload === undefined
         ? (['addons'] as ItemPreloadKey[])
         : resolveItemPreloadKeys(options.preload)
-    const query = this.query().where('category_id', categoryId).whereHas('category', (q) => {
-      q.where('store_id', storeId)
-    })
+    const query = this.query()
+      .where('category_id', categoryId)
+      .whereHas('category', (q) => {
+        q.where('store_id', storeId)
+      })
     applyItemPreloads(query, keys)
     return await query.orderBy('order', 'asc')
   }
@@ -123,6 +125,50 @@ export default class ItemRepository {
       q.as('addonsCount')
     })
     return await query.orderBy('created_at', 'desc')
+  }
+
+  async paginateInStore(storeId: string, options?: ItemListOptions) {
+    const page = options?.page ?? 1
+    const perPage = options?.perPage ?? 10
+    const keys =
+      options?.preload === undefined
+        ? (['category'] as ItemPreloadKey[])
+        : resolveItemPreloadKeys(options.preload)
+    const { categoryId, name, categoryName } = options?.filters ?? {}
+
+    const query = this.query().whereHas('category', (q) => {
+      q.where('store_id', storeId)
+    })
+    applyItemPreloads(query, keys)
+    query.withCount('addons', (q) => {
+      q.as('addonsCount')
+    })
+
+    if (categoryId !== undefined) {
+      const ids = Array.isArray(categoryId) ? categoryId : [categoryId]
+      if (ids.length === 1) {
+        query.where('category_id', ids[0]!)
+      } else if (ids.length > 1) {
+        query.whereIn('category_id', ids)
+      }
+    }
+
+    whereLikeAnyColumn(query, 'name', name)
+
+    if (categoryName !== undefined) {
+      const names = Array.isArray(categoryName) ? categoryName : [categoryName]
+      if (names.length === 1) {
+        query.whereHas('category', (cq) => {
+          cq.where('store_id', storeId).where('name', names[0]!)
+        })
+      } else if (names.length > 1) {
+        query.whereHas('category', (cq) => {
+          cq.where('store_id', storeId).whereIn('name', names)
+        })
+      }
+    }
+
+    return await query.orderBy('created_at', 'desc').paginate(page, perPage)
   }
 
   async create(data: Partial<Item>, trx?: TransactionClientContract) {

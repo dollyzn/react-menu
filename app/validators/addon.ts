@@ -32,4 +32,17 @@ const updateValidator = vine.create(
   })
 )
 
-export { itemExistValidator, storeValidator, updateValidator }
+const bulkDeleteValidator = vine.create(
+  vine.object({
+    ids: vine.array(
+      vine
+        .string()
+        .uuid()
+        .exists(
+          async (db, value) => await db.from('addons').select('id').where('id', value).first()
+        )
+    ),
+  })
+)
+
+export { itemExistValidator, storeValidator, updateValidator, bulkDeleteValidator }
