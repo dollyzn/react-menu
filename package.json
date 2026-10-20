@@ -60,7 +60,7 @@
     "@types/node": "^25",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
-    "eslint": "^9",
+    "eslint": "^10.13.0",
     "eslint-config-next": "16.2.4",
     "postcss": "^8",
     "tailwindcss": "^4.2.4",
@@ -70,5 +70,6 @@
   "resolutions": {
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3"
-  }
+  },
+  "packageManager": "pnpm@12.4.1"
 }
