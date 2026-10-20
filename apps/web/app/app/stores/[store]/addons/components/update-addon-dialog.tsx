@@ -10,6 +10,7 @@ import { getErrorMessage } from "@/utils/get-error-message";
 import { useUpdateAddonByStoreIdMutation } from "@/redux/features/addon/addonApi";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -103,64 +104,65 @@ export function UpdateAddonDialog({
           <DialogDescription>Atualize os dados do adicional.</DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          <FieldGroup>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
-                  <Input {...field} id={field.name} maxLength={NAME_MAX} disabled={busy} />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <DialogBody>
+            <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
+                    <Input {...field} id={field.name} maxLength={NAME_MAX} disabled={busy} />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
 
-            <Controller
-              name="description"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
-                  <InputGroup>
-                    <InputGroupTextarea
+              <Controller
+                name="description"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
+                    <InputGroup>
+                      <InputGroupTextarea
+                        {...field}
+                        id={field.name}
+                        value={field.value ?? ""}
+                        rows={4}
+                        maxLength={DESC_MAX}
+                        disabled={busy}
+                      />
+                      <InputGroupAddon align="block-end">
+                        <InputGroupText>{(field.value ?? "").length}/{DESC_MAX}</InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FieldDescription>Opcional.</FieldDescription>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="price"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
+                    <MoneyInput
                       {...field}
                       id={field.name}
-                      value={field.value ?? ""}
-                      rows={4}
-                      maxLength={DESC_MAX}
                       disabled={busy}
+                      placeholder="R$ 10,00"
+                      aria-invalid={fieldState.invalid}
                     />
-                    <InputGroupAddon align="block-end">
-                      <InputGroupText>{(field.value ?? "").length}/{DESC_MAX}</InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  <FieldDescription>Opcional.</FieldDescription>
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="price"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
-                  <MoneyInput
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="R$ 10,00"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
-          </FieldGroup>
-
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" disabled={busy} onClick={() => handleOpenChange(false)}>
               Cancelar

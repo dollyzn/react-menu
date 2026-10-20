@@ -10,6 +10,7 @@ import { setUser } from "@/redux/slices/auth";
 import {
   Dialog,
   DialogTrigger,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -124,36 +125,37 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleUpdatePhoto)}>
-          <FieldGroup>
-            <Controller
-              name="photo"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="store-photo-upload">Imagem da logo</FieldLabel>
-                  <Input
-                    id="store-photo-upload"
-                    type="file"
-                    accept=".jpg, .jpeg, .png, .webp"
-                    aria-invalid={fieldState.invalid}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      field.onChange(file ?? undefined);
-                    }}
-                    onBlur={field.onBlur}
-                    name={field.name}
-                    ref={field.ref}
-                    disabled={busy}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-          </FieldGroup>
-
-          <DialogFooter className="mt-4">
+          <DialogBody>
+            <FieldGroup>
+              <Controller
+                name="photo"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="store-photo-upload">Imagem da logo</FieldLabel>
+                    <Input
+                      id="store-photo-upload"
+                      type="file"
+                      accept=".jpg, .jpeg, .png, .webp"
+                      aria-invalid={fieldState.invalid}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        field.onChange(file ?? undefined);
+                      }}
+                      onBlur={field.onBlur}
+                      name={field.name}
+                      ref={field.ref}
+                      disabled={busy}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </DialogBody>
+          <DialogFooter>
             <Button type="submit" loading={busy}>
               {busy ? "Atualizando..." : "Atualizar Logo"}
             </Button>

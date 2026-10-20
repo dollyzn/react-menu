@@ -7,6 +7,7 @@ import { useGetItemsByCategoryIdQuery } from "@/redux/features/item/itemApi";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -63,6 +64,7 @@ export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
             Lista dos itens da categoria {row.getValue("name")}
           </DialogDescription>
         </DialogHeader>
+        <DialogBody>
         <Table>
           <TableHeader>
             <TableRow>
@@ -92,6 +94,7 @@ export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
             )}
           </TableBody>
         </Table>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

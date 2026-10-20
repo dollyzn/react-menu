@@ -29,6 +29,13 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 - Base UI: `render` prop for composition; dialogs opened from menu items are
   controlled with state (`open`/`onOpenChange`) instead of nesting triggers;
   confirm destructive actions with `AlertDialogDestructive`.
+- Dialogs: header and footer stay fixed and only `DialogBody` scrolls; put
+  the form fields inside it (a `<form>` directly under `DialogContent` is
+  `display: contents`, so header/body/footer can live inside the form).
+  Never put `overflow` on `DialogContent` or use `scrollIntoView` for
+  horizontal strips (it scrolls the window too; scroll the strip instead).
+- Search fields use `components/app/search-input.tsx` (one clear button,
+  Escape clears).
 - Forms: react-hook-form + zod + `Field*` components (see
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.

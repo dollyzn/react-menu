@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { Ingredient } from "@react-menu/contracts";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -79,13 +80,14 @@ export function MovementDialog({ storeId, ingredient, kind, onOpenChange }: Move
   return (
     <Dialog open={Boolean(ingredient)} onOpenChange={close}>
       <DialogContent>
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>{copy.title}</DialogTitle>
             <DialogDescription>
               {ingredient?.name} · atual: {ingredient && formatQuantity(ingredient.stockQuantity, ingredient.unit)}
             </DialogDescription>
           </DialogHeader>
+          <DialogBody>
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="movement-quantity">
@@ -106,6 +108,7 @@ export function MovementDialog({ storeId, ingredient, kind, onOpenChange }: Move
               <Textarea id="movement-note" rows={2} maxLength={500} value={note} onChange={(event) => setNote(event.target.value)} />
             </Field>
           </FieldGroup>
+          </DialogBody>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => close(false)}>
               Cancelar

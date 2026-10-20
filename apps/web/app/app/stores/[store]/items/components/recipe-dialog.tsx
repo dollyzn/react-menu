@@ -6,6 +6,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -89,7 +90,8 @@ function RecipeForm({ item, onDone }: { item: Item; onDone: () => void }) {
     return <p className="py-6 text-center text-sm text-muted-foreground">Cadastre ingredientes na tela de Estoque primeiro.</p>;
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit}>
+      <DialogBody className="space-y-4">
       <ul className="space-y-2">
         {current.map((line, index) => {
           const unit = ingredients.find((i) => i.id === line.ingredientId)?.unit;
@@ -138,6 +140,7 @@ function RecipeForm({ item, onDone }: { item: Item; onDone: () => void }) {
       >
         <Plus /> Adicionar ingrediente
       </Button>
+      </DialogBody>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
           Cancelar

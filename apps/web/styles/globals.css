@@ -84,6 +84,7 @@
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
+  --scrollbar-thumb: oklch(0.556 0 0 / 35%);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
@@ -126,6 +127,7 @@
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
+  --scrollbar-thumb: oklch(0.708 0 0 / 30%);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
@@ -159,10 +161,10 @@
   * {
     @apply border-border outline-ring/50;
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--ms-scroll-bar-color)) transparent;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
   }
   html {
-    @apply scroll-smooth font-sans;
+    @apply font-sans;
   }
   body {
     @apply bg-background text-foreground;
@@ -174,14 +176,15 @@
     @apply bg-selection text-selection-foreground;
   }
   ::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
+    height: 6px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(var(--ms-scroll-bar-color));
-    border-radius: 5px;
+    background: var(--scrollbar-thumb);
+    border-radius: 9999px;
   }
 
   button:not(:disabled),

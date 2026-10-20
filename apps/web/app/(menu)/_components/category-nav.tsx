@@ -35,9 +35,16 @@ export function CategoryNav({ categories }: CategoryNavProps) {
     return () => observer.disconnect();
   }, [categories]);
 
+  // Center the active chip by scrolling the chip strip only. scrollIntoView
+  // would also scroll the window and fight the user's own scrolling.
   useEffect(() => {
-    const chip = listRef.current?.querySelector<HTMLElement>(`[data-chip="${active}"]`);
-    chip?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+    const list = listRef.current;
+    const chip = list?.querySelector<HTMLElement>(`[data-chip="${active}"]`);
+    if (!list || !chip) return;
+    list.scrollTo({
+      left: chip.offsetLeft - (list.clientWidth - chip.offsetWidth) / 2,
+      behavior: "smooth",
+    });
   }, [active]);
 
   const goTo = (id: number) => {
@@ -58,7 +65,7 @@ export function CategoryNav({ categories }: CategoryNavProps) {
     >
       <div
         ref={listRef}
-        className="mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {categories.map((category) => (
           <button

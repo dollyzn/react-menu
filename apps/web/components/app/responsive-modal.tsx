@@ -1,8 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -49,7 +52,7 @@ export function ResponsiveModal({
             <DrawerTitle>{title}</DrawerTitle>
             {description && <DrawerDescription>{description}</DrawerDescription>}
           </DrawerHeader>
-          <div className="overflow-y-auto overscroll-contain">{children}</div>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
         </DrawerContent>
       </Drawer>
     );
@@ -57,12 +60,28 @@ export function ResponsiveModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn("gap-0 p-0 sm:max-w-lg", className)}>
-        <DialogHeader className={cn("p-4 pb-0", hideHeader && "sr-only")}>
+      <DialogContent
+        showCloseButton={false}
+        className={cn("gap-0 overflow-hidden p-0 sm:max-w-lg", className)}
+      >
+        <DialogHeader className={cn("p-4 pr-14 pb-2", hideHeader && "sr-only")}>
           <DialogTitle>{title}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
-        {children}
+        {/* Only the content scrolls; sticky footers inside it stay visible. */}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <DialogClose
+          render={
+            <Button
+              variant="secondary"
+              size="icon-sm"
+              className="absolute top-3 right-3 z-10 rounded-full bg-background/80 shadow-sm backdrop-blur"
+            />
+          }
+          aria-label="Fechar"
+        >
+          <XIcon />
+        </DialogClose>
       </DialogContent>
     </Dialog>
   );

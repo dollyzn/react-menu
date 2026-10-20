@@ -42,4 +42,25 @@ test.describe("Customer menu", () => {
     await page.getByRole("button", { name: "Meus pedidos" }).click();
     await expect(page.getByRole("dialog").getByText("JJ Pastéis")).toBeVisible();
   });
+
+  test("scrolling down the menu is never pulled back up", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("heading", { name: "JJ Pastéis", level: 1 })).toBeVisible();
+    await page.mouse.move(400, 400);
+
+    // Each step crosses categories, which moves the active chip in the nav.
+    const positions: number[] = [];
+    for (let step = 0; step < 12; step++) {
+      await page.mouse.wheel(0, 250);
+      await page.waitForTimeout(150);
+      positions.push(await page.evaluate(() => window.scrollY));
+    }
+    await page.waitForTimeout(600);
+    positions.push(await page.evaluate(() => window.scrollY));
+
+    for (let i = 1; i < positions.length; i++) {
+      expect(positions[i], `scroll positions ${positions.join(", ")}`).toBeGreaterThanOrEqual(positions[i - 1]);
+    }
+    expect(positions.at(-1)).toBeGreaterThan(1000);
+  });
 });

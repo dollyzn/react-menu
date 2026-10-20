@@ -7,6 +7,7 @@ import { useGetAddonsByItemIdQuery } from "@/redux/features/addon/addonApi";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -64,6 +65,7 @@ export function AddonsColumnDialog({ row }: AddonsColumnDialogProps) {
             Lista dos adicionais do item {row.getValue("name")}
           </DialogDescription>
         </DialogHeader>
+        <DialogBody>
         <Table>
           <TableHeader>
             <TableRow>
@@ -93,6 +95,7 @@ export function AddonsColumnDialog({ row }: AddonsColumnDialogProps) {
             )}
           </TableBody>
         </Table>
+        </DialogBody>
       </DialogContent>
     </Dialog>
   );

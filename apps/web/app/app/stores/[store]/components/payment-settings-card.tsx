@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -99,42 +100,70 @@ function PaymentSettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>Mercado Pago</DialogTitle>
             <DialogDescription>
-              Em “Suas integrações” no painel do Mercado Pago: copie o Access Token e, em Webhooks, cadastre a URL abaixo
-              (evento “Pagamentos”) e copie a assinatura secreta.
+              No painel do Mercado Pago, abra a sua aplicação em “Suas integrações”.
             </DialogDescription>
           </DialogHeader>
-          <code className="block truncate rounded-md bg-muted px-2 py-1.5 text-xs">{webhookUrl}</code>
-          <FieldGroup>
-            <Field>
-              <FieldLabel htmlFor="mp-token">Access Token</FieldLabel>
-              <Input
-                id="mp-token"
-                type="password"
-                autoComplete="off"
-                required
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                placeholder="APP_USR-… ou TEST-…"
-              />
-              <FieldDescription>Tokens TEST- usam o checkout de testes (sandbox).</FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="mp-secret">Assinatura secreta do webhook</FieldLabel>
-              <Input id="mp-secret" type="password" autoComplete="off" required minLength={8} value={secret} onChange={(e) => setSecret(e.target.value)} />
-            </Field>
-          </FieldGroup>
-          <p className="text-xs text-muted-foreground">As credenciais ficam criptografadas e nunca são exibidas de novo.</p>
+          <DialogBody className="space-y-5">
+            <ol className="space-y-4 text-sm">
+              <Step n={1} title="Cadastre o webhook">
+                Em Webhooks, cole esta URL e marque o evento “Pagamentos”.
+                <div className="mt-2 flex items-start gap-2">
+                  <code className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5 text-xs break-all">{webhookUrl}</code>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon-sm"
+                    aria-label="Copiar URL do webhook"
+                    onClick={() => copyToClipboard(webhookUrl)}
+                  >
+                    <Copy />
+                  </Button>
+                </div>
+              </Step>
+              <Step n={2} title="Copie as credenciais">
+                O Access Token fica em “Credenciais”; a assinatura secreta aparece depois de salvar o webhook.
+              </Step>
+            </ol>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="mp-token">Access Token</FieldLabel>
+                <Input
+                  id="mp-token"
+                  type="password"
+                  autoComplete="off"
+                  required
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  placeholder="APP_USR-… ou TEST-…"
+                />
+                <FieldDescription>Tokens TEST- usam o checkout de testes (sandbox).</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="mp-secret">Assinatura secreta do webhook</FieldLabel>
+                <Input
+                  id="mp-secret"
+                  type="password"
+                  autoComplete="off"
+                  required
+                  minLength={8}
+                  value={secret}
+                  onChange={(e) => setSecret(e.target.value)}
+                />
+                <FieldDescription>As credenciais ficam criptografadas e nunca são exibidas de novo.</FieldDescription>
+              </Field>
+            </FieldGroup>
+          </DialogBody>
           <DialogFooter className="sm:justify-between">
             {store.mercadoPagoEnabled ? (
               <Button type="button" variant="ghost" className="text-destructive" onClick={disable} disabled={isLoading}>
                 Desligar pagamentos online
               </Button>
             ) : (
-              <span />
+              <span className="hidden sm:block" />
             )}
             <Button type="submit" loading={isLoading}>
               Salvar
@@ -143,5 +172,19 @@ function PaymentSettingsDialog({
         </form>
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Step({ n, title, children }: { n: number; title: string; children: React.ReactNode }) {
+  return (
+    <li className="flex gap-3">
+      <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+        {n}
+      </span>
+      <div className="min-w-0 flex-1 text-muted-foreground">
+        <p className="font-medium text-foreground">{title}</p>
+        {children}
+      </div>
+    </li>
   );
 }

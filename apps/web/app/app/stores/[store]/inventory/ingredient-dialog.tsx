@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import type { Ingredient, IngredientUnit } from "@react-menu/contracts";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -73,11 +74,12 @@ function IngredientForm({
   };
 
   return (
-    <form onSubmit={submit} className="space-y-4">
+    <form onSubmit={submit}>
       <DialogHeader>
         <DialogTitle>{ingredient ? "Editar ingrediente" : "Novo ingrediente"}</DialogTitle>
         <DialogDescription>Use a mesma unidade das receitas (ex.: gramas para recheios).</DialogDescription>
       </DialogHeader>
+      <DialogBody>
       <FieldGroup>
         <Field>
           <FieldLabel htmlFor="ingredient-name">Nome</FieldLabel>
@@ -105,6 +107,7 @@ function IngredientForm({
           <FieldDescription>Abaixo disso o ingrediente aparece como “acabando”.</FieldDescription>
         </Field>
       </FieldGroup>
+      </DialogBody>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onDone}>
           Cancelar

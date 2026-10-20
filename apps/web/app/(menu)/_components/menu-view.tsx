@@ -16,6 +16,13 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PublicMenuItem | null>(null);
 
+  // Results start at the top of the list; don't leave the customer halfway
+  // down a filtered page.
+  const search = (value: string) => {
+    setQuery(value);
+    window.scrollTo({ top: 0 });
+  };
+
   const categories = useMemo(() => {
     const term = normalizeSearch(query);
     if (!term) return menu.categories;
@@ -31,7 +38,7 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
 
   return (
     <div className="min-h-svh bg-background">
-      <MenuTopBar storeName={menu.store.name} query={query} onQueryChange={setQuery} />
+      <MenuTopBar storeName={menu.store.name} query={query} onQueryChange={search} />
 
       <main className="mx-auto max-w-3xl px-4 pb-36">
         <AnimatePresence initial={false}>

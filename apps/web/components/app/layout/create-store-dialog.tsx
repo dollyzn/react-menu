@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -97,61 +98,61 @@ export function CreateStoreDialog({ open, onOpenChange }: CreateStoreDialogProps
         </DialogHeader>
         <form
           onSubmit={form.handleSubmit(handleCreateStore)}
-          className="space-y-4"
         >
-          <FieldGroup>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="store-name">Nome</FieldLabel>
-                  <Input
-                    {...field}
-                    id="store-name"
-                    disabled={busy}
-                    autoComplete="off"
-                    maxLength={NAME_MAX}
-                    aria-invalid={fieldState.invalid}
-                    placeholder="Ex: JJ Pastéis Centro"
-                    onChange={(e) => {
-                      field.onChange(e);
-                      if (!dirtyFields.slug) {
-                        form.setValue("slug", slugify(e.target.value));
-                      }
-                    }}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Controller
-              name="slug"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor="store-slug">Endereço do cardápio</FieldLabel>
-                  <Input
-                    {...field}
-                    id="store-slug"
-                    disabled={busy}
-                    autoComplete="off"
-                    aria-invalid={fieldState.invalid}
-                    placeholder="jj-pasteis-centro"
-                  />
-                  <FieldDescription>
-                    Usado no link público do cardápio.
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-          </FieldGroup>
-
+          <DialogBody>
+            <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="store-name">Nome</FieldLabel>
+                    <Input
+                      {...field}
+                      id="store-name"
+                      disabled={busy}
+                      autoComplete="off"
+                      maxLength={NAME_MAX}
+                      aria-invalid={fieldState.invalid}
+                      placeholder="Ex: JJ Pastéis Centro"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        if (!dirtyFields.slug) {
+                          form.setValue("slug", slugify(e.target.value));
+                        }
+                      }}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="slug"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="store-slug">Endereço do cardápio</FieldLabel>
+                    <Input
+                      {...field}
+                      id="store-slug"
+                      disabled={busy}
+                      autoComplete="off"
+                      aria-invalid={fieldState.invalid}
+                      placeholder="jj-pasteis-centro"
+                    />
+                    <FieldDescription>
+                      Usado no link público do cardápio.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </DialogBody>
           <DialogFooter>
             <Button
               type="button"

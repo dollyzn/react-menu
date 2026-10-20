@@ -97,13 +97,20 @@ export function ItemCustomizer({
     <div className="flex flex-col">
       {item.photoUrl && (
         <div className="relative aspect-16/10 w-full overflow-hidden bg-muted sm:rounded-t-xl">
-          <Image src={item.photoUrl} alt={item.name} fill sizes="(max-width: 640px) 100vw, 448px" className="object-cover" />
+          <Image
+            src={item.photoUrl}
+            alt={item.name}
+            fill
+            sizes="(max-width: 640px) 100vw, 448px"
+            loading="eager"
+            className="object-cover"
+          />
         </div>
       )}
 
       <div className="space-y-5 p-4">
         <div className="space-y-1">
-          <h2 className="text-xl font-bold text-balance">{item.name}</h2>
+          <h2 className={cn("text-xl font-bold text-balance", !item.photoUrl && "pr-10")}>{item.name}</h2>
           {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
           <p className="text-lg font-semibold text-primary">{formatCurrencyBRL(item.price)}</p>
         </div>

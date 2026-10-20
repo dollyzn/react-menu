@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -114,62 +115,63 @@ export function UpdateCategoryDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleUpdateCategory)}>
-          <FieldGroup>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    autoComplete="off"
-                    maxLength={NAME_MAX}
-                    aria-invalid={fieldState.invalid}
-                    placeholder="Ex: Pastéis Selecionados"
-                  />
-
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Controller
-              name="description"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
-                  <InputGroup>
-                    <InputGroupTextarea
+          <DialogBody>
+            <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
+                    <Input
                       {...field}
                       id={field.name}
                       disabled={busy}
-                      rows={5}
-                      className="min-h-24"
-                      maxLength={DESC_MAX}
+                      autoComplete="off"
+                      maxLength={NAME_MAX}
                       aria-invalid={fieldState.invalid}
-                      placeholder="Ingredientes, tamanho, observações…"
+                      placeholder="Ex: Pastéis Selecionados"
                     />
-                    <InputGroupAddon align="block-end">
-                      <InputGroupText className="tabular-nums">
-                        {field.value?.length ?? 0}/{DESC_MAX} caracteres
-                      </InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
 
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-          </FieldGroup>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="description"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
+                    <InputGroup>
+                      <InputGroupTextarea
+                        {...field}
+                        id={field.name}
+                        disabled={busy}
+                        rows={5}
+                        className="min-h-24"
+                        maxLength={DESC_MAX}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Ingredientes, tamanho, observações…"
+                      />
+                      <InputGroupAddon align="block-end">
+                        <InputGroupText className="tabular-nums">
+                          {field.value?.length ?? 0}/{DESC_MAX} caracteres
+                        </InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
 
-          <DialogFooter className="mt-4">
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </DialogBody>
+          <DialogFooter>
             <Button
               type="reset"
               variant="outline"

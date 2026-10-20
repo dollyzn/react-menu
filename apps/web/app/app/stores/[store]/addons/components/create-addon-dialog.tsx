@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogTrigger,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -112,86 +113,87 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleCreateAddon)}>
-          <FieldGroup>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    autoComplete="off"
-                    maxLength={NAME_MAX}
-                    aria-invalid={fieldState.invalid}
-                    placeholder="Ex: Extra Bacon"
-                  />
-
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-            <Controller
-              name="description"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
-                  <InputGroup>
-                    <InputGroupTextarea
+          <DialogBody>
+            <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
+                    <Input
                       {...field}
                       id={field.name}
                       disabled={busy}
-                      rows={5}
-                      className="min-h-24"
-                      maxLength={DESC_MAX}
+                      autoComplete="off"
+                      maxLength={NAME_MAX}
                       aria-invalid={fieldState.invalid}
-                      placeholder="Ingredientes, tamanho, observações…"
+                      placeholder="Ex: Extra Bacon"
                     />
-                    <InputGroupAddon align="block-end">
-                      <InputGroupText className="tabular-nums">
-                        {field.value?.length ?? 0}/{DESC_MAX} caracteres
-                      </InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
 
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="description"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
+                    <InputGroup>
+                      <InputGroupTextarea
+                        {...field}
+                        id={field.name}
+                        disabled={busy}
+                        rows={5}
+                        className="min-h-24"
+                        maxLength={DESC_MAX}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Ingredientes, tamanho, observações…"
+                      />
+                      <InputGroupAddon align="block-end">
+                        <InputGroupText className="tabular-nums">
+                          {field.value?.length ?? 0}/{DESC_MAX} caracteres
+                        </InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
 
-            <Controller
-              name="price"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
-                  <MoneyInput
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="R$ 10,00"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  <FieldDescription>
-                    Preço unitário exibido no cardápio (em reais).
-                  </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
 
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-          </FieldGroup>
+              <Controller
+                name="price"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
+                    <MoneyInput
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="R$ 10,00"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <FieldDescription>
+                      Preço unitário exibido no cardápio (em reais).
+                    </FieldDescription>
 
-          <DialogFooter className="mt-4">
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </DialogBody>
+          <DialogFooter>
             <Button
               type="reset"
               variant="outline"

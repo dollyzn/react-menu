@@ -13,6 +13,7 @@ import { useUpdateItemMutation } from "@/redux/features/item/itemApi";
 
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -170,169 +171,169 @@ export function UpdateItemDialog({
         <form
           id={FORM_ID}
           onSubmit={form.handleSubmit(handleUpdateItem)}
-          className="flex flex-col gap-4"
         >
-          {itemAddonsLoading && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Carregando adicionais do item…
-            </div>
-          )}
-          <FieldGroup>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    autoComplete="off"
-                    maxLength={NAME_MAX}
-                    aria-invalid={fieldState.invalid}
-                    placeholder="Ex: Pastel de Queijo"
-                  />
-
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="description"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
-                  <InputGroup>
-                    <InputGroupTextarea
+          <DialogBody className="flex flex-col gap-4">
+            {itemAddonsLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Carregando adicionais do item…
+              </div>
+            )}
+            <FieldGroup>
+              <Controller
+                name="name"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Nome</FieldLabel>
+                    <Input
+                      {...field}
                       id={field.name}
                       disabled={busy}
-                      rows={5}
-                      className="min-h-24"
-                      maxLength={DESC_MAX}
+                      autoComplete="off"
+                      maxLength={NAME_MAX}
                       aria-invalid={fieldState.invalid}
-                      placeholder="Ingredientes, tamanho, observações…"
-                      value={field.value ?? ""}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      onBlur={field.onBlur}
-                      name={field.name}
-                      ref={field.ref}
+                      placeholder="Ex: Pastel de Queijo"
                     />
-                    <InputGroupAddon align="block-end">
-                      <InputGroupText className="tabular-nums">
-                        {(field.value ?? "").length}/{DESC_MAX}
-                      </InputGroupText>
-                    </InputGroupAddon>
-                  </InputGroup>
-                  <FieldDescription>
-                    Opcional. Deixe em branco para remover a descrição.
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
 
-            <Controller
-              name="categoryId"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
-                  <Select
-                    value={field.value}
-                    onValueChange={field.onChange}
-                    disabled={busy}
-                  >
-                    <SelectTrigger
-                      id={field.name}
-                      aria-invalid={fieldState.invalid}
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="description"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Descrição</FieldLabel>
+                    <InputGroup>
+                      <InputGroupTextarea
+                        id={field.name}
+                        disabled={busy}
+                        rows={5}
+                        className="min-h-24"
+                        maxLength={DESC_MAX}
+                        aria-invalid={fieldState.invalid}
+                        placeholder="Ingredientes, tamanho, observações…"
+                        value={field.value ?? ""}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
+                      />
+                      <InputGroupAddon align="block-end">
+                        <InputGroupText className="tabular-nums">
+                          {(field.value ?? "").length}/{DESC_MAX}
+                        </InputGroupText>
+                      </InputGroupAddon>
+                    </InputGroup>
+                    <FieldDescription>
+                      Opcional. Deixe em branco para remover a descrição.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="categoryId"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      disabled={busy}
                     >
-                      <SelectValue placeholder="Selecione uma categoria" />
-                    </SelectTrigger>
+                      <SelectTrigger
+                        id={field.name}
+                        aria-invalid={fieldState.invalid}
+                      >
+                        <SelectValue placeholder="Selecione uma categoria" />
+                      </SelectTrigger>
 
-                    <SelectContent>
-                      <SelectGroup>
-                        {categories.map((category) => (
-                          <SelectItem
-                            key={category.id}
-                            value={category.id.toString()}
-                          >
-                            {category.name}
-                          </SelectItem>
-                        ))}
-                      </SelectGroup>
-                    </SelectContent>
-                  </Select>
-                  <FieldDescription>
-                    O item ficará agrupado nesta categoria no menu.
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
+                      <SelectContent>
+                        <SelectGroup>
+                          {categories.map((category) => (
+                            <SelectItem
+                              key={category.id}
+                              value={category.id.toString()}
+                            >
+                              {category.name}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>
+                      O item ficará agrupado nesta categoria no menu.
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
 
-            <Controller
-              name="addonIds"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Adicionais</FieldLabel>
-                  <MultiCombobox
-                    id={field.name}
-                    items={addons}
-                    value={field.value ?? []}
-                    onChange={field.onChange}
-                    getValue={(addon) => addon.id}
-                    getLabel={(addon) => addon.name}
-                    disabled={busy}
-                    invalid={fieldState.invalid}
-                    placeholder="Selecione os adicionais"
-                    emptyMessage="Nenhum adicional encontrado"
-                  />
-                  <FieldDescription>
-                    Complementos vendidos junto com este item (busca e múltipla
-                    seleção).
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
+              <Controller
+                name="addonIds"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Adicionais</FieldLabel>
+                    <MultiCombobox
+                      id={field.name}
+                      items={addons}
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      getValue={(addon) => addon.id}
+                      getLabel={(addon) => addon.name}
+                      disabled={busy}
+                      invalid={fieldState.invalid}
+                      placeholder="Selecione os adicionais"
+                      emptyMessage="Nenhum adicional encontrado"
+                    />
+                    <FieldDescription>
+                      Complementos vendidos junto com este item (busca e múltipla
+                      seleção).
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
 
-            <Controller
-              name="price"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
-                  <MoneyInput
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="R$ 10,00"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  <FieldDescription>
-                    Preço unitário exibido no cardápio (em reais).
-                  </FieldDescription>
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-          </FieldGroup>
-
+              <Controller
+                name="price"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Preço</FieldLabel>
+                    <MoneyInput
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="R$ 10,00"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <FieldDescription>
+                      Preço unitário exibido no cardápio (em reais).
+                    </FieldDescription>
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+            </FieldGroup>
+          </DialogBody>
           <DialogFooter>
             <Button
               type="reset"

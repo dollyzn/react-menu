@@ -21,6 +21,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatPhoneBR } from "@/utils/string";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogHeader,
   DialogTitle,
@@ -147,201 +148,203 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
             Atualize as informações básicas da sua loja
           </DialogDescription>
         </DialogHeader>
-        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-          <FieldGroup>
-            <Controller
-              name="name"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Nome da Loja</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="Nome da Loja"
-                    aria-invalid={fieldState.invalid}
-                  />
-
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="address"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Endereço</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="Endereço"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  <FieldDescription>
-                    Endereço da loja resumido para o cardápio.
-                  </FieldDescription>
-
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="instagramUrl"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>URL do Instagram</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="https://www.instagram.com/sualoja"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="ifoodUrl"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>URL do iFood</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="https://www.ifood.com.br/sualoja"
-                    aria-invalid={fieldState.invalid}
-                  />
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <Controller
-              name="slug"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Slug</FieldLabel>
-                  <Input
-                    {...field}
-                    id={field.name}
-                    disabled={busy}
-                    placeholder="slug-da-loja"
-                    aria-invalid={fieldState.invalid}
-                  />
-
-                  <FieldDescription>
-                    Slug da loja utilizado para acessar o cardápio.
-                  </FieldDescription>
-
-                  {fieldState.invalid && (
-                    <FieldError errors={[fieldState.error]} />
-                  )}
-                </Field>
-              )}
-            />
-
-            <FieldSeparator>Operação</FieldSeparator>
-
-            <Controller
-              name="description"
-              control={form.control}
-              render={({ field, fieldState }) => (
-                <Field data-invalid={fieldState.invalid}>
-                  <FieldLabel htmlFor={field.name}>Descrição no cardápio</FieldLabel>
-                  <Textarea {...field} id={field.name} rows={2} maxLength={500} disabled={busy} placeholder="Ex.: Pastéis feitos na hora desde 1998." />
-                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                </Field>
-              )}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2">
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <DialogBody>
+            <FieldGroup>
               <Controller
-                name="phone"
+                name="name"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name}>Telefone</FieldLabel>
+                    <FieldLabel htmlFor={field.name}>Nome da Loja</FieldLabel>
                     <Input
                       {...field}
                       id={field.name}
-                      type="tel"
                       disabled={busy}
-                      placeholder="(11) 91234-5678"
+                      placeholder="Nome da Loja"
                       aria-invalid={fieldState.invalid}
-                      onChange={(event) => field.onChange(formatPhoneBR(event.target.value))}
                     />
+
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="address"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Endereço</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="Endereço"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    <FieldDescription>
+                      Endereço da loja resumido para o cardápio.
+                    </FieldDescription>
+
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="instagramUrl"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>URL do Instagram</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="https://www.instagram.com/sualoja"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="ifoodUrl"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>URL do iFood</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="https://www.ifood.com.br/sualoja"
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="slug"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Slug</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      disabled={busy}
+                      placeholder="slug-da-loja"
+                      aria-invalid={fieldState.invalid}
+                    />
+
+                    <FieldDescription>
+                      Slug da loja utilizado para acessar o cardápio.
+                    </FieldDescription>
+
+                    {fieldState.invalid && (
+                      <FieldError errors={[fieldState.error]} />
+                    )}
+                  </Field>
+                )}
+              />
+
+              <FieldSeparator>Operação</FieldSeparator>
+
+              <Controller
+                name="description"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Descrição no cardápio</FieldLabel>
+                    <Textarea {...field} id={field.name} rows={2} maxLength={500} disabled={busy} placeholder="Ex.: Pastéis feitos na hora desde 1998." />
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Controller
+                  name="phone"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={field.name}>Telefone</FieldLabel>
+                      <Input
+                        {...field}
+                        id={field.name}
+                        type="tel"
+                        disabled={busy}
+                        placeholder="(11) 91234-5678"
+                        aria-invalid={fieldState.invalid}
+                        onChange={(event) => field.onChange(formatPhoneBR(event.target.value))}
+                      />
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+                <Controller
+                  name="pickupEtaMinutes"
+                  control={form.control}
+                  render={({ field, fieldState }) => (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor={field.name}>Tempo de retirada (min)</FieldLabel>
+                      <Input
+                        id={field.name}
+                        type="number"
+                        min={1}
+                        max={240}
+                        disabled={busy}
+                        value={Number.isNaN(field.value) ? "" : field.value}
+                        onChange={(event) => field.onChange(event.target.valueAsNumber)}
+                        aria-invalid={fieldState.invalid}
+                      />
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  )}
+                />
+              </div>
+
+              <Controller
+                name="inventoryEnabled"
+                control={form.control}
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <Switch id={field.name} checked={field.value} onCheckedChange={field.onChange} disabled={busy} />
+                    <div>
+                      <FieldLabel htmlFor={field.name}>Controlar estoque</FieldLabel>
+                      <FieldDescription>Itens sem ingredientes suficientes ficam indisponíveis no cardápio.</FieldDescription>
+                    </div>
                   </Field>
                 )}
               />
               <Controller
-                name="pickupEtaMinutes"
+                name="counterPaymentEnabled"
                 control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor={field.name}>Tempo de retirada (min)</FieldLabel>
-                    <Input
-                      id={field.name}
-                      type="number"
-                      min={1}
-                      max={240}
-                      disabled={busy}
-                      value={Number.isNaN(field.value) ? "" : field.value}
-                      onChange={(event) => field.onChange(event.target.valueAsNumber)}
-                      aria-invalid={fieldState.invalid}
-                    />
-                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                render={({ field }) => (
+                  <Field orientation="horizontal">
+                    <Switch id={field.name} checked={field.value} onCheckedChange={field.onChange} disabled={busy} />
+                    <div>
+                      <FieldLabel htmlFor={field.name}>Aceitar pagamento na retirada</FieldLabel>
+                      <FieldDescription>Clientes podem pedir online e pagar no balcão.</FieldDescription>
+                    </div>
                   </Field>
                 )}
               />
-            </div>
-
-            <Controller
-              name="inventoryEnabled"
-              control={form.control}
-              render={({ field }) => (
-                <Field orientation="horizontal">
-                  <Switch id={field.name} checked={field.value} onCheckedChange={field.onChange} disabled={busy} />
-                  <div>
-                    <FieldLabel htmlFor={field.name}>Controlar estoque</FieldLabel>
-                    <FieldDescription>Itens sem ingredientes suficientes ficam indisponíveis no cardápio.</FieldDescription>
-                  </div>
-                </Field>
-              )}
-            />
-            <Controller
-              name="counterPaymentEnabled"
-              control={form.control}
-              render={({ field }) => (
-                <Field orientation="horizontal">
-                  <Switch id={field.name} checked={field.value} onCheckedChange={field.onChange} disabled={busy} />
-                  <div>
-                    <FieldLabel htmlFor={field.name}>Aceitar pagamento na retirada</FieldLabel>
-                    <FieldDescription>Clientes podem pedir online e pagar no balcão.</FieldDescription>
-                  </div>
-                </Field>
-              )}
-            />
-          </FieldGroup>
+            </FieldGroup>
+          </DialogBody>
           <DialogFooter>
             <Button
               type="reset"
