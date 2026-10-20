@@ -1,9 +1,15 @@
-name: Build and Deploy Next.js Application to VPS - react-menu-app
+name: Deploy web to VPS
 
 on:
   push:
     branches:
       - main
+    paths:
+      - apps/web/**
+      - packages/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .github/workflows/deploy-web.yml
 
 jobs:
   deploy:
@@ -25,7 +31,7 @@ jobs:
             set -euo pipefail
             echo "Starting deployment..."
             
-            # Navegar até o diretório do projeto
+            # VPS_PATH deve apontar para o clone do monorepo (raiz)
             cd ${{ secrets.VPS_PATH }}
 
             # Atualizar o repositório com a última versão da branch main
@@ -36,8 +42,8 @@ jobs:
             # Instalar dependências e construir o projeto
             echo "Installing dependencies and building the project..."
             corepack enable
-            pnpm install --frozen-lockfile
-            pnpm build
+            pnpm install --frozen-lockfile --filter @react-menu/web...
+            pnpm --filter @react-menu/web build
 
             # Reiniciar a aplicação com PM2
             echo "Starting or restarting application with PM2..."

@@ -13,7 +13,7 @@ import { DataTableSelectFilter } from "./data-table-select-filter";
 import { DataTableDensityToggle } from "./data-table-density-toggle";
 import DataTableCardsSortSelector from "./data-table-cards-sort-selector";
 import DataTableViewOptions from "./data-table-view-options";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn, mergeRefs } from "@/lib/utils";
 import { useHorizontalHoverScroll } from "@/hooks/use-horizontal-hover-scroll";

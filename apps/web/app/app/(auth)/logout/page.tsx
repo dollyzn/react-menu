@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { AnimatePresence, delay, motion } from "framer-motion";
+import { AnimatePresence, delay, motion } from "motion/react";
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
