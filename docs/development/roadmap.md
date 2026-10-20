@@ -19,8 +19,6 @@ Found during the 2026-10 architecture audit and not implemented on purpose
 - **Users and permissions UI**: the API exists (`/users`), there is no screen.
 - **Password reset**: the login links to `/esqueci-minha-senha`, which does
   not exist.
-- **Onboarding**: a user with no linked store is redirected to the public
-  menu instead of an empty state.
 - **Notification preferences** (per category, email digest).
 - **FID rotation**: re-register when `onRegistered` reports a new
   installation ID (today the server prunes dead FIDs and the user re-enables push).
