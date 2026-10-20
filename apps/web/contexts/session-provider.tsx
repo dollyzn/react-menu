@@ -30,6 +30,7 @@ import { request } from "@/lib/api";
 import { ptBR } from "date-fns/locale";
 import { useNotification } from "./notification-provider";
 import { clearSessionCookie } from "@/app/app/(auth)/actions";
+import { closeTransmit } from "@/lib/transmit";
 
 export interface LoginError {
   message: string;
@@ -125,6 +126,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         console.error("Logout failed", error);
       }
     }
+    closeTransmit();
     dispatch(setUser(null));
     persistor.purge();
   }

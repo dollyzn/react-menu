@@ -4,6 +4,8 @@ import drive from '@adonisjs/drive/services/main'
 import { cuid } from '@adonisjs/core/helpers'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import Store from '#models/store'
+import type StoreStatus from '#enums/store_status'
+import { broadcastStoreEvent } from '#helpers/realtime'
 import StoreRepository from '#repositories/store_repository'
 import type { StoreFindOptions, StoreListOptions } from '#types/store_query'
 
@@ -36,6 +38,21 @@ export default class StoreService {
     return await db.transaction(async (trx) => {
       return await this.repo.update(id, data, trx)
     })
+  }
+
+  async updateStatus(id: string, status: StoreStatus) {
+    const { store, changed } = await db.transaction(async (trx) => {
+      const current = await this.repo.requireById(id, trx)
+      const previous = current.status
+      const updated = await this.repo.update(id, { status }, trx)
+      return { store: updated, changed: previous !== status }
+    })
+
+    if (changed) {
+      broadcastStoreEvent({ type: 'store.status_changed', storeId: store.id, status: store.status })
+    }
+
+    return store
   }
 
   async remove(id: string) {

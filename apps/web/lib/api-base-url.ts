@@ -8,3 +8,10 @@ export function getApiBaseUrl(): string {
   }
   return `${trimmed}/api/v1/`;
 }
+
+/** API origin without the REST prefix (Transmit routes live at the root). */
+export function getApiOrigin(): string {
+  return env.NEXT_PUBLIC_API_URL.trim()
+    .replace(/\/?$/, "")
+    .replace(/\/api\/v1$/, "");
+}

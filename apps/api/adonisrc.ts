@@ -67,11 +67,7 @@ export default defineConfig({
     },
     {
       file: () => import('#start/transmit'),
-      environment: ['web'],
-    },
-    {
-      file: () => import('#start/ws'),
-      environment: ['web'],
+      environment: ['web', 'test'],
     },
   ],
 

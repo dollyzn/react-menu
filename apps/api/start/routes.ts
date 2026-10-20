@@ -8,6 +8,7 @@
 */
 
 import router from '@adonisjs/core/services/router'
+import transmit from '@adonisjs/transmit/services/main'
 import { middleware } from '#start/kernel'
 
 import healthRoutes from '#routes/health'
@@ -23,6 +24,10 @@ import registerStoreAddonRoutes from '#routes/store/addons'
 import { authThrottle } from '#routes/store/shared'
 
 healthRoutes()
+
+transmit.registerRoutes((route) => {
+  route.use(middleware.auth())
+})
 
 router
   .group(() => {

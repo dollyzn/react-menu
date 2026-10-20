@@ -60,7 +60,7 @@ export default class StoresController {
 
     const { status } = await request.validateUsing(updateStatusValidator)
 
-    const store = await this.storeService.update(id, { status })
+    const store = await this.storeService.updateStatus(id, status)
 
     return updated(store, 'Status da loja atualizado com sucesso')
   }

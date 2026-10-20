@@ -13,7 +13,6 @@ import {
   createMigrate,
 } from "redux-persist";
 import auth from "@/redux/slices/auth";
-import storeUi from "@/redux/slices/store-ui";
 import { baseApi } from "@/redux/api/baseApi";
 import "@/redux/features";
 
@@ -54,7 +53,6 @@ const config = {
 
 const reducers = combineReducers({
   auth,
-  storeUi,
   [baseApi.reducerPath]: baseApi.reducer,
 });
 
