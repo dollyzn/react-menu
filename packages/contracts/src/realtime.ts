@@ -1,4 +1,5 @@
 import type { StoreStatus } from './entities.ts';
+import type { OrderStatus, PaymentStatus } from './orders.ts';
 import type { Notification } from './notifications.ts';
 
 /**
@@ -9,10 +10,27 @@ import type { Notification } from './notifications.ts';
 export type StoreChannel = `stores/${string}`;
 export type UserNotificationsChannel = `users/${string}/notifications`;
 
-export type StoreEvent = {
-  type: 'store.status_changed';
-  storeId: string;
-  status: StoreStatus;
+export type OrderTrackingChannel = `orders/${string}`;
+
+export type StoreEvent =
+  | {
+      type: 'store.status_changed';
+      storeId: string;
+      status: StoreStatus;
+    }
+  | {
+      /** An order was created or changed (status, payment, kitchen progress). */
+      type: 'order.created' | 'order.updated';
+      storeId: string;
+      orderId: string;
+      status: OrderStatus;
+    };
+
+/** Published on `orders/:publicToken` for the customer's tracking page. */
+export type OrderTrackingEvent = {
+  type: 'order.updated';
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
 };
 
 export type UserEvent = {

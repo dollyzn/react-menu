@@ -8,14 +8,27 @@ import { createStore, createUser } from '#tests/helpers/fixtures'
 test.group('Realtime (Transmit)', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
-  test('requires authentication to subscribe', async ({ client }) => {
+  test('guests cannot subscribe to private channels', async ({ client }) => {
     const store = await createStore()
+    const user = await createUser()
 
-    const response = await client
+    const storeChannel = await client
       .post('/__transmit/subscribe')
       .json({ uid: randomUUID(), channel: `stores/${store.id}` })
+    const userChannel = await client
+      .post('/__transmit/subscribe')
+      .json({ uid: randomUUID(), channel: `users/${user.id}/notifications` })
 
-    response.assertStatus(401)
+    storeChannel.assertStatus(400)
+    userChannel.assertStatus(400)
+  })
+
+  test('guests can track an order with its public token', async ({ client }) => {
+    const response = await client
+      .post('/__transmit/subscribe')
+      .json({ uid: randomUUID(), channel: `orders/${randomUUID()}` })
+
+    response.assertStatus(204)
   })
 
   test('only store members can subscribe to the store channel', async ({ client }) => {

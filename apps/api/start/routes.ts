@@ -15,19 +15,22 @@ import healthRoutes from '#routes/health'
 import authRoutes from '#routes/auth'
 import usersRoutes from '#routes/user'
 import notificationsRoutes from '#routes/notifications'
-import registerStoreMenuPublicRoutes from '#routes/store/menu_public'
+import publicRoutes from '#routes/public'
 import registerStoreCreateRoute from '#routes/store/store_create'
 import registerStoreDetailRoutes from '#routes/store/store_detail'
 import registerStoreDashboardRoutes from '#routes/store/dashboard'
 import registerStoreCategoryRoutes from '#routes/store/categories'
 import registerStoreItemRoutes from '#routes/store/items'
 import registerStoreAddonRoutes from '#routes/store/addons'
+import registerStoreInventoryRoutes from '#routes/store/inventory'
+import registerStoreOrderRoutes from '#routes/store/orders'
 import { authThrottle } from '#routes/store/shared'
 
 healthRoutes()
 
+// Guests may connect (order tracking); each channel authorizes itself in start/transmit.ts.
 transmit.registerRoutes((route) => {
-  route.use(middleware.auth())
+  route.use(middleware.silentAuth())
 })
 
 router
@@ -38,7 +41,7 @@ router
         usersRoutes()
         notificationsRoutes()
 
-        registerStoreMenuPublicRoutes()
+        publicRoutes()
         registerStoreCreateRoute()
 
         router
@@ -48,6 +51,8 @@ router
             registerStoreCategoryRoutes()
             registerStoreItemRoutes()
             registerStoreAddonRoutes()
+            registerStoreInventoryRoutes()
+            registerStoreOrderRoutes()
           })
           .prefix('/stores/:storeId')
           .use([...authThrottle, middleware.storeAccess()])

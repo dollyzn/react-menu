@@ -9,7 +9,6 @@ import AuthService from '#services/auth_service'
 import CategoryService from '#services/category_service'
 import DashboardService from '#services/dashboard_service'
 import ItemService from '#services/item_service'
-import MenuService from '#services/menu_service'
 import NotificationService from '#services/notification_service'
 import StoreService from '#services/store_service'
 import UserService from '#services/user_service'
@@ -47,9 +46,6 @@ export default class DiProvider {
         await resolver.make(AddonRepository),
         await resolver.make(CategoryRepository)
       )
-    })
-    c.singleton(MenuService, async (resolver) => {
-      return new MenuService(await resolver.make(StoreRepository))
     })
     c.singleton(DashboardService, () => new DashboardService())
     c.singleton(AuthService, () => new AuthService())

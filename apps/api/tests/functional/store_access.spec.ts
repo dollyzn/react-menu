@@ -67,7 +67,7 @@ test.group('Store access (tenant isolation)', (group) => {
   test('public menu stays public', async ({ client }) => {
     const store = await createStore()
 
-    const response = await client.get(`/api/v1/stores/${store.id}/menu`)
+    const response = await client.get(`/api/v1/public/menu/${store.slug}`)
 
     response.assertStatus(200)
   })

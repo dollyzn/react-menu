@@ -50,6 +50,20 @@ export const notificationTemplates = {
     }),
   }),
 
+  'order.received': defineTemplate<{
+    storeId: string
+    orderNumber: number
+    customerName: string
+    itemsCount: number
+  }>({
+    category: 'order',
+    render: ({ storeId, orderNumber, customerName, itemsCount }) => ({
+      title: `Novo pedido #${orderNumber}`,
+      body: `${customerName} · ${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`,
+      url: `/app/stores/${storeId}/orders`,
+    }),
+  }),
+
   'system.announcement': defineTemplate<{ title: string; body: string; url?: string }>({
     category: 'system',
     render: ({ title, body, url }) => ({ title, body, url }),

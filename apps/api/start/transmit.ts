@@ -16,3 +16,12 @@ transmit.authorize<{ id: string }>('stores/:id', async (ctx: HttpContext, { id }
 transmit.authorize<{ id: string }>('users/:id/notifications', (ctx: HttpContext, { id }) => {
   return ctx.auth.user?.id === id
 })
+
+/**
+ * Customer order tracking. The token is an unguessable UUID that only the
+ * customer received, so knowing it is the authorization (no login needed).
+ */
+transmit.authorize<{ token: string }>('orders/:token', async (_ctx: HttpContext, { token }) => {
+  const [error] = await uuidValidator.tryValidate(token)
+  return !error
+})

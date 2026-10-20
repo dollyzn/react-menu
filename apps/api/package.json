@@ -35,7 +35,9 @@
     "#start/*": "./start/*.js",
     "#tests/*": "./tests/*.js",
     "#config/*": "./config/*.js",
-    "#notifications/*": "./app/notifications/*.js"
+    "#notifications/*": "./app/notifications/*.js",
+    "#kitchen/*": "./app/kitchen/*.js",
+    "#orders/*": "./app/orders/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^7.8.2",

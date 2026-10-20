@@ -1,7 +1,7 @@
 import type { JsonValue } from './api.ts';
 
 /** Producer: apps/api/app/notifications/templates.ts. */
-export type NotificationCategory = 'store' | 'system';
+export type NotificationCategory = 'order' | 'store' | 'system';
 
 export type Notification = {
   id: string;

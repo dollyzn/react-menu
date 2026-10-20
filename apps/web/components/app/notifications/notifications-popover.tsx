@@ -13,6 +13,7 @@ import {
   MoreHorizontal,
   RotateCw,
   Settings,
+  ShoppingBag,
   Store as StoreIcon,
   Trash2,
   type LucideIcon,
@@ -61,6 +62,7 @@ import { cn } from "@/lib/utils";
 type Tab = "all" | NotificationCategory;
 
 const categories: Record<NotificationCategory, { label: string; icon: LucideIcon }> = {
+  order: { label: "Pedidos", icon: ShoppingBag },
   store: { label: "Lojas", icon: StoreIcon },
   system: { label: "Sistema", icon: Megaphone },
 };
@@ -168,8 +170,11 @@ export function NotificationsPopover() {
 
               <Tabs value={tab} onValueChange={(value) => setTab(value as Tab)}>
                 <div className="px-4 pt-3">
-                  <TabsList className="grid w-full grid-cols-3">
+                  <TabsList className="grid w-full grid-cols-4">
                     <TabsTrigger value="all">Todas</TabsTrigger>
+                    <TabsTrigger value="order">
+                      {categories.order.label}
+                    </TabsTrigger>
                     <TabsTrigger value="store">{categories.store.label}</TabsTrigger>
                     <TabsTrigger value="system">{categories.system.label}</TabsTrigger>
                   </TabsList>

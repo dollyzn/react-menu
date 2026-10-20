@@ -53,6 +53,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   R2_ENDPOINT: Env.schema.string.optional(),
 
   LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
+  /** Public orders per IP every 10 minutes (default 10). */
+  PUBLIC_ORDER_RATE_LIMIT: Env.schema.number.optional(),
 
   GOOGLE_CLIENT_ID: Env.schema.string.optional(),
   GOOGLE_CLIENT_SECRET: Env.schema.string.optional(),

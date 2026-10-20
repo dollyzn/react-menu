@@ -10,6 +10,7 @@
 */
 
 import limiter from '@adonisjs/limiter/services/main'
+import env from '#start/env'
 
 export const throttle = limiter.define('global', (ctx) => {
   /**
@@ -28,4 +29,15 @@ export const throttle = limiter.define('global', (ctx) => {
    * brute-force limiter in AuthService.
    */
   return limiter.allowRequests(60).every('1 minute').usingKey(`ip_${ctx.request.ip()}`)
+})
+
+/**
+ * Public order creation: generous for a family ordering from one phone,
+ * tight enough to stop scripted spam. Keyed by IP.
+ */
+export const orderThrottle = limiter.define('public_orders', (ctx) => {
+  return limiter
+    .allowRequests(env.get('PUBLIC_ORDER_RATE_LIMIT', 10))
+    .every('10 minutes')
+    .usingKey(`orders_${ctx.request.ip()}`)
 })
