@@ -28,11 +28,11 @@ const driveConfig = defineConfig({
     }),
     r2: services.s3({
       credentials: {
-        accessKeyId: env.get('R2_KEY'),
-        secretAccessKey: env.get('R2_SECRET'),
+        accessKeyId: env.get('R2_KEY', ''),
+        secretAccessKey: env.get('R2_SECRET', ''),
       },
       region: 'auto',
-      bucket: env.get('R2_BUCKET'),
+      bucket: env.get('R2_BUCKET', ''),
       endpoint: env.get('R2_ENDPOINT'),
       visibility: 'public',
     }),

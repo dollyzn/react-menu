@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import Addon from '#models/addon'
+import { deleteEach } from '#helpers/bulk_delete'
 import AddonRepository from '#repositories/addon_repository'
 import type { AddonFindOptions, AddonListOptions } from '#types/addon_query'
 
@@ -57,21 +58,6 @@ export default class AddonService {
   async bulkDeleteForStore(storeId: string, ids: string[]) {
     const addons = await Addon.query().whereIn('id', ids).where('store_id', storeId)
 
-    const deletedAddons: Addon[] = []
-    const failedDeletions: Addon[] = []
-
-    for (const addon of addons) {
-      try {
-        await addon.delete()
-        deletedAddons.push(addon)
-      } catch {
-        failedDeletions.push(addon)
-      }
-    }
-
-    return {
-      deletedAddons,
-      failedDeletions,
-    }
+    return await deleteEach(addons)
   }
 }

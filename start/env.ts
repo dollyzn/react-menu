@@ -36,9 +36,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   REDIS_PORT: Env.schema.number(),
   REDIS_PASSWORD: Env.schema.string.optional(),
 
-  VAPID_PUBLIC_KEY: Env.schema.string(),
-  VAPID_PRIVATE_KEY: Env.schema.string(),
-  VAPID_CONTACT: Env.schema.string({ format: 'email' }),
+  VAPID_PUBLIC_KEY: Env.schema.string.optional(),
+  VAPID_PRIVATE_KEY: Env.schema.string.optional(),
+  VAPID_CONTACT: Env.schema.string.optional({ format: 'email' }),
 
   DRIVE_DISK: Env.schema.enum(['fs', 's3', 'r2'] as const),
 
@@ -47,10 +47,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   AWS_REGION: Env.schema.string.optional(),
   S3_BUCKET: Env.schema.string.optional(),
 
-  R2_KEY: Env.schema.string(),
-  R2_SECRET: Env.schema.string(),
-  R2_BUCKET: Env.schema.string(),
-  R2_ENDPOINT: Env.schema.string(),
+  R2_KEY: Env.schema.string.optional(),
+  R2_SECRET: Env.schema.string.optional(),
+  R2_BUCKET: Env.schema.string.optional(),
+  R2_ENDPOINT: Env.schema.string.optional(),
 
   LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
 

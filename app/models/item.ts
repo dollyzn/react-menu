@@ -41,12 +41,6 @@ export default class Item extends BaseModel {
   @manyToMany(() => Addon)
   declare addons: ManyToMany<typeof Addon>
 
-  public async incrementViews() {
-    this.views += 1
-    await this.save()
-    return this
-  }
-
   serializeExtras() {
     const addonsCount = this.$extras.addonsCount ? Number(this.$extras.addonsCount) : undefined
 

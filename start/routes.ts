@@ -10,6 +10,7 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 
+import healthRoutes from '#routes/health'
 import authRoutes from '#routes/auth'
 import usersRoutes from '#routes/user'
 import registerStoreMenuPublicRoutes from '#routes/store/menu_public'
@@ -20,6 +21,8 @@ import registerStoreCategoryRoutes from '#routes/store/categories'
 import registerStoreItemRoutes from '#routes/store/items'
 import registerStoreAddonRoutes from '#routes/store/addons'
 import { authThrottle } from '#routes/store/shared'
+
+healthRoutes()
 
 router
   .group(() => {

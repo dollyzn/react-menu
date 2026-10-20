@@ -8,7 +8,7 @@ import {
   updateValidator,
 } from '#validators/addon'
 import { storeExistValidator, uuidValidator } from '#validators/common'
-import { created, fail, messageOnly, ok, updated } from '#helpers/api_response'
+import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
 import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
@@ -80,21 +80,11 @@ export default class AddonsController {
 
     const { ids } = await request.validateUsing(bulkDeleteValidator)
 
-    const { deletedAddons, failedDeletions } = await this.addonService.bulkDeleteForStore(
-      storeId,
-      ids
-    )
+    const result = await this.addonService.bulkDeleteForStore(storeId, ids)
 
-    if (failedDeletions.length > 0) {
-      return fail('Alguns adicionais não puderam ser excluídos', {
-        deletedAddons,
-        failedDeletions,
-      })
-    }
-
-    return {
-      ...ok(deletedAddons),
-      message: 'Adicionais excluídos com sucesso',
-    }
+    return bulkDeleted(result, {
+      success: 'Adicionais excluídos com sucesso',
+      partial: 'Alguns adicionais não puderam ser excluídos',
+    })
   }
 }

@@ -3,12 +3,13 @@ import { inject } from '@adonisjs/core'
 import ItemService from '#services/item_service'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import {
+  bulkDeleteValidator,
   categoryExistValidator,
   storeValidator,
   updateOrderValidator,
   updateValidator,
 } from '#validators/item'
-import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
 import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
@@ -84,6 +85,19 @@ export default class ItemsController {
     await this.itemService.updateOrderInStore(storeId, id, order)
 
     return messageOnly('Ordem atualizada com sucesso')
+  }
+
+  async bulkDelete({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+
+    const { ids } = await request.validateUsing(bulkDeleteValidator)
+
+    const result = await this.itemService.bulkDeleteForStore(storeId, ids)
+
+    return bulkDeleted(result, {
+      success: 'Itens excluídos com sucesso',
+      partial: 'Alguns itens não puderam ser excluídos',
+    })
   }
 
   async destroy({ params }: HttpContext) {

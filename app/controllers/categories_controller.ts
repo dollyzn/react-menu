@@ -8,7 +8,7 @@ import {
   updateValidator,
 } from '#validators/category'
 import { numberValidator, storeExistValidator } from '#validators/common'
-import { created, fail, messageOnly, ok, updated } from '#helpers/api_response'
+import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
 import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
@@ -85,21 +85,11 @@ export default class CategoriesController {
 
     const { ids } = await request.validateUsing(bulkDeleteValidator)
 
-    const { deletedCategories, failedDeletions } = await this.categoryService.bulkDeleteForStore(
-      storeId,
-      ids
-    )
+    const result = await this.categoryService.bulkDeleteForStore(storeId, ids)
 
-    if (failedDeletions.length > 0) {
-      return fail('Algumas categorias não puderam ser excluídas', {
-        deletedCategories,
-        failedDeletions,
-      })
-    }
-
-    return {
-      ...ok(deletedCategories),
-      message: 'Categorias excluídas com sucesso',
-    }
+    return bulkDeleted(result, {
+      success: 'Categorias excluídas com sucesso',
+      partial: 'Algumas categorias não puderam ser excluídas',
+    })
   }
 }

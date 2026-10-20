@@ -34,14 +34,7 @@ const updateValidator = vine.create(
 
 const bulkDeleteValidator = vine.create(
   vine.object({
-    ids: vine.array(
-      vine
-        .string()
-        .uuid()
-        .exists(
-          async (db, value) => await db.from('addons').select('id').where('id', value).first()
-        )
-    ),
+    ids: vine.array(vine.string().uuid()).minLength(1),
   })
 )
 

@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Item from '#models/item'
+import { deleteEach } from '#helpers/bulk_delete'
 import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
 import CategoryRepository from '#repositories/category_repository'
@@ -20,9 +21,7 @@ export default class ItemService {
   }
 
   async getInStore(storeId: string, id: string, options?: ItemFindOptions) {
-    const item = await this.repo.findByIdInStore(id, storeId, options)
-    await item.incrementViews()
-    return item
+    return await this.repo.findByIdInStore(id, storeId, options)
   }
 
   async getByStore(storeId: string, options?: ItemFindOptions) {
@@ -118,6 +117,17 @@ export default class ItemService {
       await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       await this.repo.delete(id, trx)
     })
+  }
+
+  async bulkDeleteForStore(storeId: string, ids: string[]) {
+    const items = await this.repo
+      .query()
+      .whereIn('id', ids)
+      .whereHas('category', (q) => {
+        q.where('store_id', storeId)
+      })
+
+    return await deleteEach(items)
   }
 
   private async getValidAddonIds(

@@ -28,13 +28,7 @@ const updateOrderValidator = vine.create(
 
 const bulkDeleteValidator = vine.create(
   vine.object({
-    ids: vine.array(
-      vine
-        .number()
-        .exists(
-          async (db, value) => await db.from('categories').select('id').where('id', value).first()
-        )
-    ),
+    ids: vine.array(vine.number()).minLength(1),
   })
 )
 

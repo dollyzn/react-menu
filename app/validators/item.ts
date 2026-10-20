@@ -57,4 +57,16 @@ const updateOrderValidator = vine.create(
   })
 )
 
-export { categoryExistValidator, storeValidator, updateValidator, updateOrderValidator }
+const bulkDeleteValidator = vine.create(
+  vine.object({
+    ids: vine.array(vine.string().uuid()).minLength(1),
+  })
+)
+
+export {
+  bulkDeleteValidator,
+  categoryExistValidator,
+  storeValidator,
+  updateValidator,
+  updateOrderValidator,
+}

@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import Category from '#models/category'
+import { deleteEach } from '#helpers/bulk_delete'
 import CategoryRepository from '#repositories/category_repository'
 import type { CategoryFindOptions, CategoryListOptions } from '#types/category_query'
 
@@ -85,46 +86,10 @@ export default class CategoryService {
     return this.updateOrder(id, newOrder)
   }
 
-  async bulkDelete(ids: number[]) {
-    const categories = await Category.query().whereIn('id', ids)
-
-    const deletedCategories: Category[] = []
-    const failedDeletions: Category[] = []
-
-    for (const category of categories) {
-      try {
-        await category.delete()
-        deletedCategories.push(category)
-      } catch {
-        failedDeletions.push(category)
-      }
-    }
-
-    return {
-      deletedCategories,
-      failedDeletions,
-    }
-  }
-
   async bulkDeleteForStore(storeId: string, ids: number[]) {
     const categories = await Category.query().whereIn('id', ids).where('store_id', storeId)
 
-    const deletedCategories: Category[] = []
-    const failedDeletions: Category[] = []
-
-    for (const category of categories) {
-      try {
-        await category.delete()
-        deletedCategories.push(category)
-      } catch {
-        failedDeletions.push(category)
-      }
-    }
-
-    return {
-      deletedCategories,
-      failedDeletions,
-    }
+    return await deleteEach(categories)
   }
 
   async all(options?: CategoryFindOptions) {

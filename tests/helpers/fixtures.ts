@@ -1,5 +1,6 @@
 import { cuid } from '@adonisjs/core/helpers'
 import Category from '#models/category'
+import Item from '#models/item'
 import Permission from '#models/permission'
 import Role from '#models/role'
 import Store from '#models/store'
@@ -35,4 +36,13 @@ export async function createStore(members: User[] = []) {
 
 export async function createCategory(store: Store) {
   return await Category.create({ storeId: store.id, name: 'Pastéis', order: 1 })
+}
+
+export async function createItem(category: Category, overrides: Partial<Item> = {}) {
+  return await Item.create({
+    categoryId: category.id,
+    name: 'Pastel de carne',
+    price: 10,
+    ...overrides,
+  })
 }
