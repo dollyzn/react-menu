@@ -188,7 +188,7 @@ export function DataTable<TData, TValue>({
 
       handleResponsiveVisibility();
     }
-  }, [defaultVisibility]);
+  }, [defaultVisibility, setColumnVisibility]);
 
   useEffect(() => {
     if (!renderCard || !defaultCardsOnMobile || typeof window === "undefined")

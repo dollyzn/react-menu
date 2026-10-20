@@ -36,51 +36,27 @@ export function DataTableFacetedFilter<TData, TValue>({
   loading,
   grouped,
 }: DataTableFacetedFilterProps<TData, TValue>) {
-  const getInitialSelectedValues = () => {
-    const filterValue = column?.getFilterValue();
-    if (!filterValue) return new Set<string>();
-    return new Set(Array.isArray(filterValue) ? filterValue : [filterValue]);
-  };
-
-  const [selectedValues, setSelectedValues] = useState<Set<string>>(
-    getInitialSelectedValues
+  // The column filter is the single source of truth for the selection.
+  const filterValue = column?.getFilterValue();
+  const selectedValues = new Set<string>(
+    filterValue
+      ? (Array.isArray(filterValue) ? filterValue : [filterValue]).map(String)
+      : []
   );
   const [open, setOpen] = useState(false);
+  const defaultApplied = useRef(false);
 
-  const defaultSetted = useRef(false);
-
+  // Apply the options' defaults once, as soon as options are available.
   useEffect(() => {
-    const defaultOptions = findDefaultOptions();
-    if (
-      defaultOptions.length > 0 &&
-      selectedValues.size === 0 &&
-      !defaultSetted.current
-    ) {
-      const stringValues = defaultOptions.map(String);
-      setSelectedValues(new Set(stringValues));
-      column?.setFilterValue(stringValues);
-      defaultSetted.current = true;
-    }
-  }, [options, column]);
+    if (defaultApplied.current || !options || !column) return;
+    const defaults = findDefaultOptions(options, grouped);
+    if (defaults.length === 0) return;
+    defaultApplied.current = true;
+    if (!column.getFilterValue()) column.setFilterValue(defaults.map(String));
+  }, [options, grouped, column]);
 
-  useEffect(() => {
-    setSelectedValues(getInitialSelectedValues());
-  }, [column?.getFilterValue()]);
-
-  const findDefaultOptions = (): (string | number)[] => {
-    if (!options) return [];
-
-    if (grouped) {
-      return (options as FilterGroup[])
-        .flatMap((group) => group.options)
-        .filter((option) => option?.defaultOption)
-        .map((option) => option.value);
-    } else {
-      return (options as FilterOption[])
-        .filter((option) => option?.defaultOption)
-        .map((option) => option.value);
-    }
-  };
+  const setSelection = (values: Set<string>) =>
+    column?.setFilterValue(values.size ? Array.from(values) : undefined);
 
   const columnName = column?.columnDef.meta?.name || title || "";
   const hasSelectedValues = selectedValues.size > 0;
@@ -95,9 +71,7 @@ export function DataTableFacetedFilter<TData, TValue>({
       newSelectedValues.add(stringValue);
     }
 
-    setSelectedValues(newSelectedValues);
-    const filterValues = Array.from(newSelectedValues);
-    column?.setFilterValue(filterValues.length ? filterValues : undefined);
+    setSelection(newSelectedValues);
   };
 
   const handleSelectAll = () => {
@@ -107,30 +81,21 @@ export function DataTableFacetedFilter<TData, TValue>({
           group.options?.map((option) => String(option.value))
         )
       );
-      if (selectedValues.size === allValues.size) {
-        setSelectedValues(new Set());
-        column?.setFilterValue(undefined);
-      } else {
-        setSelectedValues(allValues);
-        column?.setFilterValue(Array.from(allValues));
-      }
+      setSelection(
+        selectedValues.size === allValues.size ? new Set() : allValues
+      );
     } else {
       const allValues = new Set(
         (options as FilterOption[])?.map((option) => String(option.value))
       );
-      if (selectedValues.size === allValues.size) {
-        setSelectedValues(new Set());
-        column?.setFilterValue(undefined);
-      } else {
-        setSelectedValues(allValues);
-        column?.setFilterValue(Array.from(allValues));
-      }
+      setSelection(
+        selectedValues.size === allValues.size ? new Set() : allValues
+      );
     }
   };
 
   const handleClearFilters = () => {
-    setSelectedValues(new Set());
-    column?.setFilterValue(undefined);
+    setSelection(new Set());
   };
 
   const findOptionByValue = (value: string) => {
@@ -338,4 +303,14 @@ export function DataTableFacetedFilter<TData, TValue>({
       </PopoverContent>
     </Popover>
   );
+}
+
+function findDefaultOptions(
+  options: FilterOption[] | FilterGroup[],
+  grouped?: boolean
+): (string | number)[] {
+  const flat = grouped
+    ? (options as FilterGroup[]).flatMap((group) => group.options)
+    : (options as FilterOption[]);
+  return flat.filter((option) => option?.defaultOption).map((o) => o.value);
 }

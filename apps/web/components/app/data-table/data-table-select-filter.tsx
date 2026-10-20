@@ -1,5 +1,5 @@
 import type { Column } from "@tanstack/react-table";
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ListFilter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -35,38 +35,24 @@ export function DataTableSelectFilter<TData, TValue>({
   loading,
   grouped,
 }: DataTableSelectFilterProps<TData, TValue>) {
-  const [selectedValue, setSelectedValue] = useState<string | undefined>(
-    column?.getFilterValue() ? String(column.getFilterValue()) : undefined
-  );
+  // The column filter is the single source of truth for the selection.
+  const filterValue = column?.getFilterValue();
+  const selectedValue = filterValue ? String(filterValue) : undefined;
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const defaultApplied = useRef(false);
 
+  // Apply the options' default once, as soon as options are available.
   useEffect(() => {
-    if (grouped) {
-      const defaultOption = (options as FilterGroup[])
-        ?.flatMap((group) => group.options)
-        ?.find((option) => option?.defaultOption);
-      if (defaultOption && !selectedValue) {
-        const stringValue = String(defaultOption.value);
-        setSelectedValue(stringValue);
-        column?.setFilterValue(stringValue);
-      }
-    } else {
-      const defaultOption = (options as FilterOption[])?.find(
-        (option) => option?.defaultOption
-      );
-      if (defaultOption && !selectedValue) {
-        const stringValue = String(defaultOption.value);
-        setSelectedValue(stringValue);
-        column?.setFilterValue(stringValue);
-      }
-    }
-  }, [options, column]);
-
-  useEffect(() => {
-    const filterValue = column?.getFilterValue();
-    setSelectedValue(filterValue ? String(filterValue) : undefined);
-  }, [column?.getFilterValue()]);
+    if (defaultApplied.current || !options || !column) return;
+    const flat = grouped
+      ? (options as FilterGroup[]).flatMap((group) => group.options)
+      : (options as FilterOption[]);
+    const defaultOption = flat.find((option) => option?.defaultOption);
+    if (!defaultOption) return;
+    defaultApplied.current = true;
+    if (!column.getFilterValue()) column.setFilterValue(String(defaultOption.value));
+  }, [options, grouped, column]);
 
   const columnName = title || column?.columnDef.meta?.name || "";
   const hasFilter = !!selectedValue;
@@ -88,14 +74,7 @@ export function DataTableSelectFilter<TData, TValue>({
   const selectedOption = findSelectedOption();
 
   const handleSelect = (value: string) => {
-    if (value === "clear") {
-      setSelectedValue(undefined);
-      column?.setFilterValue(undefined);
-    } else {
-      const stringValue = String(value);
-      setSelectedValue(stringValue);
-      column?.setFilterValue(stringValue);
-    }
+    column?.setFilterValue(value === "clear" ? undefined : String(value));
     setOpen(false);
   };
 

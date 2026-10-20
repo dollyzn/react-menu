@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   DndContext,
   closestCenter,
@@ -107,12 +107,14 @@ export default function SortableList({
   onOrderChange,
   onItemClick,
 }: SortableListProps) {
+  // Local copy for optimistic reordering; reset whenever the server list changes.
   const [_items, setItems] = useState(items);
-  const [activeId, setActiveId] = useState<string | number | null>(null);
-
-  useEffect(() => {
+  const [sourceItems, setSourceItems] = useState(items);
+  if (items !== sourceItems) {
+    setSourceItems(items);
     setItems(items);
-  }, [items]);
+  }
+  const [activeId, setActiveId] = useState<string | number | null>(null);
 
   const handleDragStart = ({ active }: { active: Active }) => {
     setActiveId(active.id);

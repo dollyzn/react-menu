@@ -255,18 +255,15 @@ export function DatePresetsSelect({
   onSelect: (date: DateRange | undefined) => void;
   presets: DatePreset[];
 }) {
-  function findPreset(from?: Date, to?: Date) {
+  const value = useMemo(() => {
+    const from = selected?.from;
+    const to = selected?.to;
     if (!from || !to) return undefined;
     return presets.find(
       (p) =>
         p.from.getTime() === from.getTime() && p.to.getTime() === to.getTime()
     )?.shortcut;
-  }
-
-  const value = useMemo(
-    () => findPreset(selected?.from, selected?.to),
-    [selected, presets]
-  );
+  }, [selected, presets]);
 
   return (
     <Select
