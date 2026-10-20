@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState } from "react";
 import { request } from "@/lib/api";
-import { BaseResponse, RequestError } from "@/types/request";
+import { RequestError } from "@/types/request";
 import type {
   NotificationContextType,
   NotificationProviderProps,
@@ -25,10 +25,18 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
   useDebouncedEffect(() => {
-    void setupPushSubscription();
-  }, []);
+    // The subscription check needs a session; running it signed out would
+    // get a 401 and wrongly drop this device's push subscription.
+    if (isAuthenticated) void setupPushSubscription();
+  }, [isAuthenticated]);
 
   async function setupPushSubscription() {
+    if (!env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+      setError("Notificações push não estão configuradas neste ambiente.");
+      setIsSupported(false);
+      return;
+    }
+
     if (
       !("serviceWorker" in navigator) ||
       !("PushManager" in window) ||
@@ -97,12 +105,12 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
-          env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+          env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
         ),
       });
 
       const response = await request({
-        url: "notifications/subscribe",
+        url: "notifications/push/subscribe",
         method: "post",
         data: subscription,
         showErrorMessage: true,
@@ -132,7 +140,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       const subscription = await registration.pushManager.getSubscription();
 
       const response = await request({
-        url: "notifications/unsubscribe",
+        url: "notifications/push/unsubscribe",
         method: "post",
         data: {
           endpoint: subscription?.endpoint,
@@ -168,22 +176,22 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         sub = await registration.pushManager.getSubscription();
       }
 
-      const response = await request<BaseResponse & { subscribed: boolean }>({
-        url: "notifications/check",
+      const response = await request<{ data: { subscribed: boolean } }>({
+        url: "notifications/push/check",
         method: "post",
         data: {
           endpoint: sub?.endpoint,
         },
       });
 
-      if (response.success && !response.subscribed) {
+      if (response.success && !response.data.subscribed) {
         await sub?.unsubscribe();
         setIsSubscribed(false);
         return false;
       }
 
       setIsSubscribed(!!sub);
-      return response.subscribed;
+      return response.data.subscribed;
     } catch (err) {
       const message =
         err instanceof RequestError

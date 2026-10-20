@@ -2,6 +2,7 @@ import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { HeaderUser } from "./header-user";
 import { StoreSwitcher } from "./store-switcher";
+import { NotificationsPopover } from "@/components/app/notifications/notifications-popover";
 import { ThemeTogglerButton } from "@/components/animate-ui/components/buttons/theme-toggler";
 
 export default function AppHeader() {
@@ -18,6 +19,7 @@ export default function AppHeader() {
         </div>
 
         <div className="flex items-center justify-end ml-auto shrink-0 gap-2">
+          <NotificationsPopover />
           <ThemeTogglerButton
             variant="secondary"
             size="sm"

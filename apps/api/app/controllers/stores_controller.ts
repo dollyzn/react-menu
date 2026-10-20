@@ -55,12 +55,12 @@ export default class StoresController {
     return updated(store, 'Imagens atualizadas com sucesso')
   }
 
-  async updateStatus({ params, request }: HttpContext) {
+  async updateStatus({ params, request, auth }: HttpContext) {
     const id = await uuidValidator.validate(params.storeId)
 
     const { status } = await request.validateUsing(updateStatusValidator)
 
-    const store = await this.storeService.updateStatus(id, status)
+    const store = await this.storeService.updateStatus(id, status, auth.getUserOrFail())
 
     return updated(store, 'Status da loja atualizado com sucesso')
   }

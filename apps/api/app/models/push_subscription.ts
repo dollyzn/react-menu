@@ -13,12 +13,10 @@ export default class PushSubscription extends BaseModel {
   @column()
   declare endpoint: string
 
-  @column({
-    columnName: 'p256dh',
-  })
+  @column({ columnName: 'p256dh', serializeAs: null })
   declare p256dh: string
 
-  @column()
+  @column({ serializeAs: null })
   declare auth: string
 
   @column.dateTime({ autoCreate: true })

@@ -10,6 +10,7 @@ import CategoryService from '#services/category_service'
 import DashboardService from '#services/dashboard_service'
 import ItemService from '#services/item_service'
 import MenuService from '#services/menu_service'
+import NotificationService from '#services/notification_service'
 import StoreService from '#services/store_service'
 import UserService from '#services/user_service'
 
@@ -26,7 +27,10 @@ export default class DiProvider {
     c.singleton(ItemRepository, () => new ItemRepository())
 
     c.singleton(StoreService, async (resolver) => {
-      return new StoreService(await resolver.make(StoreRepository))
+      return new StoreService(
+        await resolver.make(StoreRepository),
+        await resolver.make(NotificationService)
+      )
     })
     c.singleton(UserService, async (resolver) => {
       return new UserService(await resolver.make(UserRepository))

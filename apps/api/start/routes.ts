@@ -14,6 +14,7 @@ import { middleware } from '#start/kernel'
 import healthRoutes from '#routes/health'
 import authRoutes from '#routes/auth'
 import usersRoutes from '#routes/user'
+import notificationsRoutes from '#routes/notifications'
 import registerStoreMenuPublicRoutes from '#routes/store/menu_public'
 import registerStoreCreateRoute from '#routes/store/store_create'
 import registerStoreDetailRoutes from '#routes/store/store_detail'
@@ -35,6 +36,7 @@ router
       .group(() => {
         authRoutes()
         usersRoutes()
+        notificationsRoutes()
 
         registerStoreMenuPublicRoutes()
         registerStoreCreateRoute()

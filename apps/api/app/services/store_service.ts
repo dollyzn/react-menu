@@ -7,6 +7,8 @@ import Store from '#models/store'
 import type StoreStatus from '#enums/store_status'
 import { broadcastStoreEvent } from '#helpers/realtime'
 import StoreRepository from '#repositories/store_repository'
+import NotificationService from '#services/notification_service'
+import type User from '#models/user'
 import type { StoreFindOptions, StoreListOptions } from '#types/store_query'
 
 export type StoreImagePayload = {
@@ -16,7 +18,10 @@ export type StoreImagePayload = {
 
 @inject()
 export default class StoreService {
-  constructor(private repo: StoreRepository) {}
+  constructor(
+    private repo: StoreRepository,
+    private notificationService: NotificationService
+  ) {}
 
   async list(options?: StoreListOptions) {
     return await this.repo.paginate(options)
@@ -40,7 +45,7 @@ export default class StoreService {
     })
   }
 
-  async updateStatus(id: string, status: StoreStatus) {
+  async updateStatus(id: string, status: StoreStatus, actor: User) {
     const { store, changed } = await db.transaction(async (trx) => {
       const current = await this.repo.requireById(id, trx)
       const previous = current.status
@@ -50,6 +55,18 @@ export default class StoreService {
 
     if (changed) {
       broadcastStoreEvent({ type: 'store.status_changed', storeId: store.id, status: store.status })
+
+      await this.notificationService.notifyStoreMembers(
+        store.id,
+        'store.status_changed',
+        {
+          storeId: store.id,
+          storeName: store.name,
+          status: store.status,
+          changedBy: actor.name ?? actor.email,
+        },
+        { exceptUserId: actor.id }
+      )
     }
 
     return store

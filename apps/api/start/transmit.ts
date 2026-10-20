@@ -12,3 +12,7 @@ transmit.authorize<{ id: string }>('stores/:id', async (ctx: HttpContext, { id }
 
   return await ctx.auth.user.hasStoreAccess(storeId)
 })
+
+transmit.authorize<{ id: string }>('users/:id/notifications', (ctx: HttpContext, { id }) => {
+  return ctx.auth.user?.id === id
+})
