@@ -4,6 +4,7 @@
  */
 
 export type StoreStatus = 'open' | 'closed' | 'maintenance';
+export type StoreRole = 'manager' | 'attendant' | 'kitchen';
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 
 export type Store = {
@@ -17,6 +18,15 @@ export type Store = {
   photoUrl: string | null;
   slug: string;
   isDefault: boolean;
+  phone: string | null;
+  description: string | null;
+  /** Average minutes from order to pickup. */
+  pickupEtaMinutes: number;
+  /** When true, stock is tracked and can make items unavailable. */
+  inventoryEnabled: boolean;
+  counterPaymentEnabled: boolean;
+  /** True when Mercado Pago credentials are configured (never exposed). */
+  mercadoPagoEnabled: boolean;
   /** Only when the view count was loaded (public menu). */
   views?: number;
   createdAt: string;
@@ -31,6 +41,8 @@ export type Category = {
   name: string;
   description: string | null;
   order: number;
+  /** False for drinks and ready-made products: they skip the kitchen. */
+  requiresPreparation: boolean;
   itemsCount?: number;
   createdAt: string;
   updatedAt: string;
@@ -47,6 +59,8 @@ export type Item = {
   photoUrl: string | null;
   views: number;
   order: number;
+  /** Manual "sold out" switch. */
+  isAvailable: boolean;
   addonsCount?: number;
   createdAt: string;
   updatedAt: string;
@@ -61,6 +75,7 @@ export type Addon = {
   description: string | null;
   price: number;
   photoUrl: string | null;
+  isAvailable: boolean;
   createdAt: string;
   updatedAt: string;
 };
@@ -95,8 +110,9 @@ export type User = {
 };
 
 /** `data.user` of POST /auth/login and GET /auth/me. */
-export type SessionUser = User & {
+export type SessionUser = Omit<User, 'role' | 'stores'> & {
   role: Role | null;
-  stores: Store[];
+  /** Each store the user belongs to, with their role in it. */
+  stores: (Store & { role: StoreRole })[];
   tokenExpiresAt: string | null;
 };

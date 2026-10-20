@@ -8,6 +8,7 @@ import Role from '#models/role'
 import Permission from '#models/permission'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import type { UserStatusEnum } from '#enums/user_status'
+import StoreRole from '#enums/store_role'
 import PushRegistration from '#models/push_registration'
 import UserSocialAccount from '#models/user_social_account'
 import Store from './store.js'
@@ -99,6 +100,20 @@ export default class User extends compose(BaseModel, AuthFinder) {
       .first()
 
     return Boolean(membership)
+  }
+
+  /** The user's role in a store; super users act as managers everywhere. */
+  async storeRole(storeId: string): Promise<StoreRole | null> {
+    if (this.superUser) return StoreRole.MANAGER
+
+    const store = await (this as User)
+      .related('stores')
+      .query()
+      .where('stores.id', storeId)
+      .select('stores.id')
+      .first()
+
+    return (store?.$extras.pivot_role as StoreRole | undefined) ?? null
   }
 
   static accessTokens = DbAccessTokensProvider.forModel(User, { expiresIn: SESSION_TTL })

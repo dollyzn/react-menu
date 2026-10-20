@@ -82,7 +82,7 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
       if (user) {
         const updatedUser: SessionUser = {
           ...user,
-          stores: user.stores.map((s: Store) =>
+          stores: user.stores.map((s) =>
             s.id === payload.id ? { ...s, ...payload } : s
           ),
         };

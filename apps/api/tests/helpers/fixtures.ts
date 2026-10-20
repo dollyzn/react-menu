@@ -1,4 +1,5 @@
 import { cuid } from '@adonisjs/core/helpers'
+import type StoreRole from '#enums/store_role'
 import Category from '#models/category'
 import Item from '#models/item'
 import Permission from '#models/permission'
@@ -45,4 +46,8 @@ export async function createItem(category: Category, overrides: Partial<Item> = 
     price: 10,
     ...overrides,
   })
+}
+
+export async function linkUser(store: Store, user: User, role: StoreRole) {
+  await store.related('users').attach({ [user.id]: { role } })
 }

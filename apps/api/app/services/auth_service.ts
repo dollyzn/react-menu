@@ -5,6 +5,7 @@ import limiter from '@adonisjs/limiter/services/main'
 import User, { SESSION_TTL } from '#models/user'
 import env from '#start/env'
 import AppException from '#exceptions/app_exception'
+import StoreRole from '#enums/store_role'
 
 type LoginPayload = {
   email: string
@@ -67,16 +68,7 @@ export default class AuthService {
 
     const serializedToken = await this.createSession(user, ctx)
 
-    await user.load((loader) =>
-      loader.preload('stores').preload('role', (query) => query.preload('permissions'))
-    )
-
-    return {
-      user: {
-        ...user.toJSON(),
-        tokenExpiresAt: serializedToken.expiresAt,
-      },
-    }
+    return { user: await this.sessionUser(user, serializedToken.expiresAt) }
   }
 
   async logout(response: HttpContext['response'], auth: HttpContext['auth']) {
@@ -86,13 +78,22 @@ export default class AuthService {
   }
 
   async me(user: User & { currentAccessToken?: AccessToken }) {
+    return await this.sessionUser(user, user.currentAccessToken?.toJSON().expiresAt)
+  }
+
+  /** SessionUser contract: the user, its permissions, and each store with its role. */
+  private async sessionUser(user: User, tokenExpiresAt: Date | null | undefined) {
     await user.load((loader) =>
       loader.preload('stores').preload('role', (query) => query.preload('permissions'))
     )
 
     return {
-      ...user.toJSON(),
-      tokenExpiresAt: user.currentAccessToken?.toJSON().expiresAt,
+      ...user.serialize(),
+      stores: user.stores.map((store) => ({
+        ...store.serialize(),
+        role: user.superUser ? StoreRole.MANAGER : store.$extras.pivot_role,
+      })),
+      tokenExpiresAt: tokenExpiresAt ?? null,
     }
   }
 }
