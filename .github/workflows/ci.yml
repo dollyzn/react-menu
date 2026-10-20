@@ -1,0 +1,118 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Non-secret values that let both apps boot in CI. Real secrets never live here.
+env:
+  NODE_ENV: test
+  TZ: UTC
+  # apps/api
+  PORT: '3333'
+  HOST: localhost
+  LOG_LEVEL: warn
+  APP_KEY: ci-only-app-key-not-a-secret-0123456789
+  APP_URL: http://localhost:3333
+  FRONTEND_URL: http://localhost:3000
+  AUTH_COOKIE_NAME: session-token
+  AUTH_COOKIE_ENABLED: 'true'
+  ADMIN_USER: admin@example.com
+  ADMIN_PASS: ci-admin-password
+  DB_HOST: localhost
+  DB_PORT: '5432'
+  DB_USER: postgres
+  DB_PASSWORD: postgres
+  DB_DATABASE: jjpasteis-menu-test
+  REDIS_HOST: localhost
+  REDIS_PORT: '6379'
+  DRIVE_DISK: fs
+  LIMITER_STORE: memory
+  HEALTH_CHECK_MONITORING_TOKEN: ci-health-token
+  # apps/web
+  NEXT_PUBLIC_BUILD_VERSION: ci
+  NEXT_PUBLIC_APP_URL: http://localhost:3000
+  NEXT_PUBLIC_API_URL: http://localhost:3333/api/v1
+  NEXT_PUBLIC_API_TIMEOUT: '60000'
+  NEXT_PUBLIC_AUTH_COOKIE_NAME: session-token
+  NEXT_PUBLIC_STORAGE_BASE_NAME: menu-app
+  NEXT_PUBLIC_PAGE_SIZES: '[10, 20, 30, 40, 50]'
+
+jobs:
+  checks:
+    name: Lint, typecheck and build
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build
+        env:
+          NODE_ENV: production
+
+  test:
+    name: API tests and e2e
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: jjpasteis-menu-test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: API tests
+        run: pnpm --filter @react-menu/api test
+
+      - name: Create e2e database
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE "jjpasteis-menu-e2e"'
+      - name: Install Playwright browser
+        run: pnpm --filter @react-menu/web exec playwright install --with-deps chromium
+      - name: E2E tests
+        run: pnpm test:e2e
+        env:
+          NODE_ENV: development
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7
+
+  secrets:
+    name: Secret scanning
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

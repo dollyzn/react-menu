@@ -136,8 +136,15 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     setLoading(true);
 
     try {
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      // Not `serviceWorker.ready`: it never resolves when no worker was
+      // registered, which used to hang logout forever.
+      const registration =
+        "serviceWorker" in navigator
+          ? await navigator.serviceWorker.getRegistration()
+          : undefined;
+      const subscription = await registration?.pushManager.getSubscription();
+
+      if (!subscription) return;
 
       const response = await request({
         url: "notifications/push/unsubscribe",
