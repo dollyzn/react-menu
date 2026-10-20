@@ -4,7 +4,7 @@ import { BaseSeeder } from '@adonisjs/lucid/seeders'
 
 export default class extends BaseSeeder {
   async run() {
-    const permissions = await Permission.createMany([
+    const permissions = await Permission.updateOrCreateMany('name', [
       // Users permissions
       { name: 'view_user', label: 'Visualizar usuário', category: 'Usuários' },
       { name: 'list_user', label: 'Listar usuários', category: 'Usuários' },
@@ -25,9 +25,16 @@ export default class extends BaseSeeder {
       { name: 'create_permission', label: 'Criar permissão', category: 'Permissões' },
       { name: 'update_permission', label: 'Atualizar permissão', category: 'Permissões' },
       { name: 'delete_permission', label: 'Deletar permissão', category: 'Permissões' },
+
+      // Stores permissions
+      { name: 'create_store', label: 'Criar loja', category: 'Lojas' },
+      { name: 'delete_store', label: 'Excluir loja', category: 'Lojas' },
     ])
 
     const admin = await Role.findByOrFail('name', 'Administrador')
-    await admin.related('permissions').attach(permissions.map((p) => p.id))
+    await admin.related('permissions').sync(
+      permissions.map((p) => p.id),
+      false
+    )
   }
 }

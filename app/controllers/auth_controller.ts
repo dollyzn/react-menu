@@ -1,23 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import { loginValidator, registerValidator } from '#validators/auth'
+import { loginValidator } from '#validators/auth'
 import AuthService from '#services/auth_service'
 import { fail, messageOnly, ok } from '#helpers/api_response'
 
 @inject()
 export default class AuthController {
   constructor(private authService: AuthService) {}
-
-  async register({ request, response }: HttpContext) {
-    const data = await request.validateUsing(registerValidator)
-
-    const payload = await this.authService.register(data, response)
-
-    return ok({
-      user: payload.user.serialize(),
-      tokenExpiresAt: payload.tokenExpiresAt,
-    })
-  }
 
   async login({ request, response, auth }: HttpContext) {
     const data = await request.validateUsing(loginValidator)

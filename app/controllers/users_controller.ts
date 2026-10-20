@@ -10,7 +10,9 @@ import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
 export default class UsersController {
   constructor(private userService: UserService) {}
 
-  async index({ request }: HttpContext) {
+  async index({ request, bouncer }: HttpContext) {
+    await bouncer.with('UserPolicy').authorize('list')
+
     const q = request.qs()
     const users = await this.userService.list({
       ...parsePagination(q),
@@ -20,7 +22,9 @@ export default class UsersController {
     return ok(users.all(), users.getMeta())
   }
 
-  async show({ params }: HttpContext) {
+  async show({ params, bouncer }: HttpContext) {
+    await bouncer.with('UserPolicy').authorize('view')
+
     const id = await uuidValidator.validate(params.id)
 
     const user = await this.userService.get(id)
@@ -28,7 +32,9 @@ export default class UsersController {
     return ok(user)
   }
 
-  async store({ request }: HttpContext) {
+  async store({ request, bouncer }: HttpContext) {
+    await bouncer.with('UserPolicy').authorize('create')
+
     const data = await request.validateUsing(storeValidator)
 
     const user = await this.userService.create(data)
@@ -36,7 +42,9 @@ export default class UsersController {
     return created(user, 'Usuário criado com sucesso')
   }
 
-  async update({ request, params }: HttpContext) {
+  async update({ request, params, bouncer }: HttpContext) {
+    await bouncer.with('UserPolicy').authorize('update')
+
     const id = await uuidValidator.validate(params.id)
 
     const data = await request.validateUsing(updateValidator)
@@ -46,7 +54,9 @@ export default class UsersController {
     return updated(user, 'Usuário atualizado com sucesso')
   }
 
-  async destroy({ params }: HttpContext) {
+  async destroy({ params, bouncer }: HttpContext) {
+    await bouncer.with('UserPolicy').authorize('delete')
+
     const id = await uuidValidator.validate(params.id)
 
     await this.userService.remove(id)

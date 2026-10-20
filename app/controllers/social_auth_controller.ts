@@ -2,15 +2,16 @@ import type { HttpContext } from '@adonisjs/core/http'
 import User from '#models/user'
 import UserSocialAccount from '#models/user_social_account'
 import env from '#start/env'
-import app from '@adonisjs/core/services/app'
+import { inject } from '@adonisjs/core'
+import AuthService from '#services/auth_service'
 import { DateTime } from 'luxon'
 import { GoogleDriver } from '@adonisjs/ally/drivers/google'
 import { TwitterDriver } from '@adonisjs/ally/drivers/twitter'
 import { FacebookDriver } from '@adonisjs/ally/drivers/facebook'
 
+@inject()
 export default class SocialAuthController {
-  private sendCookie = env.get('AUTH_COOKIE_ENABLED', false)
-  private cookieName = env.get('AUTH_COOKIE_NAME')
+  constructor(private authService: AuthService) {}
 
   async redirect({ params, ally }: HttpContext) {
     const provider = params.provider as 'google' | 'twitter' | 'facebook'
@@ -58,18 +59,7 @@ export default class SocialAuthController {
 
       await this.saveOrUpdateSocialAccount(provider, socialUser, user.id)
 
-      const token = await auth.use('api').createToken(user)
-      await user.load((loader) => loader.preload('role', (query) => query.preload('permissions')))
-
-      if (this.sendCookie) {
-        response.cookie(this.cookieName, token.toJSON().token, {
-          httpOnly: true,
-          sameSite: 'strict',
-          secure: app.inProduction,
-          expires: new Date(2147483647 * 1000),
-          maxAge: undefined,
-        })
-      }
+      await this.authService.createSession(user, { response, auth })
 
       return redirect()
     } catch (error) {

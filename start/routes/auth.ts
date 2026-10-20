@@ -12,14 +12,9 @@ export default function authRoutes() {
       router.get('/me', [AuthController, 'me']).use(throttle).as('auth.me')
 
       router
-        .group(() => {
-          router.post('/register', [AuthController, 'register']).as('auth.register')
-          router
-            .delete('/logout', [AuthController, 'logout'])
-            .as('auth.logout')
-            .use(middleware.auth())
-        })
-        .use(throttle)
+        .delete('/logout', [AuthController, 'logout'])
+        .as('auth.logout')
+        .use([middleware.auth(), throttle])
 
       router
         .group(() => {

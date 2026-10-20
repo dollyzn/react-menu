@@ -11,3 +11,14 @@
 | templates.
 |
 */
+
+import { Bouncer } from '@adonisjs/bouncer'
+import type User from '#models/user'
+
+/**
+ * Tenant boundary: a user may only operate on stores they are linked to
+ * (store_user), unless they are a super user.
+ */
+export const accessStore = Bouncer.ability(async (user: User, storeId: string) => {
+  return await user.hasStoreAccess(storeId)
+})

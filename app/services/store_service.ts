@@ -24,9 +24,11 @@ export default class StoreService {
     return await this.repo.findById(id, options)
   }
 
-  async create(data: Partial<Store>) {
+  async create(data: Partial<Store>, ownerId: string) {
     return await db.transaction(async (trx) => {
-      return await this.repo.create(data, trx)
+      const store = await this.repo.create(data, trx)
+      await store.useTransaction(trx).related('users').attach([ownerId])
+      return store
     })
   }
 

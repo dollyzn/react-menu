@@ -13,6 +13,7 @@ export default class UserSeeder extends BaseSeeder {
       {
         roleId: admin.id,
         name: 'Admin',
+        superUser: true,
         email,
         password: env.get('ADMIN_PASS'),
       }

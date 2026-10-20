@@ -22,10 +22,12 @@ export default class StoresController {
     return ok(store)
   }
 
-  async store({ request }: HttpContext) {
+  async store({ request, auth, bouncer }: HttpContext) {
+    await bouncer.with('StorePolicy').authorize('create')
+
     const data = await request.validateUsing(storeValidator)
 
-    const store = await this.storeService.create(data)
+    const store = await this.storeService.create(data, auth.getUserOrFail().id)
 
     return created(store, 'Loja criada com sucesso')
   }
@@ -63,7 +65,9 @@ export default class StoresController {
     return updated(store, 'Status da loja atualizado com sucesso')
   }
 
-  async destroy({ params }: HttpContext) {
+  async destroy({ params, bouncer }: HttpContext) {
+    await bouncer.with('StorePolicy').authorize('delete')
+
     const id = await uuidValidator.validate(params.storeId)
 
     await this.storeService.remove(id)

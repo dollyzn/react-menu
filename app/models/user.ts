@@ -12,6 +12,11 @@ import PushSubscription from '#models/push_subscription'
 import UserSocialAccount from '#models/user_social_account'
 import Store from './store.js'
 
+/**
+ * Lifetime of an access token and of the auth cookie that carries it.
+ */
+export const SESSION_TTL = '7 days'
+
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
   passwordColumnName: 'password',
@@ -82,5 +87,18 @@ export default class User extends compose(BaseModel, AuthFinder) {
     )
   }
 
-  static accessTokens = DbAccessTokensProvider.forModel(User)
+  async hasStoreAccess(storeId: string): Promise<boolean> {
+    if (this.superUser) return true
+
+    const membership = await (this as User)
+      .related('stores')
+      .query()
+      .where('stores.id', storeId)
+      .select('stores.id')
+      .first()
+
+    return Boolean(membership)
+  }
+
+  static accessTokens = DbAccessTokensProvider.forModel(User, { expiresIn: SESSION_TTL })
 }

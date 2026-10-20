@@ -8,6 +8,7 @@
 */
 
 import router from '@adonisjs/core/services/router'
+import { middleware } from '#start/kernel'
 
 import authRoutes from '#routes/auth'
 import usersRoutes from '#routes/user'
@@ -39,7 +40,7 @@ router
             registerStoreAddonRoutes()
           })
           .prefix('/stores/:storeId')
-          .use(authThrottle)
+          .use([...authThrottle, middleware.storeAccess()])
       })
       .prefix('/v1')
   })
