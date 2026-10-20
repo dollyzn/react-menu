@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
+import type { Notification as NotificationDto } from '@react-menu/contracts'
 import Notification from '#models/notification'
 import PushService from '#services/push_service'
 import { broadcastUserEvent } from '#helpers/realtime'
@@ -58,7 +59,8 @@ export default class NotificationService {
       broadcastUserEvent({
         type: 'notification.created',
         userId: notification.userId,
-        notification: notification.serialize(),
+        // The model serializes to the Notification contract (camelCase, ISO dates).
+        notification: notification.serialize() as NotificationDto,
       })
 
       this.push

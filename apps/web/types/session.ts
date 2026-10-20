@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import type { User as UserType } from "./user";
+import type { SessionUser } from "@react-menu/contracts";
 
-export interface User extends UserType {
-  tokenExpiresAt: string;
-}
+export type User = SessionUser;
 
 export interface SessionContextType {
   isAuthenticated: boolean;

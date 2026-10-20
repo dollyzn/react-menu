@@ -81,6 +81,13 @@ test.group('Auth', (group) => {
     response.assertStatus(404)
   })
 
+  test('session endpoint answers 401 without a session', async ({ client }) => {
+    const response = await client.get('/api/v1/auth/me')
+
+    response.assertStatus(401)
+    response.assertBodyContains({ success: false, code: 'E_UNAUTHORIZED_ACCESS' })
+  })
+
   test('login issues an expiring session cookie', async ({ client, assert }) => {
     const user = await createUser()
 

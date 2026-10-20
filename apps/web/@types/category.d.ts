@@ -1,11 +1,2 @@
-interface Category {
-  id: number;
-  storeId: string;
-  name: string;
-  description: string | null;
-  order: number;
-  itemsCount?: number;
-  createdAt: string;
-  updatedAt: string;
-  items?: Omit<Item, "category", "addons">[];
-}
+/** Global alias of the API contract; see packages/contracts. */
+type Category = import("@react-menu/contracts").Category;

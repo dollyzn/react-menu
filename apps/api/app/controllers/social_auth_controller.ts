@@ -4,6 +4,7 @@ import UserSocialAccount from '#models/user_social_account'
 import env from '#start/env'
 import { inject } from '@adonisjs/core'
 import AuthService from '#services/auth_service'
+import { ok } from '#helpers/api_response'
 import { DateTime } from 'luxon'
 import { GoogleDriver } from '@adonisjs/ally/drivers/google'
 import { TwitterDriver } from '@adonisjs/ally/drivers/twitter'
@@ -19,11 +20,7 @@ export default class SocialAuthController {
     const driver = ally.use(provider)
     const url = await driver.redirectUrl()
 
-    return {
-      success: true,
-      provider,
-      url,
-    }
+    return ok({ provider, url })
   }
 
   async callback({ params, auth, response, ally }: HttpContext) {

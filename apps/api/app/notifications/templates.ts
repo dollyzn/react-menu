@@ -1,3 +1,4 @@
+import type { NotificationCategory } from '@react-menu/contracts'
 import StoreStatus from '#enums/store_status'
 
 /**
@@ -6,11 +7,11 @@ import StoreStatus from '#enums/store_status'
  * `NotificationService.notify()` call site, and `render` produces the text
  * shown in the app, in the realtime toast and in web push.
  *
- * `category` drives the tabs and icons in the web notifications popover;
- * keep it in sync with `NotificationCategory` in apps/web.
+ * `category` drives the tabs and icons in the web notifications popover
+ * (`NotificationCategory` in @react-menu/contracts).
  */
 
-export type NotificationCategory = 'store' | 'system'
+export type { NotificationCategory } from '@react-menu/contracts'
 
 export type RenderedNotification = {
   title: string

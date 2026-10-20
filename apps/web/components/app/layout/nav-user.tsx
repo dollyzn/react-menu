@@ -88,8 +88,8 @@ function UserInfo({ user }: { user: User }) {
     <>
       <Avatar className="h-8 w-8 rounded-full border">
         <AvatarImage
-          src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user.name}`}
-          alt={user.name}
+          src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user.name ?? user.email}`}
+          alt={user.name ?? user.email}
         />
         <AvatarFallback className="rounded-full">
           {user.name?.substring(0, 2)?.toUpperCase() ?? "US"}

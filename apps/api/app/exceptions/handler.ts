@@ -139,7 +139,6 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     if (error instanceof AppException)
       return ctx.response.status(error.status).send({
         success: false,
-        status: error.status,
         error: error.message,
         code: error.code ?? 'APP_EXCEPTION',
         stack: this.debug ? (error as any).stack : undefined,

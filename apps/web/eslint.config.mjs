@@ -7,4 +7,20 @@ export default defineConfig([
   {
     extends: [...nextCoreWebVitals, ...nextTypescript],
   },
+  {
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@react-menu/contracts",
+              allowTypeImports: true,
+              message: "Contracts are type-only: use `import type`.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);

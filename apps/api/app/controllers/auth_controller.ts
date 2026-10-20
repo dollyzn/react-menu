@@ -1,8 +1,9 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { errors as authErrors } from '@adonisjs/auth'
 import { inject } from '@adonisjs/core'
 import { loginValidator } from '#validators/auth'
 import AuthService from '#services/auth_service'
-import { fail, messageOnly, ok } from '#helpers/api_response'
+import { messageOnly, ok } from '#helpers/api_response'
 
 @inject()
 export default class AuthController {
@@ -17,11 +18,7 @@ export default class AuthController {
   }
 
   async logout({ auth, response }: HttpContext) {
-    const result = await this.authService.logout(response, auth)
-
-    if (!result) {
-      return fail('Ocorreu um erro ao tentar fazer logout.')
-    }
+    await this.authService.logout(response, auth)
 
     return messageOnly('Você foi deslogado com sucesso.')
   }
@@ -30,7 +27,9 @@ export default class AuthController {
     const user = await this.authService.me(auth)
 
     if (!user) {
-      return fail('Não autenticado')
+      throw new authErrors.E_UNAUTHORIZED_ACCESS('Não autenticado', {
+        guardDriverName: 'access_tokens',
+      })
     }
 
     return ok({ user })

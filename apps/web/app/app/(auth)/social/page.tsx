@@ -18,11 +18,11 @@ export default function AuthSocialPage() {
     async function startAuth() {
       if (!provider) return;
 
-      const response = await request<{ url: string }>({
+      const response = await request<{ data: { url: string } }>({
         url: `auth/social/${provider}/redirect`,
       });
 
-      if (!response.success || !response.url) {
+      if (!response.success || !response.data?.url) {
         window.opener?.postMessage(
           { type: "SOCIAL_AUTH_ERROR", error: "Falha ao iniciar login." },
           window.location.origin
@@ -31,7 +31,7 @@ export default function AuthSocialPage() {
         return;
       }
 
-      window.location.href = response.url;
+      window.location.href = response.data.url;
     }
 
     startAuth();

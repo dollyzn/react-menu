@@ -1,10 +1,2 @@
-interface Addon {
-  id: string;
-  storeId: number;
-  name: string;
-  description: string | null;
-  price: number;
-  photoUrl: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+/** Global alias of the API contract; see packages/contracts. */
+type Addon = import("@react-menu/contracts").Addon;

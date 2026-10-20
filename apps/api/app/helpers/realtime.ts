@@ -1,6 +1,5 @@
 import transmit from '@adonisjs/transmit/services/main'
-import type { ModelObject } from '@adonisjs/lucid/types/model'
-import type StoreStatus from '#enums/store_status'
+import type { StoreEvent, UserEvent } from '@react-menu/contracts'
 
 /**
  * Realtime is a notification channel, not a source of truth: every event
@@ -10,20 +9,9 @@ import type StoreStatus from '#enums/store_status'
  * Every channel used here must be authorized in start/transmit.ts.
  */
 export const channels = {
+  // Channel names are mirrored by the web app (types: StoreChannel, UserNotificationsChannel).
   store: (storeId: string) => `stores/${storeId}`,
   userNotifications: (userId: string) => `users/${userId}/notifications`,
-}
-
-export type StoreEvent = {
-  type: 'store.status_changed'
-  storeId: string
-  status: StoreStatus
-}
-
-export type UserEvent = {
-  type: 'notification.created'
-  userId: string
-  notification: ModelObject
 }
 
 export function broadcastStoreEvent(event: StoreEvent) {

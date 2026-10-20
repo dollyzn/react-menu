@@ -1,3 +1,4 @@
+import type { PaginationMeta } from "@react-menu/contracts";
 import type { AppDispatch } from "@/redux/store";
 import type { AxiosRequestConfig } from "axios";
 
@@ -8,17 +9,7 @@ export interface Pagination {
   pageSize?: number;
 }
 
-export interface Meta {
-  total: number;
-  per_page: number;
-  current_page: number;
-  last_page: number;
-  first_page: number;
-  first_page_url: string;
-  last_page_url: string;
-  next_page_url: string | null;
-  previous_page_url: string | null;
-}
+export type Meta = PaginationMeta;
 
 export interface RequestConfig extends AxiosRequestConfig {
   method?: RequestMethod;
@@ -56,8 +47,4 @@ export class RequestError extends Error {
   }
 }
 
-/** Response `data` of every `POST .../bulk-delete` endpoint. */
-export interface BulkDeleteResult<T> {
-  deleted: T[];
-  failed: T[];
-}
+export type { BulkDeleteResult } from "@react-menu/contracts";

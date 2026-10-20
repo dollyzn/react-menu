@@ -1,8 +1,2 @@
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  createdAt: string;
-  updatedAt: string;
-  stores: Store[];
-}
+/** Global alias of the API contract; see packages/contracts. */
+type User = import("@react-menu/contracts").User;

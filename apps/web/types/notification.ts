@@ -14,32 +14,18 @@ export interface NotificationProviderProps {
   children: ReactNode;
 }
 
-/** Mirrors `NotificationCategory` in apps/api/app/notifications/templates.ts. */
-export type NotificationCategory = "store" | "system";
+import type {
+  Notification,
+  NotificationListMeta,
+  PaginationMeta,
+} from "@react-menu/contracts";
 
-export interface AppNotification {
-  id: string;
-  userId: string;
-  storeId: string | null;
-  type: string;
-  category: NotificationCategory;
-  title: string;
-  body: string;
-  url: string | null;
-  data: Record<string, unknown>;
-  readAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
+export type { NotificationCategory, UserEvent } from "@react-menu/contracts";
 
+export type AppNotification = Notification;
+
+/** GET /notifications after the RTK Query envelope unwrap. */
 export interface NotificationList {
-  data: AppNotification[];
-  meta: { total: number; unreadCount: number };
+  data: Notification[];
+  meta: PaginationMeta & NotificationListMeta;
 }
-
-/** Mirrors `UserEvent` in apps/api/app/helpers/realtime.ts. */
-export type UserEvent = {
-  type: "notification.created";
-  userId: string;
-  notification: AppNotification;
-};

@@ -1,9 +1,5 @@
 import type { LucidRow } from '@adonisjs/lucid/types/model'
-
-export type BulkDeleteResult<T> = {
-  deleted: T[]
-  failed: T[]
-}
+import type { BulkDeleteResult } from '@react-menu/contracts'
 
 /**
  * Deletes rows one by one so a single failure (e.g. a FK constraint)
