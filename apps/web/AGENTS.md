@@ -7,8 +7,11 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Concern | Location |
 | --- | --- |
 | Admin routes | `app/app/stores/[store]/<domain>/` (page + `components/`) |
+| Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` |
 | Auth pages | `app/app/(auth)/` |
-| Public menu | `app/page.tsx` (still static data, see roadmap) |
+| Customer menu (SSR) | `app/(menu)/` (`/`, `/[slug]`, `/pedido/[token]`), shared parts in `_components/` |
+| Bag and customer identity | `redux/slices/cart.ts`, `redux/slices/customer.ts` (persisted) |
+| Sidebar by role | `lib/menu-itens.ts` (`getManageMenuItems`, `homeForRole`) |
 | Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
 | Server state | RTK Query: `redux/api/baseApi.ts`, `redux/features/<domain>/<domain>Api.ts` |
 | Session / push | `contexts/session-provider.tsx`, `contexts/notification-provider.tsx` |

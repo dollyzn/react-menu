@@ -12,7 +12,9 @@ Browser ── Next.js (apps/web) ──────────────┐
    ├── HTTP  /api/v1/*  ───────────► AdonisJS API (apps/api)
    └── SSE   /__transmit/*  ───────►   ├── PostgreSQL (data, access tokens)
                                        ├── Redis (rate limits, Transmit pub/sub)
-                                       └── Drive: fs | S3 | R2 (store images)
+                                       ├── Drive: fs | S3 | R2 (store images)
+                                       ├── Mercado Pago (Checkout Pro, per store)
+                                       └── Firebase Cloud Messaging (web push)
 ```
 
 `packages/contracts` holds the shared response/entity/event types (type-only).
@@ -30,25 +32,33 @@ response            ok()/created()/... envelope, or exception → handler.ts
 ```
 
 Route groups (`start/routes.ts`): `/health` (token + IP allowlist),
-`/__transmit/*` (auth), and `/api/v1` with `auth`, `users`,
-`notifications`, public `GET /stores/:storeId/menu`, `POST /stores`, and the
-`/stores/:storeId` group (store detail, dashboard, categories, items, addons).
+`/__transmit/*` (silent auth; each channel authorizes itself), and `/api/v1`
+with `auth`, `users`, `notifications`, `public/*` (menu, place order, track
+order; no login), `webhooks/mercado-pago/:storeId` (signature), `POST
+/stores`, and the `/stores/:storeId` group (detail, settings, dashboard,
+catalog, inventory, orders, kitchen). Inside a store, `managersOnly` and
+`frontOfHouse` restrict routes by store role.
 
 ## Data model
 
 ```
-users ─┬─< store_user >─ stores ─┬─< categories ─< items >─< addon_item >─ addons
-       │   (unique pair)         ├─< addons                                  │
-       │                         └─< store_views                 (addons.store_id)
+users ─┬─< store_user (role) >─ stores ─┬─< categories ─< items >─< addon_item >─ addons
+       │                                ├─< addons                      │
+       │                                ├─< store_views          items/addons >─< *_ingredients >─ ingredients
+       │                                ├─< ingredients ─< stock_movements >─ orders
+       │                                ├─< customers (name, phone)
+       │                                └─< orders ─┬─< order_items ─< order_item_addons
+       │                                            └─< order_status_histories
        ├─ roles ─< permission_role >─ permissions
-       ├─< auth_access_tokens
-       ├─< user_social_accounts
+       ├─< auth_access_tokens, user_social_accounts
        ├─< push_registrations (FCM installation ids)
        └─< notifications (store_id nullable)
 ```
 
-All child rows cascade on delete. Prices are `decimal(10,2)`. One store can
-be flagged `is_default` (partial unique index).
+Child rows cascade on delete; order lines keep name/price snapshots and
+`SET NULL` their menu references. Money is `decimal(10,2)`, stock is
+`decimal(12,3)`, both consumed as numbers. One store can be `is_default`
+(served at `/`). Orders are numbered per store and business day.
 
 ## Authentication and authorization
 
@@ -63,11 +73,37 @@ be flagged `is_default` (partial unique index).
    with `GET /auth/me`, and shows the "session expired" dialog only on 401.
    `proxy.ts` redirects based on the cookie's presence (UX, not security).
 
+## Order lifecycle
+
+```
+customer (public menu)        POS (attendant)
+   │ POST /public/menu/:slug/orders   │ POST /stores/:id/orders
+   ▼                                  ▼
+OrderService.create: price from the menu, validate add-ons/availability,
+upsert customer by phone, number = max(today) + 1 under a store row lock
+   │
+   ├─ Mercado Pago ─► pending_payment ─► checkout ─► webhook (signed) ─► paid
+   │                                                                   │
+   └─ counter / POS ───────────────────────────────────────────────────┤
+                                                                       ▼
+                     received ─(stock consumed per recipe)─► kitchen queue
+                         │  cook marks units (prepared_quantity)
+                         ▼
+                     preparing ─► ready (all units done) ─► completed (handed over;
+                         counter payment settled)        cancelled → stock reversed
+```
+
+Kitchen batches (`app/kitchen/production_queue.ts`): start from the oldest
+pending unit and pull identical units (same item and add-ons, no notes) from
+at most the next 3 orders, so no order waits behind more than 3 newer ones.
+Each batch carries the summed ingredients of its recipes.
+
 ## Realtime and notifications
 
 ```
 service (after commit)
-  ├─ broadcastStoreEvent ─► stores/:id                 ─► useStoreRealtime: invalidate Store tag
+  ├─ broadcastStoreEvent ─► stores/:id                 ─► useStoreRealtime: invalidate Store/Order/Kitchen
+  ├─ broadcastOrderTracking ─► orders/:token (public)  ─► tracking page refetches
   └─ NotificationService.notify
         ├─ insert notifications rows
         ├─ broadcastUserEvent ─► users/:id/notifications ─► toast + invalidate Notification tag
@@ -78,13 +114,17 @@ Clients refetch after reconnecting, so a missed event never leaves stale UI.
 
 ## Web app structure
 
+- `app/(menu)`: customer menu (SSR) at `/` and `/[slug]`, bag and checkout,
+  tracking at `/pedido/[token]`.
 - `app/app/(auth)`: login, logout, social callback.
+- `app/app/stores/[store]/{orders,pos,kitchen,inventory}`: operations by role.
 - `app/app/stores/[store]/*`: store home, overview (dashboard), categories,
   items, addons. CRUD screens share `components/app/data-table` (filters,
   sorting, column visibility, table/card views, bulk delete) and dialog
   patterns (create/update/delete dialogs per domain).
 - `components/ui`: shadcn `base-nova` style on Base UI primitives.
-- Server state in RTK Query (`redux/features/*`); only `auth` is persisted.
+- Server state in RTK Query (`redux/features/*`); `auth`, `cart` and
+  `customer` are persisted (IndexedDB) and only read after hydration.
 
 ## Deployment
 

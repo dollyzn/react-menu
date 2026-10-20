@@ -14,6 +14,9 @@ an accepted ADR, supersede it with a new one.
 | [0006](0006-persisted-notifications-with-typed-templates.md) | Persisted notifications with typed templates | Accepted |
 | [0007](0007-e2e-tests-fail-on-console-warnings.md) | E2E tests fail on browser console warnings | Accepted |
 | [0008](0008-web-push-with-fcm-installation-ids.md) | Web push with FCM, addressed by installation ID | Accepted |
+| [0009](0009-orders-kitchen-batching-and-inventory.md) | Orders, kitchen batching and recipe-based inventory | Accepted |
+| [0010](0010-store-roles.md) | Roles inside a store | Accepted |
+| [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Accepted |
 
 ## Template
 

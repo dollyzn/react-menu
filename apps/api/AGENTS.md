@@ -17,6 +17,12 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Responses / errors | `app/helpers/api_response.ts`, `app/exceptions/handler.ts` |
 | Realtime channels | `app/helpers/realtime.ts` + authorization in `start/transmit.ts` |
 | Notification templates | `app/notifications/templates.ts` |
+| Orders (pricing, numbering, status machine) | `app/services/order_service.ts`, `app/orders/*` |
+| Kitchen queue (pure batching + ingredients) | `app/kitchen/production_queue.ts`, `app/services/kitchen_service.ts` |
+| Inventory (stock, recipes, consumption) | `app/services/inventory_service.ts` |
+| Payments (Mercado Pago) | `app/payments/mercado_pago_client.ts`, `app/services/payment_service.ts` |
+| Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
+| Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff) |
 | Env schema | `start/env.ts` (+ `.env.example`) |
 
 Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
@@ -28,11 +34,18 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
   service/repository method that takes `storeId`.
 - Validate route params (`uuidValidator`, `storeExistValidator`), not only bodies.
 - Wrap multi-step writes in `db.transaction`; broadcast/notify after commit.
-- Money columns are `decimal(10,2)` serialized with `Number.parseFloat`.
+- Money columns are `decimal(10,2)`.
 - Lists use `parsePagination` + `pickQueryFilters` and return
   `ok(paginator.all(), paginator.getMeta())` (snake_case meta).
 - Rate limiting: `throttle` must run after `middleware.auth()` or the
-  request is limited as a guest (per IP).
+  request is limited as a guest (per IP). Public order creation has its own
+  `orderThrottle` (`PUBLIC_ORDER_RATE_LIMIT`).
+- Decimal columns use `@column(decimal)` from `#helpers/columns` so values
+  are numbers at runtime.
+- Business dates use `BUSINESS_TIMEZONE` (America/Sao_Paulo), not UTC.
+- External HTTP goes through an injectable client so tests can
+  `app.container.swap()` it (see `MercadoPagoClient`). `PushService` still
+  calls firebase-admin directly and is a no-op without credentials.
 
 ## Tests
 

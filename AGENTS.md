@@ -7,9 +7,12 @@ lives in `docs/architecture/` and `docs/decisions/` (ADRs).
 
 ## What this is
 
-React Menu: digital menus for restaurants. Staff manage stores, categories,
-items and add-ons in an admin app; customers browse a public menu. There is
-**no ordering domain yet** (see `docs/development/roadmap.md`).
+React Menu: digital menus and ordering for restaurants (pickup at the
+counter). Customers order from the public menu (`/`, `/[slug]`) identified
+only by name + phone and track the order live (`/pedido/[token]`). Staff
+work by store role: managers run catalog, inventory and settings;
+attendants use the POS and the orders board; cooks use the kitchen
+display, which batches identical pastries from nearby orders.
 
 ## Layout
 
@@ -58,11 +61,27 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
 5. **Notifications** are declared as typed templates in
    `apps/api/app/notifications/templates.ts` and sent with
    `NotificationService.notify()` / `notifyStoreMembers()`.
-6. **Base UI, not Radix patterns.** Use the `render` prop (never `asChild`).
+6. **Orders are priced by the API.** Clients send item ids, quantities,
+   add-on ids and notes only; `OrderService` computes prices from the
+   current menu and snapshots names/prices. Status changes go through
+   `OrderService` (state machine in `app/orders/order_state.ts`), never by
+   updating `status` directly. Kitchen grouping lives in the pure
+   `app/kitchen/production_queue.ts` (unit-tested).
+7. **Store roles** (`manager | attendant | kitchen`, pivot `store_user.role`):
+   guard routes with `managersOnly` / `frontOfHouse` from
+   `start/routes/store/shared.ts` after `storeAccess`.
+8. **Payments** go through `PaymentService` (Mercado Pago per store,
+   credentials encrypted). Webhooks are trusted only after the signature
+   check and a server-side payment lookup.
+9. **Base UI, not Radix patterns.** Use the `render` prop (never `asChild`).
    A trigger that renders a non-`<button>` needs `nativeButton={false}`;
    prefer rendering a real `Button`. Icon-only controls need `aria-label`.
    The e2e suite fails on any browser console warning.
-7. **No secrets in git.** `.env` files are ignored; add new variables to the
+10. **SSR-safe client code.** Pages render on the server. Anything that
+   depends on the browser (theme, persisted session/bag, `window`) must not
+   change the first client render: use `useHydrated()` / `useRehydrated()`
+   and `ThemeToggleButton` (never `ThemeTogglerButton` directly).
+11. **No secrets in git.** `.env` files are ignored; add new variables to the
    relevant `.env.example` and to `apps/api/start/env.ts` / `apps/web/lib/env.ts`.
 
 ## How to add a feature (API → web)
@@ -93,7 +112,6 @@ decision that is hard to reverse, update this file and add an ADR in
 
 ## Known debt (don't copy these patterns)
 
-- `apps/web/lib/api.ts` (axios `request()`) is still used by the session and
-  push providers; new code uses RTK Query.
-- The public menu at `/` reads `app/data/categories.json`, not the API.
+- `apps/web/lib/api.ts` (axios `request()`) is still used by the session
+  provider; new code uses RTK Query.
 - See `docs/development/roadmap.md` for the full list.
