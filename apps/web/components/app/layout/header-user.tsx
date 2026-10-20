@@ -31,6 +31,7 @@ export function HeaderUser() {
         render={
           <Button
             variant="outline"
+            aria-label="Menu do usuário"
             className="relative h-8 w-8 rounded-full bg-background/30 hover:bg-background/60"
           />
         }

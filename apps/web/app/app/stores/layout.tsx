@@ -19,7 +19,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         <AppSidebar />
         <SidebarInset className="contain-inline-size">
           <AppHeader />
-          <main className="@container/main container mx-auto">{children}</main>
+          <div className="@container/main container mx-auto">{children}</div>
         </SidebarInset>
       </SidebarProvider>
       <SessionExpiredModal />

@@ -84,7 +84,13 @@ export function BulkDeleteItemDialog({ rows }: BulkDeleteItemDialogProps) {
       loading={busy}
       onConfirm={handleBulkDelete}
     >
-      <Button size="icon" className="h-8 w-8" variant="ghost" disabled={!rows.length}>
+      <Button
+        size="icon"
+        className="h-8 w-8"
+        variant="ghost"
+        aria-label="Excluir selecionados"
+        disabled={!rows.length}
+      >
         <Trash2 />
       </Button>
     </AlertDialogDestructive>

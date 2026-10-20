@@ -12,11 +12,7 @@ import { createContext, useCallback, useContext, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
 
-import {
-  setIsAuthenticated,
-  setIsSessionExpired,
-  setUser,
-} from "@/redux/slices/auth";
+import { setIsSessionExpired, setUser } from "@/redux/slices/auth";
 
 import {
   differenceInMilliseconds,
@@ -132,43 +128,26 @@ export function SessionProvider({ children }: SessionProviderProps) {
   }
 
   const verify = useCallback(async () => {
-    let attempts = 0;
-    const maxRetries = 3;
+    const maxAttempts = 3;
 
-    while (attempts < maxRetries) {
-      try {
-        const response = await request<LoginResponse>({
-          url: "auth/me",
-        });
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const response = await request<LoginResponse>({ url: "auth/me" });
 
-        if (
-          isAuthenticated &&
-          response.error ===
-            "Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente."
-        ) {
-          attempts++;
-
-          if (attempts >= maxRetries) {
-            dispatch(setIsSessionExpired(true));
-            dispatch(setIsAuthenticated(false));
-            return null;
-          }
-
-          await new Promise((resolve) => setTimeout(resolve, 10000));
-          continue;
-        }
-
-        if (!response.success || !response?.data?.user) {
-          dispatch(setIsSessionExpired(true));
-          return null;
-        }
-
+      if (response.success && response.data?.user) {
         dispatch(setIsSessionExpired(false));
         dispatch(setUser(response.data.user));
         return response.data.user;
-      } catch {
-        dispatch(setIsSessionExpired(true));
+      }
+
+      // Only a 401 means the session is gone. Rate limiting, server errors
+      // and being offline are transient: keep the current session state.
+      if (response.status === 401) {
+        if (isAuthenticated) dispatch(setIsSessionExpired(true));
         return null;
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
       }
     }
 

@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import type { AccessToken } from '@adonisjs/auth/access_tokens'
 import app from '@adonisjs/core/services/app'
 import limiter from '@adonisjs/limiter/services/main'
 import User, { SESSION_TTL } from '#models/user'
@@ -84,14 +85,7 @@ export default class AuthService {
     return result
   }
 
-  async me(auth: HttpContext['auth']) {
-    await auth.check()
-    const user = auth.user
-
-    if (!user) {
-      return null
-    }
-
+  async me(user: User & { currentAccessToken?: AccessToken }) {
     await user.load((loader) =>
       loader.preload('stores').preload('role', (query) => query.preload('permissions'))
     )

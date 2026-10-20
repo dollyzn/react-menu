@@ -1,5 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import { errors as authErrors } from '@adonisjs/auth'
 import { inject } from '@adonisjs/core'
 import { loginValidator } from '#validators/auth'
 import AuthService from '#services/auth_service'
@@ -24,13 +23,7 @@ export default class AuthController {
   }
 
   async me({ auth }: HttpContext) {
-    const user = await this.authService.me(auth)
-
-    if (!user) {
-      throw new authErrors.E_UNAUTHORIZED_ACCESS('Não autenticado', {
-        guardDriverName: 'access_tokens',
-      })
-    }
+    const user = await this.authService.me(auth.getUserOrFail())
 
     return ok({ user })
   }

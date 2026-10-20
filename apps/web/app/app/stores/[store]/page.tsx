@@ -345,7 +345,7 @@ export default function Store() {
               onClick={() => router.push(`/app/stores/${store}/items`)}
             >
               <Package className="w-6 h-6 mb-2" />
-              Items
+              Itens
             </Button>
             <Button
               className="h-24 flex flex-col items-center justify-center"

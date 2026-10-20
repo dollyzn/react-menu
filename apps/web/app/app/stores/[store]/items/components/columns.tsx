@@ -23,7 +23,7 @@ export const columns: ColumnDef<Item>[] = [
         checked={table.getIsAllPageRowsSelected()}
         indeterminate={table.getIsSomePageRowsSelected()}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
+        aria-label="Selecionar todos"
         className="translate-y-[2px]"
       />
     ),
@@ -32,7 +32,7 @@ export const columns: ColumnDef<Item>[] = [
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
+          aria-label="Selecionar linha"
           className="translate-y-[2px]"
         />
       </DataTableColumnCell>

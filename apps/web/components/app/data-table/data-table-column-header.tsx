@@ -63,6 +63,7 @@ export function DataTableColumnHeader<TData, TValue>({
               size="icon"
               className="size-7"
               variant="ghost"
+              aria-label="Remover ordenação"
               onClick={column.clearSorting}
             >
               <FunnelX size={14} className="size-auto" />

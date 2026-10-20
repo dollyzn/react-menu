@@ -94,6 +94,7 @@ export const request = async <T>({
     return {
       success: false,
       error: message,
+      status: code,
     } as ApiResponse<T>;
   }
 };

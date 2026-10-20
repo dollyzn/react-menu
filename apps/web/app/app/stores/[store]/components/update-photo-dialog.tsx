@@ -109,6 +109,7 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
           <Button
             variant="secondary"
             size="sm"
+            aria-label="Alterar logo"
             className="absolute -bottom-2 -right-2"
           >
             <Upload className="h-4 w-4" />

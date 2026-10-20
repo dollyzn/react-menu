@@ -9,7 +9,7 @@ export default function authRoutes() {
   router
     .group(() => {
       router.post('/login', [AuthController, 'login']).as('auth.login')
-      router.get('/me', [AuthController, 'me']).use(throttle).as('auth.me')
+      router.get('/me', [AuthController, 'me']).use([middleware.auth(), throttle]).as('auth.me')
 
       router
         .delete('/logout', [AuthController, 'logout'])

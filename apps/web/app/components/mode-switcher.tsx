@@ -17,7 +17,9 @@ export function ModeSwitcher() {
 
   return (
     <DropdownMenu modal={false}>
-      <DropdownMenuTrigger render={<Button variant="outline" size="icon" />}>
+      <DropdownMenuTrigger
+        render={<Button variant="outline" size="icon" aria-label="Alternar tema" />}
+      >
         <>
           <Sun
             className={`absolute h-5 w-5 transition-all ${

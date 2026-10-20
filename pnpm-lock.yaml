@@ -177,7 +177,7 @@ importers:
         version: 5.1.2(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))
       '@adonisjs/auth':
         specifier: ^9.5.1
-        version: 9.6.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@adonisjs/lucid@21.8.2(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.23.1)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/plugin-adonisjs@4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0))
+        version: 9.6.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@adonisjs/lucid@21.8.2(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.23.1)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/plugin-adonisjs@4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)(playwright@1.64.1))
       '@adonisjs/bouncer':
         specifier: ^3.1.6
         version: 3.1.6(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))
@@ -253,7 +253,7 @@ importers:
         version: 4.2.0(@japa/runner@4.5.0)
       '@japa/plugin-adonisjs':
         specifier: ^4.0.0
-        version: 4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)
+        version: 4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)(playwright@1.64.1)
       '@japa/runner':
         specifier: ^4.5.0
         version: 4.5.0
@@ -355,7 +355,7 @@ importers:
         version: 8.6.0(react@19.2.5)
       geist:
         specifier: ^1.7.0
-        version: 1.8.1(next@16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
+        version: 1.8.1(next@16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.64.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
       input-otp:
         specifier: ^1.4.2
         version: 1.5.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -370,7 +370,7 @@ importers:
         version: 12.43.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       next:
         specifier: 16.2.4
-        version: 16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+        version: 16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.64.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
@@ -435,6 +435,9 @@ importers:
         specifier: ^4.4.3
         version: 4.6.7
     devDependencies:
+      '@playwright/test':
+        specifier: ^1.64.1
+        version: 1.64.1
       '@types/node':
         specifier: ^25
         version: 25.9.9
@@ -1553,6 +1556,11 @@ packages:
   '@pkgr/core@0.3.6':
     resolution: {integrity: sha512-SEeaJLb3qBNF/OaXnaR1NmmBbFYk1zC0ZH/52fATcRPLFg/p791YrcyFFy44Bo9sLaGuSuLp5Q6axbb/O+v/RA==}
     engines: {node: ^14.18.0 || >=16.0.0}
+
+  '@playwright/test@1.64.1':
+    resolution: {integrity: sha512-IaYGml/nSOiZWROfPtuIL7neuu9qDOZ3TNvNljUIrhDMxiGTgPjzj/g9p9RxpS2tSepPDRY+UwAaEeiKtUvIAg==}
+    engines: {node: '>=20'}
+    hasBin: true
 
   '@poppinss/chokidar-ts@4.1.9':
     resolution: {integrity: sha512-Nl4JAb5dvwmZhXElSuiuHy4YkB7YFql/AE2tTu9TyJCfPnUrcwm2iMTUZVa+aGz+bolRPuPNKsuypxN59gBvQQ==}
@@ -4777,6 +4785,16 @@ packages:
     resolution: {integrity: sha512-nDywThFk1i4BQK4twPQ6TA4RT8bDY96yeuCVBWL3ePARCiEKDRSrNGbFIgUJpLp+XeIR65v8ra7WuJOFUBtkMA==}
     engines: {node: '>=8'}
 
+  playwright-core@1.64.1:
+    resolution: {integrity: sha512-BC4s8y6SEVA6Q1rSxZTto8hI1KUI3xXlHGZgvGqP4IqPdI/a6FX9H29IDNz7vKo9l21b6LfYosScPL6M3xxyDQ==}
+    engines: {node: '>=20'}
+    hasBin: true
+
+  playwright@1.64.1:
+    resolution: {integrity: sha512-HCrVhHr5QQuwYoswEUGTb7gGp522yflbv/ST8nF4sFWGuLjQCt17Q/EubpGGSNKYn1tsTCPZxqHhHCfVURu7UA==}
+    engines: {node: '>=20'}
+    hasBin: true
+
   pluralize@8.0.0:
     resolution: {integrity: sha512-Nc3IT5yHzflTfbjgqWcCPpo7DaKy4FnpB0l/zCAW0Tc7jxAiuqSxHasntB3D7887LSrA93kDJ9IXovxJYxyLCA==}
     engines: {node: '>=4'}
@@ -5885,7 +5903,7 @@ snapshots:
     transitivePeerDependencies:
       - babel-plugin-macros
 
-  '@adonisjs/auth@9.6.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@adonisjs/lucid@21.8.2(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.23.1)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/plugin-adonisjs@4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0))':
+  '@adonisjs/auth@9.6.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@adonisjs/lucid@21.8.2(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.23.1)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/plugin-adonisjs@4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)(playwright@1.64.1))':
     dependencies:
       '@adonisjs/core': 6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2)
       '@adonisjs/presets': 2.6.4(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))
@@ -5894,7 +5912,7 @@ snapshots:
     optionalDependencies:
       '@adonisjs/lucid': 21.8.2(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.23.1)(supports-color@10.2.2)
       '@japa/api-client': 3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2)
-      '@japa/plugin-adonisjs': 4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)
+      '@japa/plugin-adonisjs': 4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)(playwright@1.64.1)
     transitivePeerDependencies:
       - '@adonisjs/assembler'
 
@@ -6901,12 +6919,13 @@ snapshots:
       supports-color: 10.2.2
       youch: 4.1.1
 
-  '@japa/plugin-adonisjs@4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)':
+  '@japa/plugin-adonisjs@4.0.0(@adonisjs/core@6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2))(@japa/api-client@3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2))(@japa/runner@4.5.0)(playwright@1.64.1)':
     dependencies:
       '@adonisjs/core': 6.21.0(@adonisjs/assembler@7.8.2(typescript@5.9.3))(@vinejs/vine@4.4.0)(supports-color@10.2.2)
       '@japa/runner': 4.5.0
     optionalDependencies:
       '@japa/api-client': 3.2.1(@japa/assert@4.2.0(@japa/runner@4.5.0))(@japa/runner@4.5.0)(supports-color@10.2.2)
+      playwright: 1.64.1
 
   '@japa/runner@4.5.0':
     dependencies:
@@ -7041,6 +7060,10 @@ snapshots:
   '@pinojs/redact@0.4.0': {}
 
   '@pkgr/core@0.3.6': {}
+
+  '@playwright/test@1.64.1':
+    dependencies:
+      playwright: 1.64.1
 
   '@poppinss/chokidar-ts@4.1.9(typescript@5.9.3)':
     dependencies:
@@ -9228,9 +9251,9 @@ snapshots:
 
   fuzzysort@3.1.0: {}
 
-  geist@1.8.1(next@16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)):
+  geist@1.8.1(next@16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.64.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)):
     dependencies:
-      next: 16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      next: 16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.64.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
 
   generator-function@2.0.1: {}
 
@@ -9985,7 +10008,7 @@ snapshots:
       react: 19.2.5
       react-dom: 19.2.5(react@19.2.5)
 
-  next@16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
+  next@16.2.4(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.64.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5):
     dependencies:
       '@next/env': 16.2.4
       '@swc/helpers': 0.5.15
@@ -10004,6 +10027,7 @@ snapshots:
       '@next/swc-linux-x64-musl': 16.2.4
       '@next/swc-win32-arm64-msvc': 16.2.4
       '@next/swc-win32-x64-msvc': 16.2.4
+      '@playwright/test': 1.64.1
       sharp: 0.34.5
     transitivePeerDependencies:
       - '@babel/core'
@@ -10309,6 +10333,12 @@ snapshots:
   pkg-up@3.1.0:
     dependencies:
       find-up: 3.0.0
+
+  playwright-core@1.64.1: {}
+
+  playwright@1.64.1:
+    dependencies:
+      playwright-core: 1.64.1
 
   pluralize@8.0.0: {}
 

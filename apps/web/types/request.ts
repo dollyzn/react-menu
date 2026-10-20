@@ -24,6 +24,8 @@ export interface RequestConfig extends AxiosRequestConfig {
 export interface BaseResponse {
   success: boolean;
   error?: string;
+  /** On failure: HTTP status, or the network error code when there was no response. */
+  status?: number | string;
 }
 
 export const errorMessages: Record<string, string> = {

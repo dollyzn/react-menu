@@ -55,7 +55,12 @@ export function MenuHeader({ filter, setFilter }: MenuHeaderProps) {
     <header className="flex flex-col w-full pt-8">
       <div className="py-4 z-50 flex items-center gap-2 fixed top-0 left-1/2 -translate-x-1/2 bg-background w-full min-[502px]:w-[502px] px-2 scroll-locked:pr-[calc(0.5rem_+_5px)] scroll-locked:pl-[calc(0.5rem_-_5px)]">
         {filter && (
-          <Button variant="outline" size="icon" onClick={clearFilter}>
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Limpar busca"
+            onClick={clearFilter}
+          >
             <ArrowLeft />
           </Button>
         )}

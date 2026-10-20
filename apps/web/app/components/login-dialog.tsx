@@ -81,6 +81,7 @@ export function LoginDialog() {
       <Button
         size="icon"
         variant="outline"
+        aria-label="Entrar"
         disabled={verifyLoading}
         onClick={async () => {
           await verifyUserSession();

@@ -24,6 +24,7 @@ export default function AppHeader() {
             variant="secondary"
             size="sm"
             direction="tr-circle"
+            aria-label="Alternar tema"
             className="rounded-full"
           />
           <Separator

@@ -13,15 +13,19 @@ import limiter from '@adonisjs/limiter/services/main'
 
 export const throttle = limiter.define('global', (ctx) => {
   /**
-   * Allow logged-in users to make 50 requests by
-   * their user ID
+   * Authenticated users are limited by user id. The admin issues several
+   * requests per screen, so this must stay well above normal navigation.
+   * Routes must run the auth middleware before this one, or the request
+   * is counted as a guest.
    */
   if (ctx.auth.user) {
-    return limiter.allowRequests(50).every('1 minute').usingKey(`user_${ctx.auth.user.id}`)
+    return limiter.allowRequests(300).every('1 minute').usingKey(`user_${ctx.auth.user.id}`)
   }
 
   /**
-   * Allow guest users to make 10 requests by ip address
+   * Guests are limited by IP. Customers of the same restaurant often share
+   * one IP (NAT), so this is per-network, not per-person. Login has its own
+   * brute-force limiter in AuthService.
    */
-  return limiter.allowRequests(10).every('1 minute').usingKey(`ip_${ctx.request.ip()}`)
+  return limiter.allowRequests(60).every('1 minute').usingKey(`ip_${ctx.request.ip()}`)
 })

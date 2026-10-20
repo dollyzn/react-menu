@@ -165,6 +165,9 @@ export function DataTableToolbar<TData>({
           variant="outline"
           size="icon"
           className="size-8"
+          aria-label={
+            viewMode === "cards" ? "Exibir como tabela" : "Exibir como cartões"
+          }
           onClick={() => setViewMode(viewMode === "cards" ? "table" : "cards")}
         >
           <LayoutGrid
