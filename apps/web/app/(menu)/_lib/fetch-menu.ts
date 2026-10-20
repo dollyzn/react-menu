@@ -9,7 +9,11 @@ import { getApiBaseUrl } from "@/lib/api-base-url";
  */
 export async function fetchMenu(slug?: string): Promise<PublicMenu | null> {
   const userAgent = (await headers()).get("user-agent") ?? "";
-  const response = await fetch(`${getApiBaseUrl()}public/menu${slug ? `/${slug}` : ""}`, {
+  // In Docker the server reaches the API over the internal network.
+  const base = process.env.API_INTERNAL_URL
+    ? `${process.env.API_INTERNAL_URL.replace(/\/$/, "")}/`
+    : getApiBaseUrl();
+  const response = await fetch(`${base}public/menu${slug ? `/${slug}` : ""}`, {
     cache: "no-store",
     headers: { "user-agent": userAgent, accept: "application/json" },
   });

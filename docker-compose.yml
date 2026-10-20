@@ -1,0 +1,110 @@
+# Production stack: Caddy (single origin, automatic HTTPS) → web + API,
+# with Postgres and Redis. Configure it with a root `.env` (see
+# `.env.docker.example`), then:
+#
+#   docker compose up -d --build
+#
+# Migrations run when the API starts (RUN_MIGRATIONS=true).
+
+name: react-menu
+
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+    volumes:
+      - ./docker/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web, api]
+
+  web:
+    build:
+      context: .
+      target: web
+      args:
+        NEXT_PUBLIC_APP_URL: ${PUBLIC_URL:?set PUBLIC_URL}
+        NEXT_PUBLIC_API_URL: ${PUBLIC_URL}/api/v1
+        NEXT_PUBLIC_BUILD_VERSION: ${BUILD_VERSION:-docker}
+        NEXT_PUBLIC_FIREBASE_API_KEY: ${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+        NEXT_PUBLIC_FIREBASE_PROJECT_ID: ${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}
+        NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: ${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-}
+        NEXT_PUBLIC_FIREBASE_APP_ID: ${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+        NEXT_PUBLIC_FIREBASE_VAPID_KEY: ${NEXT_PUBLIC_FIREBASE_VAPID_KEY:-}
+    restart: unless-stopped
+    environment:
+      API_INTERNAL_URL: http://api:3333/api/v1
+    depends_on: [api]
+
+  api:
+    build: { context: ., target: api }
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      HOST: 0.0.0.0
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      APP_KEY: ${APP_KEY:?set APP_KEY (32+ random characters)}
+      APP_URL: ${PUBLIC_URL}
+      FRONTEND_URL: ${PUBLIC_URL}
+      AUTH_COOKIE_NAME: session-token
+      AUTH_COOKIE_ENABLED: "true"
+      ADMIN_USER: ${ADMIN_USER:?set ADMIN_USER}
+      ADMIN_PASS: ${ADMIN_PASS:?set ADMIN_PASS}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-menu}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      DB_DATABASE: ${POSTGRES_DB:-menu}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      LIMITER_STORE: redis
+      HEALTH_CHECK_MONITORING_TOKEN: ${HEALTH_CHECK_MONITORING_TOKEN:?set HEALTH_CHECK_MONITORING_TOKEN}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+    volumes:
+      - uploads:/repo/apps/api/storage
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-menu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-menu}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+volumes:
+  postgres-data:
+  redis-data:
+  uploads:
+  caddy-data:
+  caddy-config:

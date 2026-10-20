@@ -128,8 +128,13 @@ Clients refetch after reconnecting, so a missed event never leaves stale UI.
 
 ## Deployment
 
-- Web: Next.js (`next build`/`next start`); the current workflow deploys to
-  a VPS over SSH with PM2 (`.github/workflows/deploy-web.yml`).
+- Docker (recommended): `Dockerfile` targets `api` (compiled Adonis, prod
+  deps only, migrations on start) and `web` (Next standalone server);
+  `docker-compose.yml` runs them behind Caddy on a single origin with
+  Postgres and Redis. The Next server reaches the API through
+  `API_INTERNAL_URL`; `NEXT_PUBLIC_*` values are build arguments.
+- Web without Docker: Next.js (`next build`/`next start`); the current
+  workflow deploys to a VPS over SSH with PM2 (`.github/workflows/deploy-web.yml`).
 - API: `node ace build`, then install production deps; in the monorepo use
   `pnpm deploy --filter @react-menu/api <dir>`. Run migrations on deploy.
 - The auth cookie is host-only and `SameSite=Strict`: serve web and API from

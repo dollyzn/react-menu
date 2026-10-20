@@ -1,7 +1,18 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 import { env } from "./lib/env";
 
+/**
+ * Docker builds set NEXT_OUTPUT=standalone: a self-contained server that
+ * traces dependencies from the monorepo root. Other deploys keep `next start`.
+ */
+const standalone =
+  process.env.NEXT_OUTPUT === "standalone"
+    ? { output: "standalone" as const, outputFileTracingRoot: path.resolve(process.cwd(), "../..") }
+    : {};
+
 const nextConfig: NextConfig = {
+  ...standalone,
   // E2E runs its own `next dev` in a separate build dir so it can coexist
   // with a developer's running dev server.
   distDir: process.env.NEXT_DIST_DIR || ".next",

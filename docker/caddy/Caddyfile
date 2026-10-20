@@ -1,0 +1,19 @@
+# Single origin for web and API: the session cookie is host-only and
+# SameSite=Strict, so both must be served from the same host.
+# SITE_ADDRESS=:80 serves plain HTTP; a domain (menu.example.com) gets HTTPS
+# certificates automatically.
+{$SITE_ADDRESS::80} {
+	encode zstd gzip
+
+	@api path /api/* /__transmit/* /uploads/*
+	handle @api {
+		# flush_interval -1 keeps Server-Sent Events (Transmit) streaming.
+		reverse_proxy api:3333 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy web:3000
+	}
+}

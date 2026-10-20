@@ -1,0 +1,94 @@
+# Development services.
+#
+#   docker compose -f docker-compose.dev.yml up -d
+#     Postgres + Redis for running the apps on your machine (`pnpm dev`),
+#     matching apps/api/.env.example (creates the dev, test and e2e databases).
+#
+#   docker compose -f docker-compose.dev.yml --profile app up
+#     Also runs the API (:3333) and the web app (:3000) in containers with hot
+#     reload. Needs apps/api/.env and apps/web/.env (copied from the examples).
+
+name: react-menu-dev
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: jjpasteis-menu
+    ports: ["${DEV_POSTGRES_PORT:-5432}:5432"]
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./docker/postgres/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports: ["${DEV_REDIS_PORT:-6379}:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ---- profile "app": the apps themselves, with hot reload ----
+  deps:
+    profiles: [app]
+    build: { context: ., target: dev }
+    command: pnpm install --frozen-lockfile
+    volumes: &workspace
+      - .:/repo
+      - node-modules:/repo/node_modules
+      - api-node-modules:/repo/apps/api/node_modules
+      - web-node-modules:/repo/apps/web/node_modules
+      - contracts-node-modules:/repo/packages/contracts/node_modules
+
+  api:
+    profiles: [app]
+    build: { context: ., target: dev }
+    command: sh -c "node ace migration:run && node ace db:seed && node ace serve --hmr"
+    working_dir: /repo/apps/api
+    env_file: apps/api/.env
+    environment:
+      HOST: 0.0.0.0
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+    ports: ["3333:3333"]
+    volumes: *workspace
+    depends_on:
+      deps: { condition: service_completed_successfully }
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  web:
+    profiles: [app]
+    build: { context: ., target: dev }
+    command: pnpm exec next dev --hostname 0.0.0.0
+    working_dir: /repo/apps/web
+    env_file: apps/web/.env
+    environment:
+      # The browser calls the API on the host port; the Next server calls it
+      # over the compose network.
+      API_INTERNAL_URL: http://api:3333/api/v1
+    ports: ["3000:3000"]
+    volumes: *workspace
+    depends_on:
+      deps: { condition: service_completed_successfully }
+      api: { condition: service_started }
+
+volumes:
+  postgres-data:
+  node-modules:
+  api-node-modules:
+  web-node-modules:
+  contracts-node-modules:

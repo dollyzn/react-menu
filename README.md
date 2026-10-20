@@ -28,6 +28,18 @@ kitchen display that batches identical pastries and shows the ingredients.
 
 ## Getting started
 
+### With Docker (quickest)
+
+```bash
+docker compose -f docker-compose.dev.yml up -d   # Postgres + Redis (dev, test and e2e databases)
+```
+
+Then follow the steps below; the `apps/api/.env.example` defaults already
+point at these containers. To run the apps in containers too (hot reload):
+`docker compose -f docker-compose.dev.yml --profile app up`.
+
+### On your machine
+
 ```bash
 pnpm install
 
@@ -58,6 +70,19 @@ Staff sign in at <http://localhost:3000/app/login>.
 Store images use the local disk by default (`DRIVE_DISK=fs`); web push is
 optional and uses Firebase Cloud Messaging (free); see the `FIREBASE_*`
 notes in both `.env.example` files.
+
+## Production with Docker
+
+```bash
+cp .env.docker.example .env      # fill APP_KEY, passwords, PUBLIC_URL, SITE_ADDRESS
+docker compose up -d --build
+docker compose exec api node ace db:seed   # first run: roles and the admin user
+```
+
+Caddy serves the web app and the API on one origin (required by the session
+cookie) and gets HTTPS certificates when `SITE_ADDRESS` is a domain.
+Migrations run when the API container starts. CI builds both images and
+smoke-tests this stack on every push.
 
 ## Commands
 

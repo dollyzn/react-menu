@@ -36,6 +36,8 @@ pnpm workspace, no Turborepo. Node >= 24 (`.nvmrc`), pnpm via corepack.
 | E2E (Playwright) | `pnpm test:e2e` |
 | All checks before a PR | `pnpm check` |
 | Migrations / seed | `pnpm --filter @react-menu/api exec node ace migration:run` / `... db:seed` |
+| Dev databases (Docker) | `docker compose -f docker-compose.dev.yml up -d` |
+| Production stack (Docker) | `docker compose up -d --build` (configure `.env` from `.env.docker.example`) |
 
 Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
 
