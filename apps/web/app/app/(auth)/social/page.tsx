@@ -1,13 +1,22 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/contexts/session-provider";
 import { Icons } from "@/components/app/icons";
 import { delay, motion } from "motion/react";
 import { request } from "@/lib/api";
 
+/** useSearchParams needs a Suspense boundary for static prerendering. */
 export default function AuthSocialPage() {
+  return (
+    <Suspense fallback={null}>
+      <AuthSocial />
+    </Suspense>
+  );
+}
+
+function AuthSocial() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const provider = searchParams.get("provider") as "google" | "linkedin" | null;
