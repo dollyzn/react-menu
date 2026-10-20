@@ -8,8 +8,10 @@ import type {
 /** Customer-facing endpoints (no login). */
 export const publicApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getPublicMenu: build.query<PublicMenu, string | undefined>({
-      query: (slug) => (slug ? `public/menu/${slug}` : "public/menu"),
+    /** `preview` is for staff screens: the visit is not counted. */
+    getPublicMenu: build.query<PublicMenu, { slug?: string; preview?: boolean }>({
+      query: ({ slug, preview }) =>
+        `${slug ? `public/menu/${slug}` : "public/menu"}${preview ? "?preview=1" : ""}`,
     }),
 
     placeOrder: build.mutation<PublicOrder, { slug: string; input: CreatePublicOrderInput }>({

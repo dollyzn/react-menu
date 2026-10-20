@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
-import { useStoreRealtime } from "@/hooks/use-store-realtime";
 
 import {
   FolderTree,
@@ -54,7 +53,6 @@ export default function Store() {
   const { store } = useParams();
   const router = useRouter();
   const storeId = store as string;
-  useStoreRealtime(storeId);
 
   const { data, isLoading, isFetching } = useGetStoreByIdQuery(storeId);
   const loading = isLoading || (isFetching && !data);

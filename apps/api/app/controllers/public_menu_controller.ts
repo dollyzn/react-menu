@@ -15,8 +15,10 @@ export default class PublicMenuController {
     private orders: OrderService
   ) {}
 
+  /** `?preview=1` (staff screens such as the POS) is not counted as a customer visit. */
   async show({ params, request }: HttpContext) {
-    return ok(await this.menus.menu(params.slug, request.header('user-agent')))
+    const track = !request.input('preview')
+    return ok(await this.menus.menu(params.slug, request.header('user-agent'), { track }))
   }
 
   async placeOrder({ params, request }: HttpContext) {

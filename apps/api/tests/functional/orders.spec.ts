@@ -276,3 +276,16 @@ test.group('Kitchen and pickup', (group) => {
     assert.equal(order.createdById, attendant.id)
   })
 })
+
+test.group('Menu views', (group) => {
+  group.each.setup(() => testUtils.db().withGlobalTransaction())
+
+  test('customer visits are counted, staff previews are not', async ({ client, assert }) => {
+    const { store } = await createMenuStore()
+
+    await client.get(`/api/v1/public/menu/${store.slug}`)
+    await client.get(`/api/v1/public/menu/${store.slug}?preview=1`)
+
+    assert.equal(await store.loadStoreViewsCount(), 1)
+  })
+})

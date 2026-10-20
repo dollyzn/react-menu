@@ -10,7 +10,7 @@ import { AnimatedPrice } from "@/components/app/animated-price";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAppDispatch } from "@/redux/hooks";
-import { addLine } from "@/redux/slices/cart";
+import { addLine, type CartLine } from "@/redux/slices/cart";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +24,8 @@ interface ItemDetailProps {
 }
 
 export function ItemDetail({ item, storeSlug, storeOpen, onClose }: ItemDetailProps) {
+  const dispatch = useAppDispatch();
+
   return (
     <ResponsiveModal
       open={Boolean(item)}
@@ -34,15 +36,40 @@ export function ItemDetail({ item, storeSlug, storeOpen, onClose }: ItemDetailPr
       className="sm:max-w-md"
     >
       {item && (
-        // Remount per item so choices start fresh.
-        <ItemDetailBody key={item.id} item={item} storeSlug={storeSlug} storeOpen={storeOpen} onClose={onClose} />
+        <ItemCustomizer
+          // Remount per item so choices start fresh.
+          key={item.id}
+          item={item}
+          ctaLabel={storeOpen ? "Adicionar" : "Loja fechada"}
+          disabled={!storeOpen}
+          onAdd={(line) => {
+            dispatch(addLine({ storeSlug, line }));
+            toast.success(`${line.quantity}× ${item.name} na sacola`);
+            onClose();
+          }}
+        />
       )}
     </ResponsiveModal>
   );
 }
 
-function ItemDetailBody({ item, storeSlug, storeOpen, onClose }: ItemDetailProps & { item: PublicMenuItem }) {
-  const dispatch = useAppDispatch();
+export type CustomizedLine = Omit<CartLine, "key">;
+
+/**
+ * Add-ons, notes and quantity for one menu item. Shared by the customer menu
+ * (adds to the bag) and the POS (adds to the ticket).
+ */
+export function ItemCustomizer({
+  item,
+  ctaLabel,
+  disabled,
+  onAdd,
+}: {
+  item: PublicMenuItem;
+  ctaLabel: string;
+  disabled?: boolean;
+  onAdd: (line: CustomizedLine) => void;
+}) {
   const [addonIds, setAddonIds] = useState<string[]>([]);
   const [notes, setNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
@@ -55,24 +82,16 @@ function ItemDetailBody({ item, storeSlug, storeOpen, onClose }: ItemDetailProps
       current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
     );
 
-  const add = () => {
-    dispatch(
-      addLine({
-        storeSlug,
-        line: {
-          itemId: item.id,
-          name: item.name,
-          photoUrl: item.photoUrl,
-          unitPrice: item.price,
-          addons: selected.map(({ id, name, price }) => ({ id, name, price })),
-          notes: notes.trim(),
-          quantity,
-        },
-      })
-    );
-    toast.success(`${quantity}× ${item.name} na sacola`);
-    onClose();
-  };
+  const add = () =>
+    onAdd({
+      itemId: item.id,
+      name: item.name,
+      photoUrl: item.photoUrl,
+      unitPrice: item.price,
+      addons: selected.map(({ id, name, price }) => ({ id, name, price })),
+      notes: notes.trim(),
+      quantity,
+    });
 
   return (
     <div className="flex flex-col">
@@ -181,8 +200,8 @@ function ItemDetailBody({ item, storeSlug, storeOpen, onClose }: ItemDetailProps
             <Plus />
           </Button>
         </div>
-        <Button size="lg" className="h-11 flex-1 justify-between rounded-full px-5" disabled={!storeOpen} onClick={add}>
-          {storeOpen ? "Adicionar" : "Loja fechada"}
+        <Button size="lg" className="h-11 flex-1 justify-between rounded-full px-5" disabled={disabled} onClick={add}>
+          {ctaLabel}
           <AnimatedPrice value={total} className="font-semibold" />
         </Button>
       </div>

@@ -35,6 +35,11 @@ export function ItemCard({ row }: ItemCardProps) {
             <ImageOff className="size-8 opacity-40" />
           </div>
         )}
+        {!item.isAvailable && (
+          <div className="absolute top-2 right-2">
+            <Badge variant="secondary" className="shadow-sm">Esgotado</Badge>
+          </div>
+        )}
         {/* Badge flutuante */}
         <div className="absolute top-2 left-2">
           <Badge className="text-xs gap-1 shadow-sm">

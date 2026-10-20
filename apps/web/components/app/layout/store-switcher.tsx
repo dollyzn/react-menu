@@ -23,6 +23,7 @@ import {
 import { useAppSelector } from "@/redux/hooks";
 import { hasPermission } from "@/lib/permissions";
 import { CreateStoreDialog } from "./create-store-dialog";
+import { homeForRole } from "@/lib/menu-itens";
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<
   typeof PopoverTrigger
@@ -44,9 +45,9 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
 
   const selectedStore = stores.find((s) => s.id === store) || stores[0];
 
-  const handleStoreSelect = (next: Store) => {
+  const handleStoreSelect = (next: (typeof stores)[number]) => {
     setOpen(false);
-    router.push(`/app/stores/${next.id}`);
+    router.push(homeForRole(next.id, next.role));
   };
 
   return (

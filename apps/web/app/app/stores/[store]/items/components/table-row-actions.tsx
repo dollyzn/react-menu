@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 import { Row } from "@tanstack/react-table";
-import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
+import { MoreHorizontal, Edit, Trash2, CookingPot, CircleSlash, CircleCheck } from "lucide-react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
+import { useUpdateItemMutation } from "@/redux/features/item/itemApi";
 
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -15,6 +18,7 @@ import {
 
 import { UpdateItemDialog } from "./update-item-dialog";
 import { DeleteItemDialog } from "./delete-item-dialog";
+import { RecipeDialog } from "./recipe-dialog";
 import { VariantProps } from "class-variance-authority";
 
 interface RowActionsProps<Item> {
@@ -25,6 +29,15 @@ interface RowActionsProps<Item> {
 export function RowActions({ row, size = "icon" }: RowActionsProps<Item>) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isRecipeOpen, setIsRecipeOpen] = useState(false);
+  const { store: storeId } = useParams<{ store: string }>();
+  const [updateItem] = useUpdateItemMutation();
+  const item = row.original;
+
+  const toggleAvailability = async () => {
+    await updateItem({ storeId, itemId: item.id, data: { isAvailable: !item.isAvailable } }).unwrap();
+    toast.success(item.isAvailable ? `${item.name} marcado como esgotado` : `${item.name} disponível de novo`);
+  };
 
   return (
     <>
@@ -46,6 +59,18 @@ export function RowActions({ row, size = "icon" }: RowActionsProps<Item>) {
             <Edit className="mr-2 h-4 w-4 text-blue-500" />
             Editar
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setIsRecipeOpen(true)}>
+            <CookingPot className="mr-2 h-4 w-4 text-primary" />
+            Receita
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={toggleAvailability}>
+            {item.isAvailable ? (
+              <CircleSlash className="mr-2 h-4 w-4 text-amber-500" />
+            ) : (
+              <CircleCheck className="mr-2 h-4 w-4 text-emerald-500" />
+            )}
+            {item.isAvailable ? "Marcar esgotado" : "Marcar disponível"}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => setIsDeleteModalOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4 text-red-500" />
@@ -58,6 +83,12 @@ export function RowActions({ row, size = "icon" }: RowActionsProps<Item>) {
         open={isEditModalOpen}
         onOpenChange={setIsEditModalOpen}
         row={row}
+      />
+
+      <RecipeDialog
+        item={row.original}
+        open={isRecipeOpen}
+        onOpenChange={setIsRecipeOpen}
       />
 
       <DeleteItemDialog

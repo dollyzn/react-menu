@@ -29,6 +29,7 @@ const updateValidator = vine.create(
     description,
     price: price.optional(),
     photoUrl,
+    isAvailable: vine.boolean().optional(),
   })
 )
 

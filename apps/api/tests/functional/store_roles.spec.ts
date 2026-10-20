@@ -69,3 +69,33 @@ test.group('Store roles', (group) => {
     create.assertStatus(200)
   })
 })
+
+test.group('Store settings', (group) => {
+  group.each.setup(() => testUtils.db().withGlobalTransaction())
+
+  test('managers update operational settings', async ({ client, assert }) => {
+    const store = await createStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    const response = await client
+      .put(`/api/v1/stores/${store.id}`)
+      .json({
+        name: store.name,
+        slug: store.slug,
+        phone: '(11) 91234-5678',
+        description: 'Pastéis crocantes',
+        pickupEtaMinutes: 25,
+        inventoryEnabled: true,
+        counterPaymentEnabled: false,
+      })
+      .loginAs(manager)
+
+    response.assertStatus(200)
+    await store.refresh()
+    assert.equal(store.phone, '11912345678')
+    assert.equal(store.pickupEtaMinutes, 25)
+    assert.isTrue(store.inventoryEnabled)
+    assert.isFalse(store.counterPaymentEnabled)
+  })
+})

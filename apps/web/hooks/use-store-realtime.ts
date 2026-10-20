@@ -19,10 +19,23 @@ export function useStoreRealtime(storeId: string) {
     const subscription = transmit.subscription(`stores/${storeId}`);
 
     const refresh = () =>
-      dispatch(baseApi.util.invalidateTags([{ type: "Store", id: storeId }]));
+      dispatch(
+        baseApi.util.invalidateTags([
+          { type: "Store", id: storeId },
+          { type: "Order", id: `store-${storeId}` },
+          { type: "Kitchen", id: storeId },
+        ])
+      );
 
     const stopListening = subscription.onMessage<StoreEvent>((event) => {
       if (event.type === "store.status_changed") refresh();
+      else
+        dispatch(
+          baseApi.util.invalidateTags([
+            { type: "Order", id: `store-${storeId}` },
+            { type: "Kitchen", id: storeId },
+          ])
+        );
     });
 
     subscription.create().catch(() => {

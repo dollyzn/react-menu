@@ -31,7 +31,7 @@ export default class PublicMenuService {
   constructor(private inventory: InventoryService) {}
 
   /** The menu of a store by slug, or of the default store when slug is omitted. */
-  async menu(slug: string | undefined, userAgent: string | undefined) {
+  async menu(slug: string | undefined, userAgent: string | undefined, options = { track: true }) {
     const store = await Store.query()
       .if(
         slug,
@@ -51,7 +51,7 @@ export default class PublicMenuService {
     if (!store) throw new AppException('Cardápio não encontrado', 404)
 
     const unavailable = await this.inventory.unavailable(store)
-    await this.trackView(store, userAgent)
+    if (options.track) await this.trackView(store, userAgent)
 
     return {
       store: publicStore(store),

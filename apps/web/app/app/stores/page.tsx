@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { BookmarkPlus, Store as StoreIcon } from "lucide-react";
 import { useSession } from "@/contexts/session-provider";
 import { hasPermission } from "@/lib/permissions";
+import { homeForRole } from "@/lib/menu-itens";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -22,7 +23,7 @@ export default function Stores() {
   const stores = user?.stores || [];
 
   if (stores.length > 0) {
-    return redirect(`/app/stores/${stores[0].id}`);
+    return redirect(homeForRole(stores[0].id, stores[0].role));
   }
 
   // A user with no linked store (e.g. a fresh install) lands here instead of

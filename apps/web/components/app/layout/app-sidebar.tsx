@@ -16,6 +16,7 @@ import { useSession } from "@/contexts/session-provider";
 import { cn } from "@/lib/utils";
 import { Icons } from "@/components/app/icons";
 import { getManageMenuItems } from "@/lib/menu-itens";
+import { useStoreRole } from "@/hooks/use-store-role";
 import { env } from "@/lib/env";
 import { useParams } from "next/navigation";
 import { NavUser } from "./nav-user";
@@ -27,9 +28,10 @@ export default function AppSidebar({
   const { store } = useParams();
   const storeId = typeof store === "string" ? store : "";
 
+  const role = useStoreRole(storeId);
   const items = React.useMemo(
-    () => (storeId ? getManageMenuItems(storeId) : []),
-    [storeId]
+    () => (storeId ? getManageMenuItems(storeId, role) : []),
+    [storeId, role]
   );
 
   return (

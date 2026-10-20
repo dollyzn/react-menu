@@ -46,6 +46,16 @@ const updateValidator = vine.create(
         return !match
       }),
     isDefault,
+    phone: vine
+      .string()
+      .trim()
+      .maxLength(25)
+      .transform((value) => value.replace(/\D/g, '') || null)
+      .optional(),
+    description: vine.string().trim().maxLength(500).optional(),
+    pickupEtaMinutes: vine.number().withoutDecimals().min(1).max(240).optional(),
+    inventoryEnabled: vine.boolean().optional(),
+    counterPaymentEnabled: vine.boolean().optional(),
   })
 )
 

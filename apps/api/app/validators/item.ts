@@ -42,6 +42,7 @@ const updateValidator = vine.create(
     categoryId,
     photoUrl,
     addonIds,
+    isAvailable: vine.boolean().optional(),
   })
 )
 

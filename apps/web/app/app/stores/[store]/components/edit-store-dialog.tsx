@@ -14,7 +14,11 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldSeparator,
 } from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { formatPhoneBR } from "@/utils/string";
 import {
   Dialog,
   DialogContent,
@@ -57,6 +61,13 @@ const EditStoreSchema = z.object({
       /^[a-z0-9-]+$/,
       "O slug deve conter apenas letras minúsculas, números e hífens."
     ),
+  phone: z
+    .string()
+    .refine((v) => !v || [10, 11].includes(v.replace(/\D/g, "").length), "Informe DDD + número."),
+  description: z.string().max(500, "No máximo 500 caracteres."),
+  pickupEtaMinutes: z.number({ message: "Informe os minutos." }).int().min(1).max(240),
+  inventoryEnabled: z.boolean(),
+  counterPaymentEnabled: z.boolean(),
 });
 
 type EditStoreFormValues = z.infer<typeof EditStoreSchema>;
@@ -81,6 +92,11 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
       instagramUrl: data.instagramUrl || "",
       ifoodUrl: data.ifoodUrl || "",
       slug: data.slug || "",
+      phone: formatPhoneBR(data.phone ?? ""),
+      description: data.description ?? "",
+      pickupEtaMinutes: data.pickupEtaMinutes ?? 20,
+      inventoryEnabled: data.inventoryEnabled ?? false,
+      counterPaymentEnabled: data.counterPaymentEnabled ?? true,
     },
   });
   const { isSubmitting } = form.formState;
@@ -239,6 +255,89 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
                   {fieldState.invalid && (
                     <FieldError errors={[fieldState.error]} />
                   )}
+                </Field>
+              )}
+            />
+
+            <FieldSeparator>Operação</FieldSeparator>
+
+            <Controller
+              name="description"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <Field data-invalid={fieldState.invalid}>
+                  <FieldLabel htmlFor={field.name}>Descrição no cardápio</FieldLabel>
+                  <Textarea {...field} id={field.name} rows={2} maxLength={500} disabled={busy} placeholder="Ex.: Pastéis feitos na hora desde 1998." />
+                  {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                </Field>
+              )}
+            />
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Controller
+                name="phone"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Telefone</FieldLabel>
+                    <Input
+                      {...field}
+                      id={field.name}
+                      type="tel"
+                      disabled={busy}
+                      placeholder="(11) 91234-5678"
+                      aria-invalid={fieldState.invalid}
+                      onChange={(event) => field.onChange(formatPhoneBR(event.target.value))}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="pickupEtaMinutes"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Tempo de retirada (min)</FieldLabel>
+                    <Input
+                      id={field.name}
+                      type="number"
+                      min={1}
+                      max={240}
+                      disabled={busy}
+                      value={Number.isNaN(field.value) ? "" : field.value}
+                      onChange={(event) => field.onChange(event.target.valueAsNumber)}
+                      aria-invalid={fieldState.invalid}
+                    />
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                  </Field>
+                )}
+              />
+            </div>
+
+            <Controller
+              name="inventoryEnabled"
+              control={form.control}
+              render={({ field }) => (
+                <Field orientation="horizontal">
+                  <Switch id={field.name} checked={field.value} onCheckedChange={field.onChange} disabled={busy} />
+                  <div>
+                    <FieldLabel htmlFor={field.name}>Controlar estoque</FieldLabel>
+                    <FieldDescription>Itens sem ingredientes suficientes ficam indisponíveis no cardápio.</FieldDescription>
+                  </div>
+                </Field>
+              )}
+            />
+            <Controller
+              name="counterPaymentEnabled"
+              control={form.control}
+              render={({ field }) => (
+                <Field orientation="horizontal">
+                  <Switch id={field.name} checked={field.value} onCheckedChange={field.onChange} disabled={busy} />
+                  <div>
+                    <FieldLabel htmlFor={field.name}>Aceitar pagamento na retirada</FieldLabel>
+                    <FieldDescription>Clientes podem pedir online e pagar no balcão.</FieldDescription>
+                  </div>
                 </Field>
               )}
             />

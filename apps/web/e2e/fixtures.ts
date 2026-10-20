@@ -37,10 +37,16 @@ export const test = base.extend<{ consoleEntries: ConsoleEntry[] }>({
 
 export { expect };
 
-export async function login(page: Page) {
+/** Demo staff created by the API seeders (development). */
+export const DEMO_STAFF = {
+  attendant: { email: "atendente@jjpasteis.dev", password: "demo12345" },
+  kitchen: { email: "cozinha@jjpasteis.dev", password: "demo12345" },
+};
+
+export async function login(page: Page, credentials = E2E_ADMIN) {
   await page.goto("/app/login");
-  await page.getByLabel("E-mail").fill(E2E_ADMIN.email);
-  await page.getByLabel("Senha", { exact: true }).fill(E2E_ADMIN.password);
+  await page.getByLabel("E-mail").fill(credentials.email);
+  await page.getByLabel("Senha", { exact: true }).fill(credentials.password);
   await page.getByRole("button", { name: "Entrar" }).click();
   await page.waitForURL(/\/app\/stores\/[^/]+/);
 }
