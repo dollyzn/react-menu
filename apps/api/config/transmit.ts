@@ -19,7 +19,7 @@ export default defineConfig({
         driver: redis({
           host: env.get('REDIS_HOST'),
           port: env.get('REDIS_PORT'),
-          password: env.get('REDIS_PASSWORD'),
+          password: env.get('REDIS_PASSWORD') || undefined,
         }),
       },
 })

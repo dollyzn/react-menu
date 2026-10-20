@@ -38,6 +38,10 @@ Then follow the steps below; the `apps/api/.env.example` defaults already
 point at these containers. To run the apps in containers too (hot reload):
 `docker compose -f docker-compose.dev.yml --profile app up`.
 
+Ports already taken on your machine? Override them: `DEV_POSTGRES_PORT`,
+`DEV_REDIS_PORT`, `DEV_API_PORT`, `DEV_WEB_PORT` (defaults 5432, 6379, 3333,
+3000). If you move the API or web port, update the URLs in the apps' `.env`.
+
 ### On your machine
 
 ```bash
@@ -81,7 +85,8 @@ docker compose exec api node ace db:seed   # first run: roles and the admin user
 
 Caddy serves the web app and the API on one origin (required by the session
 cookie) and gets HTTPS certificates when `SITE_ADDRESS` is a domain.
-Migrations run when the API container starts. CI builds both images and
+Migrations run when the API container starts. `HTTP_PORT` / `HTTPS_PORT`
+change the published ports (defaults 80/443). CI builds both images and
 smoke-tests this stack on every push.
 
 ## Commands
