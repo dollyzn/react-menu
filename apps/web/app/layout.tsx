@@ -1,6 +1,6 @@
 import "@/styles/globals.css";
 
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { ThemeProvider } from "@/contexts/theme-provider";
 import { ReduxProvider } from "@/contexts/redux-provider";
@@ -12,6 +12,7 @@ import { fontMono, fontSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ServiceWorkerRegistrar } from "@/components/app/pwa/service-worker-registrar";
 
 const DESCRIPTION =
   "Cardápio digital e pedidos para restaurantes: pedido pelo celular, retirada no balcão, PDV e tela da cozinha.";
@@ -61,8 +62,21 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: "/favicon.ico",
-    apple: "/logo.png",
+    apple: "/icons/apple-touch-icon.png",
   },
+  appleWebApp: {
+    capable: true,
+    title: "Cardápio",
+    statusBarStyle: "default",
+  },
+  formatDetection: { telephone: false },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#c46014" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 interface RootLayoutProps {
@@ -82,6 +96,13 @@ export default function RootLayout({ children }: RootLayoutProps) {
       )}
     >
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            // Keep the install prompt if it fires before React hydrates
+            // (see hooks/use-pwa-install.ts).
+            __html: `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;});`,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -116,6 +137,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
               <SessionProvider>
                 <TooltipProvider>{children}</TooltipProvider>
                 <Toaster closeButton richColors />
+                <ServiceWorkerRegistrar />
               </SessionProvider>
             </NotificationProvider>
           </ReduxProvider>

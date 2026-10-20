@@ -18,6 +18,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { ModeSwitcher } from "./mode-switcher";
+import { InstallAppMenuGroup, useInstallFlow } from "@/components/app/pwa/install-app";
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import { redirectToLogout } from "@/utils/navigation";
@@ -25,6 +26,7 @@ import { redirectToLogout } from "@/utils/navigation";
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { user } = useSession();
+  const install = useInstallFlow("staff");
   const router = useRouter();
 
   if (!user) return null;
@@ -70,6 +72,8 @@ export function NavUser() {
 
             <DropdownMenuSeparator />
 
+            {install.pwa.available && <InstallAppMenuGroup onInstall={install.install} />}
+
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOutIcon className="mr-1 h-4 w-4" />
@@ -78,6 +82,7 @@ export function NavUser() {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        {install.steps}
       </SidebarMenuItem>
     </SidebarMenu>
   );

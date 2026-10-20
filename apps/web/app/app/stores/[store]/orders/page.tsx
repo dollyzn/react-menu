@@ -16,10 +16,11 @@ import { useNow } from "@/hooks/use-now";
 import { OrderCard } from "./order-card";
 import { cn } from "@/lib/utils";
 
-const COLUMNS: { status: OrderStatus; title: string; empty: string }[] = [
-  { status: "received", title: "Na fila", empty: "Nenhum pedido esperando." },
-  { status: "preparing", title: "Em preparo", empty: "A cozinha está livre." },
-  { status: "ready", title: "Prontos para retirada", empty: "Nada para entregar." },
+/** `tab` is the short label for the phone tabs. */
+const COLUMNS: { status: OrderStatus; title: string; tab: string; empty: string }[] = [
+  { status: "received", title: "Na fila", tab: "Fila", empty: "Nenhum pedido esperando." },
+  { status: "preparing", title: "Em preparo", tab: "Preparo", empty: "A cozinha está livre." },
+  { status: "ready", title: "Prontos para retirada", tab: "Prontos", empty: "Nada para entregar." },
 ];
 
 export default function OrdersPage() {
@@ -64,7 +65,7 @@ export default function OrdersPage() {
         <TabsList className="grid w-full grid-cols-3">
           {COLUMNS.map((column) => (
             <TabsTrigger key={column.status} value={column.status}>
-              {column.title.split(" ")[0]} ({byStatus.get(column.status)?.length ?? 0})
+              {column.tab} ({byStatus.get(column.status)?.length ?? 0})
             </TabsTrigger>
           ))}
         </TabsList>

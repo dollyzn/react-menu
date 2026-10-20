@@ -15,6 +15,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
 | Server state | RTK Query: `redux/api/baseApi.ts`, `redux/features/<domain>/<domain>Api.ts` |
 | Session / push | `contexts/session-provider.tsx`, `contexts/notification-provider.tsx` |
+| PWA (manifests, service worker, install prompt) | `app/manifest.ts`, `app/app/manifest.webmanifest/`, `public/sw.js`, `components/app/pwa/`, `hooks/use-pwa-install.ts` (ADR 0012) |
 | Realtime | `lib/transmit.ts`, `hooks/use-store-realtime.ts`, `hooks/use-notifications-realtime.ts` |
 | Design system (shadcn base-nova on Base UI) | `components/ui` (generated; change via shadcn CLI) |
 | App components (data table, layout, dialogs) | `components/app` |

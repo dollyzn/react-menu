@@ -16,16 +16,19 @@ import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import { redirectToLogout } from "@/utils/navigation";
 import { ModeSwitcher } from "./mode-switcher";
+import { InstallAppMenuGroup, useInstallFlow } from "@/components/app/pwa/install-app";
 
 export function HeaderUser() {
   const router = useRouter();
   const { user } = useSession();
+  const install = useInstallFlow("staff");
 
   async function handleLogout() {
     redirectToLogout(router);
   }
 
   return (
+    <>
     <DropdownMenu>
       <DropdownMenuTrigger
         render={
@@ -66,6 +69,8 @@ export function HeaderUser() {
 
         <DropdownMenuSeparator />
 
+        {install.pwa.available && <InstallAppMenuGroup onInstall={install.install} />}
+
         <DropdownMenuGroup>
           <DropdownMenuItem onClick={handleLogout}>
             <LogOut className="mr-2 h-4 w-4" />
@@ -74,5 +79,7 @@ export function HeaderUser() {
         </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
+    {install.steps}
+    </>
   );
 }

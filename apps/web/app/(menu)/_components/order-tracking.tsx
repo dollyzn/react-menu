@@ -26,6 +26,7 @@ import { useGetPublicOrderQuery } from "@/redux/features/public/publicApi";
 import { getTransmit } from "@/lib/transmit";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
+import { InstallAppCard } from "@/components/app/pwa/install-app";
 
 const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: "received", label: "Pedido recebido", icon: ReceiptText },
@@ -215,6 +216,13 @@ export function OrderTracking({ token }: { token: string }) {
           <MapPin className="size-4" /> Retirada em {order.store.address}
         </p>
       )}
+
+      <InstallAppCard
+        context="menu"
+        title="Acompanhe seus pedidos pelo app"
+        description={`Instale o cardápio da ${order.store.name} para pedir de novo e ver o andamento em um toque.`}
+        className="mt-6"
+      />
     </Shell>
   );
 }

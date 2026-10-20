@@ -20,6 +20,7 @@ import { useStoreRole } from "@/hooks/use-store-role";
 import { env } from "@/lib/env";
 import { useParams } from "next/navigation";
 import { NavUser } from "./nav-user";
+import { InstallAppCard } from "@/components/app/pwa/install-app";
 
 export default function AppSidebar({
   ...props
@@ -67,6 +68,12 @@ export default function AppSidebar({
       </SidebarContent>
       <SidebarSeparator className="mx-0 " />
       <SidebarFooter className="gap-2">
+        <InstallAppCard
+          context="staff"
+          variant="sidebar"
+          title="Instale o painel"
+          description="Tela cheia no tablet do PDV e da cozinha."
+        />
         {user ? <NavUser /> : null}
       </SidebarFooter>
     </Sidebar>

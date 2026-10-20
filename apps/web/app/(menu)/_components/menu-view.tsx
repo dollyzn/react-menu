@@ -11,10 +11,17 @@ import { CategoryNav, categoryAnchor } from "./category-nav";
 import { MenuItemCard } from "./menu-item-card";
 import { ItemDetail } from "./item-detail";
 import { Cart } from "./cart";
+import { InstallAppCard } from "@/components/app/pwa/install-app";
+import { countVisit } from "@/lib/install-prompt-storage";
+import { useAppSelector } from "@/redux/hooks";
 
 export function MenuView({ menu }: { menu: PublicMenu }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PublicMenuItem | null>(null);
+  // Invite to install only customers who came back or already ordered. Only
+  // read on the client; the invitation never renders during SSR/hydration.
+  const [visits] = useState(() => (typeof window === "undefined" ? 0 : countVisit()));
+  const hasOrdered = useAppSelector((state) => state.customer.recentOrders.length > 0);
 
   // Results start at the top of the list; don't leave the customer halfway
   // down a filtered page.
@@ -52,6 +59,16 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {!query && (
+          <InstallAppCard
+            context="menu"
+            when={visits >= 2 || hasOrdered}
+            title="Peça mais rápido pelo app"
+            description={`Instale o cardápio da ${menu.store.name}: abre em um toque e seus pedidos ficam à mão.`}
+            className="mt-4"
+          />
+        )}
 
         {!menu.store.isOpen && (
           <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed p-3 text-sm text-muted-foreground">

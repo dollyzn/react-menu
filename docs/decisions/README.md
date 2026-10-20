@@ -17,6 +17,7 @@ an accepted ADR, supersede it with a new one.
 | [0009](0009-orders-kitchen-batching-and-inventory.md) | Orders, kitchen batching and recipe-based inventory | Accepted |
 | [0010](0010-store-roles.md) | Roles inside a store | Accepted |
 | [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Accepted |
+| [0012](0012-two-installable-apps.md) | Two installable apps: customer menu and staff panel | Accepted |
 
 ## Template
 
