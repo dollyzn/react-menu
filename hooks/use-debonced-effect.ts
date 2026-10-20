@@ -9,20 +9,22 @@ const useDebouncedEffect = (
 ) => {
   const callbackRef = useRef(callback);
 
-  callbackRef.current = callback;
+  useEffect(() => {
+    callbackRef.current = callback;
+  });
 
   useEffect(() => {
-    const handler = setTimeout(() => {
-      const cleanup = callbackRef.current();
+    let cleanup: void | (() => void);
 
-      if (typeof cleanup === "function") {
-        cleanup();
-      }
+    const handler = setTimeout(() => {
+      cleanup = callbackRef.current();
     }, delay);
 
     return () => {
       clearTimeout(handler);
+      if (typeof cleanup === "function") cleanup();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- deps are forwarded from the caller
   }, [...dependencies, delay]);
 };
 

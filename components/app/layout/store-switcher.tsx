@@ -16,21 +16,13 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAppSelector } from "@/redux/hooks";
+import { hasPermission } from "@/lib/permissions";
+import { CreateStoreDialog } from "./create-store-dialog";
 
 type PopoverTriggerProps = React.ComponentPropsWithoutRef<
   typeof PopoverTrigger
@@ -43,10 +35,12 @@ interface StoreSwitcherProps extends PopoverTriggerProps {
 export function StoreSwitcher({ className }: StoreSwitcherProps) {
   const { store } = useParams();
   const router = useRouter();
-  const stores = useAppSelector((state) => state.auth.user?.stores || []);
+  const user = useAppSelector((state) => state.auth.user);
+  const stores = user?.stores || [];
+  const canCreateStore = hasPermission(user, "create_store");
 
   const [open, setOpen] = React.useState(false);
-  const [showNewTeamDialog, setShowNewTeamDialog] = React.useState(false);
+  const [showNewStoreDialog, setShowNewStoreDialog] = React.useState(false);
 
   const selectedStore = stores.find((s) => s.id === store) || stores[0];
 
@@ -56,7 +50,7 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
   };
 
   return (
-    <Dialog open={showNewTeamDialog} onOpenChange={setShowNewTeamDialog}>
+    <>
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger
           render={
@@ -115,45 +109,31 @@ export function StoreSwitcher({ className }: StoreSwitcherProps) {
                 ))}
               </CommandGroup>
             </CommandList>
-            <CommandSeparator />
-            <CommandList>
-              <CommandGroup>
-                <CommandItem
-                  onSelect={() => {
-                    setOpen(false);
-                    setShowNewTeamDialog(true);
-                  }}
-                >
-                  <BookmarkPlus className="size-5" />
-                  Criar Loja
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
+            {canCreateStore && (
+              <>
+                <CommandSeparator />
+                <CommandList>
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={() => {
+                        setOpen(false);
+                        setShowNewStoreDialog(true);
+                      }}
+                    >
+                      <BookmarkPlus className="size-5" />
+                      Criar Loja
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </>
+            )}
           </Command>
         </PopoverContent>
       </Popover>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Criar Loja</DialogTitle>
-          <DialogDescription>
-            Criar uma nova loja para gerenciar suas categorias e itens.
-          </DialogDescription>
-        </DialogHeader>
-        <div>
-          <div className="space-y-4 py-2 pb-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" placeholder="Nome da loja" />
-            </div>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setShowNewTeamDialog(false)}>
-            Cancelar
-          </Button>
-          <Button type="submit">Continuar</Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <CreateStoreDialog
+        open={showNewStoreDialog}
+        onOpenChange={setShowNewStoreDialog}
+      />
+    </>
   );
 }

@@ -55,3 +55,9 @@ export class RequestError extends Error {
     this.code = code;
   }
 }
+
+/** Response `data` of every `POST .../bulk-delete` endpoint. */
+export interface BulkDeleteResult<T> {
+  deleted: T[];
+  failed: T[];
+}

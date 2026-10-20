@@ -48,12 +48,12 @@ export function BulkDeleteCategoryDialog({
       }).unwrap();
       handleOpenChange();
 
-      if (result.failedDeletions && result.failedDeletions.length > 0)
+      if (result.failed.length > 0)
         toast.error(
           `Ocorreu um erro ao excluir ${
-            result.failedDeletions.length
+            result.failed.length
           } categoria${
-            result.failedDeletions.length === 1 ? "" : "s"
+            result.failed.length === 1 ? "" : "s"
           }. Por favor, tente novamente.`,
           {
             richColors: true,

@@ -40,9 +40,9 @@ export function BulkDeleteItemDialog({ rows }: BulkDeleteItemDialogProps) {
       rows.forEach((row) => row.toggleSelected(false));
       handleOpenChange(false);
 
-      if (result.failedDeletions?.length) {
+      if (result.failed.length) {
         toast.error(
-          `Falha ao excluir ${result.failedDeletions.length} item(ns).`,
+          `Falha ao excluir ${result.failed.length} item(ns).`,
           {
             richColors: true,
             closeButton: true,

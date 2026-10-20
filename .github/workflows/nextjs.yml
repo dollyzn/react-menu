@@ -35,8 +35,9 @@ jobs:
 
             # Instalar dependências e construir o projeto
             echo "Installing dependencies and building the project..."
-            yarn install --frozen-lockfile
-            yarn build
+            corepack enable
+            pnpm install --frozen-lockfile
+            pnpm build
 
             # Reiniciar a aplicação com PM2
             echo "Starting or restarting application with PM2..."

@@ -13,6 +13,14 @@ export const storeApi = baseApi.injectEndpoints({
       providesTags: (_res, _err, id) => [storeTag(id)],
     }),
 
+    createStore: build.mutation<Store, { name: string; slug: string }>({
+      query: (data) => ({
+        url: "stores",
+        method: "POST",
+        body: data,
+      }),
+    }),
+
     updateStore: build.mutation<
       Store,
       { id: string; data: Partial<Store> }
@@ -74,6 +82,7 @@ export const storeApi = baseApi.injectEndpoints({
 export const {
   useGetStoreByIdQuery,
   useLazyGetStoreByIdQuery,
+  useCreateStoreMutation,
   useUpdateStoreMutation,
   useUpdateStoreImagesMutation,
   useUpdateStoreStatusMutation,

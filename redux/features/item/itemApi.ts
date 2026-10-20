@@ -1,3 +1,4 @@
+import type { BulkDeleteResult } from "@/types/request";
 import { baseApi } from "@/redux/api/baseApi";
 import {
   buildStoreListUrl,
@@ -104,7 +105,7 @@ export const itemApi = baseApi.injectEndpoints({
     }),
 
     bulkDeleteItemsByStoreId: build.mutation<
-      { deletedItems: Item[]; failedDeletions?: Item[] },
+      BulkDeleteResult<Item>,
       { storeId: string; ids: string[] }
     >({
       query: ({ storeId, ids }) => ({

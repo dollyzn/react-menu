@@ -11,13 +11,6 @@ import { SlideData } from "photoswipe";
 import NextImage from "next/image";
 import cardapio from "./data/categories.json";
 
-type MenuItem = {
-  nome: string;
-  descricao: string;
-  preco: number;
-  foto: string;
-};
-
 export default function Menu() {
   const searchParams = useSearchParams();
 

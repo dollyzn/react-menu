@@ -17,10 +17,6 @@ const ratingVariants = {
   },
 };
 
-interface IconProps extends React.SVGProps<SVGSVGElement> {
-  size?: number;
-}
-
 interface RatingsProps extends React.HTMLAttributes<HTMLDivElement> {
   rating: number;
   totalStars?: number;
