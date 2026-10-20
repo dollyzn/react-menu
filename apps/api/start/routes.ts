@@ -16,6 +16,7 @@ import authRoutes from '#routes/auth'
 import usersRoutes from '#routes/user'
 import notificationsRoutes from '#routes/notifications'
 import publicRoutes from '#routes/public'
+import paymentRoutes from '#routes/payments'
 import registerStoreCreateRoute from '#routes/store/store_create'
 import registerStoreDetailRoutes from '#routes/store/store_detail'
 import registerStoreDashboardRoutes from '#routes/store/dashboard'
@@ -42,6 +43,7 @@ router
         notificationsRoutes()
 
         publicRoutes()
+        paymentRoutes()
         registerStoreCreateRoute()
 
         router

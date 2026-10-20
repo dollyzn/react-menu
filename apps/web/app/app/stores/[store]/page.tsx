@@ -45,6 +45,7 @@ import { UpdatePhotoDialog } from "./components/update-photo-dialog";
 import { EditStoreDialog } from "./components/edit-store-dialog";
 import { CommentRatings } from "./components/rating";
 import { SortingTabs } from "./components/sorting-tabs";
+import { PaymentSettingsCard } from "./components/payment-settings-card";
 import Image from "next/image";
 
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
@@ -314,6 +315,9 @@ export default function Store() {
             <SortingTabs />
           </CardContent>
         </Card>
+      </div>
+      <div className="md:col-span-2">
+        {data && <PaymentSettingsCard store={data} />}
       </div>
       <Card className="md:col-span-2">
         <CardHeader>

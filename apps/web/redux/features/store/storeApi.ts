@@ -62,6 +62,18 @@ export const storeApi = baseApi.injectEndpoints({
       invalidatesTags: (_res, _err, { id }) => [storeTag(id)],
     }),
 
+    /** Set or clear (null) the store's Mercado Pago credentials. */
+    updatePaymentSettings: build.mutation<
+      { mercadoPagoEnabled: boolean },
+      {
+        id: string;
+        data: { mercadoPagoAccessToken?: string | null; mercadoPagoWebhookSecret?: string | null };
+      }
+    >({
+      query: ({ id, data }) => ({ url: `stores/${id}/payment-settings`, method: "PUT", body: data }),
+      invalidatesTags: (_res, _err, { id }) => [storeTag(id)],
+    }),
+
     getStoreOverview: build.query<StoreOverview, string>({
       query: (storeId) => `stores/${storeId}/dashboard/overview`,
       providesTags: (_res, _err, storeId) => [storeTag(storeId)],
@@ -86,6 +98,7 @@ export const {
   useUpdateStoreMutation,
   useUpdateStoreImagesMutation,
   useUpdateStoreStatusMutation,
+  useUpdatePaymentSettingsMutation,
   useGetStoreOverviewQuery,
   useGetStoreRecentItemsQuery,
   useGetStoreChartQuery,

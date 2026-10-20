@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import OrderChannel from '#enums/order_channel'
+import PaymentMethod from '#enums/payment_method'
+import PaymentService from '#services/payment_service'
 import { ok } from '#helpers/api_response'
 import { publicOrder } from '#orders/public_order'
 import OrderService from '#services/order_service'
@@ -12,7 +14,8 @@ import { publicOrderValidator } from '#validators/order'
 export default class PublicMenuController {
   constructor(
     private menus: PublicMenuService,
-    private orders: OrderService
+    private orders: OrderService,
+    private payments: PaymentService
   ) {}
 
   /** `?preview=1` (staff screens such as the POS) is not counted as a customer visit. */
@@ -26,12 +29,16 @@ export default class PublicMenuController {
     const input = await request.validateUsing(publicOrderValidator)
 
     const order = await this.orders.create(store.id, { ...input, channel: OrderChannel.ONLINE })
+    const checkoutUrl =
+      input.paymentMethod === PaymentMethod.MERCADO_PAGO
+        ? await this.payments.startCheckout(order, store)
+        : null
 
-    return ok(publicOrder(order, store))
+    return ok(publicOrder(order, store, checkoutUrl))
   }
 
   async trackOrder({ params }: HttpContext) {
     const order = await this.orders.findByToken(params.token)
-    return ok(publicOrder(order, order.store))
+    return ok(publicOrder(order, order.store, this.payments.checkoutUrlFor(order, order.store)))
   }
 }
