@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Item from '#models/item'
 import { deleteEach } from '#helpers/bulk_delete'
+import { applyOrder } from '#helpers/reorder'
 import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
 import CategoryRepository from '#repositories/category_repository'
@@ -47,7 +48,8 @@ export default class ItemService {
         trx
       )
 
-      const item = await this.repo.create(itemData, trx)
+      const order = await this.repo.nextOrderInCategory(itemData.categoryId!, trx)
+      const item = await this.repo.create({ ...itemData, order }, trx)
 
       if (addonIds && addonIds.length > 0) {
         const validAddonIds = await this.getValidAddonIds(addonIds, storeId, trx)
@@ -64,15 +66,17 @@ export default class ItemService {
 
   async update(storeId: string, id: string, data: Partial<Item> & { addonIds?: string[] }) {
     return await db.transaction(async (trx) => {
-      await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
+      const current = await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       const { addonIds, ...itemData } = data
-      if (itemData.categoryId !== undefined) {
+      if (itemData.categoryId !== undefined && itemData.categoryId !== current.categoryId) {
         await this.categoryRepo.findByIdInStore(
           itemData.categoryId,
           storeId,
           { preload: false },
           trx
         )
+        // Moving to another category appends the item to its end.
+        itemData.order = await this.repo.nextOrderInCategory(itemData.categoryId, trx)
       }
 
       const item = await this.repo.update(id, itemData, trx)
@@ -89,26 +93,10 @@ export default class ItemService {
     })
   }
 
-  async updateOrderInStore(storeId: string, id: string, newOrder: number) {
-    return await db.transaction(async (trx) => {
-      const item = await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
-      const categoryId = item.categoryId
-
-      if (newOrder < item.order) {
-        await this.repo
-          .query({ client: trx })
-          .where('category_id', categoryId)
-          .whereBetween('order', [newOrder, item.order - 1])
-          .increment('order', 1)
-      } else if (newOrder > item.order) {
-        await this.repo
-          .query({ client: trx })
-          .where('category_id', categoryId)
-          .whereBetween('order', [item.order + 1, newOrder])
-          .decrement('order', 1)
-      }
-
-      return await this.repo.update(id, { order: newOrder }, trx)
+  async reorderInCategory(storeId: string, categoryId: number, ids: string[]) {
+    await db.transaction(async (trx) => {
+      await this.categoryRepo.findByIdInStore(categoryId, storeId, { preload: false }, trx)
+      await applyOrder(this.repo.query().where('category_id', categoryId), ids, trx)
     })
   }
 

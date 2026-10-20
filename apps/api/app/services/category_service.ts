@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import Category from '#models/category'
 import { deleteEach } from '#helpers/bulk_delete'
+import { applyOrder } from '#helpers/reorder'
 import CategoryRepository from '#repositories/category_repository'
 import type { CategoryFindOptions, CategoryListOptions } from '#types/category_query'
 
@@ -61,29 +62,10 @@ export default class CategoryService {
     })
   }
 
-  async updateOrder(id: number, newOrder: number) {
-    return await db.transaction(async (trx) => {
-      const category = await this.repo.requireById(id, trx)
-
-      if (newOrder < category.order) {
-        await Category.query({ client: trx })
-          .where('store_id', category.storeId)
-          .whereBetween('order', [newOrder, category.order - 1])
-          .increment('order', 1)
-      } else if (newOrder > category.order) {
-        await Category.query({ client: trx })
-          .where('store_id', category.storeId)
-          .whereBetween('order', [category.order + 1, newOrder])
-          .decrement('order', 1)
-      }
-
-      return await this.repo.update(id, { order: newOrder }, trx)
+  async reorderInStore(storeId: string, ids: number[]) {
+    await db.transaction(async (trx) => {
+      await applyOrder(Category.query().where('store_id', storeId), ids, trx)
     })
-  }
-
-  async updateOrderInStore(storeId: string, id: number, newOrder: number) {
-    await this.repo.findByIdInStore(id, storeId, { preload: false })
-    return this.updateOrder(id, newOrder)
   }
 
   async bulkDeleteForStore(storeId: string, ids: number[]) {

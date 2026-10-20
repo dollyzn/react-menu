@@ -2,176 +2,186 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
+import { AnimatePresence, motion } from "motion/react";
+import { AlertCircle, ArrowLeft, ChevronRight, ImageOff } from "lucide-react";
+import { toast } from "sonner";
+
 import {
   useGetCategoriesByStoreIdQuery,
-  useUpdateCategoryOrderMutation,
+  useReorderCategoriesMutation,
 } from "@/redux/features/category/categoryApi";
-import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
 import {
-  useLazyGetItemsByCategoryIdQuery,
-  useUpdateItemOrderMutation,
+  useGetItemsByCategoryIdQuery,
+  useReorderItemsMutation,
 } from "@/redux/features/item/itemApi";
-
+import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { CardTitle } from "@/components/ui/card";
-import { AlertCircle, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { formatCurrencyBRL } from "@/utils/string";
 import SortableList from "./sortable-list";
 
-import { toast } from "sonner";
+const notifyReorderError = () =>
+  toast.error("Não foi possível salvar a nova ordem. Ela foi restaurada.", {
+    richColors: true,
+  });
 
 export function SortingTabs() {
   const { store } = useParams();
   const storeId = store as string;
-
-  const { data: categoriesRes, isLoading: categoriesLoading } =
-    useGetCategoriesByStoreIdQuery(storeListPrefetchArg(storeId));
-  const categories = categoriesRes?.data ?? null;
-  const [updateCategoryOrder, { isLoading: updateCategoryOrderLoading }] =
-    useUpdateCategoryOrderMutation();
-  const [fetchItemsByCategory, { isFetching: indexByCategoryLoading }] =
-    useLazyGetItemsByCategoryIdQuery();
-  const [updateItemOrder] = useUpdateItemOrderMutation();
-
-  const [activeTab, setActiveTab] = useState<string>("categories");
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
-  );
-
-  const handleCategoryClick = async (item: Category) => {
-    try {
-      const result = await fetchItemsByCategory({
-        storeId,
-        categoryId: item.id,
-      }).unwrap();
-      setSelectedCategory({ ...item, items: result });
-      setActiveTab("items");
-    } catch {
-      toast.error(
-        `Ocorreu um erro ao recuperar os itens da categoria ${item.name}`,
-        {
-          richColors: true,
-          closeButton: true,
-        }
-      );
-    }
-  };
-
-  const handleBack = () => {
-    setSelectedCategory(null);
-    setActiveTab("categories");
-  };
-
-  const handleCategoryOrderChange = (newOrder: {
-    id: number;
-    order: number;
-  }) => {
-    updateCategoryOrder({
-      storeId,
-      id: newOrder.id,
-      order: newOrder.order,
-    });
-  };
-
-  const handleItemOrderChange = (newOrder: { id: string; order: number }) => {
-    if (!selectedCategory) return;
-    updateItemOrder({
-      storeId,
-      categoryId: selectedCategory.id,
-      id: newOrder.id,
-      order: newOrder.order,
-    });
-  };
+  const [selected, setSelected] = useState<Category | null>(null);
 
   return (
-    <Tabs value={activeTab} className="w-full">
-      <TabsList className="w-full cursor-not-allowed">
-        <TabsTrigger value="categories" className="flex-1 cursor-not-allowed">
-          Categorias
-        </TabsTrigger>
-        <TabsTrigger value="items" className="flex-1 cursor-not-allowed ">
-          Produtos
-        </TabsTrigger>
-      </TabsList>
-      {categoriesLoading && !categories ? (
-        <TabsContent value="categories">
-          <ScrollArea className="h-[258px] pr-4 pb-0 mb-6 md:mb-0 pt-1">
-            {Array.from({ length: 5 }).map((_, index) => (
-              <Skeleton key={index} className="w-full h-[62px] mb-2" />
-            ))}
-          </ScrollArea>
-        </TabsContent>
-      ) : (
-        <TabsContent value="categories">
-          <ScrollArea className="h-[258px] pr-4 pb-0 mb-6 md:mb-0 pt-1">
-            {categories && !!categories.length ? (
-              <SortableList
-                items={categories}
-                itemButton={
-                  <Button variant="ghost" disabled={indexByCategoryLoading}>
-                    Ver produtos
-                  </Button>
-                }
-                disabled={updateCategoryOrderLoading}
-                onOrderChange={(newOrder) =>
-                  handleCategoryOrderChange({
-                    id: newOrder.item.id as number,
-                    order: newOrder.newIndex,
-                  })
-                }
-                onItemClick={(item) => handleCategoryClick(item as Category)}
-              />
-            ) : (
-              <div className="text-muted-foreground text-center mt-16">
-                <div className="flex flex-col items-center">
-                  <AlertCircle className="w-6 h-6 mb-2 text-muted-foreground" />
-                  <p className="text-sm">Nenhuma categoria encontrada.</p>
-                  <p className="text-xs">
-                    Adicione uma nova categoria e ela aparecerá aqui.
-                  </p>
-                </div>
-              </div>
-            )}
-          </ScrollArea>
-        </TabsContent>
-      )}
-      <TabsContent value="items">
-        <ScrollArea className="h-[258px] pr-4 py-0">
-          <div className="flex items-center justify-between pb-2 sticky top-0 bg-background z-20">
-            <CardTitle>{selectedCategory?.name}</CardTitle>
-            <Button variant="ghost" size="sm" onClick={handleBack}>
-              <ArrowLeft className="mr-1 h-4 w-4" />
-              Voltar
-            </Button>
-          </div>
+    <div className="flex flex-col gap-3">
+      <div className="flex min-h-9 items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          {selected ? (
+            <>
+              Produtos de <span className="font-medium text-foreground">{selected.name}</span>
+            </>
+          ) : (
+            "Arraste para definir a ordem das categorias no cardápio."
+          )}
+        </p>
+        {selected && (
+          <Button variant="ghost" size="sm" onClick={() => setSelected(null)}>
+            <ArrowLeft /> Categorias
+          </Button>
+        )}
+      </div>
 
-          {selectedCategory &&
-          selectedCategory.items &&
-          !!selectedCategory.items.length ? (
-            <SortableList
-              items={selectedCategory.items}
-              onOrderChange={(newOrder) =>
-                handleItemOrderChange({
-                  id: String(newOrder.item.id),
-                  order: newOrder.newIndex,
-                })
-              }
+      <ScrollArea className="h-72 pr-3">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={selected ? `items-${selected.id}` : "categories"}
+            initial={{ opacity: 0, x: selected ? 16 : -16 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: selected ? -16 : 16 }}
+            transition={{ duration: 0.15 }}
+          >
+            {selected ? (
+              <ItemsOrder storeId={storeId} category={selected} />
+            ) : (
+              <CategoriesOrder storeId={storeId} onOpen={setSelected} />
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </ScrollArea>
+    </div>
+  );
+}
+
+function CategoriesOrder({
+  storeId,
+  onOpen,
+}: {
+  storeId: string;
+  onOpen: (category: Category) => void;
+}) {
+  const { data, isLoading } = useGetCategoriesByStoreIdQuery(storeListPrefetchArg(storeId));
+  const [reorder, { isLoading: saving }] = useReorderCategoriesMutation();
+  const categories = data?.data ?? [];
+
+  if (isLoading) return <ListSkeleton />;
+  if (!categories.length)
+    return <EmptyList title="Nenhuma categoria" hint="Crie uma categoria para ordená-la aqui." />;
+
+  return (
+    <SortableList
+      items={categories}
+      disabled={saving}
+      onReorder={(next) =>
+        reorder({ storeId, ids: next.map((c) => c.id) })
+          .unwrap()
+          .catch((error) => {
+            notifyReorderError();
+            throw error;
+          })
+      }
+      renderRow={(category) => (
+        <button
+          type="button"
+          onClick={() => onOpen(category)}
+          className="flex flex-1 items-center justify-between gap-2 rounded-md py-1 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <span className="truncate font-medium">{category.name}</span>
+          <span className="flex shrink-0 items-center gap-2 text-muted-foreground">
+            <Badge variant="secondary">
+              {category.itemsCount ?? 0} {category.itemsCount === 1 ? "produto" : "produtos"}
+            </Badge>
+            <ChevronRight className="size-4" />
+          </span>
+        </button>
+      )}
+    />
+  );
+}
+
+function ItemsOrder({ storeId, category }: { storeId: string; category: Category }) {
+  const { data: items = [], isLoading } = useGetItemsByCategoryIdQuery({
+    storeId,
+    categoryId: category.id,
+  });
+  const [reorder, { isLoading: saving }] = useReorderItemsMutation();
+
+  if (isLoading) return <ListSkeleton />;
+  if (!items.length)
+    return <EmptyList title="Nenhum produto" hint="Adicione produtos a esta categoria." />;
+
+  return (
+    <SortableList
+      items={items}
+      disabled={saving}
+      onReorder={(next) =>
+        reorder({ storeId, categoryId: category.id, ids: next.map((i) => i.id) })
+          .unwrap()
+          .catch((error) => {
+            notifyReorderError();
+            throw error;
+          })
+      }
+      renderRow={(item) => (
+        <div className="flex flex-1 items-center gap-3 overflow-hidden">
+          {item.photoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- remote menu photos of any host
+            <img
+              src={item.photoUrl}
+              alt=""
+              className="size-9 shrink-0 rounded-md object-cover"
+              loading="lazy"
             />
           ) : (
-            <div className="text-muted-foreground text-center mt-14">
-              <div className="flex flex-col items-center">
-                <AlertCircle className="w-6 h-6 mb-2 text-muted-foreground" />
-                <p className="text-sm">Nenhum produto encontrado.</p>
-                <p className="text-xs">
-                  Adicione uma novo item a esta categoria e ele aparecerá aqui.
-                </p>
-              </div>
-            </div>
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
+              <ImageOff className="size-4" />
+            </span>
           )}
-        </ScrollArea>
-      </TabsContent>
-    </Tabs>
+          <span className="flex-1 truncate font-medium">{item.name}</span>
+          <span className="shrink-0 text-sm tabular-nums text-muted-foreground">
+            {formatCurrencyBRL(item.price)}
+          </span>
+        </div>
+      )}
+    />
+  );
+}
+
+function ListSkeleton() {
+  return (
+    <div className="space-y-2" aria-busy>
+      {Array.from({ length: 5 }).map((_, i) => (
+        <Skeleton key={i} className="h-13 w-full" />
+      ))}
+    </div>
+  );
+}
+
+function EmptyList({ title, hint }: { title: string; hint: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1 py-14 text-center text-muted-foreground">
+      <AlertCircle className="mb-1 size-6" />
+      <p className="text-sm">{title}</p>
+      <p className="text-xs">{hint}</p>
+    </div>
   );
 }

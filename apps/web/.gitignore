@@ -40,6 +40,7 @@ yarn-error.log*
 next-env.d.ts
 
 # Playwright
+/.next-e2e/
 /test-results/
 /playwright-report/
 /blob-report/

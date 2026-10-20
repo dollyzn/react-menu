@@ -118,14 +118,15 @@ export const itemApi = baseApi.injectEndpoints({
       ],
     }),
 
-    updateItemOrder: build.mutation<
+    /** Persists the full item order of a category. */
+    reorderItems: build.mutation<
       void,
-      { storeId: string; categoryId: number; id: string; order: number }
+      { storeId: string; categoryId: number; ids: string[] }
     >({
-      query: ({ storeId, id, order }) => ({
-        url: `stores/${storeId}/items/update-order`,
-        method: "PATCH",
-        body: { id, order },
+      query: ({ storeId, categoryId, ids }) => ({
+        url: `stores/${storeId}/categories/${categoryId}/items/order`,
+        method: "PUT",
+        body: { ids },
       }),
       invalidatesTags: (_res, _err, arg) => [
         { type: "Item", id: `category-${arg.categoryId}` },
@@ -143,5 +144,5 @@ export const {
   useUpdateItemMutation,
   useDeleteItemByStoreIdMutation,
   useBulkDeleteItemsByStoreIdMutation,
-  useUpdateItemOrderMutation,
+  useReorderItemsMutation,
 } = itemApi;

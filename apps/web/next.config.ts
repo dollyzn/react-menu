@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import { env } from "./lib/env";
 
 const nextConfig: NextConfig = {
+  // E2E runs its own `next dev` in a separate build dir so it can coexist
+  // with a developer's running dev server.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
     remotePatterns: [
       {

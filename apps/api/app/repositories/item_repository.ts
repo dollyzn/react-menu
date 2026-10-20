@@ -186,4 +186,14 @@ export default class ItemRepository {
     const item = await this.requireById(id, trx)
     await item.delete()
   }
+
+  /** Next position at the end of a category (orders are 1-based). */
+  async nextOrderInCategory(categoryId: number, trx?: TransactionClientContract) {
+    const result = await this.query({ client: trx })
+      .where('category_id', categoryId)
+      .max('order as maxOrder')
+      .first()
+
+    return Number(result?.$extras.maxOrder ?? 0) + 1
+  }
 }

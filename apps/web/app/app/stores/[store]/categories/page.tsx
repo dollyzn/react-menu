@@ -7,7 +7,7 @@ import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 
 import { DataTable } from "@/components/data-table";
-import { columns, columnsConfig } from "./components/columns";
+import { columns, columnsConfig, renderCategoryCard } from "./components/columns";
 import { CreateCategoryDialog } from "./components/create-category-dialog";
 import { ManagementPageShell } from "../components/management-page-shell";
 
@@ -55,6 +55,8 @@ export default function Categories() {
         onExternalSortingChange={table.setSorting}
         externalColumnFilters={table.filters}
         onExternalColumnFiltersChange={table.setFilters}
+        renderCard={renderCategoryCard}
+        defaultCardsOnMobile
       />
     </ManagementPageShell>
   );

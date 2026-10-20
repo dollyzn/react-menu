@@ -4,7 +4,7 @@ import CategoryService from '#services/category_service'
 import {
   bulkDeleteValidator,
   storeValidator,
-  updateOrderValidator,
+  reorderValidator,
   updateValidator,
 } from '#validators/category'
 import { numberValidator, storeExistValidator } from '#validators/common'
@@ -61,14 +61,14 @@ export default class CategoriesController {
     return updated(category, 'Categoria atualizada com sucesso')
   }
 
-  async updateOrder({ params, request }: HttpContext) {
+  async reorder({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
 
-    const { id, order } = await request.validateUsing(updateOrderValidator)
+    const { ids } = await request.validateUsing(reorderValidator)
 
-    const category = await this.categoryService.updateOrderInStore(storeId, id, order)
+    await this.categoryService.reorderInStore(storeId, ids)
 
-    return updated(category, 'Ordem atualizada com sucesso')
+    return messageOnly('Ordem atualizada com sucesso')
   }
 
   async destroy({ params }: HttpContext) {

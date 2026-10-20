@@ -17,12 +17,9 @@ const updateValidator = vine.create(
   })
 )
 
-const updateOrderValidator = vine.create(
+const reorderValidator = vine.create(
   vine.object({
-    id: vine.number().exists(async (db, value) => {
-      return await db.from('categories').select('id').where('id', value).first()
-    }),
-    order: vine.number().min(0),
+    ids: vine.array(vine.number()).minLength(1),
   })
 )
 
@@ -32,4 +29,4 @@ const bulkDeleteValidator = vine.create(
   })
 )
 
-export { storeValidator, updateValidator, updateOrderValidator, bulkDeleteValidator }
+export { storeValidator, updateValidator, reorderValidator, bulkDeleteValidator }

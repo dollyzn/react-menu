@@ -1,204 +1,169 @@
 import React, { useState } from "react";
 import {
   DndContext,
-  closestCenter,
   DragOverlay,
-  Active,
-  Over,
+  KeyboardSensor,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
+import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export interface Item {
+export interface SortableEntry {
   id: string | number;
   name: string;
 }
 
-type ItemButton = React.ReactElement<
-  React.ButtonHTMLAttributes<HTMLButtonElement>
->;
-
-interface SortableItemProps {
-  item: Item;
-  button?: ItemButton;
+interface SortableListProps<T extends SortableEntry> {
+  items: T[];
   disabled?: boolean;
-  onClick?: (item: Item) => void;
+  /** Persists the new order; reject to roll the list back. */
+  onReorder: (items: T[]) => Promise<unknown>;
+  /** Extra content for each row (thumbnail, counts, actions). */
+  renderRow?: (item: T) => React.ReactNode;
 }
 
-const SortableItem = ({
-  item,
-  button,
-  disabled,
-  onClick,
-}: SortableItemProps) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : "auto",
-    opacity: isDragging ? 0.4 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      {...attributes}
-      className="flex justify-between items-center gap-2 p-3 border bg-card rounded-lg cursor-default"
-      onClick={!button ? () => (onClick ? onClick(item) : null) : undefined}
-    >
-      <div
-        className={`flex items-center gap-2 ${
-          disabled ? "text-muted-foreground" : ""
-        }`}
-      >
-        <GripVertical
-          {...listeners}
-          className={`h-4 w-4 ${
-            disabled
-              ? "cursor-not-allowed text-muted"
-              : "cursor-grab text-muted-foreground"
-          }`}
-        />
-        <span>{item.name}</span>
-      </div>
-      {button &&
-        React.cloneElement(button, {
-          onClick: () => (onClick ? onClick(item) : null),
-        })}
-    </div>
-  );
+type RowProps<T extends SortableEntry> = {
+  item: T;
+  disabled?: boolean;
+  renderRow?: (item: T) => React.ReactNode;
 };
 
-interface SortableListProps {
-  items: Item[];
-  disabled?: boolean;
-  onOrderChange?: ({
-    item,
-    oldIndex,
-    newIndex,
-  }: {
-    item: Item;
-    oldIndex: number;
-    newIndex: number;
-  }) => void;
-  onItemClick?: (item: Item) => void;
-  itemButton?: ItemButton;
+function RowContent<T extends SortableEntry>({
+  item,
+  disabled,
+  renderRow,
+  handleProps,
+}: RowProps<T> & { handleProps?: React.ButtonHTMLAttributes<HTMLButtonElement> }) {
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={`Reordenar ${item.name}`}
+        disabled={disabled}
+        className={cn(
+          "flex size-8 shrink-0 touch-none items-center justify-center rounded-md text-muted-foreground outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
+          disabled
+            ? "cursor-not-allowed opacity-50"
+            : "cursor-grab hover:bg-muted active:cursor-grabbing"
+        )}
+        {...handleProps}
+      >
+        <GripVertical className="size-4" />
+      </button>
+      {renderRow ? renderRow(item) : <span className="flex-1 truncate">{item.name}</span>}
+    </>
+  );
 }
 
-export default function SortableList({
+const rowClassName =
+  "flex items-center gap-2 rounded-lg border bg-card p-2 pr-3 transition-shadow";
+
+function SortableRow<T extends SortableEntry>(props: RowProps<T>) {
+  const { setNodeRef, transform, transition, isDragging, attributes, listeners } =
+    useSortable({ id: props.item.id, disabled: props.disabled });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn(rowClassName, isDragging && "opacity-40")}
+    >
+      <RowContent {...props} handleProps={{ ...attributes, ...listeners }} />
+    </li>
+  );
+}
+
+export default function SortableList<T extends SortableEntry>({
   items,
-  itemButton,
   disabled,
-  onOrderChange,
-  onItemClick,
-}: SortableListProps) {
-  // Local copy for optimistic reordering; reset whenever the server list changes.
-  const [_items, setItems] = useState(items);
+  onReorder,
+  renderRow,
+}: SortableListProps<T>) {
+  // Optimistic copy; reset whenever the server list changes.
+  const [localItems, setLocalItems] = useState(items);
   const [sourceItems, setSourceItems] = useState(items);
   if (items !== sourceItems) {
     setSourceItems(items);
-    setItems(items);
+    setLocalItems(items);
   }
-  const [activeId, setActiveId] = useState<string | number | null>(null);
+  const [activeId, setActiveId] = useState<UniqueIdentifier | null>(null);
 
-  const handleDragStart = ({ active }: { active: Active }) => {
-    setActiveId(active.id);
-  };
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
 
-  const handleDragEnd = ({
-    active,
-    over,
-  }: {
-    active: Active;
-    over: Over | null;
-  }) => {
+  const handleDragEnd = async ({ active, over }: DragEndEvent) => {
     setActiveId(null);
+    if (!over || active.id === over.id) return;
 
-    if (!over || active.id === over.id) {
-      return;
-    }
+    const oldIndex = localItems.findIndex((item) => item.id === active.id);
+    const newIndex = localItems.findIndex((item) => item.id === over.id);
+    const previous = localItems;
+    const next = arrayMove(localItems, oldIndex, newIndex);
 
-    const oldIndex = _items.findIndex((item) => item.id === active.id);
-    const newIndex = _items.findIndex((item) => item.id === over.id);
-
-    if (oldIndex === newIndex) {
-      return;
-    }
-
-    const newOrder = arrayMove(_items, oldIndex, newIndex);
-    setItems(newOrder);
-
-    if (onOrderChange) {
-      const movedItem = _items[oldIndex];
-      onOrderChange({
-        item: movedItem,
-        oldIndex,
-        newIndex,
-      });
+    setLocalItems(next);
+    try {
+      await onReorder(next);
+    } catch {
+      setLocalItems(previous);
     }
   };
 
-  const handleDragCancel = () => {
-    setActiveId(null);
-  };
+  const activeItem = localItems.find((item) => item.id === activeId);
 
   return (
     <DndContext
+      sensors={sensors}
       collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
+      modifiers={[restrictToVerticalAxis]}
+      onDragStart={({ active }: DragStartEvent) => setActiveId(active.id)}
       onDragEnd={handleDragEnd}
-      onDragCancel={handleDragCancel}
+      onDragCancel={() => setActiveId(null)}
+      accessibility={{
+        screenReaderInstructions: {
+          draggable:
+            "Pressione espaço para pegar o item, use as setas para mover e espaço novamente para soltar.",
+        },
+      }}
     >
       <SortableContext
-        items={_items.map((item) => item.id)}
+        items={localItems.map((item) => item.id)}
         strategy={verticalListSortingStrategy}
         disabled={disabled}
       >
-        <div className="space-y-2">
-          {_items.map((item) => (
-            <SortableItem
+        <ul className="space-y-2">
+          {localItems.map((item) => (
+            <SortableRow
               key={item.id}
               item={item}
-              button={itemButton}
-              onClick={onItemClick}
               disabled={disabled}
+              renderRow={renderRow}
             />
           ))}
-        </div>
+        </ul>
       </SortableContext>
       <DragOverlay>
-        {activeId ? (
-          <div className="flex justify-between items-center gap-2 p-3 border bg-card rounded-lg shadow-lg cursor-default">
-            <div
-              className={`flex items-center gap-2 ${
-                disabled ? "text-muted-foreground" : ""
-              }`}
-            >
-              <GripVertical
-                className={`h-4 w-4 ${
-                  disabled
-                    ? "text-muted cursor-not-allowed"
-                    : "text-muted-foreground cursor-grabbing"
-                }`}
-              />
-              <span>{_items.find((item) => item.id === activeId)?.name}</span>
-            </div>
-            {itemButton && React.cloneElement(itemButton)}
+        {activeItem ? (
+          <div className={cn(rowClassName, "shadow-lg ring-2 ring-primary/40")}>
+            <RowContent item={activeItem} renderRow={renderRow} />
           </div>
         ) : null}
       </DragOverlay>

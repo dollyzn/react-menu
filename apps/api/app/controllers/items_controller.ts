@@ -1,12 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import ItemService from '#services/item_service'
-import { storeExistValidator, uuidValidator } from '#validators/common'
+import { numberValidator, storeExistValidator, uuidValidator } from '#validators/common'
 import {
   bulkDeleteValidator,
   categoryExistValidator,
   storeValidator,
-  updateOrderValidator,
+  reorderValidator,
   updateValidator,
 } from '#validators/item'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
@@ -77,12 +77,13 @@ export default class ItemsController {
     return updated(item, 'Item atualizado com sucesso')
   }
 
-  async updateOrder({ params, request }: HttpContext) {
+  async reorder({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
+    const categoryId = await numberValidator.validate(params.categoryId)
 
-    const { id, order } = await request.validateUsing(updateOrderValidator)
+    const { ids } = await request.validateUsing(reorderValidator)
 
-    await this.itemService.updateOrderInStore(storeId, id, order)
+    await this.itemService.reorderInCategory(storeId, categoryId, ids)
 
     return messageOnly('Ordem atualizada com sucesso')
   }

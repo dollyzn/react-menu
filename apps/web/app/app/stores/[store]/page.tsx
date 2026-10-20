@@ -312,7 +312,7 @@ export default function Store() {
               Organize e ordene as categorias e produtos
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-6 py-0">
+          <CardContent>
             <SortingTabs />
           </CardContent>
         </Card>

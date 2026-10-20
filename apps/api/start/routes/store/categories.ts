@@ -9,9 +9,7 @@ export default function registerStoreCategoryRoutes() {
   router
     .post('/categories/bulk-delete', [CategoriesController, 'bulkDelete'])
     .as('categories.bulkDelete')
-  router
-    .patch('/categories/update-order', [CategoriesController, 'updateOrder'])
-    .as('categories.updateOrder')
+  router.put('/categories/order', [CategoriesController, 'reorder']).as('categories.reorder')
   router.get('/categories/:categoryId', [CategoriesController, 'show']).as('categories.show')
   router.put('/categories/:categoryId', [CategoriesController, 'update']).as('categories.update')
   router
@@ -21,4 +19,7 @@ export default function registerStoreCategoryRoutes() {
     .get('/categories/:categoryId/items', [ItemsController, 'indexByCategory'])
     .as('items.indexByCategory')
   router.post('/categories/:categoryId/items', [ItemsController, 'store']).as('items.store')
+  router
+    .put('/categories/:categoryId/items/order', [ItemsController, 'reorder'])
+    .as('items.reorder')
 }

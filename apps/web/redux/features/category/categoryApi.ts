@@ -62,14 +62,12 @@ export const categoryApi = baseApi.injectEndpoints({
           : [],
     }),
 
-    updateCategoryOrder: build.mutation<
-      Pick<Category, "id" | "order" | "updatedAt">[],
-      { storeId: string; id: number; order: number }
-    >({
-      query: ({ storeId, id, order }) => ({
-        url: `stores/${storeId}/categories/update-order`,
-        method: "PATCH",
-        body: { id, order },
+    /** Persists the full category order (ids in their new positions). */
+    reorderCategories: build.mutation<void, { storeId: string; ids: number[] }>({
+      query: ({ storeId, ids }) => ({
+        url: `stores/${storeId}/categories/order`,
+        method: "PUT",
+        body: { ids },
       }),
       invalidatesTags: (_res, _err, arg) => [
         { type: "Category", id: `store-${arg.storeId}` },
@@ -112,7 +110,7 @@ export const {
   useGetCategoriesByStoreIdQuery,
   useCreateCategoryMutation,
   useUpdateCategoryMutation,
-  useUpdateCategoryOrderMutation,
+  useReorderCategoriesMutation,
   useDeleteCategoryMutation,
   useBulkDeleteCategoriesMutation,
 } = categoryApi;

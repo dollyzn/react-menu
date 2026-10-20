@@ -1,6 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@tanstack/react-table";
+import { CategoryCard } from "./category-card";
 
 import { Calendar, History } from "lucide-react";
 import { ColumnsConfig } from "@/components/data-table";
@@ -167,3 +168,7 @@ export const columnsConfig: ColumnsConfig[] = [
     searchable: true,
   },
 ];
+
+export function renderCategoryCard(row: Row<Category>) {
+  return <CategoryCard row={row} />;
+}
