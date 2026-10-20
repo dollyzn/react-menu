@@ -71,7 +71,9 @@ export default class CategoryRepository {
     trx?: TransactionClientContract
   ) {
     const keys = resolveCategoryPreloadKeys(options?.preload)
-    const query = this.query(trx ? { client: trx } : undefined).where('id', id).where('store_id', storeId)
+    const query = this.query(trx ? { client: trx } : undefined)
+      .where('id', id)
+      .where('store_id', storeId)
     applyCategoryPreloads(query, keys)
     const category = await query.first()
     if (!category) throw new AppException('Categoria não encontrada', 404)

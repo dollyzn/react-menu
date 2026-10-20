@@ -35,7 +35,7 @@ const updateValidator = vine.create(
       .string()
       .regex(/^[a-z0-9-]+$/)
       .unique(async (db, value, field) => {
-        const storeId = field.data.params.id
+        const storeId = field.data.params.storeId
         const match = await db
           .from('stores')
           .select('id')
