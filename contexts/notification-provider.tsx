@@ -24,7 +24,11 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const dispatch = useDispatch<AppDispatch>();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
-  useDebouncedEffect(async () => {
+  useDebouncedEffect(() => {
+    void setupPushSubscription();
+  }, []);
+
+  async function setupPushSubscription() {
     if (
       !("serviceWorker" in navigator) ||
       !("PushManager" in window) ||
@@ -71,7 +75,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       setError("Erro ao registrar Service Worker para notificações.");
       setIsSupported(false);
     }
-  }, []);
+  }
 
   async function subscribe() {
     if (!isSupported) return;
