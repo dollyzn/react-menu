@@ -1,9 +1,13 @@
 import { DateTime } from 'luxon'
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
-import User from './user.js'
+import User from '#models/user'
 
-export default class PushSubscription extends BaseModel {
+/**
+ * A browser/device registered for Firebase Cloud Messaging, identified by
+ * its Firebase Installation ID (FID).
+ */
+export default class PushRegistration extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
@@ -11,13 +15,7 @@ export default class PushSubscription extends BaseModel {
   declare userId: string
 
   @column()
-  declare endpoint: string
-
-  @column({ columnName: 'p256dh', serializeAs: null })
-  declare p256dh: string
-
-  @column({ serializeAs: null })
-  declare auth: string
+  declare fid: string
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

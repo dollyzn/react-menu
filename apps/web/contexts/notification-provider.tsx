@@ -1,89 +1,86 @@
 "use client";
 
 import { createContext, useContext, useState } from "react";
-import { request } from "@/lib/api";
-import { RequestError } from "@/types/request";
+import {
+  getMessaging,
+  isSupported as isMessagingSupported,
+  register,
+  unregister,
+} from "firebase/messaging";
+import { getId, getInstallations } from "firebase/installations";
 import type {
   NotificationContextType,
   NotificationProviderProps,
 } from "@/types/notification";
-import { useDispatch } from "react-redux";
-import type { AppDispatch } from "@/redux/store";
-import { toast } from "sonner";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
 import { env } from "@/lib/env";
-import { useAppSelector } from "@/redux/hooks";
+import { getFirebaseApp, isPushConfigured } from "@/lib/firebase";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
+import { notificationApi } from "@/redux/features/notification/notificationApi";
 
 const NotificationContext = createContext<NotificationContextType | null>(null);
+
+/** Firebase calls must never block the UI (logout awaits `unsubscribe`). */
+const FIREBASE_TIMEOUT_MS = 10_000;
+
+function withTimeout<T>(promise: Promise<T>) {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Firebase timeout")), FIREBASE_TIMEOUT_MS)
+    ),
+  ]);
+}
+
+/** The Firebase Installation ID that FCM uses to address this browser. */
+function currentFid() {
+  return withTimeout(getId(getInstallations(getFirebaseApp())));
+}
 
 export function NotificationProvider({ children }: NotificationProviderProps) {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
 
-  useDebouncedEffect(() => {
-    // The subscription check needs a session; running it signed out would
-    // get a 401 and wrongly drop this device's push subscription.
-    if (isAuthenticated) void setupPushSubscription();
-  }, [isAuthenticated]);
-
-  async function setupPushSubscription() {
-    if (!env.NEXT_PUBLIC_VAPID_PUBLIC_KEY) {
+  async function setup() {
+    if (!isPushConfigured()) {
       setError("Notificações push não estão configuradas neste ambiente.");
       setIsSupported(false);
       return;
     }
 
-    if (
-      !("serviceWorker" in navigator) ||
-      !("PushManager" in window) ||
-      !("Notification" in window)
-    ) {
+    if (!("serviceWorker" in navigator) || !(await isMessagingSupported())) {
       setError("Seu navegador não suporta notificações push.");
-      setIsSupported(false);
-      return;
-    }
-
-    if (location.protocol !== "https:" && location.hostname !== "localhost") {
-      setError("Notificações Push requerem HTTPS.");
       setIsSupported(false);
       return;
     }
 
     try {
       await navigator.serviceWorker.register("/sw.js", { scope: "/" });
-      const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-
       setIsSupported(true);
 
-      if (!subscription) {
+      if (Notification.permission !== "granted") {
         setIsSubscribed(false);
         return;
       }
 
-      const valid = await check(subscription);
-
-      if (valid) {
-        setIsSubscribed(true);
-      } else {
-        await subscription.unsubscribe();
-        setIsSubscribed(false);
-
-        if (isAuthenticated) {
-          toast.info(
-            "Notificações push foram desativadas, acesse as configurações para reativar."
-          );
-        }
-      }
+      const { registered } = await dispatch(
+        notificationApi.endpoints.checkPush.initiate({ fid: await currentFid() })
+      ).unwrap();
+      setIsSubscribed(registered);
     } catch {
-      setError("Erro ao registrar Service Worker para notificações.");
+      setError("Não foi possível preparar as notificações push.");
       setIsSupported(false);
     }
   }
+
+  useDebouncedEffect(() => {
+    // Checking the registration needs a session.
+    if (isAuthenticated) void setup();
+  }, [isAuthenticated]);
 
   async function subscribe() {
     if (!isSupported) return;
@@ -98,115 +95,50 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     if (permission !== "granted") return;
 
     setLoading(true);
+    setError(null);
 
     try {
-      const registration = await navigator.serviceWorker.ready;
+      const serviceWorkerRegistration =
+        await navigator.serviceWorker.getRegistration("/");
 
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(
-          env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!
-        ),
-      });
+      await withTimeout(
+        register(getMessaging(getFirebaseApp()), {
+          vapidKey: env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+          serviceWorkerRegistration,
+        })
+      );
 
-      const response = await request({
-        url: "notifications/push/subscribe",
-        method: "post",
-        data: subscription,
-        showErrorMessage: true,
-        dispatch,
-      });
-
-      if (!response.success)
-        throw new RequestError(response.error || "Erro desconhecido");
+      await dispatch(
+        notificationApi.endpoints.registerPush.initiate({ fid: await currentFid() })
+      ).unwrap();
 
       setIsSubscribed(true);
-    } catch (err) {
-      const message =
-        err instanceof RequestError
-          ? err.message
-          : "Erro ao tentar inscrever. Tente novamente.";
-      setError(message);
+    } catch {
+      setError("Não foi possível ativar as notificações push. Tente novamente.");
     } finally {
       setLoading(false);
     }
   }
 
+  /** Also runs on logout, so it must never hang or throw. */
   async function unsubscribe() {
+    if (!isPushConfigured() || !isSubscribed) {
+      setIsSubscribed(false);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      // Not `serviceWorker.ready`: it never resolves when no worker was
-      // registered, which used to hang logout forever.
-      const registration =
-        "serviceWorker" in navigator
-          ? await navigator.serviceWorker.getRegistration()
-          : undefined;
-      const subscription = await registration?.pushManager.getSubscription();
-
-      if (!subscription) return;
-
-      const response = await request({
-        url: "notifications/push/unsubscribe",
-        method: "post",
-        data: {
-          endpoint: subscription?.endpoint,
-        },
-        showErrorMessage: true,
-      });
-
-      await subscription?.unsubscribe();
-
-      if (!response.success)
-        throw new RequestError(response.error || "Erro desconhecido");
-    } catch (err) {
-      const message =
-        err instanceof RequestError
-          ? err.message
-          : "Erro ao cancelar inscrição. Tente novamente.";
-      setError(message);
+      const fid = await currentFid();
+      await dispatch(
+        notificationApi.endpoints.unregisterPush.initiate({ fid })
+      ).unwrap();
+      await withTimeout(unregister(getMessaging(getFirebaseApp())));
+    } catch {
+      // The server prunes installations FCM reports as unregistered.
     } finally {
       setIsSubscribed(false);
-      setLoading(false);
-    }
-  }
-
-  async function check(
-    subscription?: PushSubscription | null
-  ): Promise<boolean> {
-    setLoading(true);
-    try {
-      let sub = subscription;
-
-      if (!sub) {
-        const registration = await navigator.serviceWorker.ready;
-        sub = await registration.pushManager.getSubscription();
-      }
-
-      const response = await request<{ data: { subscribed: boolean } }>({
-        url: "notifications/push/check",
-        method: "post",
-        data: {
-          endpoint: sub?.endpoint,
-        },
-      });
-
-      if (response.success && !response.data.subscribed) {
-        await sub?.unsubscribe();
-        setIsSubscribed(false);
-        return false;
-      }
-
-      setIsSubscribed(!!sub);
-      return response.data.subscribed;
-    } catch (err) {
-      const message =
-        err instanceof RequestError
-          ? err.message
-          : "Erro ao verificar inscrição.";
-      setError(message);
-      return false;
-    } finally {
       setLoading(false);
     }
   }
@@ -218,7 +150,6 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         isSubscribed,
         subscribe,
         unsubscribe,
-        check,
         loading,
         error,
       }}
@@ -235,15 +166,4 @@ export function useNotification() {
       "useNotification must be used within an NotificationProvider"
     );
   return ctx;
-}
-
-function urlBase64ToUint8Array(base64String: string) {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
 }

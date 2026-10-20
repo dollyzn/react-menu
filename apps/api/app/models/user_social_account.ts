@@ -18,10 +18,10 @@ export default class UserSocialAccount extends BaseModel {
   @column()
   declare providerUserId: string
 
-  @column()
+  @column({ serializeAs: null })
   declare accessToken: string
 
-  @column()
+  @column({ serializeAs: null })
   declare refreshToken: string | null
 
   @column.dateTime()

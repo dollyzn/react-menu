@@ -25,6 +25,18 @@ export const notificationApi = baseApi.injectEndpoints({
       invalidatesTags: [listTag],
     }),
 
+    registerPush: build.mutation<void, { fid: string }>({
+      query: (body) => ({ url: "notifications/push/register", method: "POST", body }),
+    }),
+
+    unregisterPush: build.mutation<void, { fid: string }>({
+      query: (body) => ({ url: "notifications/push/unregister", method: "POST", body }),
+    }),
+
+    checkPush: build.mutation<{ registered: boolean }, { fid: string }>({
+      query: (body) => ({ url: "notifications/push/check", method: "POST", body }),
+    }),
+
     clearNotifications: build.mutation<void, void>({
       query: () => ({ url: "notifications", method: "DELETE" }),
       invalidatesTags: [listTag],

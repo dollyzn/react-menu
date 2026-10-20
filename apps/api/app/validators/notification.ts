@@ -1,17 +1,13 @@
 import vine from '@vinejs/vine'
 
-const endpoint = vine.string().url().maxLength(2048)
-
-const pushSubscribeValidator = vine.create(
+/** Firebase Installation IDs are short URL-safe base64 strings. */
+const pushRegistrationValidator = vine.create(
   vine.object({
-    endpoint,
-    keys: vine.object({
-      p256dh: vine.string().maxLength(512),
-      auth: vine.string().maxLength(512),
-    }),
+    fid: vine
+      .string()
+      .maxLength(255)
+      .regex(/^[A-Za-z0-9_-]+$/),
   })
 )
 
-const pushEndpointValidator = vine.create(vine.object({ endpoint }))
-
-export { pushSubscribeValidator, pushEndpointValidator }
+export { pushRegistrationValidator }

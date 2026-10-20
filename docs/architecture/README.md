@@ -42,7 +42,8 @@ users ─┬─< store_user >─ stores ─┬─< categories ─< items >─< a
        │                         └─< store_views                 (addons.store_id)
        ├─ roles ─< permission_role >─ permissions
        ├─< auth_access_tokens
-       ├─< push_subscriptions
+       ├─< user_social_accounts
+       ├─< push_registrations (FCM installation ids)
        └─< notifications (store_id nullable)
 ```
 
@@ -70,7 +71,7 @@ service (after commit)
   └─ NotificationService.notify
         ├─ insert notifications rows
         ├─ broadcastUserEvent ─► users/:id/notifications ─► toast + invalidate Notification tag
-        └─ web push (if VAPID) ─► public/sw.js shows the OS notification
+        └─ FCM web push (if configured) ─► public/sw.js shows the OS notification
 ```
 
 Clients refetch after reconnecting, so a missed event never leaves stale UI.

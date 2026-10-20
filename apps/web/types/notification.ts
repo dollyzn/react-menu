@@ -7,7 +7,6 @@ export interface NotificationContextType {
   error: string | null;
   subscribe: () => Promise<void>;
   unsubscribe: () => Promise<void>;
-  check: (subscription?: PushSubscription | null) => Promise<boolean>;
 }
 
 export interface NotificationProviderProps {

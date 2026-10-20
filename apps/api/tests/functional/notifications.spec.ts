@@ -4,7 +4,7 @@ import app from '@adonisjs/core/services/app'
 import { randomUUID } from 'node:crypto'
 import StoreStatus from '#enums/store_status'
 import Notification from '#models/notification'
-import PushSubscription from '#models/push_subscription'
+import PushRegistration from '#models/push_registration'
 import NotificationService from '#services/notification_service'
 import { createStore, createUser } from '#tests/helpers/fixtures'
 
@@ -105,52 +105,63 @@ test.group('Notifications', (group) => {
   })
 })
 
-test.group('Push subscriptions', (group) => {
+test.group('Push registrations (FCM)', (group) => {
   group.each.setup(() => testUtils.db().withGlobalTransaction())
 
-  const subscription = (endpoint: string) => ({
-    endpoint,
-    keys: { p256dh: 'p256dh-key', auth: 'auth-key' },
-  })
+  const fid = () => `fid_${randomUUID().replaceAll('-', '')}`
 
-  test('subscribe, check and unsubscribe', async ({ client }) => {
+  test('register, check and unregister an installation', async ({ client }) => {
     const user = await createUser()
-    const endpoint = `https://push.example.com/${randomUUID()}`
+    const installation = fid()
 
-    const subscribed = await client
-      .post('/api/v1/notifications/push/subscribe')
-      .json(subscription(endpoint))
+    const registered = await client
+      .post('/api/v1/notifications/push/register')
+      .json({ fid: installation })
       .loginAs(user)
     const check = await client
       .post('/api/v1/notifications/push/check')
-      .json({ endpoint })
+      .json({ fid: installation })
       .loginAs(user)
-    await client.post('/api/v1/notifications/push/unsubscribe').json({ endpoint }).loginAs(user)
+    await client
+      .post('/api/v1/notifications/push/unregister')
+      .json({ fid: installation })
+      .loginAs(user)
     const checkAfter = await client
       .post('/api/v1/notifications/push/check')
-      .json({ endpoint })
+      .json({ fid: installation })
       .loginAs(user)
 
-    subscribed.assertStatus(200)
-    check.assertBodyContains({ data: { subscribed: true } })
-    checkAfter.assertBodyContains({ data: { subscribed: false } })
+    registered.assertStatus(200)
+    check.assertBodyContains({ data: { registered: true } })
+    checkAfter.assertBodyContains({ data: { registered: false } })
   })
 
-  test('a browser endpoint moves to the user who subscribed last', async ({ client, assert }) => {
+  test('an installation moves to the user who registered it last', async ({ client, assert }) => {
     const [first, second] = [await createUser(), await createUser()]
-    const endpoint = `https://push.example.com/${randomUUID()}`
+    const installation = fid()
 
     await client
-      .post('/api/v1/notifications/push/subscribe')
-      .json(subscription(endpoint))
+      .post('/api/v1/notifications/push/register')
+      .json({ fid: installation })
       .loginAs(first)
     await client
-      .post('/api/v1/notifications/push/subscribe')
-      .json(subscription(endpoint))
+      .post('/api/v1/notifications/push/register')
+      .json({ fid: installation })
       .loginAs(second)
 
-    const rows = await PushSubscription.query().where('endpoint', endpoint)
+    const rows = await PushRegistration.query().where('fid', installation)
     assert.lengthOf(rows, 1)
     assert.equal(rows[0].userId, second.id)
+  })
+
+  test('rejects malformed installation ids', async ({ client }) => {
+    const user = await createUser()
+
+    const response = await client
+      .post('/api/v1/notifications/push/register')
+      .json({ fid: 'not a fid!' })
+      .loginAs(user)
+
+    response.assertStatus(422)
   })
 })

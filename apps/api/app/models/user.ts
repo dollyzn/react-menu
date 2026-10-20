@@ -8,7 +8,7 @@ import Role from '#models/role'
 import Permission from '#models/permission'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import type { UserStatusEnum } from '#enums/user_status'
-import PushSubscription from '#models/push_subscription'
+import PushRegistration from '#models/push_registration'
 import UserSocialAccount from '#models/user_social_account'
 import Store from './store.js'
 
@@ -66,8 +66,8 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @belongsTo(() => Role)
   declare role: BelongsTo<typeof Role>
 
-  @hasMany(() => PushSubscription)
-  declare pushSubscriptions: HasMany<typeof PushSubscription>
+  @hasMany(() => PushRegistration)
+  declare pushRegistrations: HasMany<typeof PushRegistration>
 
   @hasMany(() => UserSocialAccount)
   declare socialAccounts: HasMany<typeof UserSocialAccount>

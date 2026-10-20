@@ -3,7 +3,9 @@ packages:
   - packages/*
 
 allowBuilds:
+  '@firebase/util': false
   '@swc/core': true
+  protobufjs: false
   sharp: true
   unrs-resolver: false
 

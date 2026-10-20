@@ -37,7 +37,8 @@ pnpm dev    # API on :3333, web on :3000
 
 Sign in at <http://localhost:3000/app/login> with `ADMIN_USER`/`ADMIN_PASS`.
 Store images use the local disk by default (`DRIVE_DISK=fs`); web push is
-optional (see the VAPID notes in the `.env.example` files).
+optional and uses Firebase Cloud Messaging (free); see the `FIREBASE_*`
+notes in both `.env.example` files.
 
 ## Commands
 

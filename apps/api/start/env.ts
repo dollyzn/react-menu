@@ -36,9 +36,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   REDIS_PORT: Env.schema.number(),
   REDIS_PASSWORD: Env.schema.string.optional(),
 
-  VAPID_PUBLIC_KEY: Env.schema.string.optional(),
-  VAPID_PRIVATE_KEY: Env.schema.string.optional(),
-  VAPID_CONTACT: Env.schema.string.optional({ format: 'email' }),
+  FIREBASE_PROJECT_ID: Env.schema.string.optional(),
+  FIREBASE_CLIENT_EMAIL: Env.schema.string.optional(),
+  FIREBASE_PRIVATE_KEY: Env.schema.string.optional(),
 
   DRIVE_DISK: Env.schema.enum(['fs', 's3', 'r2'] as const),
 

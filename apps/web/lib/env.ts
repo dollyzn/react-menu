@@ -22,7 +22,12 @@ export const env = createEnv({
       .transform((val) => JSON.parse(val))
       .pipe(z.array(z.number())),
 
-    NEXT_PUBLIC_VAPID_PUBLIC_KEY: z.string().min(1).optional(),
+    // Firebase Cloud Messaging (optional; enables web push)
+    NEXT_PUBLIC_FIREBASE_API_KEY: z.string().min(1).optional(),
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: z.string().min(1).optional(),
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: z.string().min(1).optional(),
+    NEXT_PUBLIC_FIREBASE_APP_ID: z.string().min(1).optional(),
+    NEXT_PUBLIC_FIREBASE_VAPID_KEY: z.string().min(1).optional(),
   },
   runtimeEnv: {
     NEXT_PUBLIC_NODE_ENV: process.env.NEXT_PUBLIC_NODE_ENV,
@@ -33,6 +38,11 @@ export const env = createEnv({
     NEXT_PUBLIC_AUTH_COOKIE_NAME: process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME,
     NEXT_PUBLIC_STORAGE_BASE_NAME: process.env.NEXT_PUBLIC_STORAGE_BASE_NAME,
     NEXT_PUBLIC_PAGE_SIZES: process.env.NEXT_PUBLIC_PAGE_SIZES,
-    NEXT_PUBLIC_VAPID_PUBLIC_KEY: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    NEXT_PUBLIC_FIREBASE_API_KEY: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    NEXT_PUBLIC_FIREBASE_PROJECT_ID: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+    NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:
+      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    NEXT_PUBLIC_FIREBASE_APP_ID: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+    NEXT_PUBLIC_FIREBASE_VAPID_KEY: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
   },
 });

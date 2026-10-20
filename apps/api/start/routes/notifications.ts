@@ -3,7 +3,7 @@ import { middleware } from '#start/kernel'
 import { throttle } from '#start/limiter'
 
 const NotificationsController = () => import('#controllers/notifications_controller')
-const PushSubscriptionsController = () => import('#controllers/push_subscriptions_controller')
+const PushRegistrationsController = () => import('#controllers/push_registrations_controller')
 
 export default function notificationsRoutes() {
   router
@@ -15,13 +15,13 @@ export default function notificationsRoutes() {
       router.delete('/', [NotificationsController, 'clear']).as('notifications.clear')
 
       router
-        .post('/push/subscribe', [PushSubscriptionsController, 'subscribe'])
-        .as('notifications.push.subscribe')
+        .post('/push/register', [PushRegistrationsController, 'register'])
+        .as('notifications.push.register')
       router
-        .post('/push/unsubscribe', [PushSubscriptionsController, 'unsubscribe'])
-        .as('notifications.push.unsubscribe')
+        .post('/push/unregister', [PushRegistrationsController, 'unregister'])
+        .as('notifications.push.unregister')
       router
-        .post('/push/check', [PushSubscriptionsController, 'check'])
+        .post('/push/check', [PushRegistrationsController, 'check'])
         .as('notifications.push.check')
 
       router.patch('/:id/read', [NotificationsController, 'markAsRead']).as('notifications.read')

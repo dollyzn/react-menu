@@ -13,6 +13,7 @@ an accepted ADR, supersede it with a new one.
 | [0005](0005-type-only-contracts-package.md) | Type-only shared contracts package | Accepted |
 | [0006](0006-persisted-notifications-with-typed-templates.md) | Persisted notifications with typed templates | Accepted |
 | [0007](0007-e2e-tests-fail-on-console-warnings.md) | E2E tests fail on browser console warnings | Accepted |
+| [0008](0008-web-push-with-fcm-installation-ids.md) | Web push with FCM, addressed by installation ID | Accepted |
 
 ## Template
 

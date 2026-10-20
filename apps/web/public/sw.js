@@ -1,24 +1,35 @@
-// Service worker for web push. Payload shape: PushMessage in
-// apps/api/app/services/push_service.ts ({ title, body, url?, tag? }).
+// Service worker for web push delivered by Firebase Cloud Messaging.
+// The API sends data-only messages (PushService in apps/api); FCM wraps them
+// as { data: { title, body, url, tag }, from, fcmMessageId, ... }.
 
 self.addEventListener("push", (event) => {
   if (!event.data) return;
 
-  let message;
+  let payload;
   try {
-    message = event.data.json();
+    payload = event.data.json();
   } catch {
-    message = { title: "React Menu", body: event.data.text() };
+    return;
   }
 
+  const message = payload.data ?? payload;
+  if (!message.title) return;
+
   event.waitUntil(
-    self.registration.showNotification(message.title, {
-      body: message.body,
-      icon: "/logo.png",
-      badge: "/favicon.ico",
-      tag: message.tag,
-      data: { url: message.url || "/app/stores" },
-    })
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients) => {
+        // A focused tab already shows the realtime toast.
+        if (clients.some((client) => client.focused)) return;
+
+        return self.registration.showNotification(message.title, {
+          body: message.body,
+          icon: "/logo.png",
+          badge: "/favicon.ico",
+          tag: message.tag || undefined,
+          data: { url: message.url || "/app/stores" },
+        });
+      })
   );
 });
 

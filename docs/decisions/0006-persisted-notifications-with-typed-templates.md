@@ -1,6 +1,6 @@
 # 0006. Persisted notifications with typed templates
 
-- Status: Accepted
+- Status: Accepted (push delivery amended by 0008)
 - Date: 2026-10-20
 
 ## Context
@@ -15,8 +15,9 @@ and a notifications popover design existed only as a static example.
 - Kinds are declared in `app/notifications/templates.ts`; the template's
   `data` type is enforced at every `notify()` call.
 - Delivery after persistence is best effort: Transmit to
-  `users/:id/notifications` and web push (`web-push`, VAPID). Push is a
-  no-op without VAPID keys; expired subscriptions (404/410) are pruned.
+  `users/:id/notifications` and web push (Firebase Cloud Messaging since
+  ADR 0008). Push is a no-op when not configured; installations FCM no
+  longer knows are pruned.
 
 ## Alternatives considered
 
