@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSession } from "@/contexts/session-provider";
+import { useRehydrated } from "@/hooks/use-rehydrated";
 import { redirectToLogin } from "@/utils/navigation";
 
 interface RequireAuthProps {
@@ -11,15 +12,17 @@ interface RequireAuthProps {
 
 export default function RequireAuth({ children }: RequireAuthProps) {
   const { user } = useSession();
+  const rehydrated = useRehydrated();
   const router = useRouter();
 
   useEffect(() => {
-    if (!user) {
+    // Before rehydration the persisted user isn't loaded yet.
+    if (rehydrated && !user) {
       redirectToLogin(router);
     }
-  }, [user, router]);
+  }, [rehydrated, user, router]);
 
-  if (!user) return null;
+  if (!rehydrated || !user) return null;
 
   return children;
 }

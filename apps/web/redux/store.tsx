@@ -13,6 +13,8 @@ import {
   createMigrate,
 } from "redux-persist";
 import auth from "@/redux/slices/auth";
+import cart from "@/redux/slices/cart";
+import customer from "@/redux/slices/customer";
 import { baseApi } from "@/redux/api/baseApi";
 import "@/redux/features";
 
@@ -47,12 +49,14 @@ const config = {
   version: 0,
   key: "root",
   storage: getStorage(),
-  whitelist: ["auth"],
+  whitelist: ["auth", "cart", "customer"],
   migrate: createMigrate(migrations, { debug: devToolsEnabled }),
 };
 
 const reducers = combineReducers({
   auth,
+  cart,
+  customer,
   [baseApi.reducerPath]: baseApi.reducer,
 });
 

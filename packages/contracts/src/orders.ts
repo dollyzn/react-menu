@@ -143,3 +143,52 @@ export type ProductionBatch = {
   /** Total ingredients for the whole batch. */
   ingredients: { name: string; unit: IngredientUnit; quantity: number }[];
 };
+
+/** GET /public/menu[/:slug]: what customers see (no private store fields). */
+export type PublicMenu = {
+  store: {
+    id: string;
+    name: string;
+    slug: string;
+    status: 'open' | 'closed' | 'maintenance';
+    isOpen: boolean;
+    description: string | null;
+    address: string | null;
+    phone: string | null;
+    instagramUrl: string | null;
+    ifoodUrl: string | null;
+    bannerUrl: string | null;
+    photoUrl: string | null;
+    pickupEtaMinutes: number;
+    counterPaymentEnabled: boolean;
+    mercadoPagoEnabled: boolean;
+  };
+  categories: PublicMenuCategory[];
+};
+
+export type PublicMenuCategory = {
+  id: number;
+  name: string;
+  description: string | null;
+  items: PublicMenuItem[];
+};
+
+export type PublicMenuItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  photoUrl: string | null;
+  /** False when switched off or (with stock tracking) out of an ingredient. */
+  isAvailable: boolean;
+  addons: PublicMenuAddon[];
+};
+
+export type PublicMenuAddon = {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  photoUrl: string | null;
+  isAvailable: boolean;
+};

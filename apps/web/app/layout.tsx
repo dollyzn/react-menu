@@ -13,31 +13,27 @@ import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
+const DESCRIPTION =
+  "Cardápio digital e pedidos para restaurantes: pedido pelo celular, retirada no balcão, PDV e tela da cozinha.";
+
 export const metadata: Metadata = {
   title: {
-    default: "Fale Alto CRM",
-    template: "%s | Fale Alto CRM",
+    default: "React Menu",
+    template: "%s | React Menu",
   },
-  applicationName: "Fale Alto CRM",
-  publisher: "Fale Alto",
+  applicationName: "React Menu",
   generator: "Next.js",
   metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
-  description:
-    "A Fale Alto é uma agência criativa que ao longo dos anos especializou-se no desenvolvimento de soluções publicitárias capazes de impulsionar a performance de pequenas e médias empresas.",
+  description: DESCRIPTION,
   keywords: [
-    "CRM",
-    "Gestão de Clientes",
-    "Gestão Comercial",
-    "Pipeline de Vendas",
-    "Funil de Vendas",
-    "Sistema de CRM",
-    "Automação de Vendas",
-    "Marketing Automation",
-    "CRM para pequenas empresas",
-    "CRM para agências",
-    "Fale Alto CRM",
-    "Natã Santos",
-    "dollyzn",
+    "cardápio digital",
+    "pedido online",
+    "retirada no balcão",
+    "PDV",
+    "KDS",
+    "restaurante",
+    "pastelaria",
+    "open source",
   ],
   authors: [
     {
@@ -46,51 +42,26 @@ export const metadata: Metadata = {
     },
   ],
   creator: 'Natã "dollyzn" Santos',
-  category: "technology",
-  alternates: {
-    canonical: env.NEXT_PUBLIC_APP_URL,
-  },
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-      "max-image-preview": "large",
-      "max-snippet": -1,
-      "max-video-preview": -1,
-    },
-  },
+  category: "food",
+  robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "pt_BR",
     url: env.NEXT_PUBLIC_APP_URL,
-    title: "Fale Alto CRM",
-    description:
-      "A Fale Alto é uma agência criativa que ao longo dos anos especializou-se no desenvolvimento de soluções publicitárias capazes de impulsionar a performance de pequenas e médias empresas.",
-    siteName: "Fale Alto CRM",
-    determiner: "the",
-    images: [
-      {
-        url: `${env.NEXT_PUBLIC_APP_URL}/og-image.png`,
-        width: 1200,
-        height: 630,
-        alt: "Fale Alto CRM",
-      },
-    ],
+    title: "React Menu",
+    description: DESCRIPTION,
+    siteName: "React Menu",
+    images: [{ url: "/banner.jpg", alt: "React Menu" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Fale Alto CRM",
-    description:
-      "A Fale Alto é uma agência criativa que ao longo dos anos especializou-se no desenvolvimento de soluções publicitárias capazes de impulsionar a performance de pequenas e médias empresas.",
-    images: [`${env.NEXT_PUBLIC_APP_URL}/og-image.png`],
-    creator: "@dolyzn",
+    title: "React Menu",
+    description: DESCRIPTION,
+    images: ["/banner.jpg"],
   },
   icons: {
     icon: "/favicon.ico",
-    shortcut: "/favicon-16x16.png",
-    apple: "/apple-touch-icon.png",
+    apple: "/logo.png",
   },
 };
 

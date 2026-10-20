@@ -11,12 +11,14 @@ interface ReduxProviderProps {
   children: React.ReactNode;
 }
 
+/**
+ * Children always render (also on the server). Code that depends on the
+ * persisted session must wait for `useRehydrated()`.
+ */
 export const ReduxProvider = ({ children }: ReduxProviderProps) => {
   return (
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
-        {children}
-      </PersistGate>
+      <PersistGate persistor={persistor}>{() => children}</PersistGate>
     </Provider>
   );
 };

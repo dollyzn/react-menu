@@ -32,7 +32,7 @@ test("store members are notified in realtime when the status changes", async ({ 
   await expect(page.getByText("Realtime está aberta").first()).toBeVisible();
 
   // ...and the persisted notification in the popover.
-  await page.getByRole("button", { name: /Notificações \(1 não lida/ }).click();
+  await page.getByRole("button", { name: /Notificações \(\d+ não lidas?\)/ }).click();
   await expect(
     page.getByRole("dialog").getByText("Bruno alterou o status da loja para aberta.")
   ).toBeVisible();

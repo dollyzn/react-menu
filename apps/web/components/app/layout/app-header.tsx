@@ -3,7 +3,7 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { HeaderUser } from "./header-user";
 import { StoreSwitcher } from "./store-switcher";
 import { NotificationsPopover } from "@/components/app/notifications/notifications-popover";
-import { ThemeTogglerButton } from "@/components/animate-ui/components/buttons/theme-toggler";
+import { ThemeToggleButton } from "@/components/app/theme-toggle-button";
 
 export default function AppHeader() {
   return (
@@ -20,13 +20,7 @@ export default function AppHeader() {
 
         <div className="flex items-center justify-end ml-auto shrink-0 gap-2">
           <NotificationsPopover />
-          <ThemeTogglerButton
-            variant="secondary"
-            size="sm"
-            direction="tr-circle"
-            aria-label="Alternar tema"
-            className="rounded-full"
-          />
+          <ThemeToggleButton variant="secondary" size="sm" className="rounded-full" />
           <Separator
             orientation="vertical"
             className="data-[orientation=vertical]:h-4 bg-primary-foreground/60 my-auto"

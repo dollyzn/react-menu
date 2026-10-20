@@ -1,11 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "./lib/env";
 
-const PUBLIC_ROUTES = ["/app/login", "/app/social"];
-
-function isPublicRoute(path: string): boolean {
-  return PUBLIC_ROUTES.includes(path);
-}
+/** Staff pages that work without a session. */
+const AUTH_PAGES = ["/app/login", "/app/social"];
 
 function isLoggedIn(req: NextRequest) {
   const token = req.cookies.get(env.NEXT_PUBLIC_AUTH_COOKIE_NAME)?.value;
@@ -13,17 +10,22 @@ function isLoggedIn(req: NextRequest) {
   return Boolean(token);
 }
 
+/**
+ * UX-only guard for the staff app (/app/*). The customer menu, order
+ * tracking and every other route are public. The API enforces access.
+ */
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  if (path !== "/app" && !path.startsWith("/app/")) return NextResponse.next();
 
   const isLogged = isLoggedIn(req);
-  const isPublic = isPublicRoute(path);
+  const isAuthPage = AUTH_PAGES.includes(path);
 
-  if (!isPublic && !isLogged) {
+  if (!isAuthPage && !isLogged) {
     return NextResponse.redirect(new URL("/app/login", req.url));
   }
 
-  if (isPublic && isLogged) {
+  if (isAuthPage && isLogged) {
     return NextResponse.redirect(new URL("/app/stores", req.url));
   }
 

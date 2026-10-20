@@ -41,6 +41,8 @@ export default defineConfig({
         PORT: String(API_PORT),
         DB_DATABASE: "jjpasteis-menu-e2e",
         LIMITER_STORE: "memory",
+        // Every e2e request comes from localhost.
+        PUBLIC_ORDER_RATE_LIMIT: "10000",
         DRIVE_DISK: "fs",
         FRONTEND_URL: `http://localhost:${WEB_PORT}`,
         ADMIN_USER: E2E_ADMIN.email,

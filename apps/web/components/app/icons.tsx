@@ -30,4 +30,21 @@ export const Icons = {
       <path d="M162.11 68.51c-17.24,0 -29.99,7.41 -37.72,15.83l0 -8.95c0,-1.91 -1.54,-3.45 -3.44,-3.45l-41.11 0c-1.91,0 -3.45,1.54 -3.45,3.45l0 137.9c0,1.91 1.54,3.45 3.45,3.45l42.83 0c1.9,0 3.45,-1.54 3.45,-3.45l0 -68.23c0,-22.99 6.24,-31.95 22.27,-31.95 17.46,0 18.84,14.36 18.84,33.13l0 67.05c0,1.91 1.55,3.45 3.45,3.45l42.85 0c1.91,0 3.45,-1.54 3.45,-3.45l0 -75.64c0,-34.19 -6.52,-69.14 -54.87,-69.14z" />
     </svg>
   ),
+  /** lucide-react 1.x dropped brand icons; same stroke style as lucide. */
+  instagram: (props: IconProps) => (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+    </svg>
+  ),
 };

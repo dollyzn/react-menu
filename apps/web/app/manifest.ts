@@ -2,27 +2,14 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Fale Alto - CRM",
-    short_name: "FaleAlto",
+    name: "React Menu",
+    short_name: "Cardápio",
     description:
-      "A Fale Alto é uma agência criativa que ao longo dos anos especializou-se no desenvolvimento de soluções publicitárias capazes de impulsionar a performance de pequenas e médias empresas.",
+      "Cardápio digital e pedidos para restaurantes: pedido pelo celular, retirada no balcão, PDV e tela da cozinha.",
     start_url: "/",
     display: "standalone",
     background_color: "#ffffff",
-    theme_color: "#000000",
-    icons: [
-      {
-        src: "/icon-192x192.png",
-        sizes: "192x192",
-        type: "image/png",
-        purpose: "maskable",
-      },
-      {
-        src: "/icon-512x512.png",
-        sizes: "512x512",
-        type: "image/png",
-        purpose: "maskable",
-      },
-    ],
+    theme_color: "#c2410c",
+    icons: [{ src: "/logo.png", sizes: "any", type: "image/png" }],
   };
 }
