@@ -20,6 +20,10 @@ export default class Category extends BaseModel {
   @column()
   declare order: number
 
+  /** False for drinks and ready-made products: they skip the kitchen. */
+  @column()
+  declare requiresPreparation: boolean
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

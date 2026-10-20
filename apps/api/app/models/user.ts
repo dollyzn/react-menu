@@ -72,7 +72,8 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @hasMany(() => UserSocialAccount)
   declare socialAccounts: HasMany<typeof UserSocialAccount>
 
-  @manyToMany(() => Store)
+  /** Pivot `role`: StoreRole of the user in each store. */
+  @manyToMany(() => Store, { pivotColumns: ['role'] })
   declare stores: ManyToMany<typeof Store>
 
   async can(access: string): Promise<boolean> {

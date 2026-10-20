@@ -1,8 +1,10 @@
 import { DateTime } from 'luxon'
+import { decimal } from '#helpers/columns'
 import { BaseModel, belongsTo, column, manyToMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Category from './category.js'
 import Addon from './addon.js'
+import Ingredient from './ingredient.js'
 
 export default class Item extends BaseModel {
   @column({ isPrimary: true })
@@ -17,7 +19,7 @@ export default class Item extends BaseModel {
   @column()
   declare description: string | null
 
-  @column({ serialize: (value: string) => Number.parseFloat(value) })
+  @column(decimal)
   declare price: number
 
   @column()
@@ -28,6 +30,9 @@ export default class Item extends BaseModel {
 
   @column()
   declare order: number
+
+  @column()
+  declare isAvailable: boolean
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
@@ -40,6 +45,10 @@ export default class Item extends BaseModel {
 
   @manyToMany(() => Addon)
   declare addons: ManyToMany<typeof Addon>
+
+  /** Recipe: ingredients consumed per unit (pivot `quantity`). */
+  @manyToMany(() => Ingredient, { pivotTable: 'item_ingredients', pivotColumns: ['quantity'] })
+  declare ingredients: ManyToMany<typeof Ingredient>
 
   serializeExtras() {
     const addonsCount = this.$extras.addonsCount ? Number(this.$extras.addonsCount) : undefined
