@@ -128,7 +128,7 @@ export function OverviewBarChart({
                 tickMargin={8}
                 minTickGap={32}
                 tickFormatter={(value) => {
-                  const date = dayjs(value);
+                  const date = dayjs(String(value));
                   return date.format("D [de] MMM[.]");
                 }}
               />
@@ -138,7 +138,7 @@ export function OverviewBarChart({
                     className="w-[150px]"
                     nameKey="accesses"
                     labelFormatter={(value) => {
-                      const date = dayjs(value);
+                      const date = dayjs(String(value));
                       return date.format("D [de] MMM[.] [de] YYYY");
                     }}
                   />

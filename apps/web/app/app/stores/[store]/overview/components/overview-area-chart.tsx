@@ -178,7 +178,7 @@ export function OverviewAreaChart({
                 minTickGap={30}
                 interval="preserveStartEnd"
                 tickFormatter={(value) => {
-                  const date = dayjs(value);
+                  const date = dayjs(String(value));
                   return date.format("D [de] MMM[.]");
                 }}
               />
@@ -188,7 +188,7 @@ export function OverviewAreaChart({
                   <ChartTooltipContent
                     className="w-[150px]"
                     labelFormatter={(value) => {
-                      const date = dayjs(value);
+                      const date = dayjs(String(value));
                       return date.format("D [de] MMM[.] [de] YYYY");
                     }}
                     indicator="dot"
