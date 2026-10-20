@@ -30,6 +30,23 @@ test.group('Store creation and deletion', (group) => {
     assert.isTrue(await user.hasStoreAccess(response.body().data.id))
   })
 
+  test('creating a default store unsets the previous default', async ({ client, assert }) => {
+    const user = await createUserWithPermissions(['create_store'])
+    const previous = await createStore()
+    previous.isDefault = true
+    await previous.save()
+
+    const response = await client
+      .post('/api/v1/stores')
+      .json({ name: 'Nova padrão', slug: `nova-${cuid()}`, isDefault: true })
+      .loginAs(user)
+
+    response.assertStatus(200)
+    await previous.refresh()
+    assert.isFalse(previous.isDefault)
+    assert.isTrue(response.body().data.isDefault)
+  })
+
   test('member without delete_store cannot delete the store', async ({ client }) => {
     const member = await createUser()
     const store = await createStore([member])

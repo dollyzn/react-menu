@@ -58,9 +58,10 @@ export default class Store extends BaseModel {
 
   @beforeSave()
   public static async ensureSingleDefault(store: Store) {
-    if (store.isDefault) {
-      await Store.query()
-        .whereNot('id', store.id || 0)
+    if (store.isDefault && store.$dirty.isDefault) {
+      await Store.query({ client: store.$trx })
+        .where('isDefault', true)
+        .if(store.$isPersisted, (query) => query.whereNot('id', store.id))
         .update({ isDefault: false })
     }
   }
