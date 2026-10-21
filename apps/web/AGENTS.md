@@ -75,3 +75,13 @@ Playwright in `e2e/` (`pnpm test:e2e` from the root). It starts the API on
 :3334 against a recreated `jjpasteis-menu-e2e` database and Next on :3100.
 Tests fail on any console warning/error, any image that answers 4xx/5xx, and
 on unnamed controls.
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+## This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

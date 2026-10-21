@@ -18,8 +18,14 @@ async function shot(browser: Browser, url: string, file: string, width: number, 
 
 async function installability(page: Page) {
   const cdp = await page.context().newCDPSession(page);
+  // After a client-side navigation the browser fetches the new manifest a
+  // moment after its <link> lands (metadata is streamed), so wait for it.
+  let result: Awaited<ReturnType<typeof cdp.send<"Page.getAppManifest">>> | undefined;
+  await expect
+    .poll(async () => (result = await cdp.send("Page.getAppManifest")).data ?? "", { timeout: 10_000 })
+    .not.toBe("");
   const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
-  const { url, errors, data } = await cdp.send("Page.getAppManifest");
+  const { url, errors, data } = result!;
   return { installabilityErrors, url, errors, manifest: JSON.parse(data ?? "{}") };
 }
 
