@@ -4,7 +4,7 @@ import StoreRole from '#enums/store_role'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 
 test.group('Items', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('a partial update (sold out) does not require the category', async ({ client, assert }) => {
     const manager = await createUser()

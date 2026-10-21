@@ -1,3 +1,4 @@
+import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/core/http'
 
@@ -19,7 +20,8 @@ export const http = defineConfig({
    * defined inside the "config/session.ts" file.
    */
   cookie: {
-    domain: '',
+    // e.g. ".example.com" when web and API live on different subdomains.
+    domain: env.get('COOKIE_DOMAIN', ''),
     path: '/',
     maxAge: '2h',
     httpOnly: true,

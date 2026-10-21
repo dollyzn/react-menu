@@ -99,7 +99,7 @@ test.group('Payments (in-app checkout)', (group) => {
     app.container.swap(MercadoPagoClient, () => fake)
     return () => app.container.restore(MercadoPagoClient)
   })
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   /** Places an online order and returns its public token. */
   async function placeOrder(

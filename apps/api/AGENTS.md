@@ -59,7 +59,7 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 ## Tests
 
 Japa functional tests in `tests/functional`, using `.env.test`
-(database `jjpasteis-menu-test`) and `testUtils.db().withGlobalTransaction()`.
+(database `jjpasteis-menu-test`) and `testUtils.db().wrapInGlobalTransaction()`.
 Fixtures in `tests/helpers/fixtures.ts`; authenticate with `.loginAs(user)`.
 Transmit only subscribes a `uid` with an open event stream: use
 `openStream(cleanup)` from `tests/helpers/transmit.ts` in subscribe tests.

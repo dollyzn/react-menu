@@ -14,7 +14,7 @@ async function storeWithManager() {
 }
 
 test.group('Store members', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
   group.each.setup(() => {
     mail.fake()
     return () => mail.restore()

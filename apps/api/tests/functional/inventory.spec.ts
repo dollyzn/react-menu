@@ -45,7 +45,7 @@ async function stockedStore() {
 }
 
 test.group('Inventory', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('orders consume item and add-on recipes when they enter the kitchen', async ({
     client,

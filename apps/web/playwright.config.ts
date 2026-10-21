@@ -48,6 +48,8 @@ export default defineConfig({
         PUBLIC_RATE_LIMIT: "10000",
         // Local Pix gateway: the checkout runs without Mercado Pago credentials.
         PAYMENTS_FAKE_GATEWAY: "true",
+        // Jobs of the e2e run stay apart from the dev worker's queue.
+        QUEUE_REDIS_PREFIX: "react-menu-e2e:",
         DRIVE_DISK: "fs",
         FRONTEND_URL: `http://localhost:${WEB_PORT}`,
         ADMIN_USER: E2E_ADMIN.email,

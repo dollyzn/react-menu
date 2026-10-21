@@ -17,7 +17,7 @@ const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
  * Idempotency-Key must never run the operation twice.
  */
 test.group('Idempotency', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('a retried public order returns the same order', async ({ client, assert }) => {
     const { store, carne } = await createMenuStore()

@@ -10,7 +10,7 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
 
 test.group('Public menu', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('serves a store menu by slug without private fields', async ({ client, assert }) => {
     const { store, carne } = await createMenuStore()
@@ -39,7 +39,7 @@ test.group('Public menu', (group) => {
 })
 
 test.group('Placing orders', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('prices come from the menu, not from the client', async ({ client, assert }) => {
     const { store, carne, catupiry, coca } = await createMenuStore()
@@ -155,7 +155,7 @@ test.group('Placing orders', (group) => {
 })
 
 test.group('Kitchen and pickup', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   async function placeAll(client: ApiClient, slug: string, itemIds: string[]) {
     const tokens = []
@@ -342,7 +342,7 @@ test.group('Kitchen and pickup', (group) => {
 })
 
 test.group('Menu views', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('customer visits are counted, staff previews are not', async ({ client, assert }) => {
     const { store } = await createMenuStore()

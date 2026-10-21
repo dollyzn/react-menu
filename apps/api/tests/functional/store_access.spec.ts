@@ -4,7 +4,7 @@ import Category from '#models/category'
 import { createCategory, createStore, createUser } from '#tests/helpers/fixtures'
 
 test.group('Store access (tenant isolation)', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('rejects unauthenticated requests', async ({ client }) => {
     const store = await createStore()

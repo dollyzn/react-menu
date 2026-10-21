@@ -19,7 +19,7 @@ async function announce(userIds: string[]) {
 }
 
 test.group('Notifications', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('notify renders the template and stores one row per recipient', async ({ assert }) => {
     const [a, b] = [await createUser(), await createUser()]
@@ -110,7 +110,7 @@ test.group('Notifications', (group) => {
 })
 
 test.group('Push registrations (FCM)', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   const fid = () => `fid_${randomUUID().replaceAll('-', '')}`
 

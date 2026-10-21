@@ -20,6 +20,10 @@ updates:
       # TypeScript 7 is the native compiler; the Adonis assembler supports TS 5/6.
       - dependency-name: typescript
         update-types: [version-update:semver-major]
+      # Lucid runs a query's preloads in parallel; pg 9 refuses concurrent
+      # queries on one client (transactions). Upgrade together with Lucid.
+      - dependency-name: pg
+        update-types: [version-update:semver-major]
       # Types follow the Node runtime in .nvmrc (24); bump them together.
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]

@@ -4,7 +4,7 @@ import Item from '#models/item'
 import { createCategory, createItem, createStore, createUser } from '#tests/helpers/fixtures'
 
 test.group('Bulk delete', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('deletes only items of the store and returns { deleted, failed }', async ({
     client,
