@@ -33,8 +33,6 @@ export type Store = {
   mercadoPagoPublicKey: string | null;
   /** Card installments offered at checkout (1 = à vista). */
   maxInstallments: number;
-  /** Only when the view count was loaded (public menu). */
-  views?: number;
   createdAt: string;
   updatedAt: string;
   categories?: Category[];

@@ -5,6 +5,10 @@ import { randomUUID } from 'node:crypto'
 import StoreStatus from '#enums/store_status'
 import Notification from '#models/notification'
 import PushRegistration from '#models/push_registration'
+import FcmClient from '#notifications/fcm_client'
+import SendPushNotification from '#jobs/send_push_notification'
+import { fakeQueue, runJob } from '#tests/helpers/queue'
+import type { BatchResponse } from 'firebase-admin/messaging'
 import NotificationService from '#services/notification_service'
 import { createStore, createUser } from '#tests/helpers/fixtures'
 import { openStream } from '#tests/helpers/transmit'
@@ -167,5 +171,66 @@ test.group('Push registrations (FCM)', (group) => {
       .loginAs(user)
 
     response.assertStatus(422)
+  })
+})
+
+/** FCM double: records sends and answers like sendEachForMulticast. */
+class FakeFcm extends FcmClient {
+  sent: { fids: string[]; data: Record<string, string> }[] = []
+  gone = new Set<string>()
+
+  get isConfigured() {
+    return true
+  }
+
+  async send(fids: string[], data: Record<string, string>) {
+    this.sent.push({ fids, data })
+    const responses = fids.map((id) =>
+      this.gone.has(id)
+        ? {
+            success: false,
+            error: { code: 'messaging/installation-id-not-registered' },
+          }
+        : { success: true, messageId: `m-${id}` }
+    )
+    return {
+      responses,
+      successCount: responses.filter((r) => r.success).length,
+      failureCount: responses.filter((r) => !r.success).length,
+    } as unknown as BatchResponse
+  }
+}
+
+test.group('Web push delivery (FCM)', (group) => {
+  let fcm: FakeFcm
+  group.each.setup(() => {
+    fcm = new FakeFcm()
+    app.container.swap(FcmClient, () => fcm)
+    return () => app.container.restore(FcmClient)
+  })
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+
+  test('notifications queue a push; FCM-forgotten installations are pruned', async ({ assert }) => {
+    const queue = fakeQueue()
+    const user = await createUser()
+    await PushRegistration.createMany([
+      { userId: user.id, fid: 'fid_alive' },
+      { userId: user.id, fid: 'fid_gone' },
+    ])
+    fcm.gone.add('fid_gone')
+
+    await announce([user.id])
+    queue.assertPushed('SendPushNotification')
+    const [job] = queue.getPushedJobs()
+    await runJob(SendPushNotification, job.job.payload as never)
+
+    assert.lengthOf(fcm.sent, 1)
+    assert.sameMembers(fcm.sent[0].fids, ['fid_alive', 'fid_gone'])
+    assert.equal(fcm.sent[0].data.title, 'Manutenção')
+    const left = await PushRegistration.query().where('userId', user.id)
+    assert.deepEqual(
+      left.map((row) => row.fid),
+      ['fid_alive']
+    )
   })
 })

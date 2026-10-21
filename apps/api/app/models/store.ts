@@ -6,7 +6,7 @@ import StoreStatus from '../enums/store_status.js'
 import Category from './category.js'
 import Addon from './addon.js'
 import User from './user.js'
-import StoreViews from './store_views.js'
+import db from '@adonisjs/lucid/services/db'
 
 const encryptNullable = (value: string | null) => (value ? encryption.encrypt(value) : null)
 const decryptNullable = (value: string | null) =>
@@ -98,9 +98,6 @@ export default class Store extends BaseModel {
   @manyToMany(() => User, { pivotColumns: ['role'] })
   declare users: ManyToMany<typeof User>
 
-  @hasMany(() => StoreViews)
-  declare storeViews: HasMany<typeof StoreViews>
-
   @beforeSave()
   public static async ensureSingleDefault(store: Store) {
     if (store.isDefault && store.$dirty.isDefault) {
@@ -111,24 +108,14 @@ export default class Store extends BaseModel {
     }
   }
 
-  public async loadStoreViewsCount() {
-    const store: Store = this
-    await store.loadCount('storeViews')
-    return Number(this.$extras.storeViews_count || 0)
-  }
-
+  /** One more menu visit this hour (a single row per store/hour/platform). */
   public async incrementViews(platform: 'mobile' | 'desktop') {
-    const store: Store = this
-    await store.related('storeViews').create({
-      platform,
-    })
-    return store
-  }
-
-  serializeExtras() {
-    const views = this.$extras.storeViews_count ? Number(this.$extras.storeViews_count) : undefined
-    return {
-      views,
-    }
+    await db.rawQuery(
+      `insert into store_view_counts (store_id, hour, platform, count)
+       values (?, date_trunc('hour', now()), ?, 1)
+       on conflict (store_id, hour, platform)
+       do update set count = store_view_counts.count + 1`,
+      [this.id, platform]
+    )
   }
 }
