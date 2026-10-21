@@ -1,13 +1,8 @@
 import type { Column } from "@tanstack/react-table";
-import { FilterIcon as Funnel, X, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent } from "@/components/ui/popover";
+import { FilterTrigger } from "./data-table-filter-parts";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
@@ -64,30 +59,7 @@ export function DataTableFilterButton<TData, TValue>({
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 gap-1 border-dashed"
-            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-          />
-        }
-      >
-        <Funnel />
-        <span className="capitalize">{columnName}</span>
-        {hasFilter && (
-          <>
-            <Separator orientation="vertical" className="mx-1 my-auto h-4" />
-            <Badge
-              variant="secondary"
-              className="max-w-[80px] rounded-sm px-1 font-normal"
-            >
-              <div className="truncate">{currentFilterValue}</div>
-            </Badge>
-          </>
-        )}
-      </PopoverTrigger>
+      <FilterTrigger label={columnName} active={hasFilter} summary={currentFilterValue} />
       <PopoverContent className="w-[250px] p-3" align="start" sideOffset={8}>
         <div className="space-y-4">
           <div className="space-y-2">

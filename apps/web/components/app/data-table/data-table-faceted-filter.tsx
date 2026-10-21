@@ -1,25 +1,18 @@
 import type { Column } from "@tanstack/react-table";
-import { Check, ListFilter, ChevronsUpDown, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
+import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { FilterGroup, FilterOption } from ".";
-import { useEffect, useRef, useState } from "react";
+import { FilterOptionRow, FilterTrigger, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -29,6 +22,7 @@ interface DataTableFacetedFilterProps<TData, TValue> {
   grouped?: boolean;
 }
 
+/** Multiple choice filter (checkboxes). The column filter is the source of truth. */
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   options,
@@ -36,281 +30,94 @@ export function DataTableFacetedFilter<TData, TValue>({
   loading,
   grouped,
 }: DataTableFacetedFilterProps<TData, TValue>) {
-  // The column filter is the single source of truth for the selection.
   const filterValue = column?.getFilterValue();
   const selectedValues = new Set<string>(
-    filterValue
-      ? (Array.isArray(filterValue) ? filterValue : [filterValue]).map(String)
-      : []
+    filterValue ? (Array.isArray(filterValue) ? filterValue : [filterValue]).map(String) : []
   );
   const [open, setOpen] = useState(false);
   const defaultApplied = useRef(false);
+  const all = flattenOptions(options, grouped);
 
   // Apply the options' defaults once, as soon as options are available.
   useEffect(() => {
-    if (defaultApplied.current || !options || !column) return;
-    const defaults = findDefaultOptions(options, grouped);
+    if (defaultApplied.current || !column) return;
+    const defaults = flattenOptions(options, grouped).filter((o) => o?.defaultOption);
     if (defaults.length === 0) return;
     defaultApplied.current = true;
-    if (!column.getFilterValue()) column.setFilterValue(defaults.map(String));
+    if (!column.getFilterValue()) column.setFilterValue(defaults.map((o) => String(o.value)));
   }, [options, grouped, column]);
 
   const setSelection = (values: Set<string>) =>
     column?.setFilterValue(values.size ? Array.from(values) : undefined);
 
+  const toggle = (value: string) => {
+    const next = new Set(selectedValues);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    setSelection(next);
+  };
+
   const columnName = column?.columnDef.meta?.name || title || "";
-  const hasSelectedValues = selectedValues.size > 0;
+  const count = selectedValues.size;
+  const allSelected = all.length > 0 && count === all.length;
+  const labelOf = (value: string) => all.find((o) => String(o.value) === value)?.label ?? value;
+  const summary = count === 0 ? undefined : count <= 2 ? [...selectedValues].map(labelOf).join(", ") : `${count} selecionados`;
 
-  const handleSelectOption = (value: string) => {
-    const stringValue = String(value);
-    const newSelectedValues = new Set(selectedValues);
-
-    if (newSelectedValues.has(stringValue)) {
-      newSelectedValues.delete(stringValue);
-    } else {
-      newSelectedValues.add(stringValue);
-    }
-
-    setSelection(newSelectedValues);
-  };
-
-  const handleSelectAll = () => {
-    if (grouped) {
-      const allValues = new Set(
-        (options as FilterGroup[])?.flatMap((group) =>
-          group.options?.map((option) => String(option.value))
-        )
-      );
-      setSelection(
-        selectedValues.size === allValues.size ? new Set() : allValues
-      );
-    } else {
-      const allValues = new Set(
-        (options as FilterOption[])?.map((option) => String(option.value))
-      );
-      setSelection(
-        selectedValues.size === allValues.size ? new Set() : allValues
-      );
-    }
-  };
-
-  const handleClearFilters = () => {
-    setSelection(new Set());
-  };
-
-  const findOptionByValue = (value: string) => {
-    const stringValue = String(value);
-    if (grouped) {
-      for (const group of options as FilterGroup[]) {
-        const option = group.options?.find(
-          (opt) => String(opt?.value) === stringValue
-        );
-        if (option) return option;
-      }
-    } else {
-      return (options as FilterOption[])?.find(
-        (opt) => String(opt?.value) === stringValue
-      );
-    }
-    return undefined;
-  };
+  const renderOptions = (list: FilterOption[], prefix = "") =>
+    list.map((option) => (
+      <FilterOptionRow
+        key={String(option.value)}
+        value={`${prefix}${option.label} ${option.value}`}
+        option={option}
+        multiple
+        selected={selectedValues.has(String(option.value))}
+        onSelect={() => toggle(String(option.value))}
+      />
+    ));
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 border-dashed"
-            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-            loading={loading}
-          />
-        }
-      >
-        {!loading && <ListFilter />}
-        <span className="capitalize">{columnName}</span>
-        <ChevronsUpDown className="ml-auto opacity-50" />
-        {hasSelectedValues && !loading && (
-          <>
-            <Separator orientation="vertical" className="mx-1 my-auto h-4" />
-            <Badge
-              variant="secondary"
-              className="rounded-sm px-1 font-normal lg:hidden"
-            >
-              {selectedValues.size}
-            </Badge>
-            <div className="hidden space-x-1 lg:flex">
-              {selectedValues.size > 2 ? (
-                <Badge
-                  variant="secondary"
-                  className="rounded-sm px-1 font-normal"
-                >
-                  {selectedValues.size} selecionados
-                </Badge>
-              ) : (
-                Array.from(selectedValues).map((value, index) => {
-                  const option = findOptionByValue(value);
-
-                  return (
-                    <Badge
-                      variant="secondary"
-                      key={`selected-${index}`}
-                      className="rounded-sm px-1 font-normal"
-                    >
-                      {option?.label ?? value}
-                    </Badge>
-                  );
-                })
-              )}
-            </div>
-          </>
-        )}
-      </PopoverTrigger>
-      <PopoverContent className="w-[220px] p-0" align="start" sideOffset={8}>
+      <FilterTrigger label={columnName} active={count > 0} loading={loading} summary={summary} />
+      <PopoverContent className="w-auto min-w-56 max-w-80 p-0" align="start" sideOffset={8}>
         <Command>
-          <CommandInput
-            placeholder={`Buscar ${columnName.toLowerCase()}...`}
-            className="placeholder:capitalize"
-          />
+          {all.length >= SEARCH_THRESHOLD && <CommandInput placeholder={`Buscar ${columnName.toLowerCase()}…`} />}
           <CommandList>
-            <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
-            {options && !!options.length && (
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            {all.length > 1 && (
               <>
                 <CommandGroup>
-                  <CommandItem
-                    onSelect={handleSelectAll}
-                    className="justify-between cursor-pointer"
-                  >
-                    <span>Selecionar todos</span>
-                    <div
-                      className={cn(
-                        "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                        selectedValues.size ===
-                          (grouped
-                            ? (options as FilterGroup[]).flatMap(
-                                (group) => group.options
-                              ).length
-                            : (options as FilterOption[]).length)
-                          ? "bg-primary"
-                          : "opacity-50 [&_svg]:invisible"
-                      )}
-                    >
-                      <Check className="h-3 w-3 p-0.5 text-primary-foreground" />
-                    </div>
-                  </CommandItem>
+                  <FilterOptionRow
+                    value="__all__"
+                    option={{ label: "Selecionar todos" }}
+                    multiple
+                    selected={allSelected}
+                    indeterminate={count > 0 && !allSelected}
+                    onSelect={() => setSelection(allSelected ? new Set() : new Set(all.map((o) => String(o.value))))}
+                  />
                 </CommandGroup>
                 <CommandSeparator />
               </>
             )}
-
-            {grouped ? (
-              (options as FilterGroup[])?.map((group, index) => (
-                <CommandGroup
-                  key={`${group.group}_${index}`}
-                  heading={group.group}
-                >
-                  {group.options?.map((option) => {
-                    const isSelected = selectedValues.has(String(option.value));
-                    return (
-                      <CommandItem
-                        key={String(option.value)}
-                        value={`${group.group} ${option.label} ${option.value}`}
-                        onSelect={() =>
-                          handleSelectOption(String(option.value))
-                        }
-                        className="justify-between cursor-pointer"
-                      >
-                        <div className="flex items-center gap-2">
-                          {option.icon && (
-                            <option.icon
-                              className={cn(
-                                "h-4 w-4 text-muted-foreground",
-                                option.iconClassName
-                              )}
-                            />
-                          )}
-                          <span>{option.label}</span>
-                        </div>
-                        <div
-                          className={cn(
-                            "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                            isSelected
-                              ? "bg-primary"
-                              : "opacity-50 [&_svg]:invisible"
-                          )}
-                        >
-                          <Check className="h-3 w-3 p-0.5 text-primary-foreground" />
-                        </div>
-                      </CommandItem>
-                    );
-                  })}
-                </CommandGroup>
-              ))
-            ) : (
-              <CommandGroup>
-                {(options as FilterOption[])?.map((option) => {
-                  const isSelected = selectedValues.has(String(option.value));
-                  return (
-                    <CommandItem
-                      key={String(option.value)}
-                      value={`${option.label} ${option.value}`}
-                      onSelect={() => handleSelectOption(String(option.value))}
-                      className="justify-between cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2">
-                        {option.icon && (
-                          <option.icon
-                            className={cn(
-                              "h-4 w-4 text-muted-foreground",
-                              option.iconClassName
-                            )}
-                          />
-                        )}
-                        <span>{option.label}</span>
-                      </div>
-                      <div
-                        className={cn(
-                          "flex h-4 w-4 items-center justify-center rounded-sm border border-primary",
-                          isSelected
-                            ? "bg-primary text-primary-foreground"
-                            : "opacity-50 [&_svg]:invisible"
-                        )}
-                      >
-                        <Check className="h-3 w-3 p-0.5 text-primary-foreground" />
-                      </div>
-                    </CommandItem>
-                  );
-                })}
-              </CommandGroup>
-            )}
+            {grouped
+              ? (options as FilterGroup[])?.map((group, index) => (
+                  <CommandGroup key={`${group.group}_${index}`} heading={group.group}>
+                    {renderOptions(group.options ?? [], `${group.group} `)}
+                  </CommandGroup>
+                ))
+              : <CommandGroup>{renderOptions((options as FilterOption[]) ?? [])}</CommandGroup>}
           </CommandList>
-          {hasSelectedValues && (
-            <>
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem
-                  onSelect={handleClearFilters}
-                  className="justify-center text-center text-sm cursor-pointer"
-                >
-                  <X className="size-4" />
-                  Limpar filtros
-                </CommandItem>
-              </CommandGroup>
-            </>
+          {count > 0 && (
+            <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
+              <span className="tabular-nums">
+                {count} {count === 1 ? "selecionado" : "selecionados"}
+              </span>
+              <Button variant="ghost" size="xs" onClick={() => setSelection(new Set())}>
+                <X /> Limpar
+              </Button>
+            </div>
           )}
         </Command>
       </PopoverContent>
     </Popover>
   );
-}
-
-function findDefaultOptions(
-  options: FilterOption[] | FilterGroup[],
-  grouped?: boolean
-): (string | number)[] {
-  const flat = grouped
-    ? (options as FilterGroup[]).flatMap((group) => group.options)
-    : (options as FilterOption[]);
-  return flat.filter((option) => option?.defaultOption).map((o) => o.value);
 }

@@ -1,24 +1,11 @@
 import type { Column } from "@tanstack/react-table";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, ListFilter } from "lucide-react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { FilterGroup, FilterOption } from ".";
+import { FilterOptionRow, FilterTrigger, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
 interface DataTableSelectFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -28,6 +15,7 @@ interface DataTableSelectFilterProps<TData, TValue> {
   grouped?: boolean;
 }
 
+/** Single choice filter (radio). Choosing the selected option again clears it. */
 export function DataTableSelectFilter<TData, TValue>({
   column,
   options,
@@ -35,204 +23,63 @@ export function DataTableSelectFilter<TData, TValue>({
   loading,
   grouped,
 }: DataTableSelectFilterProps<TData, TValue>) {
-  // The column filter is the single source of truth for the selection.
-  const filterValue = column?.getFilterValue();
-  const selectedValue = filterValue ? String(filterValue) : undefined;
+  const raw = column?.getFilterValue();
+  const selectedValue = raw === undefined || raw === null || raw === "" ? undefined : String(raw);
   const [open, setOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
   const defaultApplied = useRef(false);
+  const all = flattenOptions(options, grouped);
 
-  // Apply the options' default once, as soon as options are available.
   useEffect(() => {
-    if (defaultApplied.current || !options || !column) return;
-    const flat = grouped
-      ? (options as FilterGroup[]).flatMap((group) => group.options)
-      : (options as FilterOption[]);
-    const defaultOption = flat.find((option) => option?.defaultOption);
+    if (defaultApplied.current || !column) return;
+    const defaultOption = flattenOptions(options, grouped).find((o) => o?.defaultOption);
     if (!defaultOption) return;
     defaultApplied.current = true;
     if (!column.getFilterValue()) column.setFilterValue(String(defaultOption.value));
   }, [options, grouped, column]);
 
-  const columnName = title || column?.columnDef.meta?.name || "";
-  const hasFilter = !!selectedValue;
-
-  const findSelectedOption = () => {
-    if (!selectedValue) return undefined;
-    const stringValue = String(selectedValue);
-
-    if (grouped) {
-      return (options as FilterGroup[])
-        ?.flatMap((group) => group.options)
-        ?.find((option) => option && String(option.value) === stringValue);
-    }
-    return (options as FilterOption[])?.find(
-      (option) => option && String(option.value) === stringValue
-    );
-  };
-
-  const selectedOption = findSelectedOption();
-
-  const handleSelect = (value: string) => {
-    column?.setFilterValue(value === "clear" ? undefined : String(value));
+  const choose = (value: string | undefined) => {
+    column?.setFilterValue(value === selectedValue ? undefined : value);
     setOpen(false);
   };
 
+  const columnName = column?.columnDef.meta?.name || title || "";
+  const selectedLabel = all.find((o) => String(o.value) === selectedValue)?.label;
+
+  const renderOptions = (list: FilterOption[], prefix = "") =>
+    list.map((option) => (
+      <FilterOptionRow
+        key={String(option.value)}
+        value={`${prefix}${option.label} ${option.value}`}
+        option={option}
+        multiple={false}
+        selected={selectedValue === String(option.value)}
+        onSelect={() => choose(String(option.value))}
+      />
+    ));
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 border-dashed"
-            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-            loading={loading}
-          />
-        }
-      >
-        {!loading && <ListFilter />}
-        <div className="flex items-center gap-1 truncate">
-          {!hasFilter && <span className="capitalize">{columnName}</span>}
-          {hasFilter && (
-            <>
-              <span className="mr-1 text-sm font-medium capitalize">
-                {columnName}:
-              </span>
-              <Badge
-                variant="secondary"
-                className="flex items-center gap-1 rounded-sm px-1 font-normal"
-              >
-                <span className="max-w-[100px] truncate">
-                  {selectedOption?.label}
-                </span>
-              </Badge>
-            </>
-          )}
-        </div>
-        <ChevronDown className="h-4 w-4 shrink-0 opacity-50" />
-      </PopoverTrigger>
-      <PopoverContent className="p-0 w-[220px]" align="start" sideOffset={8}>
+      <FilterTrigger label={columnName} active={selectedValue !== undefined} loading={loading} summary={selectedLabel} />
+      <PopoverContent className="w-auto min-w-56 max-w-80 p-0" align="start" sideOffset={8}>
         <Command>
-          <CommandInput
-            placeholder={`Buscar ${columnName.toLowerCase()}...`}
-            className="h-9 flex-1 border-0 outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-            value={searchQuery}
-            onValueChange={setSearchQuery}
-          />
+          {all.length >= SEARCH_THRESHOLD && <CommandInput placeholder={`Buscar ${columnName.toLowerCase()}…`} />}
           <CommandList>
-            <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
-
-            {grouped ? (
-              (options as FilterGroup[])?.map((group, index) => (
-                <CommandGroup
-                  key={`${group.group}_${index}`}
-                  heading={group.group}
-                >
-                  {group.options
-                    ?.filter((option) =>
-                      option?.label
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                    )
-                    .map((option) => {
-                      const optionStringValue = String(option.value);
-                      const isSelected = selectedValue === optionStringValue;
-                      return (
-                        <CommandItem
-                          key={optionStringValue}
-                          value={optionStringValue}
-                          onSelect={() => handleSelect(optionStringValue)}
-                          className="flex items-center justify-between"
-                        >
-                          <div className="flex items-center gap-2">
-                            {option.icon && (
-                              <option.icon
-                                className={cn(
-                                  "h-4 w-4 text-muted-foreground",
-                                  isSelected && "text-primary",
-                                  option.iconClassName
-                                )}
-                              />
-                            )}
-                            <span>{option.label}</span>
-                          </div>
-                          {isSelected ? (
-                            <div className="flex h-4 w-4 items-center justify-center rounded-sm border border-primary bg-primary">
-                              <Check className="h-3 w-3 p-0.5 text-primary-foreground" />
-                            </div>
-                          ) : (
-                            option.quantity !== undefined && (
-                              <div className="text-xs me-1">
-                                {option.quantity}
-                              </div>
-                            )
-                          )}
-                        </CommandItem>
-                      );
-                    })}
-                </CommandGroup>
-              ))
-            ) : (
-              <CommandGroup>
-                {(options as FilterOption[])
-                  ?.filter((option) =>
-                    option.label
-                      .toLowerCase()
-                      .includes(searchQuery.toLowerCase())
-                  )
-                  .map((option) => {
-                    const optionStringValue = String(option.value);
-                    const isSelected = selectedValue === optionStringValue;
-                    return (
-                      <CommandItem
-                        key={optionStringValue}
-                        value={optionStringValue}
-                        onSelect={() => handleSelect(optionStringValue)}
-                        className="flex items-center justify-between"
-                      >
-                        <div className="flex items-center gap-2">
-                          {option.icon && (
-                            <option.icon
-                              className={cn(
-                                "h-4 w-4 text-muted-foreground",
-                                isSelected && "text-primary",
-                                option.iconClassName
-                              )}
-                            />
-                          )}
-                          <span>{option.label}</span>
-                        </div>
-                        {isSelected ? (
-                          <div className="flex h-4 w-4 items-center justify-center rounded-sm border border-primary bg-primary">
-                            <Check className="h-3 w-3 p-0.5 text-primary-foreground" />
-                          </div>
-                        ) : (
-                          option.quantity !== undefined && (
-                            <div className="text-xs me-1">
-                              {option.quantity}
-                            </div>
-                          )
-                        )}
-                      </CommandItem>
-                    );
-                  })}
-              </CommandGroup>
-            )}
-            {hasFilter && (
-              <>
-                <CommandSeparator />
-                <CommandGroup>
-                  <CommandItem
-                    onSelect={() => handleSelect("clear")}
-                    className="justify-center text-center text-sm text-muted-foreground"
-                  >
-                    Limpar filtro
-                  </CommandItem>
-                </CommandGroup>
-              </>
-            )}
+            <CommandEmpty>Nenhum resultado.</CommandEmpty>
+            {grouped
+              ? (options as FilterGroup[])?.map((group, index) => (
+                  <CommandGroup key={`${group.group}_${index}`} heading={group.group}>
+                    {renderOptions(group.options ?? [], `${group.group} `)}
+                  </CommandGroup>
+                ))
+              : <CommandGroup>{renderOptions((options as FilterOption[]) ?? [])}</CommandGroup>}
           </CommandList>
+          {selectedValue !== undefined && (
+            <div className="flex justify-end border-t px-3 py-2">
+              <Button variant="ghost" size="xs" onClick={() => choose(undefined)}>
+                <X /> Limpar
+              </Button>
+            </div>
+          )}
         </Command>
       </PopoverContent>
     </Popover>

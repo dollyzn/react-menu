@@ -30,6 +30,7 @@ import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 import { AlertCircle, Loader2, Search } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { useLocalStorage } from "usehooks-ts";
@@ -367,16 +368,10 @@ export function DataTable<TData, TValue>({
                       colSpan={columns.length}
                       className="h-52 text-center"
                     >
-                      <div className="max-w-[400px] mx-auto">
-                        <AlertCircle size={35} className="mx-auto mb-2" />
-                        <p className="text-lg font-semibold">
-                          Nenhum registro encontrado
-                        </p>
-                        <p className="text-sm whitespace-normal">
-                          Parece que ainda não há nenhum registro criado no
-                          sistema. Por favor, verifique novamente mais tarde.
-                        </p>
-                      </div>
+                      <EmptyState
+                        filtered={table.getState().columnFilters.length > 0}
+                        onClear={() => table.resetColumnFilters()}
+                      />
                     </TableCell>
                   </TableRow>
                 )}
@@ -427,16 +422,10 @@ export function DataTable<TData, TValue>({
                 </div>
               ) : (
                 <div className="col-span-full h-52 text-center flex items-center justify-center rounded-lg p-4">
-                  <div className="max-w-[400px] mx-auto">
-                    <AlertCircle size={35} className="mx-auto mb-2" />
-                    <p className="text-lg font-semibold">
-                      Nenhum registro encontrado
-                    </p>
-                    <p className="text-sm whitespace-normal">
-                      Parece que ainda não há nenhum registro criado no sistema.
-                      Por favor, verifique novamente mais tarde.
-                    </p>
-                  </div>
+                  <EmptyState
+                    filtered={table.getState().columnFilters.length > 0}
+                    onClear={() => table.resetColumnFilters()}
+                  />
                 </div>
               )}
             </div>
@@ -458,6 +447,26 @@ export function DataTable<TData, TValue>({
           <DataTablePagination table={table} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** No rows: says whether filters are the reason and offers to clear them. */
+function EmptyState({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
+  return (
+    <div className="mx-auto max-w-[400px] whitespace-normal">
+      <AlertCircle size={35} className="mx-auto mb-2 text-muted-foreground" />
+      <p className="text-lg font-semibold">
+        {filtered ? "Nenhum resultado para esses filtros" : "Nenhum registro encontrado"}
+      </p>
+      <p className="text-sm text-muted-foreground">
+        {filtered ? "Tente outros filtros ou limpe os atuais." : "Ainda não há nada cadastrado aqui."}
+      </p>
+      {filtered && (
+        <Button variant="outline" size="sm" className="mt-3" onClick={onClear}>
+          Limpar filtros
+        </Button>
+      )}
     </div>
   );
 }

@@ -117,7 +117,7 @@ export default function Store() {
                     alt={data.name}
                     fill
                     sizes="685px"
-                    className="w-full h-auto object-cover"
+                    className="object-cover"
                     priority
                   />
                 ) : (
@@ -135,9 +135,9 @@ export default function Store() {
                       <Image
                         src={data.photoUrl}
                         alt={data.name}
-                        width={90}
-                        height={90}
-                        className="w-full h-full rounded-lg object-contain"
+                        fill
+                        sizes="90px"
+                        className="rounded-lg object-contain"
                       />
                     ) : (
                       <ImageIcon
