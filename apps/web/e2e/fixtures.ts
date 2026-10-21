@@ -64,7 +64,7 @@ export async function login(page: Page, credentials = E2E_ADMIN) {
   await page.goto("/app/login");
   await page.getByLabel("E-mail").fill(credentials.email);
   await page.getByLabel("Senha", { exact: true }).fill(credentials.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
   await page.waitForURL(/\/app\/stores\/[^/]+/);
 }
 

@@ -54,6 +54,10 @@ export default defineConfig({
         FRONTEND_URL: `http://localhost:${WEB_PORT}`,
         ADMIN_USER: E2E_ADMIN.email,
         ADMIN_PASS: E2E_ADMIN.password,
+        // "Entrar com Google" shows on every machine (the flow itself isn't run).
+        GOOGLE_CLIENT_ID: "e2e-google-client",
+        GOOGLE_CLIENT_SECRET: "e2e-google-secret", // gitleaks:allow (fake)
+        GOOGLE_CALLBACK_URL: `${API_URL}/api/v1/auth/social/google/callback`,
       },
     },
     {

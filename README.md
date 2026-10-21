@@ -97,6 +97,11 @@ Images are stored on the local disk (`DRIVE_DISK=fs`). Web push is optional
 (Firebase Cloud Messaging, free): see the `FIREBASE_*` notes in both
 `.env.example` files.
 
+"Entrar com Google" on the staff login is optional too: fill `GOOGLE_*` in
+`apps/api/.env` (the comments there say what to register in Google Cloud).
+It only signs in accounts that already exist, so staff are still added by a
+manager first.
+
 **Everything in containers instead** (no Node on your machine): after
 step 1, `docker compose -f docker-compose.dev.yml --profile app up` runs the
 databases, the API and the web app with hot reload, and applies migrations

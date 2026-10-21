@@ -1,4 +1,4 @@
-import type { SessionUser } from "@react-menu/contracts";
+import type { SessionUser, SocialProvider } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
 
 /** Session (login, me, logout) and password reset. The session provider drives these. */
@@ -19,8 +19,13 @@ export const authApi = baseApi.injectEndpoints({
       query: () => ({ url: "auth/logout", method: "DELETE" }),
       extraOptions: { quiet: true, session: true, background: true },
     }),
+    /** Social providers configured on the server (the login page shows their buttons). */
+    socialProviders: build.query<{ providers: SocialProvider[] }, void>({
+      query: () => "auth/social/providers",
+      extraOptions: { quiet: true, session: true },
+    }),
     /** Where to send the browser to sign in with a social provider. */
-    socialRedirect: build.query<{ url: string }, string>({
+    socialRedirect: build.query<{ url: string }, SocialProvider>({
       query: (provider) => `auth/social/${provider}/redirect`,
       extraOptions: { quiet: true, session: true },
     }),
@@ -35,4 +40,4 @@ export const authApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useForgotPasswordMutation, useResetPasswordMutation } = authApi;
+export const { useForgotPasswordMutation, useResetPasswordMutation, useSocialProvidersQuery } = authApi;
