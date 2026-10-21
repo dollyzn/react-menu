@@ -7,7 +7,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter \"./apps/*\" run dev",
+    "dev": "pnpm --parallel --filter \"./apps/*\" run dev < /dev/null",
     "dev:api": "pnpm --filter @react-menu/api run dev",
     "dev:web": "pnpm --filter @react-menu/web run dev",
     "build": "pnpm -r --if-present run build",

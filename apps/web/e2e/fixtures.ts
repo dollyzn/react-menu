@@ -18,6 +18,13 @@ const IGNORED = [
 ];
 
 /**
+ * React 19.3 dev-only bug: when a Server Component throws notFound(), the
+ * "Server Components" performance track measures it with a negative end time
+ * (React clamps only the start). Not an app defect; drop when React fixes it.
+ */
+const REACT_DEV_MEASURE_BUG = /Failed to execute 'measure' on 'Performance': .* cannot have a negative time stamp/;
+
+/**
  * Every test fails if the browser logs a warning or error: runtime warnings
  * (React, Base UI, hydration) are treated as defects, not noise.
  */
@@ -29,9 +36,10 @@ export const test = base.extend<{ consoleEntries: ConsoleEntry[] }>({
       if (IGNORED.some((re) => re.test(msg.text()))) return;
       entries.push({ type: msg.type(), text: msg.text(), url: page.url() });
     });
-    page.on("pageerror", (error) =>
-      entries.push({ type: "pageerror", text: error.message, url: page.url() })
-    );
+    page.on("pageerror", (error) => {
+      if (REACT_DEV_MEASURE_BUG.test(error.message)) return;
+      entries.push({ type: "pageerror", text: error.message, url: page.url() });
+    });
     // A broken image is a defect even though the console only logs it as a
     // generic failed resource (ignored above).
     page.on("response", (response) => {

@@ -25,6 +25,11 @@ docs/               architecture/, decisions/ (ADRs), development/
 
 pnpm workspace, no Turborepo. Node >= 24 (`.nvmrc`), pnpm via corepack.
 
+`pnpm dev` runs both apps with stdin from `/dev/null`: under `--parallel`
+they are not the terminal's foreground group, and the Adonis dev server's
+keyboard shortcuts (raw mode) would get it stopped by SIGTTOU. Use
+`pnpm dev:api` for the shortcuts.
+
 ## Commands (run from the repo root)
 
 | Task | Command |

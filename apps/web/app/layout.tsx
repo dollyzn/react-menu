@@ -2,7 +2,7 @@ import "@/styles/globals.css";
 
 import type { Metadata, Viewport } from "next";
 
-import { ThemeProvider } from "@/contexts/theme-provider";
+import { ThemeProvider } from "@wrksz/themes/next";
 import { ReduxProvider } from "@/contexts/redux-provider";
 import { SessionProvider } from "@/contexts/session-provider";
 import { NotificationProvider } from "@/contexts/notification-provider";
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegistrar } from "@/components/app/pwa/service-worker-registrar";
+import { HeadScripts } from "@/components/app/head-scripts";
 
 const DESCRIPTION =
   "Cardápio digital e pedidos para restaurantes: pedido pelo celular, retirada no balcão, PDV e tela da cozinha.";
@@ -96,38 +97,6 @@ export default function RootLayout({ children }: RootLayoutProps) {
         fontEmoji.variable
       )}
     >
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            // Keep the install prompt if it fires before React hydrates
-            // (see hooks/use-pwa-install.ts).
-            __html: `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;});`,
-          }}
-        />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                try {
-                  // Saved choice for the theme button's icon before hydration.
-                  document.documentElement.dataset.themeChoice = localStorage.getItem('theme') || 'system';
-                  if (
-                    localStorage.getItem('theme') === 'dark' ||
-                    (
-                      (!localStorage.getItem('theme') || localStorage.getItem('theme') === 'system') &&
-                      window.matchMedia('(prefers-color-scheme: dark)').matches
-                    )
-                  ) {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
-                  }
-                } catch (_) {}
-              })();
-            `,
-          }}
-        />
-      </head>
       <body className="min-h-screen bg-background">
         <ThemeProvider
           attribute="class"
@@ -135,6 +104,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
           enableSystem
           disableTransitionOnChange
         >
+          <HeadScripts />
           <ReduxProvider>
             <NotificationProvider>
               <SessionProvider>

@@ -61,7 +61,17 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.
 - Theme changes go through `useThemeTransition` (circular reveal from the
-  click); `ThemeSegmented` is the compact switch.
+  click); `ThemeSegmented` is the compact switch. Theme state is
+  `@wrksz/themes` (not next-themes): the root `ThemeProvider` comes from
+  `@wrksz/themes/next` in `app/layout.tsx`, hooks from `@wrksz/themes/client`.
+- Never render a raw `<script>` in a component (React warns and never runs it
+  on the client). Pre-hydration scripts go in `components/app/head-scripts.tsx`
+  (`useServerInsertedHTML`).
+- Error UI: `not-found.tsx` (root, `(menu)/[slug]` for unknown stores,
+  `app/app` for the panel via the `app/app/[...missing]` catch-all),
+  `error.tsx` (root and `(dashboard)`, inside the shell) and
+  `global-error.tsx`, all built on `components/app/status-screen.tsx` /
+  `route-error.tsx` (offline message, retries when the connection returns).
 - Breadcrumb links: `BreadcrumbLink render={<Link href=… />}` (a plain href
   reloads the whole app).
 - Navigation is a `<Link>` styled with `buttonVariants`, not `Button`

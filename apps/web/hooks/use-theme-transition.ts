@@ -2,7 +2,7 @@
 
 import { useCallback } from "react";
 import { flushSync } from "react-dom";
-import { useTheme } from "next-themes";
+import { useTheme } from "@wrksz/themes/client";
 
 export type ThemeChoice = "system" | "light" | "dark";
 
