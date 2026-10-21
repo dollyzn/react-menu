@@ -9,7 +9,7 @@ function expandStrings(value: MultiString | undefined): string[] {
   return arr.map((s) => s.trim()).filter((s) => s.length > 0)
 }
 
-/** Um termo: `LIKE %termo%`. Vários: OR entre `LIKE` no mesmo campo. */
+/** Um termo: `ILIKE %termo%` (sem diferenciar maiúsculas). Vários: OR no mesmo campo. */
 export function whereLikeAnyColumn<Model extends LucidModel>(
   query: ModelQueryBuilderContract<Model>,
   column: string,
@@ -18,13 +18,13 @@ export function whereLikeAnyColumn<Model extends LucidModel>(
   const terms = expandStrings(value)
   if (terms.length === 0) return
   if (terms.length === 1) {
-    query.where(column, 'like', `%${terms[0]}%`)
+    query.whereILike(column, `%${terms[0]}%`)
     return
   }
   query.where((b) => {
-    b.where(column, 'like', `%${terms[0]}%`)
+    b.whereILike(column, `%${terms[0]}%`)
     for (let i = 1; i < terms.length; i++) {
-      b.orWhere(column, 'like', `%${terms[i]}%`)
+      b.orWhereILike(column, `%${terms[i]}%`)
     }
   })
 }

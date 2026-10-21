@@ -10,7 +10,9 @@ import Item from '#models/item'
 import type Order from '#models/order'
 import StockMovement from '#models/stock_movement'
 import Store from '#models/store'
-import IngredientRepository from '#repositories/ingredient_repository'
+import IngredientRepository, {
+  type IngredientListOptions,
+} from '#repositories/ingredient_repository'
 import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 
 type RecipeLine = { ingredientId: number; quantity: number }
@@ -22,8 +24,8 @@ const round3 = (value: number) => Math.round(value * 1000) / 1000
 export default class InventoryService {
   constructor(private repo: IngredientRepository) {}
 
-  async list(storeId: string, filters: { name?: string | string[] } = {}) {
-    return await this.repo.listInStore(storeId, filters)
+  async list(storeId: string, options: IngredientListOptions = {}) {
+    return await this.repo.paginateInStore(storeId, options)
   }
 
   async create(

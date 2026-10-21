@@ -30,9 +30,11 @@ import { formatCurrencyBRL } from "@/utils/string";
 
 interface ItemsColumnDialogProps {
   row: Row<Category>;
+  /** Trigger size; tables pass the one for their row density. */
+  size?: React.ComponentProps<typeof Button>["size"];
 }
 
-export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
+export function ItemsColumnDialog({ row, size }: ItemsColumnDialogProps) {
   const { store } = useParams();
   const storeId = store as string;
   const [open, setOpen] = useState(false);
@@ -57,9 +59,9 @@ export function ItemsColumnDialog({ row }: ItemsColumnDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button variant="secondary" disabled={isFetching && open} />}>
+      <DialogTrigger render={<Button variant="secondary" size={size} disabled={isFetching && open} />}>
         {itemsCount || 0} Ite{itemsCount === 1 ? "m" : "ns"}
-        {isFetching && open ? <Loader2 className="size-4 animate-spin" /> : <ChevronDown className="size-4" />}
+        {isFetching && open ? <Loader2 className="animate-spin" /> : <ChevronDown />}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>

@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
 import {
   useGetIngredientsQuery,
   useGetItemRecipeQuery,
@@ -51,7 +52,10 @@ export function RecipeDialog({ item, open, onOpenChange }: RecipeDialogProps) {
 
 function RecipeForm({ item, onDone }: { item: Item; onDone: () => void }) {
   const { store: storeId } = useParams<{ store: string }>();
-  const { data: ingredients = [], isLoading: loadingIngredients } = useGetIngredientsQuery(storeId);
+  const { data: ingredientsRes, isLoading: loadingIngredients } = useGetIngredientsQuery(
+    storeListPrefetchArg(storeId)
+  );
+  const ingredients = ingredientsRes?.data ?? [];
   const { data: recipe, isLoading: loadingRecipe } = useGetItemRecipeQuery({ storeId, itemId: item.id });
   const [save, { isLoading: saving }] = useUpdateItemRecipeMutation();
   const [lines, setLines] = useState<Line[] | null>(null);

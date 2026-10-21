@@ -8,7 +8,7 @@ import {
   updateIngredientValidator,
 } from '#validators/inventory'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
-import { pickQueryFilters } from '#helpers/query_string_parser'
+import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class IngredientsController {
@@ -17,9 +17,21 @@ export default class IngredientsController {
   async index({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
 
-    const ingredients = await this.inventory.list(storeId, pickQueryFilters(request.qs(), ['name']))
+    const q = request.qs()
 
-    return ok(ingredients)
+    const ingredients = await this.inventory.list(storeId, {
+      ...parsePagination(q),
+      sort: parseSort(q, {
+        name: 'name',
+        unit: 'unit',
+        stockQuantity: 'stock_quantity',
+        minStock: 'min_stock',
+        updatedAt: 'updated_at',
+      }),
+      filters: pickQueryFilters(q, ['name', 'unit', 'stock']),
+    })
+
+    return ok(ingredients.all(), ingredients.getMeta())
   }
 
   async store({ params, request, auth }: HttpContext) {

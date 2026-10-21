@@ -8,5 +8,6 @@ declare module "@tanstack/react-table" {
 
   interface TableMeta {
     tableId: string;
+    density?: import("@/components/app/data-table").DensityOption;
   }
 }

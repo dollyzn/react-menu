@@ -9,6 +9,7 @@ import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HeaderActions } from "./table-header-actions";
 import { AddonsColumnDialog } from "./addons-column-dialog";
+import { cellButtonSize } from "@/components/app/data-table/density";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrencyBRL } from "@/utils/string";
 import dayjs from "dayjs";
@@ -140,10 +141,10 @@ export const columns: ColumnDef<Item>[] = [
         title="Adicionais"
       />
     ),
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       return (
         <DataTableColumnCell>
-          <AddonsColumnDialog row={row} />
+          <AddonsColumnDialog row={row} size={cellButtonSize(table.options.meta?.density)} />
         </DataTableColumnCell>
       );
     },

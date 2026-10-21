@@ -136,6 +136,62 @@ test.group('Inventory', (group) => {
     response.assertStatus(200)
   })
 
+  test('ingredients list is paginated, sorted and filtered by stock status', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager } = await stockedStore()
+    await Ingredient.create({
+      storeId: store.id,
+      name: 'Queijo',
+      unit: 'g',
+      stockQuantity: 50,
+      minStock: 100,
+    })
+    const url = `/api/v1/stores/${store.id}/ingredients`
+
+    const page = await client
+      .get(url)
+      .qs({ page: 1, perPage: 2, sort: 'stockQuantity:desc' })
+      .loginAs(manager)
+    page.assertStatus(200)
+    assert.deepEqual(
+      page.body().data.map((i: { name: string }) => i.name),
+      ['Carne moída', 'Catupiry']
+    )
+    assert.equal(page.body().meta.total, 4)
+
+    // Search ignores case.
+    const search = await client.get(url).qs({ name: 'carne' }).loginAs(manager)
+    assert.deepEqual(
+      search.body().data.map((i: { name: string }) => i.name),
+      ['Carne moída']
+    )
+
+    const low = await client.get(url).qs({ stock: 'low' }).loginAs(manager)
+    assert.deepEqual(
+      low.body().data.map((i: { name: string }) => i.name),
+      ['Queijo']
+    )
+
+    const grams = await client.get(url).qs({ unit: 'g', stock: 'ok' }).loginAs(manager)
+    assert.deepEqual(
+      grams.body().data.map((i: { name: string }) => i.name),
+      ['Carne moída', 'Catupiry']
+    )
+  })
+
+  test("another store's member can't list the ingredients", async ({ client }) => {
+    const { store } = await stockedStore()
+    const outsider = await stockedStore()
+
+    const response = await client
+      .get(`/api/v1/stores/${store.id}/ingredients`)
+      .loginAs(outsider.manager)
+
+    response.assertStatus(403)
+  })
+
   test('recipes only accept ingredients of the same store', async ({ client }) => {
     const { store, manager, carne } = await stockedStore()
     const other = await stockedStore()

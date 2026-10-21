@@ -10,6 +10,7 @@ import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HeaderActions } from "./table-header-actions";
 import { ItemsColumnDialog } from "./items-column-dialog";
+import { cellButtonSize } from "@/components/app/data-table/density";
 
 import dayjs from "dayjs";
 import DataTableColumnCell from "@/components/app/data-table/data-table-column-cell";
@@ -94,10 +95,10 @@ export const columns: ColumnDef<Category>[] = [
         title="Itens"
       />
     ),
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       return (
         <DataTableColumnCell>
-          <ItemsColumnDialog row={row} />
+          <ItemsColumnDialog row={row} size={cellButtonSize(table.options.meta?.density)} />
         </DataTableColumnCell>
       );
     },

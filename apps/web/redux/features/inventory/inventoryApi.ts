@@ -1,5 +1,7 @@
 import { baseApi } from "@/redux/api/baseApi";
 import type { Ingredient, IngredientUnit, StockMovement } from "@react-menu/contracts";
+import { buildStoreListUrl, type StoreScopedListArg } from "@/redux/api/listQueryParams";
+import type { PaginatedList } from "@/types/paginated-list";
 
 const listTag = (storeId: string) => ({ type: "Ingredient" as const, id: `store-${storeId}` });
 
@@ -15,9 +17,11 @@ type RecipeLine = { ingredientId: number; quantity: number };
 
 export const inventoryApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getIngredients: build.query<Ingredient[], string>({
-      query: (storeId) => `stores/${storeId}/ingredients`,
-      providesTags: (_res, _err, storeId) => [listTag(storeId)],
+    /** Paginated; filters: `name`, `unit`, `stock` (`low` | `ok`). */
+    getIngredients: build.query<PaginatedList<Ingredient>, StoreScopedListArg>({
+      query: ({ storeId, filters, pagination, sort }) =>
+        buildStoreListUrl(storeId, "ingredients", { filters, pagination, sort }),
+      providesTags: (_res, _err, { storeId }) => [listTag(storeId)],
     }),
     createIngredient: build.mutation<Ingredient, { storeId: string; data: IngredientInput }>({
       query: ({ storeId, data }) => ({ url: `stores/${storeId}/ingredients`, method: "POST", body: data }),

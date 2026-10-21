@@ -57,6 +57,11 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `useSearchParams` for app-made entries, not its own state object.
 - Never memoize JSX on the TanStack `table` object (same reference while its
   state changes): the UI freezes.
+- Buttons inside table cells follow the row density: pass
+  `size={cellButtonSize(table.options.meta?.density)}`
+  (`components/app/data-table/density.ts`).
+- Row actions that need page state (dialogs) go through a context the page
+  provides, so `columns` stay module-level (see `inventory/components/ingredient-actions.tsx`).
 - Forms: react-hook-form + zod + `Field*` components (see
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.

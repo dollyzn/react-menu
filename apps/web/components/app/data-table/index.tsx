@@ -228,6 +228,8 @@ export function DataTable<TData, TValue>({
     rowCount: !!onExternalPaginationChange ? rowCount : undefined,
     meta: {
       tableId,
+      // Cells size their buttons by it (see ./density.ts).
+      density,
     },
   });
 
