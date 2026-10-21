@@ -11,7 +11,9 @@ import { Input } from "@/components/ui/input";
 import { useResetPasswordMutation } from "@/redux/features/auth/authApi";
 
 export function ResetPasswordForm() {
-  const token = useSearchParams().get("token");
+  const params = useSearchParams();
+  const token = params.get("token");
+  const invite = params.get("convite") === "1";
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [visible, setVisible] = useState(false);
@@ -43,8 +45,10 @@ export function ResetPasswordForm() {
         <div className="flex items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
           <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
           <p>
-            <span className="font-medium">Senha redefinida.</span>{" "}
-            <span className="text-muted-foreground">Por segurança, encerramos as sessões abertas em outros aparelhos.</span>
+            <span className="font-medium">{invite ? "Senha criada." : "Senha redefinida."}</span>{" "}
+            <span className="text-muted-foreground">
+              {invite ? "Entre com seu e-mail e a nova senha." : "Por segurança, encerramos as sessões abertas em outros aparelhos."}
+            </span>
           </p>
         </div>
         <Link href="/app/login" className={buttonVariants({ className: "w-full" })}>
@@ -60,7 +64,8 @@ export function ResetPasswordForm() {
         <Alert variant="destructive">
           <AlertTriangle />
           <AlertDescription>
-            {token ? "Este link expirou ou já foi usado." : "Link incompleto."} Peça um novo para redefinir a senha.
+            {token ? "Este link expirou ou já foi usado." : "Link incompleto."}{" "}
+            {invite ? "Peça um novo convite à gerência da loja, ou" : ""} peça um novo link para definir a senha.
           </AlertDescription>
         </Alert>
         <Link href="/app/esqueci-minha-senha" className={buttonVariants({ className: "w-full" })}>

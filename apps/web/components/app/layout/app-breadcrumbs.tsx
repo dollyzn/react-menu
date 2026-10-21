@@ -26,6 +26,7 @@ const SECTIONS: Record<string, string> = {
   addons: "Adicionais",
   inventory: "Estoque",
   overview: "Visão geral",
+  members: "Equipe",
 };
 
 type Crumb = { label: string; href?: string };

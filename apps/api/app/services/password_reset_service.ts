@@ -2,7 +2,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import limiter from '@adonisjs/limiter/services/main'
 import mail from '@adonisjs/mail/services/main'
-import { DateTime } from 'luxon'
+import { DateTime, type DurationLike } from 'luxon'
 import env from '#start/env'
 import AppException from '#exceptions/app_exception'
 import PasswordResetToken from '#models/password_reset_token'
@@ -33,18 +33,25 @@ export default class PasswordResetService {
     const user = await User.query().whereILike('email', normalized).first()
     if (!user) return
 
+    const url = await this.issueLink(user, TOKEN_TTL)
+    await mail.sendLater(new ResetPasswordNotification({ email: user.email, name: user.name }, url))
+  }
+
+  /**
+   * A single-use link to set the password (reset, or a staff invite with a
+   * longer validity). Only the latest link of the user works.
+   */
+  async issueLink(user: User, ttl: DurationLike, options: { invite?: boolean } = {}) {
     const token = randomBytes(32).toString('base64url')
     await db.transaction(async (trx) => {
-      // Only the latest link works.
       await PasswordResetToken.query({ client: trx }).where('userId', user.id).delete()
       await PasswordResetToken.create(
-        { userId: user.id, tokenHash: hashToken(token), expiresAt: DateTime.now().plus(TOKEN_TTL) },
+        { userId: user.id, tokenHash: hashToken(token), expiresAt: DateTime.now().plus(ttl) },
         { client: trx }
       )
     })
-
-    const url = `${env.get('FRONTEND_URL')}/app/redefinir-senha?token=${encodeURIComponent(token)}`
-    await mail.sendLater(new ResetPasswordNotification({ email: user.email, name: user.name }, url))
+    const query = new URLSearchParams({ token, ...(options.invite ? { convite: '1' } : {}) })
+    return `${env.get('FRONTEND_URL')}/app/redefinir-senha?${query}`
   }
 
   /** Sets the new password and ends every session of the user. */

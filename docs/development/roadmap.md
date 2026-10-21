@@ -5,17 +5,14 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-1. **Staff management**: no API/UI to invite staff or set a member's store
-   role (`store_user.role`); seeds and SQL do it today. `PUT /users/:id`
-   with `storeIds` links users as managers. Needs a members screen per store.
-2. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
+1. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
    - refund status and a "reembolsar" retry in the staff order detail
      (refunds that gave up are only logged today);
    - installments per store (the card form allows 1x today);
    - a second gateway (Asaas, Pagar.me, Stripe…) through `PaymentGateway`;
    - move `MercadoPagoGateway` to the Orders API (`/v1/orders`) once its
      rejection statuses, refunds and webhook signature are documented.
-3. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
+2. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
    `features` registry, new types) touching 38 files; majors are ignored by
    Dependabot until then.
 
@@ -30,6 +27,9 @@ they are picked up; done items leave this file (see the git history).
 - **Reports**: sales per day/item, best sellers, stock consumption, payment
   method mix (Pix vs card vs counter).
 - **Notification preferences** (per category, email digest).
+- **Team**: notify a person when they are added to a store (in-app and
+  e-mail for existing accounts); resend an invite whose link expired
+  (today: remove and add again, or "Esqueci minha senha").
 - **Order receipt by e-mail** for customers who typed an e-mail at the
   Pix/card step (the mail pipeline exists since the password reset).
 - **Delivery and table service**: only pickup at the counter is supported
