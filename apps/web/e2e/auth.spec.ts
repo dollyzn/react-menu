@@ -11,7 +11,7 @@ test.describe("Authentication and session", () => {
     await page.goto("/app/login");
     await page.getByLabel("E-mail").fill("e2e-admin@example.com");
     await page.getByLabel("Senha", { exact: true }).fill("wrong-password");
-    await page.getByRole("button", { name: "Entrar" }).click();
+    await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
     await expect(page.getByText("Email ou senha inválidos.")).toBeVisible();
     await expect(page).toHaveURL(/\/app\/login$/);
@@ -47,10 +47,31 @@ test("a user without stores sees an empty state instead of being redirected", as
   await page.goto("/app/login");
   await page.getByLabel("E-mail").fill(staff.email);
   await page.getByLabel("Senha", { exact: true }).fill(staff.password);
-  await page.getByRole("button", { name: "Entrar" }).click();
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
   await expect(page).toHaveURL(/\/app\/stores$/);
   await expect(page.getByText("Nenhuma loja por aqui")).toBeVisible();
   await expect(page.getByText(/Peça a um administrador/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Criar loja" })).toHaveCount(0);
+});
+
+test("Google sign-in: the button shows and a refused login comes back as a message", async ({ page }) => {
+  await page.goto("/app/login");
+  await expect(page.getByRole("button", { name: "Entrar com Google" })).toBeVisible();
+
+  // The API's callback lands on /app/social?error=… (full-page flow, no popup).
+  await page.goto(`/app/social?error=${encodeURIComponent("Você cancelou o login.")}`);
+  await expect(page).toHaveURL(/\/app\/login\?erro=/);
+  await expect(page.getByRole("alert").filter({ hasText: "Google" })).toContainText("Você cancelou o login.");
+});
+
+test("privacy policy and terms are linked from the login and the menu", async ({ page }) => {
+  await page.goto("/app/login");
+  await page.getByRole("link", { name: "Política de Privacidade" }).click();
+  await expect(page.getByRole("heading", { name: "Política de Privacidade", level: 1 })).toBeVisible();
+  await page.getByRole("navigation", { name: "Documentos" }).getByRole("link", { name: "Termos de Uso" }).click();
+  await expect(page.getByRole("heading", { name: "Termos de Uso", level: 1 })).toBeVisible();
+
+  await page.goto("/");
+  await expect(page.getByRole("link", { name: "Privacidade" })).toHaveAttribute("href", "/privacy");
 });

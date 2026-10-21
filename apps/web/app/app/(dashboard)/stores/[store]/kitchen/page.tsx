@@ -228,8 +228,9 @@ export default function KitchenPage() {
                 ))}
               </div>
 
-              {/* Always reachable: sticks to the screen (phones) or the card (large screens). */}
-              <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 bg-card/95 px-5 pt-6 pb-5 backdrop-blur sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
+              {/* Always reachable: sticks to the screen (phones) or the card (large screens).
+                  Its bottom follows the card's corners (rounded-3xl inside a 2px border). */}
+              <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 rounded-b-[calc(1.5rem-2px)] bg-card/95 px-5 pt-6 pb-5 backdrop-blur sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
                 {current.quantity > 1 && (
                   <Button
                     variant="outline"

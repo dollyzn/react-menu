@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import * as z from "zod";
+import { SocialLogin } from "./social-login";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -33,12 +34,9 @@ export type LoginValues = z.infer<typeof LoginSchema>;
 
 export function LoginForm() {
   const router = useRouter();
-  //const { resolvedTheme } = useTheme();
 
   const { login } = useSession();
 
-  // const [loading, setLoading] = useState<"google" | "linkedin" | null>(null);
-  // const [socialAuthError, setSocialAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
@@ -93,141 +91,10 @@ export function LoginForm() {
     }
   }
 
-  /* async function startSocialLogin(provider: "google" | "linkedin") {
-    setSocialAuthError(null);
-    setLoading(provider);
 
-    const popup = openCenteredPopup(provider, "socialLogin", 800, 600);
-
-    if (!popup) {
-      setLoading(null);
-      setSocialAuthError("Não foi possível abrir o popup de autenticação.");
-      return;
-    }
-
-    const popupChecker = setInterval(() => {
-      if (popup.closed) {
-        clearInterval(popupChecker);
-        window.removeEventListener("message", listener);
-        setLoading(null);
-      }
-    }, 300);
-
-    const listener = async (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-
-      if (event.data.type === "SOCIAL_AUTH_SUCCESS") {
-        clearInterval(popupChecker);
-        window.removeEventListener("message", listener);
-
-        const user = await verify();
-
-        if (!user) {
-          setSocialAuthError("Não foi possível autenticar sua conta.");
-          popup.close();
-          setLoading(null);
-          return;
-        }
-
-        popup.close();
-        router.push("/");
-        setLoading(null);
-      }
-
-      if (event.data.type === "SOCIAL_AUTH_ERROR") {
-        clearInterval(popupChecker);
-        window.removeEventListener("message", listener);
-
-        const { error } = event.data;
-        setSocialAuthError(error || "Erro desconhecido ao autenticar.");
-
-        popup.close();
-        setLoading(null);
-      }
-    };
-
-    window.addEventListener("message", listener);
-  } */
-
-  /* function openCenteredPopup(
-    provider: "google" | "linkedin",
-    title: string,
-    w: number,
-    h: number
-  ) {
-    const dualScreenLeft =
-      window.screenLeft !== undefined ? window.screenLeft : window.screenX;
-    const dualScreenTop =
-      window.screenTop !== undefined ? window.screenTop : window.screenY;
-
-    const width = window.innerWidth
-      ? window.innerWidth
-      : document.documentElement.clientWidth;
-    const height = window.innerHeight
-      ? window.innerHeight
-      : document.documentElement.clientHeight;
-
-    const left = width / 2 - w / 2 + dualScreenLeft;
-    const top = height / 2 - h / 2 + dualScreenTop;
-
-    const popup = window.open(
-      "",
-      title,
-      `
-      width=${w},
-      height=${h},
-      top=${top + 80},
-      left=${left},
-      resizable=yes,
-      scrollbars=yes,
-      toolbar=no,
-      location=no,
-      menubar=no,
-      status=no
-    `
-    );
-
-    if (!popup) return null;
-
-    try {
-      popup.focus();
-
-      const doc = popup.document;
-
-      doc.open();
-      doc.close();
-
-      const isDark = resolvedTheme === "dark";
-      doc.documentElement.style.background = isDark ? "#0a0a0a" : "#ffffff";
-      doc.documentElement.innerHTML = `
-        <head>
-          <meta charset="UTF-8" />
-          <meta http-equiv="refresh" content="0;url=/auth/social?provider=${provider}" />
-        </head>
-        <body>
-        </body>
-      `;
-    } catch (error) {
-      try {
-        popup.location.href = `/auth/social?provider=${provider}`;
-      } catch {
-        popup.close();
-        return null;
-      }
-    }
-
-    return popup;
-  } */
 
   return (
     <div className="grid gap-6">
-      {/*       {socialAuthError && (
-        <Alert variant="destructive">
-          <ShieldUser />
-          <AlertTitle>Não foi possível processar sua solicitação</AlertTitle>
-          <AlertDescription>{socialAuthError}</AlertDescription>
-        </Alert>
-      )} */}
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <FieldGroup className="pb-6">
           <Controller
@@ -335,34 +202,7 @@ export function LoginForm() {
         </Button>
       </form>
 
-      {/* <FieldSeparator>Ou continue com </FieldSeparator>
-
-          <Field className="grid gap-4 sm:grid-cols-2">
-        <Button
-          variant="outline"
-          type="button"
-          onClick={() => startSocialLogin("google")}
-          loading={loading === "google"}
-          disabled={!!loading}
-        >
-          {loading !== "google" && (
-            <Icons.google className="fill-current size-4" />
-          )}
-          Google
-        </Button>
-        <Button
-          variant="outline"
-          type="button"
-          onClick={() => startSocialLogin("linkedin")}
-          loading={loading === "linkedin"}
-          disabled={!!loading}
-        >
-          {loading !== "linkedin" && (
-            <Icons.linkedin className="fill-current size-4 mb-0.5" />
-          )}
-          LinkedIn
-        </Button>
-      </Field> */}
+      <SocialLogin />
     </div>
   );
 }

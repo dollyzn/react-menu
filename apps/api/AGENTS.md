@@ -25,6 +25,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner, logo and Pexels menu photos go to the Drive disk; sources in `CREDITS.md`) |
 | Store team (members, roles, invites) | `app/services/store_member_service.ts` (a store always keeps a manager), `start/routes/store/members.ts` (managers only); invites reuse `PasswordResetService.issueLink` and can be resent while `users.invite_pending` (cleared by setting a password or signing in); existing accounts get `store.member_added` + e-mail |
 | Background jobs (ADR 0016) | `app/jobs/*` (`@inject`, payload with ids only, extend `AppJob`: a job that gives up notifies the super users), `config/queue.ts`, worker `node ace queue:work`; tests: `tests/helpers/queue.ts` (`fakeQueue`, `runJob`, `failJob`) |
+| Social login (Google) | `app/controllers/social_auth_controller.ts` (existing, active accounts with a verified e-mail only), `#helpers/social_providers` (enabled = credentials in the env) |
 | E-mail | `app/mails/*` (`BaseMail`, markup from `app/mails/layout.ts`), sent with `mail.sendLater` → `SendEmail` job (`start/mail.ts`); tests use `mail.fake()` |
 | Idempotency (`Idempotency-Key`) | `app/middleware/idempotency_middleware.ts`, `orders.idempotency_key` (ADR 0013) |
 | Env schema | `start/env.ts` (+ `.env.example`) |

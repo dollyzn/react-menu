@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { SearchX, Store as StoreIcon } from "lucide-react";
 import type { PublicMenu, PublicMenuItem } from "@react-menu/contracts";
@@ -111,6 +112,15 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
             ))}
           </div>
         )}
+
+        <footer className="mt-16 flex justify-center gap-4 text-xs text-muted-foreground">
+          <Link href="/privacy" className="underline-offset-4 hover:underline">
+            Privacidade
+          </Link>
+          <Link href="/terms" className="underline-offset-4 hover:underline">
+            Termos de uso
+          </Link>
+        </footer>
       </main>
 
       <ItemDetail

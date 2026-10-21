@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { env } from "./lib/env";
 
 /** Staff pages that work without a session. */
-const AUTH_PAGES = ["/app/login", "/app/social"];
-/** Open with or without a session (a reset link may open on a logged-in phone). */
-const PUBLIC_PAGES = ["/app/esqueci-minha-senha", "/app/redefinir-senha"];
+const AUTH_PAGES = ["/app/login"];
+/**
+ * Open with or without a session: a reset link may open on a logged-in
+ * phone, and the social login popup lands on /app/social right after the
+ * API set the session cookie.
+ */
+const PUBLIC_PAGES = ["/app/esqueci-minha-senha", "/app/redefinir-senha", "/app/social"];
 /** Fetched by the browser without cookies when installing the staff app. */
 const PUBLIC_FILES = ["/app/manifest.webmanifest"];
 

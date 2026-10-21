@@ -26,6 +26,7 @@ export default function authRoutes() {
 
       router
         .group(() => {
+          router.get('/providers', [SocialAuthController, 'providers']).as('social.providers')
           router
             .get('/:provider/redirect', [SocialAuthController, 'redirect'])
             .as('social.redirect')
@@ -34,7 +35,7 @@ export default function authRoutes() {
             .as('social.callback')
         })
         .prefix('/social')
-        .where('provider', /google|twitter|facebook/)
+        .where('provider', /^(google|twitter|facebook)$/)
     })
 
     .prefix('/auth')

@@ -121,6 +121,9 @@ export type SessionUser = Omit<User, 'role' | 'stores'> & {
   tokenExpiresAt: string | null;
 };
 
+/** Social sign-in providers (GET /auth/social/providers lists the configured ones). */
+export type SocialProvider = "google" | "twitter" | "facebook";
+
 /** A member of a store's team (GET /stores/:id/members). */
 export type StoreMember = {
   id: string;
