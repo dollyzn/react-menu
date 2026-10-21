@@ -40,9 +40,6 @@ The technical items below, one PR at a time.
 
 ## Technical
 
-- Replace the remaining `apps/web/lib/api.ts` (axios) usage in the session
-  provider with RTK Query, then drop axios.
-- Sliding session renewal (tokens currently expire after 7 days).
 - `GET /public/menu` writes one `store_views` row per customer visit;
   aggregate or sample before traffic grows.
 - FCM: re-register when `onRegistered` reports a new installation ID; wrap
@@ -50,18 +47,12 @@ The technical items below, one PR at a time.
 - Queue observability: failed jobs are only logged; consider a small staff
   page (or alerts) listing failed jobs, and OpenTelemetry
   (`@adonisjs/queue/otel`) once there is a collector.
-- e2e runs place jobs in the same Redis prefix as the dev worker (harmless:
-  their orders don't exist in the dev database); give e2e its own prefix.
 - Short ace commands that use Redis may print "Connection is closed" on
   exit (Transmit's Redis transport closing before it connected); report
   upstream to `@boringnode/bus`.
-- Lucid runs a query's preloads in parallel; inside one transaction (the
-  tests' global transaction, `findByToken`) pg queues them and warns that
-  pg 9 will refuse it. Check Lucid's guidance before upgrading `pg` to 9.
-- `testUtils.db().withGlobalTransaction()` is marked deprecated in Lucid 22;
-  move the tests to its replacement.
-- Cookie domain is not configurable (`config/app.ts`); add an env var if web
-  and API must live on different hosts.
+- Lucid runs a query's preloads in parallel; inside one transaction pg
+  queues them and warns that pg 9 will refuse it. pg 9 isn't out; its
+  major is ignored by Dependabot until Lucid supports it.
 - Deploys: "Deploy web to VPS" (PM2, web only) now runs only on a published
   release or by hand, and needs the VPS_* secrets. Replace it with a Docker
   Compose deploy of the whole stack (README "Production") before releases.
@@ -69,5 +60,3 @@ The technical items below, one PR at a time.
   (`jjpasteis-menu*`); rename for a neutral open-source default.
 - Many unused shadcn components in `apps/web/components/ui`; prune with a
   usage check.
-- `providers/di_provider.ts` registers some services manually although
-  `@inject` already resolves them.
