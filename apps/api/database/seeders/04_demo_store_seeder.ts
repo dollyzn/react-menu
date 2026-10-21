@@ -15,7 +15,7 @@ import User from '#models/user'
 type MenuJson = {
   name: string
   description: string
-  itens: { nome: string; descricao: string; preco: number; foto: string }[]
+  itens: { nome: string; descricao: string; preco: number }[]
 }[]
 
 /** The JSON category whose entries become add-ons instead of items. */
@@ -27,6 +27,9 @@ const SAVORY_CATEGORIES = [
   'Pastéis Selecionados',
   'Pastéis Premium',
 ]
+
+/** Item and add-on photos (Pexels, see database/data/CREDITS.md). */
+type PhotoManifest = { items: Record<string, number>; addons: Record<string, number> }
 
 /** Store images, stored through Drive like an upload from the panel. */
 const IMAGES = [
@@ -45,6 +48,54 @@ export default class DemoStoreSeeder extends BaseSeeder {
   async run() {
     const store = (await Store.findBy('slug', 'jj-pasteis')) ?? (await this.createStore())
     await this.addImages(store)
+    await this.addMenuPhotos(store)
+  }
+
+  /** Public URL of a file on the fs disk (getUrl() needs the HTTP routes). */
+  private uploadUrl(key: string) {
+    return `${env.get('APP_URL').replace(/\/$/, '')}/uploads/${key}`
+  }
+
+  /**
+   * Gives every item and add-on its photo, stored on Drive. Photos already on
+   * Drive are kept; empty or external ones (older seeds) are replaced.
+   */
+  private async addMenuPhotos(store: Store) {
+    const manifest: PhotoManifest = JSON.parse(
+      await readFile(app.makePath('database/data/menu_photos.json'), 'utf-8')
+    )
+    const disk = drive.use()
+    const urls = new Map<number, string>()
+    const urlFor = async (photoId: number) => {
+      if (!urls.has(photoId)) {
+        const file = `pexels-${photoId}.webp`
+        // Same file for every demo store (and e2e run): no duplicates on disk.
+        const key = `menu/demo-${file}`
+        await disk.put(key, await readFile(app.makePath('database/data/menu-photos', file)))
+        urls.set(photoId, this.uploadUrl(key))
+      }
+      return urls.get(photoId)!
+    }
+    // Only files served by our own Drive disk count as uploaded.
+    const needsPhoto = (url: string | null) => !url?.startsWith(this.uploadUrl(''))
+
+    const items = await Item.query().whereHas('category', (query) =>
+      query.where('storeId', store.id)
+    )
+    for (const item of items) {
+      const photoId =
+        manifest.items[`${item.name}|${item.description}`] ?? manifest.items[item.name]
+      if (!photoId || !needsPhoto(item.photoUrl)) continue
+      item.photoUrl = await urlFor(photoId)
+      await item.save()
+    }
+
+    for (const addon of await Addon.query().where('storeId', store.id)) {
+      const photoId = manifest.addons[addon.name]
+      if (!photoId || !needsPhoto(addon.photoUrl)) continue
+      addon.photoUrl = await urlFor(photoId)
+      await addon.save()
+    }
   }
 
   /** Never overwrites an image uploaded from the panel. */
@@ -54,9 +105,7 @@ export default class DemoStoreSeeder extends BaseSeeder {
       if (store[image.field]) continue
       const key = `${image.folder}/${store.id}_seed${extname(image.file)}`
       await disk.put(key, await readFile(app.makePath('database/data', image.file)))
-      // Same URL the fs disk serves (routeBasePath /uploads); getUrl() needs
-      // the HTTP routes, which ace commands don't register.
-      store[image.field] = `${env.get('APP_URL').replace(/\/$/, '')}/uploads/${key}`
+      store[image.field] = this.uploadUrl(key)
     }
     await store.save()
   }
@@ -88,7 +137,6 @@ export default class DemoStoreSeeder extends BaseSeeder {
           name: addon.nome,
           description: addon.descricao,
           price: addon.preco,
-          photoUrl: addon.foto,
         })),
         { client: trx }
       )
@@ -111,7 +159,6 @@ export default class DemoStoreSeeder extends BaseSeeder {
             name: item.nome,
             description: item.descricao.trim() || null,
             price: item.preco,
-            photoUrl: item.foto,
             order: itemIndex + 1,
           })),
           { client: trx }
