@@ -33,6 +33,7 @@ env:
   REDIS_PORT: '6379'
   DRIVE_DISK: fs
   LIMITER_STORE: memory
+  QUEUE_DRIVER: redis
   HEALTH_CHECK_MONITORING_TOKEN: ci-health-token
   # apps/web
   NEXT_PUBLIC_BUILD_VERSION: ci
@@ -151,6 +152,9 @@ jobs:
           curl -fsS -o /dev/null -w "api login -> %{http_code}\n" -X POST http://localhost/api/v1/auth/login \
             -H 'content-type: application/json' \
             -d '{"email":"admin@example.com","password":"ci-admin-password"}'
+          # The job worker is up and connected to Redis.
+          docker compose logs worker | tee /dev/stderr | grep -q "Starting worker"
+          test "$(docker compose ps worker --format '{{.State}}')" = "running"
       - name: Logs
         if: failure()
         run: docker compose logs --tail 200

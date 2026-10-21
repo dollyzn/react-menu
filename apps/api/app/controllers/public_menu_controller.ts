@@ -11,6 +11,8 @@ import type Order from '#models/order'
 import type Store from '#models/store'
 import CustomerAccessService from '#services/customer_access_service'
 import AppException from '#exceptions/app_exception'
+import OrderStatus from '#enums/order_status'
+import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 
 /** Unauthenticated endpoints used by the customer-facing menu. */
 @inject()
@@ -42,6 +44,9 @@ export default class PublicMenuController {
       channel: OrderChannel.ONLINE,
       idempotencyKey: request.header('idempotency-key'),
     })
+
+    // Not paid in time: cancelled automatically (scheduled once per order).
+    if (order.status === OrderStatus.PENDING_PAYMENT) await ExpireUnpaidOrder.scheduleFor(order)
 
     await order.load('history')
     // History token for this device (see CustomerAccessService).

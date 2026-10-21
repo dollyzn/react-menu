@@ -71,7 +71,7 @@ pnpm --filter @react-menu/api exec node ace db:seed
 ### 4. Run
 
 ```bash
-pnpm dev    # API on http://localhost:3333, web on http://localhost:3000
+pnpm dev    # API on http://localhost:3333, web on http://localhost:3000, job worker
 ```
 
 - Customer menu: <http://localhost:3000>
@@ -118,7 +118,7 @@ fresh demo data (this **erases** the development database):
 
 One server with Docker runs everything: Caddy (HTTPS and a single origin for
 the web app and the API, required by the session cookie), the web app, the
-API, PostgreSQL and Redis.
+API, the background job worker, PostgreSQL and Redis.
 
 ### First install
 
@@ -160,7 +160,9 @@ survive updates. Check `docker compose logs -f api` if something looks
 wrong, and compare `.env` with `.env.docker.example` for new variables.
 
 Running `db:seed` again is only needed when a release says so; it also
-resets the admin password to `ADMIN_PASS`.
+resets the admin password to `ADMIN_PASS`. If a release upgrades
+`@adonisjs/queue` and says so, stop the worker and run
+`docker compose run --rm worker node ace queue:migrate` before starting it.
 
 ## Commands
 

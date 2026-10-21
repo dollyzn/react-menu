@@ -12,6 +12,9 @@ import MercadoPagoClient, {
   type PaymentInput,
 } from '#payments/mercado_pago_client'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { fakeQueue, runJob } from '#tests/helpers/queue'
+import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
+import RefundOrder from '#jobs/refund_order'
 
 const TOKEN = 'TEST-1234567890-abcdef'
 const PUBLIC_KEY = 'TEST-0b7c6a2e-3d4f-4a1b-9c8d-123456789abc'
@@ -84,6 +87,10 @@ async function onlinePaymentStore(options = { card: true }) {
 
 test.group('Payments (in-app checkout)', (group) => {
   let fake: FakeMercadoPago
+  let queue: ReturnType<typeof fakeQueue>
+  group.each.setup(() => {
+    queue = fakeQueue()
+  })
   group.each.setup(() => {
     fake = new FakeMercadoPago()
     app.container.swap(MercadoPagoClient, () => fake)
@@ -279,9 +286,60 @@ test.group('Payments (in-app checkout)', (group) => {
       .loginAs(manager)
 
     cancel.assertStatus(200)
+    // Refunds run in a job (retried if the gateway is down).
+    queue.assertPushed('RefundOrder', { payload: { orderId: order.id } })
+    await runJob(RefundOrder, { orderId: order.id })
     assert.deepEqual(fake.refunds, ['1001'])
     await order.refresh()
     assert.equal(order.paymentStatus, 'refunded')
+  })
+
+  test('unpaid online orders expire; a Pix in progress postpones it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, queijo } = await onlinePaymentStore()
+    const unpaid = await placeOrder(client, store.slug, carne.id)
+    const withPix = await placeOrder(client, store.slug, queijo.id)
+    await client.post(`/api/v1/public/orders/${withPix}/payments`).json({ method: 'pix', payer })
+    const unpaidOrder = await Order.findByOrFail('publicToken', unpaid)
+    const pixOrder = await Order.findByOrFail('publicToken', withPix)
+
+    queue.assertPushed('ExpireUnpaidOrder', { payload: { orderId: unpaidOrder.id } })
+    await runJob(ExpireUnpaidOrder, { orderId: unpaidOrder.id })
+    await runJob(ExpireUnpaidOrder, { orderId: pixOrder.id })
+
+    await unpaidOrder.refresh()
+    await pixOrder.refresh()
+    assert.equal(unpaidOrder.status, 'cancelled')
+    assert.equal(pixOrder.status, 'pending_payment')
+    // Checked again after the Pix expires.
+    assert.equal(
+      queue.getPushedJobs().filter((job) => job.job.name === 'ExpireUnpaidOrder').length,
+      3
+    )
+  })
+
+  test('a Pix paid after the order expired is refunded', async ({ client, assert }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id)
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({ method: 'pix', payer })
+    const order = await Order.findByOrFail('publicToken', token)
+    await Payment.query()
+      .where('orderId', order.id)
+      .update({ expiresAt: new Date(Date.now() - 1000) })
+    await runJob(ExpireUnpaidOrder, { orderId: order.id })
+
+    fake.payments.get('1001')!.status = 'approved'
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('1001', 'req-late'))
+      .header('x-request-id', 'req-late')
+      .json({ type: 'payment', data: { id: '1001' } })
+
+    await order.refresh()
+    assert.equal(order.status, 'cancelled')
+    queue.assertPushed('RefundOrder', { payload: { orderId: order.id } })
   })
 
   test('a gateway failure leaves the order payable', async ({ client, assert }) => {

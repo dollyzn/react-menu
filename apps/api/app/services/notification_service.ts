@@ -5,6 +5,7 @@ import { DateTime } from 'luxon'
 import type { Notification as NotificationDto } from '@react-menu/contracts'
 import Notification from '#models/notification'
 import PushService from '#services/push_service'
+import SendPushNotification from '#jobs/send_push_notification'
 import { broadcastUserEvent } from '#helpers/realtime'
 import {
   renderNotification,
@@ -63,14 +64,20 @@ export default class NotificationService {
         notification: notification.serialize() as NotificationDto,
       })
 
-      this.push
-        .sendToUser(notification.userId, {
-          title: notification.title,
-          body: notification.body,
-          url: notification.url,
-          tag: notification.id,
+      // Off the request, retried by the queue; the stored row is the truth.
+      if (this.push.isEnabled) {
+        await SendPushNotification.dispatch({
+          userId: notification.userId,
+          message: {
+            title: notification.title,
+            body: notification.body,
+            url: notification.url,
+            tag: notification.id,
+          },
         })
-        .catch((error) => logger.error({ err: error }, 'web push failed'))
+          .run()
+          .catch((error) => logger.error({ err: error }, 'could not queue web push'))
+      }
     }
 
     return notifications

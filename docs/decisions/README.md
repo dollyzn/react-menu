@@ -21,6 +21,7 @@ an accepted ADR, supersede it with a new one.
 | [0013](0013-idempotent-writes.md) | Idempotent writes for unstable networks | Accepted |
 | [0014](0014-customer-history-token.md) | Customer order history across devices without accounts | Accepted |
 | [0015](0015-in-app-checkout.md) | In-app checkout with payment gateways (Pix, card) | Accepted |
+| [0016](0016-background-jobs.md) | Background jobs with @adonisjs/queue | Accepted |
 
 ## Template
 

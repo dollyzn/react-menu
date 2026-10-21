@@ -90,4 +90,11 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   HEALTH_REDIS_MEM_WARN_MB: Env.schema.number.optional(),
   HEALTH_REDIS_MEM_FAIL_MB: Env.schema.number.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring @adonisjs/queue
+  |----------------------------------------------------------
+  */
+  QUEUE_DRIVER: Env.schema.enum.optional(['redis', 'database', 'sync'] as const),
 })

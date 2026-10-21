@@ -23,6 +23,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Payments (in-app checkout, ADR 0015) | `app/services/payment_service.ts`, gateways in `app/payments/` (`gateway.ts`, `mercado_pago_gateway.ts`, `fake_gateway.ts`), attempts in `app/models/payment.ts` |
 | Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
 | Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner, logo and Pexels menu photos go to the Drive disk; sources in `CREDITS.md`) |
+| Background jobs (ADR 0016) | `app/jobs/*` (`@inject`, payload with ids only), `config/queue.ts`, worker `node ace queue:work`; tests: `tests/helpers/queue.ts` (`fakeQueue`, `runJob`) |
 | Idempotency (`Idempotency-Key`) | `app/middleware/idempotency_middleware.ts`, `orders.idempotency_key` (ADR 0013) |
 | Env schema | `start/env.ts` (+ `.env.example`) |
 
@@ -45,6 +46,10 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 - Decimal columns use `@column(decimal)` from `#helpers/columns` so values
   are numbers at runtime.
 - Business dates use `BUSINESS_TIMEZONE` (America/Sao_Paulo), not UTC.
+- Work that must happen later or be retried (expiry, refunds, push, mail)
+  is a job, not a fire-and-forget promise. Dispatch after the transaction
+  commits; deduplicate per entity (`.dedup({ id })`) when a retry of the
+  request could dispatch it twice.
 - External HTTP goes through an injectable client so tests can
   `app.container.swap()` it (see `MercadoPagoClient`). `PushService` still
   calls firebase-admin directly and is a no-op without credentials.

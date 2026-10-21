@@ -215,8 +215,8 @@ export default class PaymentService {
   }
 
   /**
-   * After a paid order is cancelled: refunds approved payments. A failure
-   * is logged and left for a manual refund (see the roadmap: queue retries).
+   * After a paid order is cancelled: refunds approved payments. Throws when
+   * the gateway fails, so the RefundOrder job retries it.
    */
   async refundCancelled(order: Order, store: Store) {
     if (order.status !== OrderStatus.CANCELLED || order.paymentStatus !== PaymentStatus.PAID) return
@@ -232,22 +232,31 @@ export default class PaymentService {
         : []
     if (targets.length === 0) return
 
-    try {
-      for (const target of targets) {
-        const gateway =
-          target.payment?.gateway === 'fake' ? new FakeGateway() : this.gatewayFor(store)
-        if (!gateway) throw new Error('no gateway for the refund')
-        await gateway.refund(target.gatewayPaymentId, `refund-${target.gatewayPaymentId}`)
-        if (target.payment) {
-          target.payment.status = PaymentAttemptStatus.REFUNDED
-          await target.payment.save()
-        }
+    for (const target of targets) {
+      const gateway =
+        target.payment?.gateway === 'fake' ? new FakeGateway() : this.gatewayFor(store)
+      if (!gateway) throw new Error('no gateway to refund the payment')
+      await gateway.refund(target.gatewayPaymentId, `refund-${target.gatewayPaymentId}`)
+      if (target.payment) {
+        target.payment.status = PaymentAttemptStatus.REFUNDED
+        await target.payment.save()
       }
-      order.paymentStatus = PaymentStatus.REFUNDED
-      await order.save()
-    } catch (error) {
-      logger.error({ err: error, orderId: order.id }, 'automatic refund failed: refund it manually')
     }
+    order.paymentStatus = PaymentStatus.REFUNDED
+    await order.save()
+  }
+
+  /**
+   * Until when the order may still be paid by an attempt in progress: a
+   * valid Pix (its expiry) or a card in review (half an hour more).
+   */
+  async payableUntil(order: Order): Promise<DateTime | null> {
+    const latest = await this.latestFor(order)
+    if (latest?.status !== PaymentAttemptStatus.PENDING) return null
+    if (latest.method === PaymentMethod.PIX) {
+      return latest.expiresAt && latest.expiresAt > DateTime.now() ? latest.expiresAt : null
+    }
+    return DateTime.now().plus({ minutes: 30 })
   }
 
   private async update(payment: Payment, result: GatewayPayment) {
@@ -263,6 +272,11 @@ export default class PaymentService {
         mercadoPagoPaymentId:
           payment.gateway === 'mercado_pago' ? (payment.gatewayPaymentId ?? undefined) : undefined,
       })
+      // Paid after it expired (a late Pix): give the money back.
+      if (order.status === OrderStatus.CANCELLED) {
+        const { default: RefundOrder } = await import('#jobs/refund_order')
+        await RefundOrder.dispatchFor(order)
+      }
       return
     }
     const latest = await this.latestFor(order)

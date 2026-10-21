@@ -2,20 +2,17 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import OrderChannel from '#enums/order_channel'
-import PaymentMethod from '#enums/payment_method'
+import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import { ok, updated, created } from '#helpers/api_response'
 import OrderService, { BUSINESS_TIMEZONE } from '#services/order_service'
-import PaymentService from '#services/payment_service'
-import Store from '#models/store'
+import RefundOrder from '#jobs/refund_order'
+import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { orderListValidator, posOrderValidator } from '#validators/order'
 
 @inject()
 export default class OrdersController {
-  constructor(
-    private orders: OrderService,
-    private payments: PaymentService
-  ) {}
+  constructor(private orders: OrderService) {}
 
   /** Orders of a business day (today by default), optionally by status. */
   async index({ params, request }: HttpContext) {
@@ -97,8 +94,10 @@ export default class OrdersController {
     const orderId = await uuidValidator.validate(params.orderId)
 
     const order = await this.orders.cancel(storeId, orderId, auth.getUserOrFail())
-    // A paid online order gives the money back automatically.
-    await this.payments.refundCancelled(order, await Store.findOrFail(storeId))
+    // A paid online order gives the money back (job with retries).
+    if (order.paymentStatus === PaymentStatus.PAID && isOnlinePayment(order.paymentMethod)) {
+      await RefundOrder.dispatchFor(order)
+    }
 
     return updated(order, `Pedido #${order.number} cancelado`)
   }

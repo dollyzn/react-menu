@@ -5,7 +5,7 @@
 #     matching apps/api/.env.example (creates the dev, test and e2e databases).
 #
 #   docker compose -f docker-compose.dev.yml --profile app up
-#     Also runs the API (:3333) and the web app (:3000) in containers with hot
+#     Also runs the API (:3333), the job worker and the web app (:3000) in containers with hot
 #     reload. Needs apps/api/.env and apps/web/.env (copied from the examples).
 
 name: react-menu-dev
@@ -73,6 +73,24 @@ services:
       deps: { condition: service_completed_successfully }
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
+
+  worker:
+    profiles: [app]
+    build: { context: ., target: dev }
+    command: node ace queue:work --hmr
+    working_dir: /repo/apps/api
+    env_file: apps/api/.env
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+    volumes: *workspace
+    depends_on:
+      api: { condition: service_started }
 
   web:
     profiles: [app]

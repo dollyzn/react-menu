@@ -5,28 +5,22 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-1. **Background jobs with `@adonisjs/queue`** (official, Redis-backed, built
-   on `@boringnode/queue`; still 0.x, so pin the version). First jobs:
-   - expire unpaid online orders: cancel `pending_payment` orders whose Pix
-     expired and nobody paid (today staff cancel them by hand);
-   - retry failed automatic refunds instead of only logging them;
-   - send push notifications off the request (FCM latency today adds to
-     the staff action that triggers them).
-   Needs a worker process in Docker Compose and in `pnpm dev`.
-2. **Transactional e-mail with `@adonisjs/mail`** (queued): password reset
-   (the login links to `/esqueci-minha-senha`, which does not exist yet)
+1. **Transactional e-mail with `@adonisjs/mail`** (sent by a job, ADR
+   0016): password reset (the login links to `/esqueci-minha-senha`, which
+   does not exist yet)
    and, optionally, the order receipt for customers who gave an e-mail at
    the Pix/card step.
-3. **Staff management**: no API/UI to invite staff or set a member's store
+2. **Staff management**: no API/UI to invite staff or set a member's store
    role (`store_user.role`); seeds and SQL do it today. `PUT /users/:id`
    with `storeIds` links users as managers. Needs a members screen per store.
-4. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
-   - refund status and a "reembolsar" retry in the staff order detail;
+3. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
+   - refund status and a "reembolsar" retry in the staff order detail
+     (refunds that gave up are only logged today);
    - installments per store (the card form allows 1x today);
    - a second gateway (Asaas, Pagar.me, Stripe…) through `PaymentGateway`;
    - move `MercadoPagoGateway` to the Orders API (`/v1/orders`) once its
      rejection statuses, refunds and webhook signature are documented.
-5. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
+4. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
    `features` registry, new types) touching 38 files; majors are ignored by
    Dependabot until then.
 
@@ -54,6 +48,14 @@ they are picked up; done items leave this file (see the git history).
   aggregate or sample before traffic grows.
 - FCM: re-register when `onRegistered` reports a new installation ID; wrap
   `PushService` in an injectable client like Mercado Pago for tests.
+- Queue observability: failed jobs are only logged; consider a small staff
+  page (or alerts) listing failed jobs, and OpenTelemetry
+  (`@adonisjs/queue/otel`) once there is a collector.
+- e2e runs place jobs in the same Redis prefix as the dev worker (harmless:
+  their orders don't exist in the dev database); give e2e its own prefix.
+- Short ace commands that use Redis may print "Connection is closed" on
+  exit (Transmit's Redis transport closing before it connected); report
+  upstream to `@boringnode/bus`.
 - Lucid runs a query's preloads in parallel; inside one transaction (the
   tests' global transaction, `findByToken`) pg queues them and warns that
   pg 9 will refuse it. Check Lucid's guidance before upgrading `pg` to 9.

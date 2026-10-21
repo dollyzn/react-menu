@@ -30,6 +30,7 @@ export default defineConfig({
     () => import('@adonisjs/core/commands'),
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/bouncer/commands'),
+    () => import('@adonisjs/queue/commands'),
   ],
 
   /*
@@ -60,6 +61,7 @@ export default defineConfig({
     () => import('@adonisjs/limiter/limiter_provider'),
     () => import('@adonisjs/redis/redis_provider'),
     () => import('@adonisjs/ally/ally_provider'),
+    () => import('@adonisjs/queue/queue_provider'),
   ],
 
   /*
@@ -84,6 +86,10 @@ export default defineConfig({
     {
       file: () => import('#start/transmit'),
       environment: ['web', 'test'],
+    },
+    {
+      file: () => import('#start/scheduler'),
+      environment: ['web'],
     },
   ],
 

@@ -26,6 +26,22 @@ const redisConfig = defineConfig({
         return times > 10 ? null : times * 50
       },
     },
+
+    /**
+     * Background jobs (@adonisjs/queue). Prefixed because the queue's own
+     * key names are generic (`jobs::default::…`) and Redis is often shared
+     * with other apps.
+     */
+    queue: {
+      host: env.get('REDIS_HOST'),
+      port: env.get('REDIS_PORT'),
+      password: env.get('REDIS_PASSWORD') || undefined,
+      db: 0,
+      keyPrefix: 'react-menu:',
+      retryStrategy(times) {
+        return times > 10 ? null : times * 50
+      },
+    },
   },
 })
 
