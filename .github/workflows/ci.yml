@@ -139,6 +139,11 @@ jobs:
       - name: Smoke test through Caddy
         run: |
           for i in $(seq 1 60); do curl -fs -o /dev/null http://localhost/app/login && break; sleep 2; done
+          # The API runs migrations before listening; Caddy answers 502 until then.
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/public/menu)
+            [ "$code" != "502" ] && [ "$code" != "000" ] && break; sleep 2
+          done
           curl -fsS -o /dev/null -w "web /app/login -> %{http_code}\n" http://localhost/app/login
           code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost/api/v1/public/menu)
           echo "api /public/menu (no store yet) -> $code"; test "$code" = "404"
