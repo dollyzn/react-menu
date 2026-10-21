@@ -42,9 +42,9 @@ The technical items below, one PR at a time.
 
 - Queue tracing: OpenTelemetry (`@adonisjs/queue/otel`) once there is a
   collector. Failed jobs already notify (super users; managers for refunds).
-- Short ace commands that use Redis may print "Connection is closed" on
-  exit (Transmit's Redis transport closing before it connected); report
-  upstream to `@boringnode/bus`.
+- Ace commands that end before Redis connects (e.g. `--help`) crash with
+  "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
+  `subscribe` with `void` and never catches it. Report upstream.
 - Lucid runs a query's preloads in parallel; inside one transaction pg
   queues them and warns that pg 9 will refuse it. pg 9 isn't out; its
   major is ignored by Dependabot until Lucid supports it.
