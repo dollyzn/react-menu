@@ -24,6 +24,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
 | Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner, logo and Pexels menu photos go to the Drive disk; sources in `CREDITS.md`) |
 | Background jobs (ADR 0016) | `app/jobs/*` (`@inject`, payload with ids only), `config/queue.ts`, worker `node ace queue:work`; tests: `tests/helpers/queue.ts` (`fakeQueue`, `runJob`) |
+| E-mail | `app/mails/*` (`BaseMail`, markup from `app/mails/layout.ts`), sent with `mail.sendLater` → `SendEmail` job (`start/mail.ts`); tests use `mail.fake()` |
 | Idempotency (`Idempotency-Key`) | `app/middleware/idempotency_middleware.ts`, `orders.idempotency_key` (ADR 0013) |
 | Env schema | `start/env.ts` (+ `.env.example`) |
 

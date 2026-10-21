@@ -139,6 +139,8 @@ async function withRetries(
 type ExtraOptions = {
   /** A write the user doesn't wait for (mark as read, push registration): never holds navigation. */
   background?: boolean;
+  /** The screen shows this endpoint's errors itself: no global toast. */
+  quiet?: boolean;
 };
 
 const isWriteRequest = (args: string | FetchArgs) =>
@@ -175,7 +177,7 @@ const baseQueryWithHandling: BaseQueryFn<
     if (status === 401) {
       // A customer link that stopped working is handled by the menu, not the staff session.
       if (!url.startsWith("public/")) api.dispatch(setIsSessionExpired(true));
-    } else if (message) {
+    } else if (message && !extraOptions?.quiet) {
       toast.error(message);
     }
   }

@@ -3,6 +3,8 @@ import { env } from "./lib/env";
 
 /** Staff pages that work without a session. */
 const AUTH_PAGES = ["/app/login", "/app/social"];
+/** Open with or without a session (a reset link may open on a logged-in phone). */
+const PUBLIC_PAGES = ["/app/esqueci-minha-senha", "/app/redefinir-senha"];
 /** Fetched by the browser without cookies when installing the staff app. */
 const PUBLIC_FILES = ["/app/manifest.webmanifest"];
 
@@ -19,7 +21,7 @@ function isLoggedIn(req: NextRequest) {
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
   if (path !== "/app" && !path.startsWith("/app/")) return NextResponse.next();
-  if (PUBLIC_FILES.includes(path)) return NextResponse.next();
+  if (PUBLIC_FILES.includes(path) || PUBLIC_PAGES.includes(path)) return NextResponse.next();
 
   const isLogged = isLoggedIn(req);
   const isAuthPage = AUTH_PAGES.includes(path);
