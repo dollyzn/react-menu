@@ -231,3 +231,13 @@ export type PublicMenuAddon = {
   photoUrl: string | null;
   isAvailable: boolean;
 };
+
+/** GET /stores/:id/customers?search= (POS autocomplete). */
+export type CustomerSuggestion = {
+  id: string;
+  name: string;
+  /** Digits with country code (55...). */
+  phone: string;
+  ordersCount: number;
+  lastOrderAt: string | null;
+};

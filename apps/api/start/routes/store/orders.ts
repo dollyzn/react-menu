@@ -3,6 +3,7 @@ import { frontOfHouse } from '#routes/store/shared'
 
 const OrdersController = () => import('#controllers/orders_controller')
 const KitchenController = () => import('#controllers/kitchen_controller')
+const CustomersController = () => import('#controllers/customers_controller')
 
 export default function registerStoreOrderRoutes() {
   router.get('/orders', [OrdersController, 'index']).as('orders.index')
@@ -20,6 +21,9 @@ export default function registerStoreOrderRoutes() {
     .post('/orders/:orderId/payment', [OrdersController, 'markPaid'])
     .as('orders.markPaid')
     .use(frontOfHouse)
+
+  // POS autocomplete (names and phones: front of house only).
+  router.get('/customers', [CustomersController, 'index']).as('customers.index').use(frontOfHouse)
 
   router.get('/kitchen/queue', [KitchenController, 'queue']).as('kitchen.queue')
   router.post('/kitchen/prepare', [KitchenController, 'prepare']).as('kitchen.prepare')

@@ -4,6 +4,7 @@ import { buildStoreListUrl, type StoreScopedListArg } from "@/redux/api/listQuer
 import type { PaginatedList } from "@/types/paginated-list";
 import type {
   CreatePosOrderInput,
+  CustomerSuggestion,
   Order,
   OrderStatus,
   ProductionBatch,
@@ -41,6 +42,12 @@ export const orderApi = baseApi.injectEndpoints({
     getOrder: build.query<Order, { storeId: string; orderId: string }>({
       query: ({ storeId, orderId }) => `stores/${storeId}/orders/${orderId}`,
       providesTags: (_res, _err, { orderId }) => [orderTag(orderId)],
+    }),
+
+    /** POS autocomplete: customers by name or part of the phone. */
+    searchCustomers: build.query<CustomerSuggestion[], { storeId: string; search: string }>({
+      query: ({ storeId, search }) => `stores/${storeId}/customers?search=${encodeURIComponent(search)}`,
+      keepUnusedDataFor: 30,
     }),
 
     createPosOrder: build.mutation<
@@ -91,6 +98,7 @@ export const {
   useGetOrdersQuery,
   useGetOrdersPageQuery,
   useGetOrderQuery,
+  useSearchCustomersQuery,
   useCreatePosOrderMutation,
   useCompleteOrderMutation,
   useCancelOrderMutation,

@@ -5,7 +5,7 @@ import Image from "@/components/app/image";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, User, UtensilsCrossed } from "lucide-react";
+import { Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
 import type { PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
@@ -21,6 +21,7 @@ import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/strin
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
+import { CustomerAutocomplete } from "./customer-autocomplete";
 
 type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>
@@ -151,6 +152,7 @@ export default function PosPage() {
   };
 
   const ticketProps = {
+    storeId,
     lines,
     count,
     total,
@@ -390,6 +392,7 @@ function ProductCard({
 }
 
 function Ticket({
+  storeId,
   lines,
   count,
   total,
@@ -403,6 +406,7 @@ function Ticket({
   sending,
   inModal,
 }: {
+  storeId: string;
   lines: TicketLine[];
   count: number;
   total: number;
@@ -435,17 +439,25 @@ function Ticket({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 border-b p-4">
-        <div className="relative">
-          <User className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={customerName}
-            onChange={(event) => onCustomerName(event.target.value)}
-            placeholder="Cliente (Balcão)"
-            aria-label="Nome do cliente"
-            className="h-9 pl-8"
-          />
-        </div>
+      {/* relative: the suggestions list spans both fields. */}
+      <div className="relative grid grid-cols-2 gap-2 border-b p-4">
+        <CustomerAutocomplete
+          storeId={storeId}
+          name={customerName}
+          onNameChange={onCustomerName}
+          onPick={(customer) => {
+            onCustomerName(customer.name);
+            onCustomerPhone(customer.phone);
+          }}
+          // Keep a phone typed by hand; drop only the one the pick filled.
+          onUnpick={(customer) => {
+            if (customerPhone === customer.phone) onCustomerPhone("");
+          }}
+          onClear={() => {
+            onCustomerName("");
+            onCustomerPhone("");
+          }}
+        />
         <div className="relative">
           <Phone className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input

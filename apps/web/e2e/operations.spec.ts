@@ -178,3 +178,45 @@ test("kitchen: undo from the toast brings the batch back", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Fazer agora" })).toBeVisible();
   await clearKitchen();
 });
+
+test("POS: customer autocomplete fills name and phone", async ({ page }) => {
+  const name = `Joaquim Brandão ${Date.now() % 10000}`;
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(page.url().replace(/\/orders$/, "/pos"));
+
+  // First visit: a customer with a phone is remembered by the store.
+  await page.getByRole("button", { name: /^Pastel de Carne R\$/ }).click();
+  if (await page.getByRole("dialog").isVisible()) await page.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
+  await page.getByRole("combobox", { name: "Nome do cliente" }).fill(name);
+  await page.getByLabel("Celular do cliente (opcional)").fill("11977776666");
+  await page.getByRole("button", { name: "Enviar para a cozinha" }).click();
+  await expect(page.getByText(/Pedido #\d+ enviado para a cozinha/)).toBeVisible();
+
+  // Next ticket: typing part of the name (no accent) suggests them.
+  const input = page.getByRole("combobox", { name: "Nome do cliente" });
+  await input.fill("joaquim brandao");
+  const option = page.getByRole("option", { name: new RegExp(name.split(" ").slice(0, 2).join(" ")) }).first();
+  await expect(option).toBeVisible();
+  await expect(option).toContainText("(11) 97777-6666");
+  await page.screenshot({ path: "test-results/pos-autocomplete.png", clip: { x: 880, y: 40, width: 400, height: 360 } });
+
+  await input.press("ArrowDown");
+  await input.press("ArrowUp");
+  await input.press("Enter");
+  await expect(input).toHaveValue(name);
+  await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("(11) 97777-6666");
+  await expect(page.getByRole("listbox", { name: "Clientes encontrados" })).toBeHidden();
+
+  // Editing the picked name unpicks it: the phone it filled goes away.
+  await input.press("Backspace");
+  await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("");
+
+  // Pick again, then ✕ clears name and phone together.
+  await input.fill("joaquim brandao");
+  await option.click();
+  await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("(11) 97777-6666");
+  await page.getByRole("button", { name: "Limpar cliente" }).click();
+  await expect(input).toHaveValue("");
+  await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("");
+});
