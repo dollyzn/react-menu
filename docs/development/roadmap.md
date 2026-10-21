@@ -5,13 +5,18 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-1. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
-   - a second gateway (Asaas, Pagar.me, Stripe…) through `PaymentGateway`;
-   - move `MercadoPagoGateway` to the Orders API (`/v1/orders`) once its
-     rejection statuses, refunds and webhook signature are documented.
-2. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
-   `features` registry, new types) touching 38 files; majors are ignored by
-   Dependabot until then.
+The technical items below, one PR at a time.
+
+## Standby (decided not to do for now)
+
+- **A second payment gateway** (Asaas, Pagar.me, Stripe…): we stay with
+  Mercado Pago. `PaymentGateway` keeps the door open.
+- **Mercado Pago Orders API (`/v1/orders`)**: revisit when its rejection
+  statuses, refunds and webhook signature are documented; the move stays
+  inside `MercadoPagoGateway`.
+- **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
+  `features` registry, new types) touching 38 files; majors are ignored by
+  Dependabot until then.
 
 ## Product
 

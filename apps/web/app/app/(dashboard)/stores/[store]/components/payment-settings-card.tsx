@@ -15,17 +15,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Controller, useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useUpdatePaymentSettingsMutation } from "@/redux/features/store/storeApi";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+import { getApiOrigin } from "@/lib/api-base-url";
+import { copyToClipboard } from "@/utils/copy-to-clipboard";
 
 const INSTALLMENT_ITEMS = Array.from({ length: 12 }, (_, index) => ({
   value: String(index + 1),
   label: index === 0 ? "Só à vista" : `Até ${index + 1}x`,
 }));
-import { getApiOrigin } from "@/lib/api-base-url";
-import { copyToClipboard } from "@/utils/copy-to-clipboard";
 
 /** Mercado Pago credentials of the in-app checkout (ADR 0015); managers only. */
 export function PaymentSettingsCard({ store }: { store: Store }) {
@@ -79,6 +83,41 @@ export function PaymentSettingsCard({ store }: { store: Store }) {
   );
 }
 
+const TOKEN = /^(APP_USR|TEST)-[\w-]+$/;
+const PUBLIC_KEY = /^(APP_USR|TEST)-[0-9a-f-]{36}$/i;
+
+/**
+ * With credentials already saved, the token and the secret may stay blank
+ * (they are never shown again): only what was typed is sent.
+ */
+const settingsSchema = (configured: boolean) =>
+  z.object({
+    accessToken: z
+      .string()
+      .trim()
+      .refine((value) => (configured && !value) || TOKEN.test(value), {
+        message: configured
+          ? "Deixe em branco para manter, ou cole um token que comece com APP_USR- ou TEST-."
+          : "Cole o Access Token: começa com APP_USR- ou TEST-.",
+      }),
+    publicKey: z
+      .string()
+      .trim()
+      .refine((value) => !value || PUBLIC_KEY.test(value), {
+        message: "A Public Key começa com APP_USR- ou TEST- seguido de um código de 36 caracteres.",
+      }),
+    maxInstallments: z.string(),
+    webhookSecret: z
+      .string()
+      .trim()
+      .refine((value) => (configured && !value) || value.length >= 8, {
+        message: configured
+          ? "Deixe em branco para manter, ou cole a assinatura (pelo menos 8 caracteres)."
+          : "Cole a assinatura secreta do webhook (pelo menos 8 caracteres).",
+      }),
+  });
+type SettingsValues = z.infer<ReturnType<typeof settingsSchema>>;
+
 function PaymentSettingsDialog({
   store,
   webhookUrl,
@@ -91,26 +130,42 @@ function PaymentSettingsDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [save, { isLoading }] = useUpdatePaymentSettingsMutation();
-  const [token, setToken] = useState("");
-  const [secret, setSecret] = useState("");
-  const [publicKey, setPublicKey] = useState(store.mercadoPagoPublicKey ?? "");
-  const [installments, setInstallments] = useState(String(store.maxInstallments ?? 1));
+  const configured = store.mercadoPagoEnabled;
+  const defaults: SettingsValues = {
+    accessToken: "",
+    publicKey: store.mercadoPagoPublicKey ?? "",
+    maxInstallments: String(store.maxInstallments ?? 1),
+    webhookSecret: "",
+  };
+  const form = useForm<SettingsValues>({
+    resolver: zodResolver(settingsSchema(configured)),
+    defaultValues: defaults,
+  });
+  const busy = form.formState.isSubmitting || isLoading;
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    await save({
-      id: store.id,
-      data: {
-        mercadoPagoAccessToken: token.trim(),
-        mercadoPagoWebhookSecret: secret.trim(),
-        mercadoPagoPublicKey: publicKey.trim() || null,
-        maxInstallments: Number(installments),
-      },
-    }).unwrap();
-    toast.success("Pagamentos online configurados");
-    setToken("");
-    setSecret("");
-    onOpenChange(false);
+  const close = (next: boolean) => {
+    if (busy) return;
+    if (!next) form.reset(defaults);
+    onOpenChange(next);
+  };
+
+  const submit = async (values: SettingsValues) => {
+    try {
+      await save({
+        id: store.id,
+        data: {
+          ...(values.accessToken && { mercadoPagoAccessToken: values.accessToken }),
+          ...(values.webhookSecret && { mercadoPagoWebhookSecret: values.webhookSecret }),
+          mercadoPagoPublicKey: values.publicKey || null,
+          maxInstallments: Number(values.maxInstallments),
+        },
+      }).unwrap();
+      toast.success(configured ? "Pagamentos online atualizados" : "Pagamentos online configurados");
+      form.reset({ ...values, accessToken: "", webhookSecret: "" });
+      onOpenChange(false);
+    } catch {
+      // baseApi shows the API's answer (e.g. a credential it refused).
+    }
   };
 
   const disable = async () => {
@@ -123,9 +178,9 @@ function PaymentSettingsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-lg">
-        <form onSubmit={submit}>
+        <form onSubmit={form.handleSubmit(submit)} noValidate>
           <DialogHeader>
             <DialogTitle>Mercado Pago</DialogTitle>
             <DialogDescription>
@@ -155,70 +210,112 @@ function PaymentSettingsDialog({
               </Step>
             </ol>
             <FieldGroup>
-              <Field>
-                <FieldLabel htmlFor="mp-token">Access Token</FieldLabel>
-                <Input
-                  id="mp-token"
-                  type="password"
-                  autoComplete="off"
-                  required
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  placeholder="APP_USR-… ou TEST-…"
-                />
-                <FieldDescription>Credenciais de teste (TEST-) não cobram de verdade.</FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="mp-public-key">Public Key (para cartão)</FieldLabel>
-                <Input
-                  id="mp-public-key"
-                  autoComplete="off"
-                  value={publicKey}
-                  onChange={(e) => setPublicKey(e.target.value)}
-                  placeholder="APP_USR-… ou TEST-…"
-                />
-                <FieldDescription>Opcional. Sem ela, o cardápio oferece só o Pix.</FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="mp-installments">Parcelamento no cartão</FieldLabel>
-                <Select items={INSTALLMENT_ITEMS} value={installments} onValueChange={(value) => setInstallments(String(value))}>
-                  <SelectTrigger id="mp-installments" className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INSTALLMENT_ITEMS.map((item) => (
-                      <SelectItem key={item.value} value={item.value}>
-                        {item.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldDescription>Os juros seguem a configuração da sua conta do Mercado Pago.</FieldDescription>
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="mp-secret">Assinatura secreta do webhook</FieldLabel>
-                <Input
-                  id="mp-secret"
-                  type="password"
-                  autoComplete="off"
-                  required
-                  minLength={8}
-                  value={secret}
-                  onChange={(e) => setSecret(e.target.value)}
-                />
-                <FieldDescription>As credenciais ficam criptografadas e nunca são exibidas de novo.</FieldDescription>
-              </Field>
+              <Controller
+                name="accessToken"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="mp-token">Access Token</FieldLabel>
+                    <Input
+                      {...field}
+                      id="mp-token"
+                      type="password"
+                      autoComplete="off"
+                      disabled={busy}
+                      aria-invalid={fieldState.invalid}
+                      placeholder={configured ? "Salvo · deixe em branco para manter" : "APP_USR-… ou TEST-…"}
+                    />
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : (
+                      <FieldDescription>Credenciais de teste (TEST-) não cobram de verdade.</FieldDescription>
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="publicKey"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="mp-public-key">Public Key (para cartão)</FieldLabel>
+                    <Input
+                      {...field}
+                      id="mp-public-key"
+                      autoComplete="off"
+                      disabled={busy}
+                      aria-invalid={fieldState.invalid}
+                      placeholder="APP_USR-… ou TEST-…"
+                    />
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : (
+                      <FieldDescription>Opcional. Sem ela, o cardápio oferece só o Pix.</FieldDescription>
+                    )}
+                  </Field>
+                )}
+              />
+              <Controller
+                name="maxInstallments"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldLabel htmlFor="mp-installments">Parcelamento no cartão</FieldLabel>
+                    <Select
+                      items={INSTALLMENT_ITEMS}
+                      value={field.value}
+                      onValueChange={(value) => field.onChange(String(value))}
+                      disabled={busy}
+                    >
+                      <SelectTrigger id="mp-installments" className="w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {INSTALLMENT_ITEMS.map((item) => (
+                          <SelectItem key={item.value} value={item.value}>
+                            {item.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FieldDescription>Os juros seguem a configuração da sua conta do Mercado Pago.</FieldDescription>
+                  </Field>
+                )}
+              />
+              <Controller
+                name="webhookSecret"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor="mp-secret">Assinatura secreta do webhook</FieldLabel>
+                    <Input
+                      {...field}
+                      id="mp-secret"
+                      type="password"
+                      autoComplete="off"
+                      disabled={busy}
+                      aria-invalid={fieldState.invalid}
+                      placeholder={configured ? "Salva · deixe em branco para manter" : undefined}
+                    />
+                    {fieldState.invalid ? (
+                      <FieldError errors={[fieldState.error]} />
+                    ) : (
+                      <FieldDescription>As credenciais ficam criptografadas e nunca são exibidas de novo.</FieldDescription>
+                    )}
+                  </Field>
+                )}
+              />
             </FieldGroup>
           </DialogBody>
           <DialogFooter className="sm:justify-between">
-            {store.mercadoPagoEnabled ? (
-              <Button type="button" variant="ghost" className="text-destructive" onClick={disable} disabled={isLoading}>
+            {configured ? (
+              <Button type="button" variant="ghost" className="text-destructive" onClick={disable} disabled={busy}>
                 Desligar pagamentos online
               </Button>
             ) : (
               <span className="hidden sm:block" />
             )}
-            <Button type="submit" loading={isLoading}>
+            <Button type="submit" loading={busy}>
               Salvar
             </Button>
           </DialogFooter>
