@@ -1,0 +1,76 @@
+name: Deploy
+
+# Deploys the whole Docker Compose stack (README "Production") to the VPS
+# on a published release, or by hand from the Actions tab. The server keeps
+# a clone of the repository at VPS_PATH with its `.env` next to
+# docker-compose.yml. Secrets: VPS_HOST, VPS_PORT, VPS_USER, VPS_KEY, VPS_PATH.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Tag or commit to deploy (default: the selected branch's head)"
+        required: false
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    env:
+      REF: ${{ github.event.release.tag_name || inputs.ref || github.sha }}
+
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_KEY }}
+
+      - name: Add the VPS to known hosts
+        run: ssh-keyscan -p ${{ secrets.VPS_PORT }} -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy
+        run: |
+          ssh -p ${{ secrets.VPS_PORT }} -T ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            "REF='$REF' APP_PATH='${{ secrets.VPS_PATH }}' bash -s" << 'EOF'
+            set -euo pipefail
+            cd "$APP_PATH"
+
+            echo "::group::Checkout $REF"
+            git fetch --tags --force origin
+            git checkout --force --detach "$REF"
+            echo "::endgroup::"
+
+            # Database backup before the new release migrates it (last 10 kept).
+            if docker compose ps --status running --services | grep -qx postgres; then
+              echo "::group::Backup"
+              mkdir -p backups
+              file="backups/$(date +%F-%H%M)-before-${REF//\//-}.sql.gz"
+              docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$file"
+              ls -1t backups/*.sql.gz | tail -n +11 | xargs -r rm --
+              echo "saved $file"
+              echo "::endgroup::"
+            fi
+
+            echo "::group::Build and start"
+            BUILD_VERSION="$REF" docker compose up -d --build --remove-orphans
+            echo "::endgroup::"
+
+            # The API migrates before listening: wait until it answers (a 404
+            # is fine, there may be no store yet; /health is for monitoring).
+            echo "Waiting for the API..."
+            for i in $(seq 1 60); do
+              if docker compose exec -T api node -e "fetch('http://localhost:3333/api/v1/public/menu').then((r) => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))" 2>/dev/null; then
+                docker image prune -f > /dev/null
+                echo "Deployed $REF"
+                exit 0
+              fi
+              sleep 3
+            done
+            echo "The API did not become healthy:"
+            docker compose logs --tail 100 api worker
+            exit 1
+          EOF

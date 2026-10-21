@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 /**
  * End-to-end tests for critical flows. Both apps are started here against a
- * dedicated database (`jjpasteis-menu-e2e`) that is recreated and seeded on
+ * dedicated database (`react-menu-e2e`) that is recreated and seeded on
  * every run; Postgres and Redis must be reachable with apps/api/.env.
  */
 const API_PORT = 3334;
@@ -41,7 +41,7 @@ export default defineConfig({
         PORT: String(API_PORT),
         // Upload URLs (seeded banner/logo) must point at this API.
         APP_URL: API_URL,
-        DB_DATABASE: "jjpasteis-menu-e2e",
+        DB_DATABASE: "react-menu-e2e",
         LIMITER_STORE: "memory",
         // Every e2e request comes from localhost.
         PUBLIC_ORDER_RATE_LIMIT: "10000",

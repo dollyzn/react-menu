@@ -134,8 +134,10 @@ Clients refetch after reconnecting, so a missed event never leaves stale UI.
   `docker-compose.yml` runs them behind Caddy on a single origin with
   Postgres and Redis. The Next server reaches the API through
   `API_INTERNAL_URL`; `NEXT_PUBLIC_*` values are build arguments.
-- Web without Docker: Next.js (`next build`/`next start`); the current
-  workflow deploys to a VPS over SSH with PM2 (`.github/workflows/deploy-web.yml`).
+- `.github/workflows/deploy.yml` deploys that stack to a VPS over SSH on a
+  published release (or by hand): checks out the tag, backs up the
+  database, `docker compose up -d --build`, waits for the API.
+- Web without Docker: Next.js (`next build`/`next start`).
 - API: `node ace build`, then install production deps; in the monorepo use
   `pnpm deploy --filter @react-menu/api <dir>`. Run migrations on deploy.
 - The auth cookie is host-only and `SameSite=Strict`: serve web and API from

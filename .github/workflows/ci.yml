@@ -28,7 +28,7 @@ env:
   DB_PORT: '5432'
   DB_USER: postgres
   DB_PASSWORD: postgres
-  DB_DATABASE: jjpasteis-menu-test
+  DB_DATABASE: react-menu-test
   REDIS_HOST: localhost
   REDIS_PORT: '6379'
   DRIVE_DISK: fs
@@ -71,7 +71,7 @@ jobs:
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: jjpasteis-menu-test
+          POSTGRES_DB: react-menu-test
         ports: ['5432:5432']
         options: >-
           --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
@@ -93,7 +93,7 @@ jobs:
         run: pnpm --filter @react-menu/api test
 
       - name: Create e2e database
-        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE "jjpasteis-menu-e2e"'
+        run: PGPASSWORD=postgres psql -h localhost -U postgres -c 'CREATE DATABASE "react-menu-e2e"'
       - name: Install Playwright browser
         run: pnpm --filter @react-menu/web exec playwright install --with-deps chromium
       - name: E2E tests

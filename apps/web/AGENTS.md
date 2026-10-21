@@ -96,7 +96,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 ## Tests
 
 Playwright in `e2e/` (`pnpm test:e2e` from the root). It starts the API on
-:3334 against a recreated `jjpasteis-menu-e2e` database and Next on :3100.
+:3334 against a recreated `react-menu-e2e` database and Next on :3100.
 Tests fail on any console warning/error, any image that answers 4xx/5xx, and
 on unnamed controls.
 
