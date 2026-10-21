@@ -53,8 +53,8 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
   commits; deduplicate per entity (`.dedup({ id })`) when a retry of the
   request could dispatch it twice.
 - External HTTP goes through an injectable client so tests can
-  `app.container.swap()` it (see `MercadoPagoClient`). `PushService` still
-  calls firebase-admin directly and is a no-op without credentials.
+  `app.container.swap()` it (`MercadoPagoClient`, `FcmClient`). Push is a
+  no-op without FIREBASE_* credentials.
 
 ## Tests
 

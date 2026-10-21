@@ -40,10 +40,6 @@ The technical items below, one PR at a time.
 
 ## Technical
 
-- `GET /public/menu` writes one `store_views` row per customer visit;
-  aggregate or sample before traffic grows.
-- FCM: re-register when `onRegistered` reports a new installation ID; wrap
-  `PushService` in an injectable client like Mercado Pago for tests.
 - Queue observability: failed jobs are only logged; consider a small staff
   page (or alerts) listing failed jobs, and OpenTelemetry
   (`@adonisjs/queue/otel`) once there is a collector.
@@ -58,5 +54,3 @@ The technical items below, one PR at a time.
   Compose deploy of the whole stack (README "Production") before releases.
 - Database names still carry the original client's name
   (`jjpasteis-menu*`); rename for a neutral open-source default.
-- Many unused shadcn components in `apps/web/components/ui`; prune with a
-  usage check.
