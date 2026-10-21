@@ -17,8 +17,16 @@ test("store members are notified in realtime when the status changes", async ({ 
 
   await page.context().clearCookies();
   await login(page);
+  // The toast only arrives once this page is subscribed to the notifications
+  // channel; networkidle doesn't guarantee that on a slow runner.
+  const subscribed = page.waitForResponse(
+    (r) =>
+      r.url().includes("/__transmit/subscribe") &&
+      (r.request().postData() ?? "").includes("/notifications") &&
+      r.ok()
+  );
   await page.goto(`/app/stores/${store.id}`);
-  await page.waitForLoadState("networkidle");
+  await subscribed;
 
   const colleagueApi = await playwrightRequest.newContext({ baseURL: API_URL });
   await colleagueApi.post("/api/v1/auth/login", { data: colleague });

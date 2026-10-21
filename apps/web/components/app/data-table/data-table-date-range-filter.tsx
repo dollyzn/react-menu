@@ -184,7 +184,7 @@ export function DataTableDateRangeFilter<TData, TValue>({
               numberOfMonths={isMobile ? 1 : 2}
               locale={ptBR}
               className="rounded-md mx-auto md:mx-0"
-              initialFocus
+              autoFocus
             />
           </div>
           <Separator />

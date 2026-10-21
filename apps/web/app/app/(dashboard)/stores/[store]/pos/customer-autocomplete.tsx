@@ -52,7 +52,9 @@ export function CustomerAutocomplete({
     return () => clearTimeout(timer);
   }, [name]);
 
-  const { currentData: suggestions = [], isFetching } = useSearchCustomersQuery(
+  // `data`, not `currentData`: keep the last results while the next term
+  // loads, so the list doesn't vanish (and ignore Enter) on every keystroke.
+  const { data: suggestions = [], isFetching } = useSearchCustomersQuery(
     { storeId, search: term },
     { skip: !searchable(term) || isPicked }
   );

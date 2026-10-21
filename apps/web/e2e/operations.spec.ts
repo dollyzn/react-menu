@@ -127,6 +127,24 @@ test("orders history: search, open the detail and see who did what", async ({ pa
   await expect(page.getByRole("dialog").getByText(`#${number}`)).toBeVisible();
 });
 
+test("orders history: the period filter picks days on the calendar", async ({ page }) => {
+  await login(page);
+  const storePath = new URL(page.url()).pathname.match(/^\/app\/stores\/[^/]+/)![0];
+  await page.goto(`${storePath}/orders?view=historico`);
+
+  await page.getByRole("button", { name: "Filtrar por período" }).click();
+  await expect(page.getByRole("grid").first()).toBeVisible();
+  const today = new Date();
+  await page.locator(`button[data-day="${today.toLocaleDateString("pt-BR")}"]`).first().click();
+
+  const iso = today.toLocaleDateString("sv-SE"); // yyyy-MM-dd in local time
+  await expect(page).toHaveURL(new RegExp(`f\\.createdAt=${iso}(~|%7E)${iso}`));
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("button", { name: "Filtrar por período" })).toContainText(
+    today.toLocaleDateString("pt-BR")
+  );
+});
+
 test("kitchen: swipe right finishes the batch", async ({ page }) => {
   await clearKitchen();
   const api = await playwrightRequest.newContext({ baseURL: API_URL });

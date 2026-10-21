@@ -70,8 +70,12 @@ const store = configureStore({
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       thunk: true,
+      // Dev-only checks: the RTK Query cache is large enough to pass the
+      // default 32ms on slow machines (CI), which only logs a warning.
+      immutableCheck: { warnAfter: 128 },
       serializableCheck: {
         ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
+        warnAfter: 128,
       },
     }).concat(baseApi.middleware),
 });
