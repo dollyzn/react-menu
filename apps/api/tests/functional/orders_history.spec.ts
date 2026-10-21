@@ -5,7 +5,7 @@ import StoreRole from '#enums/store_role'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 
 test.group('Orders history', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   async function setup(client: ApiClient) {
     const attendant = await createUser({ name: 'Bia Atendente' })

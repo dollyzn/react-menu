@@ -28,9 +28,12 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 
 ## Rules
 
-- Server data goes through RTK Query with tags; mutations invalidate tags.
-  Don't add new `request()` (axios) calls.
+- Every API call goes through RTK Query (`baseApi`), the session too
+  (`redux/features/auth/authApi.ts`); mutations invalidate tags. Endpoints
+  can pass `extraOptions`: `quiet` (the screen shows its own errors),
+  `session` (a 401 is "signed out", not "expired"), `background`.
 - Only a 401 means the session ended; 429/5xx/offline are transient.
+  `GET /auth/me` renews a session that is past half its life (new cookie).
 - Writes in flight hold navigation (`PendingWritesGuard` in the root
   layout, counter in `lib/pending-writes.ts`): reload/close asks, in-app
   links wait and continue when the save ends. Writes the user doesn't wait

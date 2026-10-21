@@ -15,7 +15,7 @@ function tokenFromMail(fake: ReturnType<typeof mail.fake>) {
 }
 
 test.group('Password reset', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
   group.each.setup(() => {
     mail.fake()
     return () => mail.restore()

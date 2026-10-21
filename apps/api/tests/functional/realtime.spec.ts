@@ -7,7 +7,7 @@ import { createStore, createUser } from '#tests/helpers/fixtures'
 import { openStream } from '#tests/helpers/transmit'
 
 test.group('Realtime (Transmit)', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('guests cannot subscribe to private channels', async ({ client, cleanup }) => {
     const store = await createStore()

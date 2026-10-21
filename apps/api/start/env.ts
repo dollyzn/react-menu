@@ -22,6 +22,8 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   AUTH_COOKIE_NAME: Env.schema.string(),
   AUTH_COOKIE_ENABLED: Env.schema.boolean(),
+  /** Cookie domain when web and API are on different subdomains (".example.com"). */
+  COOKIE_DOMAIN: Env.schema.string.optional(),
 
   ADMIN_USER: Env.schema.string({ format: 'email' }),
   ADMIN_PASS: Env.schema.string(),
@@ -97,6 +99,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   |----------------------------------------------------------
   */
   QUEUE_DRIVER: Env.schema.enum.optional(['redis', 'database', 'sync'] as const),
+  /** Redis key prefix of the job queue (default "react-menu:"). */
+  QUEUE_REDIS_PREFIX: Env.schema.string.optional(),
 
   /*
   |----------------------------------------------------------

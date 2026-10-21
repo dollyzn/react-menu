@@ -10,7 +10,7 @@ const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
  * the device of their first order; knowing a phone number is never enough.
  */
 test.group('Customer order history', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('the first order links the device; the phone alone does not', async ({ client, assert }) => {
     const { store, carne } = await createMenuStore()

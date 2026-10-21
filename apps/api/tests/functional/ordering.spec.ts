@@ -10,7 +10,7 @@ async function orderedNames(query: Promise<{ name: string }[]>) {
 }
 
 test.group('Ordering', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('categories are renumbered 1..N following the given ids', async ({ client, assert }) => {
     const member = await createUser()

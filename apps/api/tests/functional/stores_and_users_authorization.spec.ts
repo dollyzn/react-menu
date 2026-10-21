@@ -5,7 +5,7 @@ import User from '#models/user'
 import { createStore, createUser, createUserWithPermissions } from '#tests/helpers/fixtures'
 
 test.group('Store creation and deletion', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('user without create_store cannot create a store', async ({ client }) => {
     const user = await createUser()
@@ -58,7 +58,7 @@ test.group('Store creation and deletion', (group) => {
 })
 
 test.group('Users management', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('regular user cannot list, edit or delete users', async ({ client, assert }) => {
     const attacker = await createUser()
@@ -88,7 +88,7 @@ test.group('Users management', (group) => {
 })
 
 test.group('Auth', (group) => {
-  group.each.setup(() => testUtils.db().withGlobalTransaction())
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
   test('public registration is disabled', async ({ client }) => {
     const response = await client

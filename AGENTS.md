@@ -106,8 +106,8 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
 2. VineJS validators in `app/validators` (validate params too).
 3. Repository (queries, store scoping) → service (business rules,
    `db.transaction`) → controller (validate, authorize, call service,
-   respond). Services/repositories are resolved via `@inject`; if the
-   service is registered in `providers/di_provider.ts`, update it there too.
+   respond). Services/repositories are resolved by the container through
+   `@inject` (no manual registration).
 4. Route under `start/routes/` inside the right group (public, auth, or
    `/stores/:storeId` with `storeAccess`).
 5. Functional test in `apps/api/tests/functional` covering the happy path
@@ -128,6 +128,4 @@ decision that is hard to reverse, update this file and add an ADR in
 
 ## Known debt (don't copy these patterns)
 
-- `apps/web/lib/api.ts` (axios `request()`) is still used by the session
-  provider; new code uses RTK Query.
 - See `docs/development/roadmap.md` for the full list.
