@@ -1,72 +1,53 @@
 "use client";
 
 import * as React from "react";
+import { useParams } from "next/navigation";
+import { useLocalStorage } from "usehooks-ts";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarSeparator,
+  SidebarRail,
 } from "@/components/ui/sidebar";
-import { NavMain } from "./nav-main";
-import { useSession } from "@/contexts/session-provider";
-import { cn } from "@/lib/utils";
-import { Icons } from "@/components/app/icons";
-import { getManageMenuItems } from "@/lib/menu-itens";
-import { useStoreRole } from "@/hooks/use-store-role";
-import { env } from "@/lib/env";
-import { useParams } from "next/navigation";
-import { NavUser } from "./nav-user";
 import { InstallAppCard } from "@/components/app/pwa/install-app";
+import { useSession } from "@/contexts/session-provider";
+import { useStoreRole } from "@/hooks/use-store-role";
+import { getManageMenuGroups } from "@/lib/menu-itens";
+import { env } from "@/lib/env";
+import { NavMain } from "./nav-main";
+import { NavUser } from "./nav-user";
+import { StoreSwitcher } from "./store-switcher";
 
-export default function AppSidebar({
-  ...props
-}: React.ComponentProps<typeof Sidebar>) {
+/**
+ * Store switcher on top, navigation grouped by area, account at the bottom.
+ * Outside a store (e.g. Configurações) it keeps the last visited store's menu.
+ */
+export default function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const { user } = useSession();
-  const { store } = useParams();
-  const storeId = typeof store === "string" ? store : "";
-
-  const role = useStoreRole(storeId);
-  const items = React.useMemo(
-    () => (storeId ? getManageMenuItems(storeId, role) : []),
-    [storeId, role]
+  const { store } = useParams<{ store?: string }>();
+  const [lastStoreId, setLastStoreId] = useLocalStorage<string | null>(
+    `${env.NEXT_PUBLIC_STORAGE_BASE_NAME}:lastStoreId`,
+    null,
+    { initializeWithValue: false }
   );
+
+  React.useEffect(() => {
+    if (store && store !== lastStoreId) setLastStoreId(store);
+  }, [store, lastStoreId, setLastStoreId]);
+
+  const storeId = store ?? lastStoreId ?? user?.stores[0]?.id ?? "";
+  const role = useStoreRole(storeId);
+  const groups = React.useMemo(() => (storeId ? getManageMenuGroups(storeId, role) : []), [storeId, role]);
 
   return (
     <Sidebar collapsible="icon" {...props}>
       <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              className={cn(
-                "group-data-[collapsible=icon]:p-0! cursor-default",
-                "hover:bg-sidebar hover:text-sidebar-foreground",
-                "active:bg-sidebar active:text-sidebar-foreground",
-                "data-[active=true]:bg-sidebar data-[active=true]:text-sidebar-foreground",
-                "data-[state=open]:hover:bg-sidebar data-[state=open]:hover:text-sidebar-foreground focus-visible:ring-0"
-              )}
-            >
-              <div className="flex size-8 aspect-square items-center justify-center rounded-lg">
-                <Icons.logo className="fill-primary p-1 size-full!" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">Cardápio</span>
-                <span className="truncate text-xs text-muted-foreground">
-                  v{env.NEXT_PUBLIC_BUILD_VERSION || "1.0"}
-                </span>
-              </div>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+        <StoreSwitcher />
       </SidebarHeader>
-      <SidebarSeparator className="-mt-px mx-0" />
       <SidebarContent className="overflow-x-hidden">
-        {!!items.length && <NavMain items={items} />}
+        <NavMain groups={groups} />
       </SidebarContent>
-      <SidebarSeparator className="mx-0 " />
       <SidebarFooter className="gap-2">
         <InstallAppCard
           context="staff"
@@ -76,6 +57,7 @@ export default function AppSidebar({
         />
         {user ? <NavUser /> : null}
       </SidebarFooter>
+      <SidebarRail />
     </Sidebar>
   );
 }

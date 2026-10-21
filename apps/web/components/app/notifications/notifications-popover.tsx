@@ -103,7 +103,7 @@ export function NotificationsPopover() {
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="relative text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
+                    className="relative rounded-full text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
                     aria-label={
                       unreadCount > 0
                         ? `Notificações (${unreadCount} não lidas)`
@@ -114,7 +114,7 @@ export function NotificationsPopover() {
               />
             }
           >
-            <Bell className="size-4.5 fill-primary-foreground" />
+            <Bell className="size-4.5" />
             <AnimatePresence>
               {unreadCount > 0 && (
                 <motion.span
@@ -125,7 +125,7 @@ export function NotificationsPopover() {
                   aria-hidden
                 >
                   <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary-foreground opacity-75" />
-                  <span className="relative inline-flex size-2.5 rounded-full bg-primary-foreground" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-primary-foreground ring-2 ring-primary" />
                 </motion.span>
               )}
             </AnimatePresence>

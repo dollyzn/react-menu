@@ -24,7 +24,7 @@ export function NavItems({ items }: NavItemsProps) {
         <SidebarMenuItem key={item.label}>
           <SidebarMenuButton
             tooltip={item.label}
-            isActive={item.url === pathname}
+            isActive={isActive(item, pathname)}
             onClick={() => isMobile && toggleSidebar()}
             render={<NavLinkWrapper to={item.url} />}
           >
@@ -35,4 +35,10 @@ export function NavItems({ items }: NavItemsProps) {
       ))}
     </SidebarMenu>
   );
+}
+
+/** Sub-pages keep their section highlighted, unless the item is `exact`. */
+function isActive(item: SidebarNavItem, pathname: string) {
+  if (!item.url) return false;
+  return item.exact ? pathname === item.url : pathname === item.url || pathname.startsWith(`${item.url}/`);
 }

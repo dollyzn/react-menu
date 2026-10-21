@@ -1,33 +1,25 @@
+import { Suspense } from "react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
-import { HeaderUser } from "./header-user";
-import { StoreSwitcher } from "./store-switcher";
 import { NotificationsPopover } from "@/components/app/notifications/notifications-popover";
-import { ThemeToggleButton } from "@/components/app/theme-toggle-button";
+import { AppBreadcrumbs } from "./app-breadcrumbs";
 
+/**
+ * Brand-colored bar: sidebar toggle, where you are and the notifications.
+ * Account and theme live in the sidebar.
+ */
 export default function AppHeader() {
   return (
-    <header className="sticky top-0 shadow-md group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 flex h-12 shrink-0 items-center gap-2 border-b transition-[width,height] ease-linear bg-primary z-10">
-      <div className="flex w-full items-center gap-1 px-4 lg:gap-2 lg:px-6">
-        <SidebarTrigger className="-ml-1 text-primary-foreground" />
-        <Separator
-          orientation="vertical"
-          className="mx-2 data-[orientation=vertical]:h-4 bg-primary-foreground/60 my-auto"
-        />
-        <div className="flex items-center gap-2 shrink-0 max-w-[min(200px,40vw)] sm:max-w-none">
-          <StoreSwitcher className="border-primary-foreground/30 bg-primary-foreground/10 text-primary-foreground w-full sm:w-[200px]" />
-        </div>
-
-        <div className="flex items-center justify-end ml-auto shrink-0 gap-2">
+    <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center bg-primary text-primary-foreground shadow-sm">
+      <div className="flex w-full min-w-0 items-center gap-2 px-4 lg:px-6">
+        <SidebarTrigger className="-ml-1 text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground" />
+        <Separator orientation="vertical" className="mr-1 bg-primary-foreground/40 data-[orientation=vertical]:h-4 data-[orientation=vertical]:self-center" />
+        {/* useSearchParams (orders history crumb) needs a Suspense boundary. */}
+        <Suspense>
+          <AppBreadcrumbs />
+        </Suspense>
+        <div className="ml-auto flex shrink-0 items-center gap-1">
           <NotificationsPopover />
-          <ThemeToggleButton variant="secondary" size="sm" className="rounded-full" />
-          <Separator
-            orientation="vertical"
-            className="data-[orientation=vertical]:h-4 bg-primary-foreground/60 my-auto"
-          />
-          <nav className="flex items-center gap-2">
-            <HeaderUser />
-          </nav>
         </div>
       </div>
     </header>

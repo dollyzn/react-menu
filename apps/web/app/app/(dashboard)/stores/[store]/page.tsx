@@ -24,12 +24,7 @@ import {
 } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbList,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
+import { PageHeader } from "@/components/app/layout/page-header";
 import {
   TooltipProvider,
   Tooltip,
@@ -64,15 +59,7 @@ export default function Store() {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
-      <div className="flex items-center justify-between space-y-2">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbPage>Loja</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
+      <PageHeader title="Loja" description="Informações, imagens, pagamentos e a ordem das categorias no cardápio." />
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card>

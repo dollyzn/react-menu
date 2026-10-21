@@ -12,6 +12,8 @@ const standalone =
     : {};
 
 const nextConfig: NextConfig = {
+  // Bottom-left is where the sidebar keeps the account menu.
+  devIndicators: { position: "bottom-right" },
   ...standalone,
   // E2E runs its own `next dev` in a separate build dir so it can coexist
   // with a developer's running dev server.

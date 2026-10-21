@@ -1,6 +1,8 @@
 "use client";
 
-import { LogOutIcon, MoreVerticalIcon } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ChevronsUpDown, ExternalLink, LogOutIcon, Palette, Settings } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -17,19 +19,22 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { ModeSwitcher } from "./mode-switcher";
+import { ThemeSegmented } from "@/components/app/theme/theme-segmented";
 import { InstallAppMenuGroup, useInstallFlow } from "@/components/app/pwa/install-app";
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import { redirectToLogout } from "@/utils/navigation";
 
+/** The only account menu: settings, public menu, theme, install, sign out. */
 export function NavUser() {
   const { isMobile } = useSidebar();
   const { user } = useSession();
+  const { store: storeId } = useParams<{ store?: string }>();
   const install = useInstallFlow("staff");
   const router = useRouter();
 
   if (!user) return null;
+  const currentStore = user.stores.find((store) => store.id === storeId);
 
   async function handleLogout() {
     redirectToLogout(router);
@@ -43,15 +48,16 @@ export function NavUser() {
             render={
               <SidebarMenuButton
                 size="lg"
+                aria-label="Menu do usuário"
                 className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
               />
             }
           >
             <UserInfo user={user} />
-            <MoreVerticalIcon className="ml-auto size-4" />
+            <ChevronsUpDown className="ml-auto size-4 text-muted-foreground" />
           </DropdownMenuTrigger>
           <DropdownMenuContent
-            className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+            className="w-64 rounded-xl"
             side={isMobile ? "bottom" : "right"}
             align="end"
             sideOffset={4}
@@ -67,8 +73,26 @@ export function NavUser() {
             <DropdownMenuSeparator />
 
             <DropdownMenuGroup>
-              <ModeSwitcher />
+              <DropdownMenuItem render={<Link href="/app/settings" />}>
+                <Settings className="text-muted-foreground" /> Configurações
+              </DropdownMenuItem>
+              {currentStore && (
+                <DropdownMenuItem render={<a href={`/${currentStore.slug}`} target="_blank" rel="noreferrer" />}>
+                  <ExternalLink className="text-muted-foreground" /> Ver cardápio da loja
+                </DropdownMenuItem>
+              )}
             </DropdownMenuGroup>
+
+            <DropdownMenuSeparator />
+
+            {/* Not a menu item: picking a theme keeps the menu open. */}
+            {/* Same spacing as DropdownMenuItem (px-1.5, gap-1.5). */}
+            <div className="flex items-center justify-between gap-1.5 px-1.5 py-0.5 text-sm">
+              <span className="flex items-center gap-1.5">
+                <Palette className="size-4 text-muted-foreground" /> Tema
+              </span>
+              <ThemeSegmented />
+            </div>
 
             <DropdownMenuSeparator />
 
@@ -76,8 +100,7 @@ export function NavUser() {
 
             <DropdownMenuGroup>
               <DropdownMenuItem onClick={handleLogout}>
-                <LogOutIcon className="mr-1 h-4 w-4" />
-                Sair
+                <LogOutIcon className="text-muted-foreground" /> Sair
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>

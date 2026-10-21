@@ -1,22 +1,26 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { useGetAddonsByStoreIdQuery } from "@/redux/features/addon/addonApi";
+import { useGetCategoriesByStoreIdQuery } from "@/redux/features/category/categoryApi";
 import { useTableQuery } from "@/hooks/use-table-query";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 
 import { DataTable } from "@/components/data-table";
-import { columns, columnsConfig, renderAddonCard } from "./components/columns";
-import { CreateAddonDialog } from "./components/create-addon-dialog";
+import { columns, columnsConfig, renderCategoryCard } from "./components/columns";
+import { CreateCategoryDialog } from "./components/create-category-dialog";
 import { ManagementPageShell } from "../components/management-page-shell";
 
-export default function Addons() {
+export default function Categories() {
   const { store } = useParams();
   const storeId = store as string;
 
-  const table = useTableQuery<Addon, PaginatedList<Addon>, StoreScopedListArg>(
-    useGetAddonsByStoreIdQuery,
+  const table = useTableQuery<
+    Category,
+    PaginatedList<Category>,
+    StoreScopedListArg
+  >(
+    useGetCategoriesByStoreIdQuery,
     ({ filterParam, sortingParam, paginationParam }) => {
       return {
         storeId,
@@ -33,24 +37,26 @@ export default function Addons() {
   return (
     <ManagementPageShell
       storeId={storeId}
-      pageLabel="Adicionais"
-      action={<CreateAddonDialog storeId={storeId} />}
+      description="Como o cardápio é dividido. Arraste na página da loja para reordenar."
+      pageLabel="Categorias"
+      action={<CreateCategoryDialog storeId={storeId} />}
     >
-      <DataTable
-        tableId={`addons-${storeId}`}
+      <DataTable<Category, unknown>
+        tableId={`categories-${storeId}`}
         loading={table.loading}
         data={table.data}
         rowCount={table.rowCount}
         columns={columns}
         columnsConfig={columnsConfig}
         className="bg-card"
+        getRowId={(row) => `${row.id}`}
         externalPagination={table.pagination}
         onExternalPaginationChange={table.setPagination}
         externalSorting={table.sorting}
         onExternalSortingChange={table.setSorting}
         externalColumnFilters={table.filters}
         onExternalColumnFiltersChange={table.setFilters}
-        renderCard={renderAddonCard}
+        renderCard={renderCategoryCard}
         defaultCardsOnMobile
       />
     </ManagementPageShell>

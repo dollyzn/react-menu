@@ -118,8 +118,7 @@ export function InstallAppMenuGroup({ onInstall }: { onInstall: () => void }) {
     <>
       <DropdownMenuGroup>
         <DropdownMenuItem onClick={onInstall}>
-          <Download className="mr-1 h-4 w-4" />
-          Instalar app
+          <Download className="text-muted-foreground" /> Instalar app
         </DropdownMenuItem>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />

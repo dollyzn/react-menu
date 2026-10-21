@@ -68,6 +68,7 @@ export default function Items() {
   return (
     <ManagementPageShell
       storeId={storeId}
+      description="Os itens do cardápio, com preço, categoria e adicionais."
       pageLabel="Itens"
       action={<CreateItemDialog />}
     >

@@ -46,7 +46,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
 
-import MultiCombobox from "../../../../../../components/app/multi-combobox";
+import MultiCombobox from "@/components/app/multi-combobox";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
 import { z } from "zod";

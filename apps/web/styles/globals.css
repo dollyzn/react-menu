@@ -195,6 +195,14 @@
   }
 }
 
+/* Theme transition (hooks/use-theme-transition.ts): only the circular reveal,
+   no default cross-fade underneath. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 @layer utilities {
   input::-ms-reveal,
   input::-ms-clear {

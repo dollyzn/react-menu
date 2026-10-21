@@ -6,13 +6,14 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 
 | Concern | Location |
 | --- | --- |
-| Admin routes | `app/app/stores/[store]/<domain>/` (page + `components/`) |
+| Admin routes | `app/app/(dashboard)/stores/[store]/<domain>/` (page + `components/`); `(dashboard)/layout.tsx` holds the shell; `(dashboard)/settings` |
+| Panel shell | `components/app/layout/`: `app-sidebar` (store switcher, groups from `lib/menu-itens.ts`, account menu), `app-header` (breadcrumbs from the route, notifications), `page-header` |
 | Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` |
 | Auth pages | `app/app/(auth)/` |
 | Customer menu (SSR) | `app/(menu)/` (`/`, `/[slug]`, `/pedidos`, `/pedido/[token]`), shared parts in `_components/`, helpers in `_lib/` |
 | Customer history and device link | `_lib/customer-orders.ts`, `_components/order-history.tsx`, `customer.tokens` (ADR 0014) |
 | Bag and customer identity | `redux/slices/cart.ts`, `redux/slices/customer.ts` (persisted) |
-| Sidebar by role | `lib/menu-itens.ts` (`getManageMenuItems`, `homeForRole`) |
+| Sidebar by role | `lib/menu-itens.ts` (`getManageMenuGroups`, `homeForRole`); new store sections also need a label in `app-breadcrumbs.tsx` |
 | Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
 | Server state | RTK Query: `redux/api/baseApi.ts`, `redux/features/<domain>/<domain>Api.ts` |
 | Session / push | `contexts/session-provider.tsx`, `contexts/notification-provider.tsx` |
@@ -59,6 +60,10 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 - Forms: react-hook-form + zod + `Field*` components (see
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.
+- Theme changes go through `useThemeTransition` (circular reveal from the
+  click); `ThemeSegmented` is the compact switch.
+- Breadcrumb links: `BreadcrumbLink render={<Link href=… />}` (a plain href
+  reloads the whole app).
 - Navigation is a `<Link>` styled with `buttonVariants`, not `Button`
   `render={<Link/>}` (Base UI gives it role="button").
 - Ingredient emoji use the `font-emoji` class (Noto Color Emoji), so they

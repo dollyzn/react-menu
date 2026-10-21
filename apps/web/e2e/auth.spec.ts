@@ -25,7 +25,7 @@ test.describe("Authentication and session", () => {
     await page.goto(`/app/stores/${store.id}`);
 
     await page.reload();
-    await expect(page.getByRole("combobox", { name: "Selecionar loja" })).toContainText("Session");
+    await expect(page.getByRole("button", { name: "Selecionar loja" })).toContainText("Session");
 
     await page.getByRole("button", { name: "Menu do usuário" }).click();
     await page.getByRole("menuitem", { name: "Sair" }).click();
