@@ -45,7 +45,12 @@ export default class OrdersController {
 
     const order = await this.orders.create(
       storeId,
-      { ...input, channel: OrderChannel.POS, paymentMethod: PaymentMethod.COUNTER },
+      {
+        ...input,
+        channel: OrderChannel.POS,
+        paymentMethod: PaymentMethod.COUNTER,
+        idempotencyKey: request.header('idempotency-key'),
+      },
       auth.getUserOrFail()
     )
 

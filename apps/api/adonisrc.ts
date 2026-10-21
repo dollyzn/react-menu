@@ -100,5 +100,10 @@ export default defineConfig({
       pattern: 'public/**',
       reloadServer: false,
     },
+    {
+      // Demo seed data (menu JSON, store images).
+      pattern: 'database/data/**',
+      reloadServer: false,
+    },
   ],
 })

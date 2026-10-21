@@ -1,4 +1,5 @@
 import { baseApi } from "@/redux/api/baseApi";
+import { IDEMPOTENCY_HEADER } from "@/lib/idempotency";
 import type {
   CreatePublicOrderInput,
   PublicMenu,
@@ -14,11 +15,16 @@ export const publicApi = baseApi.injectEndpoints({
         `${slug ? `public/menu/${slug}` : "public/menu"}${preview ? "?preview=1" : ""}`,
     }),
 
-    placeOrder: build.mutation<PublicOrder, { slug: string; input: CreatePublicOrderInput }>({
-      query: ({ slug, input }) => ({
+    /** `idempotencyKey`: keep it across taps/reloads so a lost response never duplicates the order. */
+    placeOrder: build.mutation<
+      PublicOrder,
+      { slug: string; input: CreatePublicOrderInput; idempotencyKey: string }
+    >({
+      query: ({ slug, input, idempotencyKey }) => ({
         url: `public/menu/${slug}/orders`,
         method: "POST",
         body: input,
+        headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
       }),
     }),
 

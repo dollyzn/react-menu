@@ -36,6 +36,8 @@ export type CreateOrderInput = {
   paymentMethod: PaymentMethod
   lines: OrderLineInput[]
   notes?: string | null
+  /** From the Idempotency-Key header: a retry returns the same order. */
+  idempotencyKey?: string | null
 }
 
 @inject()
@@ -50,12 +52,21 @@ export default class OrderService {
    * add-on validity always come from the current menu, never from the client.
    */
   async create(storeId: string, input: CreateOrderInput, actor?: User) {
-    const order = await db.transaction(async (trx) => {
-      // Locks the store row: serializes daily numbering for concurrent orders.
+    const key = input.idempotencyKey || null
+    const result = await db.transaction(async (trx) => {
+      // Locks the store row: serializes daily numbering for concurrent orders,
+      // and makes the idempotency check below race-free.
       const store = await Store.query({ client: trx })
         .where('id', storeId)
         .forUpdate()
         .firstOrFail()
+
+      if (key) {
+        const existing = await Order.query({ client: trx })
+          .where({ storeId, idempotencyKey: key })
+          .first()
+        if (existing) return { order: existing, replayed: true }
+      }
       this.assertCanOrder(store, input)
 
       const priced = await this.priceLines(store, input.lines, trx)
@@ -103,6 +114,7 @@ export default class OrderService {
           total: subtotal,
           notes: input.notes || null,
           createdById: actor?.id ?? null,
+          idempotencyKey: key,
         },
         { client: trx }
       )
@@ -139,14 +151,17 @@ export default class OrderService {
       if (input.paymentMethod !== PaymentMethod.MERCADO_PAGO) {
         await this.enterKitchen(created, trx, actor)
       }
-      return created
+      return { order: created, replayed: false }
     })
 
-    await this.afterChange(order, {
-      type: 'order.created',
-      notifyStaff: order.status !== OrderStatus.PENDING_PAYMENT,
-    })
-    return await this.find(storeId, order.id)
+    // A retry of an order that already exists: no new events or notifications.
+    if (!result.replayed) {
+      await this.afterChange(result.order, {
+        type: 'order.created',
+        notifyStaff: result.order.status !== OrderStatus.PENDING_PAYMENT,
+      })
+    }
+    return await this.find(storeId, result.order.id)
   }
 
   /** Idempotent: webhooks may deliver the same payment more than once. */
@@ -219,6 +234,8 @@ export default class OrderService {
   /** Handed over at the counter. Counter payments are settled here. */
   async complete(storeId: string, orderId: string, actor?: User) {
     const order = await this.find(storeId, orderId)
+    // Idempotent: a retried "Entregar" after a lost response is a success.
+    if (order.status === OrderStatus.COMPLETED) return order
     await db.transaction(async (trx) => {
       await this.transition(order, OrderStatus.COMPLETED, trx, actor)
       if (order.paymentMethod === PaymentMethod.COUNTER) {
@@ -232,6 +249,8 @@ export default class OrderService {
 
   async cancel(storeId: string, orderId: string, actor?: User) {
     const order = await this.find(storeId, orderId)
+    // Idempotent: cancelling twice must not reverse the stock twice.
+    if (order.status === OrderStatus.CANCELLED) return order
     await db.transaction(async (trx) => {
       await this.transition(order, OrderStatus.CANCELLED, trx, actor)
       await this.inventory.reverseForOrder(order, trx)

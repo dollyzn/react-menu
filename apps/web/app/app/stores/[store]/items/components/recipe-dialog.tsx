@@ -22,6 +22,7 @@ import {
   useGetItemRecipeQuery,
   useUpdateItemRecipeMutation,
 } from "@/redux/features/inventory/inventoryApi";
+import { randomId } from "@/lib/idempotency";
 
 type Line = { key: string; ingredientId: number | ""; quantity: string };
 
@@ -136,7 +137,7 @@ function RecipeForm({ item, onDone }: { item: Item; onDone: () => void }) {
         type="button"
         variant="outline"
         size="sm"
-        onClick={() => setLines([...current, { key: crypto.randomUUID(), ingredientId: "", quantity: "" }])}
+        onClick={() => setLines([...current, { key: randomId(), ingredientId: "", quantity: "" }])}
       >
         <Plus /> Adicionar ingrediente
       </Button>

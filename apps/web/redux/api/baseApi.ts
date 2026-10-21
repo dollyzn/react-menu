@@ -9,6 +9,7 @@ import { setIsSessionExpired } from "@/redux/slices/auth";
 import { toast } from "sonner";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { env } from "@/lib/env";
+import { IDEMPOTENCY_HEADER, randomId } from "@/lib/idempotency";
 
 const errorMessages: Record<string | number, string> = {
   401: "Sua sessão expirou",
@@ -16,6 +17,8 @@ const errorMessages: Record<string | number, string> = {
   404: "Recurso não encontrado",
   500: "Ocorreu um erro interno no servidor",
   ECONNABORTED: "A requisição demorou demais a responder",
+  FETCH_ERROR: "Sem conexão com o servidor. Verifique a internet e tente de novo.",
+  TIMEOUT_ERROR: "A conexão está lenta e o servidor não respondeu. Tente de novo.",
   ERR_NETWORK:
     "Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.",
   ERR_CANCELED: "",
@@ -70,12 +73,73 @@ const rawBaseQuery = fetchBaseQuery({
   timeout: env.NEXT_PUBLIC_API_TIMEOUT,
 });
 
+const RETRY_DELAYS_MS = [500, 1000, 2000, 4000, 8000];
+
+/** Network failures and "try again" answers; never validation or auth errors. */
+function isTransient(error: FetchBaseQueryError) {
+  if (error.status === "FETCH_ERROR" || error.status === "TIMEOUT_ERROR") return true;
+  if (error.status === 502 || error.status === 503 || error.status === 504) return true;
+  const code = (error.data as { code?: string } | undefined)?.code;
+  return error.status === 409 && code === "E_IDEMPOTENCY_IN_PROGRESS";
+}
+
+/** Waits for the delay, or longer while the device is offline (max 30s). */
+function waitToRetry(delay: number, signal: AbortSignal) {
+  return new Promise<void>((resolve) => {
+    const jitter = delay * (0.75 + Math.random() * 0.5);
+    let offlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const done = () => {
+      clearTimeout(timer);
+      clearTimeout(offlineTimer);
+      window.removeEventListener("online", done);
+      resolve();
+    };
+    const timer = setTimeout(() => {
+      if (navigator.onLine) return done();
+      window.addEventListener("online", done, { once: true });
+      offlineTimer = setTimeout(done, 30_000);
+    }, jitter);
+    signal.addEventListener("abort", done, { once: true });
+  });
+}
+
+/**
+ * Every write carries an Idempotency-Key (fresh per call unless the endpoint
+ * passes a stable one) and is retried with the same key on transient
+ * failures, so a lost response never runs an operation twice. Reads are
+ * retried too. Errors are shown only after the last attempt.
+ */
+async function withRetries(
+  args: string | FetchArgs,
+  api: Parameters<typeof rawBaseQuery>[1],
+  extraOptions: Parameters<typeof rawBaseQuery>[2]
+) {
+  const request: FetchArgs = typeof args === "string" ? { url: args } : { ...args };
+  const method = (request.method ?? "GET").toUpperCase();
+  const isWrite = method !== "GET" && method !== "HEAD";
+
+  if (isWrite) {
+    const headers = new Headers(request.headers as HeadersInit | undefined);
+    if (!headers.has(IDEMPOTENCY_HEADER)) headers.set(IDEMPOTENCY_HEADER, randomId());
+    request.headers = headers;
+  }
+
+  const attempts = isWrite ? RETRY_DELAYS_MS.length : 2;
+  let result = await rawBaseQuery(request, api, extraOptions);
+  for (let attempt = 0; attempt < attempts && result.error && isTransient(result.error); attempt++) {
+    if (api.signal.aborted) break;
+    await waitToRetry(RETRY_DELAYS_MS[attempt], api.signal);
+    result = await rawBaseQuery(request, api, extraOptions);
+  }
+  return result;
+}
+
 const baseQueryWithHandling: BaseQueryFn<
   string | FetchArgs,
   unknown,
   FetchBaseQueryError
 > = async (args, api, extraOptions) => {
-  let result = await rawBaseQuery(args, api, extraOptions);
+  let result = await withRetries(args, api, extraOptions);
 
   if (result.data !== undefined) {
     result = {

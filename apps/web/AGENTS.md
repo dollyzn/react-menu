@@ -27,6 +27,13 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 - Server data goes through RTK Query with tags; mutations invalidate tags.
   Don't add new `request()` (axios) calls.
 - Only a 401 means the session ended; 429/5xx/offline are transient.
+- Mutations get an `Idempotency-Key` and automatic retries in `baseApi`.
+  Anything a user may resubmit after a dropped connection (checkout, POS)
+  passes a `stableIdempotencyKey(scope, payload)` and releases it on success
+  (`lib/idempotency.ts`). Use `randomId()`, not `crypto.randomUUID()` (it
+  fails on plain-http LAN testing).
+- Images from the API's `/uploads` skip the Next optimizer
+  (`lib/image-loader.ts`); stores without banner/logo show neutral placeholders.
 - Base UI: `render` prop for composition; dialogs opened from menu items are
   controlled with state (`open`/`onOpenChange`) instead of nesting triggers;
   confirm destructive actions with `AlertDialogDestructive`.

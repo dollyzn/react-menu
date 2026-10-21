@@ -26,3 +26,9 @@ export function getErrorMessage(error: unknown, defaultMessage?: string): string
     defaultMessage || "Ocorreu um erro inesperado. Por favor, tente novamente."
   );
 }
+
+/** The request never got an answer (offline, dropped or too slow). */
+export function isConnectionError(error: unknown) {
+  const status = (error as { status?: unknown } | null)?.status;
+  return status === "FETCH_ERROR" || status === "TIMEOUT_ERROR" || status === 502 || status === 503 || status === 504;
+}

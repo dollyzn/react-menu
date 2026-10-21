@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import OrderChannel from '#enums/order_channel'
 import PaymentMethod from '#enums/payment_method'
+import OrderStatus from '#enums/order_status'
 import PaymentService from '#services/payment_service'
 import { ok } from '#helpers/api_response'
 import { publicOrder } from '#orders/public_order'
@@ -28,10 +29,17 @@ export default class PublicMenuController {
     const store = await this.menus.findBySlug(params.slug)
     const input = await request.validateUsing(publicOrderValidator)
 
-    const order = await this.orders.create(store.id, { ...input, channel: OrderChannel.ONLINE })
+    const order = await this.orders.create(store.id, {
+      ...input,
+      channel: OrderChannel.ONLINE,
+      idempotencyKey: request.header('idempotency-key'),
+    })
+    // A retried request gets the same order: reuse its checkout, never pay twice.
     const checkoutUrl =
-      input.paymentMethod === PaymentMethod.MERCADO_PAGO
-        ? await this.payments.startCheckout(order, store)
+      input.paymentMethod === PaymentMethod.MERCADO_PAGO &&
+      order.status === OrderStatus.PENDING_PAYMENT
+        ? (this.payments.checkoutUrlFor(order, store) ??
+          (await this.payments.startCheckout(order, store)))
         : null
 
     return ok(publicOrder(order, store, checkoutUrl))

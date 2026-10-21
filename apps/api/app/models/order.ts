@@ -68,6 +68,10 @@ export default class Order extends BaseModel {
   @column()
   declare createdById: string | null
 
+  /** Key of the request that created it; never serialized. */
+  @column({ serializeAs: null })
+  declare idempotencyKey: string | null
+
   @column.dateTime({ serializeAs: null })
   declare stockConsumedAt: DateTime | null
 

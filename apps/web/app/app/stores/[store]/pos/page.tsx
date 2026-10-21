@@ -18,7 +18,8 @@ import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
 import { useCreatePosOrderMutation } from "@/redux/features/order/orderApi";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/string";
-import { getErrorMessage } from "@/utils/get-error-message";
+import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
+import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
 
 type TicketLine = CustomizedLine & { key: string };
@@ -83,7 +84,7 @@ export default function PosPage() {
         (l) => l.itemId === line.itemId && !l.notes && !line.notes && l.addons.length === 0 && line.addons.length === 0
       );
       if (same) return current.map((l) => (l === same ? { ...l, quantity: l.quantity + line.quantity } : l));
-      return [...current, { ...line, key: crypto.randomUUID() }];
+      return [...current, { ...line, key: randomId() }];
     });
   };
 
@@ -109,26 +110,35 @@ export default function PosPage() {
   };
 
   const send = async () => {
+    const input = {
+      customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
+      lines: lines.map((line) => ({
+        itemId: line.itemId,
+        quantity: line.quantity,
+        addonIds: line.addons.map((addon) => addon.id),
+        notes: line.notes || undefined,
+      })),
+    };
+    // Re-sending the same ticket after a dropped connection never creates a second order.
+    const keyScope = `pos:${storeId}`;
     try {
       const order = await createOrder({
         storeId,
-        input: {
-          customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
-          lines: lines.map((line) => ({
-            itemId: line.itemId,
-            quantity: line.quantity,
-            addonIds: line.addons.map((addon) => addon.id),
-            notes: line.notes || undefined,
-          })),
-        },
+        input,
+        idempotencyKey: stableIdempotencyKey(keyScope, input),
       }).unwrap();
+      releaseIdempotencyKey(keyScope);
       toast.success(`Pedido #${order.number} enviado para a cozinha`);
       setLines([]);
       setCustomerName("");
       setCustomerPhone("");
       setTicketOpen(false);
     } catch (error) {
-      toast.error(getErrorMessage(error as { data?: { error?: string } }, "Não foi possível criar o pedido."));
+      toast.error(
+        isConnectionError(error)
+          ? "Sem confirmação do servidor. Envie de novo: o pedido não será duplicado."
+          : getErrorMessage(error as { data?: { error?: string } }, "Não foi possível criar o pedido.")
+      );
     }
   };
 

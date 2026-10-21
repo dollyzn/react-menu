@@ -83,7 +83,13 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
    depends on the browser (theme, persisted session/bag, `window`) must not
    change the first client render: use `useHydrated()` / `useRehydrated()`
    and `ThemeToggleButton` (never `ThemeTogglerButton` directly).
-11. **No secrets in git.** `.env` files are ignored; add new variables to the
+11. **Writes are idempotent** (ADR 0013). The API replays responses for a
+   repeated `Idempotency-Key`; the web client sends one on every mutation and
+   retries transient failures with it. Operations that create something the
+   user may resubmit (orders) also persist the key, and repeating a state
+   change already applied answers success. New endpoints must stay safe to
+   repeat with the same key.
+12. **No secrets in git.** `.env` files are ignored; add new variables to the
    relevant `.env.example` and to `apps/api/start/env.ts` / `apps/web/lib/env.ts`.
 
 ## How to add a feature (API → web)

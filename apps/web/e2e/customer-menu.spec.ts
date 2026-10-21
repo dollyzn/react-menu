@@ -5,6 +5,11 @@ test.describe("Customer menu", () => {
   test("browse, customize a pastry, check out and track the order", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("heading", { name: "JJ Pastéis", level: 1 })).toBeVisible();
+    // Banner and logo come from the seed, stored on the API's Drive disk.
+    for (const image of await page.locator('section[aria-labelledby="store-name"] img').all()) {
+      await expect(image).toHaveAttribute("src", /\/uploads\/(banners|photos)\//);
+      await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0);
+    }
     await page.screenshot({ path: "test-results/menu-home.png", fullPage: false, caret: "initial" });
 
     await page.getByRole("searchbox", { name: "Buscar no cardápio" }).fill("carne com queijo");

@@ -1,4 +1,5 @@
 import { baseApi } from "@/redux/api/baseApi";
+import { IDEMPOTENCY_HEADER } from "@/lib/idempotency";
 import type {
   CreatePosOrderInput,
   Order,
@@ -22,8 +23,16 @@ export const orderApi = baseApi.injectEndpoints({
       providesTags: (_res, _err, { storeId }) => [ordersTag(storeId)],
     }),
 
-    createPosOrder: build.mutation<Order, { storeId: string; input: CreatePosOrderInput }>({
-      query: ({ storeId, input }) => ({ url: `stores/${storeId}/orders`, method: "POST", body: input }),
+    createPosOrder: build.mutation<
+      Order,
+      { storeId: string; input: CreatePosOrderInput; idempotencyKey: string }
+    >({
+      query: ({ storeId, input, idempotencyKey }) => ({
+        url: `stores/${storeId}/orders`,
+        method: "POST",
+        body: input,
+        headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
+      }),
       invalidatesTags: (_res, _err, { storeId }) => [ordersTag(storeId), kitchenTag(storeId)],
     }),
 

@@ -38,6 +38,8 @@ router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
   () => import('#middleware/initialize_bouncer_middleware'),
+  // Before named middleware (auth, throttle): a replayed retry costs nothing.
+  () => import('#middleware/idempotency_middleware'),
 ])
 
 /**

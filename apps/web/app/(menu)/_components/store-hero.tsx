@@ -6,21 +6,24 @@ import { Clock, MapPin, Star } from "lucide-react";
 import { Icons } from "@/components/app/icons";
 import type { PublicMenu } from "@react-menu/contracts";
 import { cn } from "@/lib/utils";
-import banner from "@/public/banner.jpg";
-import logo from "@/public/logo.png";
 
 export function StoreHero({ store }: { store: PublicMenu["store"] }) {
   return (
     <section className="-mx-4 sm:mx-0" aria-labelledby="store-name">
       <div className="relative h-44 overflow-hidden sm:mt-4 sm:h-56 sm:rounded-2xl">
-        <Image
-          src={store.bannerUrl ?? banner}
-          alt=""
-          fill
-          priority
-          sizes="(max-width: 768px) 100vw, 768px"
-          className="object-cover"
-        />
+        {store.bannerUrl ? (
+          <Image
+            src={store.bannerUrl}
+            alt=""
+            fill
+            priority
+            sizes="(max-width: 768px) 100vw, 768px"
+            className="object-cover"
+          />
+        ) : (
+          // No banner yet: a brand-colored backdrop instead of another store's photo.
+          <div className="absolute inset-0 bg-linear-to-br from-primary/40 via-primary/15 to-muted" />
+        )}
         <div className="absolute inset-0 bg-linear-to-t from-background via-background/20 to-transparent" />
       </div>
 
@@ -32,13 +35,19 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
       >
         <div className="flex items-start gap-4">
           <div className="relative size-16 shrink-0 overflow-hidden rounded-xl border bg-background">
-            <Image
-              src={store.photoUrl ?? logo}
-              alt={`Logo ${store.name}`}
-              fill
-              sizes="64px"
-              className="object-contain p-1"
-            />
+            {store.photoUrl ? (
+              <Image
+                src={store.photoUrl}
+                alt={`Logo ${store.name}`}
+                fill
+                sizes="64px"
+                className="object-contain p-1"
+              />
+            ) : (
+              <span className="flex size-full items-center justify-center bg-primary/10 text-xl font-black text-primary">
+                {store.name.slice(0, 2).toUpperCase()}
+              </span>
+            )}
           </div>
           <div className="min-w-0 flex-1 space-y-1.5">
             <h1 id="store-name" className="text-xl leading-tight font-bold text-balance">

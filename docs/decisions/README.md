@@ -18,6 +18,7 @@ an accepted ADR, supersede it with a new one.
 | [0010](0010-store-roles.md) | Roles inside a store | Accepted |
 | [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Accepted |
 | [0012](0012-two-installable-apps.md) | Two installable apps: customer menu and staff panel | Accepted |
+| [0013](0013-idempotent-writes.md) | Idempotent writes for unstable networks | Accepted |
 
 ## Template
 

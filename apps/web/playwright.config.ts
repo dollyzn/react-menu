@@ -39,6 +39,8 @@ export default defineConfig({
       timeout: 120_000,
       env: {
         PORT: String(API_PORT),
+        // Upload URLs (seeded banner/logo) must point at this API.
+        APP_URL: API_URL,
         DB_DATABASE: "jjpasteis-menu-e2e",
         LIMITER_STORE: "memory",
         // Every e2e request comes from localhost.

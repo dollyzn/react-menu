@@ -13,7 +13,8 @@ const corsConfig = defineConfig({
   origin: app.inProduction ? env.get('FRONTEND_URL') : '*',
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'],
   headers: true,
-  exposeHeaders: [],
+  // Lets clients tell a replayed idempotent response apart.
+  exposeHeaders: ['idempotent-replayed', 'retry-after'],
   credentials: true,
   maxAge: 90,
 })

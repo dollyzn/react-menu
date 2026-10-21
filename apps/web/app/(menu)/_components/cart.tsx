@@ -28,6 +28,8 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { clearCart, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
 import { addRecentOrder, rememberCustomer } from "@/redux/slices/customer";
 import { usePlaceOrderMutation } from "@/redux/features/public/publicApi";
+import { isConnectionError } from "@/utils/get-error-message";
+import { releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { useRehydrated } from "@/hooks/use-rehydrated";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
@@ -251,21 +253,27 @@ function CheckoutStep({
 
   const submit = async (values: CheckoutValues) => {
     setError(null);
+    const input = {
+      customer: { name: values.name, phone: values.phone },
+      paymentMethod: values.paymentMethod,
+      notes: values.notes || undefined,
+      lines: lines.map((line) => ({
+        itemId: line.itemId,
+        quantity: line.quantity,
+        addonIds: line.addons.map((addon) => addon.id),
+        notes: line.notes || undefined,
+      })),
+    };
+    // Same order, same key: tapping again after a dropped connection (or
+    // reopening the app) returns the order that may already exist.
+    const keyScope = `checkout:${store.slug}`;
     try {
       const order = await placeOrder({
         slug: store.slug,
-        input: {
-          customer: { name: values.name, phone: values.phone },
-          paymentMethod: values.paymentMethod,
-          notes: values.notes || undefined,
-          lines: lines.map((line) => ({
-            itemId: line.itemId,
-            quantity: line.quantity,
-            addonIds: line.addons.map((addon) => addon.id),
-            notes: line.notes || undefined,
-          })),
-        },
+        input,
+        idempotencyKey: stableIdempotencyKey(keyScope, input),
       }).unwrap();
+      releaseIdempotencyKey(keyScope);
 
       dispatch(rememberCustomer({ name: values.name, phone: values.phone }));
       dispatch(
@@ -284,7 +292,11 @@ function CheckoutStep({
       if (order.checkoutUrl) window.location.assign(order.checkoutUrl);
       else router.push(`/pedido/${order.publicToken}`);
     } catch (err) {
-      setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível enviar o pedido."));
+      setError(
+        isConnectionError(err)
+          ? "A conexão caiu antes da confirmação. Toque em enviar de novo: se o pedido já chegou, ele não será duplicado."
+          : getErrorMessage(err as { data?: { error?: string } }, "Não foi possível enviar o pedido.")
+      );
       // Prices or availability may have changed: refresh the menu behind the modal.
       router.refresh();
     }

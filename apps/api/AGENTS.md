@@ -22,7 +22,8 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Inventory (stock, recipes, consumption) | `app/services/inventory_service.ts` |
 | Payments (Mercado Pago) | `app/payments/mercado_pago_client.ts`, `app/services/payment_service.ts` |
 | Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
-| Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff) |
+| Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner/logo go to the Drive disk) |
+| Idempotency (`Idempotency-Key`) | `app/middleware/idempotency_middleware.ts`, `orders.idempotency_key` (ADR 0013) |
 | Env schema | `start/env.ts` (+ `.env.example`) |
 
 Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in

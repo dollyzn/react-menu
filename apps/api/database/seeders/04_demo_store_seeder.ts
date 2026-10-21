@@ -1,7 +1,9 @@
 import { readFile } from 'node:fs/promises'
+import { extname } from 'node:path'
 import app from '@adonisjs/core/services/app'
 import { BaseSeeder } from '@adonisjs/lucid/seeders'
 import db from '@adonisjs/lucid/services/db'
+import drive from '@adonisjs/drive/services/main'
 import env from '#start/env'
 import StoreStatus from '#enums/store_status'
 import Addon from '#models/addon'
@@ -26,23 +28,46 @@ const SAVORY_CATEGORIES = [
   'Pastéis Premium',
 ]
 
+/** Store images, stored through Drive like an upload from the panel. */
+const IMAGES = [
+  { field: 'bannerUrl', file: 'jj-banner.jpg', folder: 'banners' },
+  { field: 'photoUrl', file: 'jj-logo.png', folder: 'photos' },
+] as const
+
 /**
  * Demo data for local development: the JJ Pastéis menu as the default store,
- * linked to the bootstrap admin. Never runs in production; skipped if the
- * store already exists.
+ * linked to the bootstrap admin. Never runs in production. Safe to run again:
+ * the menu is created once, and images are added only where missing.
  */
 export default class DemoStoreSeeder extends BaseSeeder {
   static environment = ['development', 'test']
 
   async run() {
-    if (await Store.findBy('slug', 'jj-pasteis')) return
+    const store = (await Store.findBy('slug', 'jj-pasteis')) ?? (await this.createStore())
+    await this.addImages(store)
+  }
 
+  /** Never overwrites an image uploaded from the panel. */
+  private async addImages(store: Store) {
+    const disk = drive.use()
+    for (const image of IMAGES) {
+      if (store[image.field]) continue
+      const key = `${image.folder}/${store.id}_seed${extname(image.file)}`
+      await disk.put(key, await readFile(app.makePath('database/data', image.file)))
+      // Same URL the fs disk serves (routeBasePath /uploads); getUrl() needs
+      // the HTTP routes, which ace commands don't register.
+      store[image.field] = `${env.get('APP_URL').replace(/\/$/, '')}/uploads/${key}`
+    }
+    await store.save()
+  }
+
+  private async createStore(): Promise<Store> {
     const menu: MenuJson = JSON.parse(
       await readFile(app.makePath('database/data/jj_pasteis_menu.json'), 'utf-8')
     )
     const admin = await User.findByOrFail('email', env.get('ADMIN_USER'))
 
-    await db.transaction(async (trx) => {
+    return await db.transaction(async (trx) => {
       const store = await Store.create(
         {
           name: 'JJ Pastéis',
@@ -98,6 +123,7 @@ export default class DemoStoreSeeder extends BaseSeeder {
           }
         }
       }
+      return store
     })
   }
 }
