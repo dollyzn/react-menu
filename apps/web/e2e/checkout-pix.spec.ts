@@ -19,7 +19,8 @@ test("Pix checkout: QR code on the order page, approval sends it to the kitchen"
   await expect(page.getByRole("radio", { name: /^Pix/ })).toBeChecked();
   await page.getByRole("button", { name: /Fazer pedido/ }).click();
 
-  await expect(page).toHaveURL(/\/pedido\//);
+  // First visit to /pedido/[token] in the run: the dev server compiles it.
+  await expect(page).toHaveURL(/\/pedido\//, { timeout: 30_000 });
   await expect(page.getByRole("heading", { name: "Falta pagar" })).toBeVisible();
   const payment = page.getByRole("region", { name: "Pagamento" });
   await payment.getByLabel("Seu e-mail").fill("pix@example.com");

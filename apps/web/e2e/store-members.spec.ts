@@ -1,8 +1,12 @@
 import { test, expect, login } from "./fixtures";
+import { API_URL } from "../playwright.config";
 
 test("team: invite someone, change their role, remove them", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
+  // The demo store (other tests create stores; login may land on one).
+  const menu = await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json();
   await login(page);
+  await page.goto(`/app/stores/${menu.data.store.id}`);
   await page.getByRole("link", { name: "Equipe" }).click();
   await expect(page.getByRole("heading", { name: "Equipe" })).toBeVisible();
 
