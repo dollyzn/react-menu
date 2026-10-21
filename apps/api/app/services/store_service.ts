@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import drive from '@adonisjs/drive/services/main'
-import { cuid } from '@adonisjs/core/helpers'
+import { randomUUID } from 'node:crypto'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import Store from '#models/store'
 import type StoreStatus from '#enums/store_status'
@@ -93,7 +93,7 @@ export default class StoreService {
         if (fileName) await disk.delete(key)
       }
 
-      const key = `banners/${store.id}_${cuid()}.${images.banner.extname}`
+      const key = `banners/${store.id}_${randomUUID()}.${images.banner.extname}`
       await images.banner.moveToDisk(key)
       store.merge({ bannerUrl: await disk.getUrl(key) })
     }
@@ -105,7 +105,7 @@ export default class StoreService {
         if (fileName) await disk.delete(key)
       }
 
-      const key = `photos/${store.id}_${cuid()}.${images.photo.extname}`
+      const key = `photos/${store.id}_${randomUUID()}.${images.photo.extname}`
       await images.photo.moveToDisk(key)
       store.merge({ photoUrl: await disk.getUrl(key) })
     }

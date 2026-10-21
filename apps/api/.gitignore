@@ -2,6 +2,7 @@
 node_modules
 build
 tmp
+.adonisjs
 package-lock.json
 
 # Secrets

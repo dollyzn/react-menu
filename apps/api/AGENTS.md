@@ -1,4 +1,4 @@
-# apps/api (AdonisJS 6)
+# apps/api (AdonisJS 7)
 
 Read the root `AGENTS.md` first. This file only covers the API.
 
@@ -54,5 +54,7 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 Japa functional tests in `tests/functional`, using `.env.test`
 (database `jjpasteis-menu-test`) and `testUtils.db().withGlobalTransaction()`.
 Fixtures in `tests/helpers/fixtures.ts`; authenticate with `.loginAs(user)`.
+Transmit only subscribes a `uid` with an open event stream: use
+`openStream(cleanup)` from `tests/helpers/transmit.ts` in subscribe tests.
 Every protected endpoint needs a test proving another store's member gets
 403/404.

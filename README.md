@@ -13,7 +13,7 @@ kitchen display that batches identical pastries and shows the ingredients.
 - **Management**: categories/items/add-ons with drag-and-drop ordering,
   inventory with recipes and automatic stock consumption, store settings
 
-- **API**: AdonisJS 6, PostgreSQL, Redis, VineJS, Bouncer, Transmit (SSE)
+- **API**: AdonisJS 7, PostgreSQL, Redis, VineJS, Bouncer, Transmit (SSE)
 - **Web**: Next.js 16, React 19, RTK Query, shadcn/ui on Base UI, Tailwind 4
 - **Monorepo**: pnpm workspaces (`apps/api`, `apps/web`, `packages/contracts`)
 

@@ -13,11 +13,11 @@ updates:
       minor-and-patch:
         update-types: [minor, patch]
     ignore:
-      # Adonis 7 packages (@adonisjs/redis 10+, ally 6+, ...) need
-      # @adonisjs/core 7; we are on 6. Upgrade them together, on purpose.
+      # Adonis majors move together with @adonisjs/core (one release line);
+      # upgrade them all at once, on purpose, following the upgrade guide.
       - dependency-name: '@adonisjs/*'
         update-types: [version-update:semver-major]
-      # TypeScript 7 is the native compiler; Adonis 6 tooling needs the 5.x API.
+      # TypeScript 7 is the native compiler; the Adonis assembler supports TS 5/6.
       - dependency-name: typescript
         update-types: [version-update:semver-major]
   - package-ecosystem: github-actions

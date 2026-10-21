@@ -7,6 +7,7 @@ import Notification from '#models/notification'
 import PushRegistration from '#models/push_registration'
 import NotificationService from '#services/notification_service'
 import { createStore, createUser } from '#tests/helpers/fixtures'
+import { openStream } from '#tests/helpers/transmit'
 
 async function announce(userIds: string[]) {
   const service = await app.container.make(NotificationService)
@@ -87,17 +88,20 @@ test.group('Notifications', (group) => {
     assert.lengthOf(await Notification.query().where('userId', outsider.id), 0)
   })
 
-  test('only the owner can subscribe to their notifications channel', async ({ client }) => {
+  test('only the owner can subscribe to their notifications channel', async ({
+    client,
+    cleanup,
+  }) => {
     const [owner, other] = [await createUser(), await createUser()]
     const channel = `users/${owner.id}/notifications`
 
     const allowed = await client
       .post('/__transmit/subscribe')
-      .json({ uid: randomUUID(), channel })
+      .json({ uid: openStream(cleanup), channel })
       .loginAs(owner)
     const denied = await client
       .post('/__transmit/subscribe')
-      .json({ uid: randomUUID(), channel })
+      .json({ uid: openStream(cleanup), channel })
       .loginAs(other)
 
     allowed.assertStatus(204)

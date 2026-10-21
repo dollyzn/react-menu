@@ -1,6 +1,6 @@
 import app from '@adonisjs/core/services/app'
 import { ExceptionHandler } from '@adonisjs/core/http'
-import { HttpContext } from '@adonisjs/core/http'
+import { type HttpContext } from '@adonisjs/core/http'
 import { errors as vineErrors } from '@vinejs/vine'
 import { errors as coreErrors } from '@adonisjs/core'
 import { errors as lucidErrors } from '@adonisjs/lucid'
@@ -110,19 +110,19 @@ export default class HttpExceptionHandler extends ExceptionHandler {
       })
     }
 
-    if (error instanceof coreErrors.E_INSECURE_APP_KEY) {
+    if (error instanceof coreErrors.E_INSECURE_ENCRYPTER_KEY) {
       return response.status(500).send({
         success: false,
         error: 'Chave de aplicação insegura. Verifique sua configuração.',
-        code: 'E_INSECURE_APP_KEY',
+        code: 'E_INSECURE_ENCRYPTER_KEY',
       })
     }
 
-    if (error instanceof coreErrors.E_MISSING_APP_KEY) {
+    if (error instanceof coreErrors.E_MISSING_ENCRYPTER_KEY) {
       return response.status(500).send({
         success: false,
         error: 'Chave de aplicação ausente. Configure a variável APP_KEY.',
-        code: 'E_MISSING_APP_KEY',
+        code: 'E_MISSING_ENCRYPTER_KEY',
       })
     }
 

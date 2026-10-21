@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
-import { cuid } from '@adonisjs/core/helpers'
+import { randomUUID } from 'node:crypto'
 import User from '#models/user'
 import { createStore, createUser, createUserWithPermissions } from '#tests/helpers/fixtures'
 
@@ -12,7 +12,7 @@ test.group('Store creation and deletion', (group) => {
 
     const response = await client
       .post('/api/v1/stores')
-      .json({ name: 'Nova', slug: `nova-${cuid()}` })
+      .json({ name: 'Nova', slug: `nova-${randomUUID()}` })
       .loginAs(user)
 
     response.assertStatus(403)
@@ -23,7 +23,7 @@ test.group('Store creation and deletion', (group) => {
 
     const response = await client
       .post('/api/v1/stores')
-      .json({ name: 'Nova', slug: `nova-${cuid()}` })
+      .json({ name: 'Nova', slug: `nova-${randomUUID()}` })
       .loginAs(user)
 
     response.assertStatus(200)
@@ -38,7 +38,7 @@ test.group('Store creation and deletion', (group) => {
 
     const response = await client
       .post('/api/v1/stores')
-      .json({ name: 'Nova padrão', slug: `nova-${cuid()}`, isDefault: true })
+      .json({ name: 'Nova padrão', slug: `nova-${randomUUID()}`, isDefault: true })
       .loginAs(user)
 
     response.assertStatus(200)
@@ -93,7 +93,7 @@ test.group('Auth', (group) => {
   test('public registration is disabled', async ({ client }) => {
     const response = await client
       .post('/api/v1/auth/register')
-      .json({ name: 'Someone', email: `${cuid()}@example.com`, password: 'secret123' })
+      .json({ name: 'Someone', email: `${randomUUID()}@example.com`, password: 'secret123' })
 
     response.assertStatus(404)
   })

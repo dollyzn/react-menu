@@ -17,7 +17,7 @@ display, which batches identical pastries from nearby orders.
 ## Layout
 
 ```
-apps/api            AdonisJS 6 REST API (Lucid/Postgres, Redis, VineJS, Bouncer, Transmit)
+apps/api            AdonisJS 7 REST API (Lucid/Postgres, Redis, VineJS, Bouncer, Transmit)
 apps/web            Next.js 16 App Router admin + public menu (RTK Query, shadcn/ui on Base UI)
 packages/contracts  Type-only API contracts shared by both apps
 docs/               architecture/, decisions/ (ADRs), development/

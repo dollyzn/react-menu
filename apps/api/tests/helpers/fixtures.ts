@@ -1,4 +1,4 @@
-import { cuid } from '@adonisjs/core/helpers'
+import { randomUUID } from 'node:crypto'
 import type StoreRole from '#enums/store_role'
 import Addon from '#models/addon'
 import Category from '#models/category'
@@ -11,14 +11,14 @@ import User from '#models/user'
 export async function createUser(overrides: Partial<User> = {}) {
   return await User.create({
     name: 'Test User',
-    email: `${cuid()}@example.com`,
+    email: `${randomUUID()}@example.com`,
     password: 'secret123',
     ...overrides,
   })
 }
 
 export async function createUserWithPermissions(permissions: string[]) {
-  const role = await Role.create({ name: `role-${cuid()}` })
+  const role = await Role.create({ name: `role-${randomUUID()}` })
   const records = await Permission.updateOrCreateMany(
     'name',
     permissions.map((name) => ({ name, label: name }))
@@ -29,7 +29,7 @@ export async function createUserWithPermissions(permissions: string[]) {
 }
 
 export async function createStore(members: User[] = []) {
-  const store = await Store.create({ name: 'Test Store', slug: `store-${cuid()}` })
+  const store = await Store.create({ name: 'Test Store', slug: `store-${randomUUID()}` })
   if (members.length) {
     await store.related('users').attach(members.map((m) => m.id))
   }

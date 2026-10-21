@@ -17,6 +17,11 @@ const dbConfig = defineConfig({
         naturalSort: true,
         paths: ['database/migrations'],
       },
+      /**
+       * Models declare their own columns; don't generate database/schema.ts
+       * on every migration run.
+       */
+      schemaGeneration: { enabled: false },
     },
   },
 })
