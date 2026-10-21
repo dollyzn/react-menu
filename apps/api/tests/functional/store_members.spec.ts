@@ -3,7 +3,9 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import mail from '@adonisjs/mail/services/main'
 import StoreRole from '#enums/store_role'
 import User from '#models/user'
+import Notification from '#models/notification'
 import StaffInviteNotification from '#mails/staff_invite_notification'
+import StoreAccessNotification from '#mails/store_access_notification'
 import { createStore, createUser, linkUser } from '#tests/helpers/fixtures'
 
 async function storeWithManager() {
@@ -72,6 +74,10 @@ test.group('Store members', (group) => {
 
     // Only the new person gets an invite; its link creates the password.
     fake.mails.assertQueuedCount(StaffInviteNotification, 1)
+    // The existing account is told in the panel and by e-mail.
+    fake.mails.assertQueuedCount(StoreAccessNotification, 1)
+    const added = await Notification.query().where('userId', existing.id).firstOrFail()
+    assert.equal(added.type, 'store.member_added')
     const [invite] = fake.mails.queued((sent) => sent instanceof StaffInviteNotification)
     const url = new URL((invite as unknown as { setPasswordUrl: string }).setPasswordUrl)
     assert.equal(url.searchParams.get('convite'), '1')
@@ -84,6 +90,67 @@ test.group('Store members', (group) => {
       .json({ email: 'novo.cozinheiro@example.com', password: 'senha-da-cozinha' })
     setPassword.assertStatus(200)
     login.assertStatus(200)
+  })
+
+  test('a pending invite can be resent until the person signs in', async ({ client, assert }) => {
+    const fake = mail.fake()
+    const { store, manager } = await storeWithManager()
+    const other = await storeWithManager()
+    await client
+      .post(`/api/v1/stores/${store.id}/members`)
+      .json({ email: 'pendente@example.com', role: 'attendant' })
+      .loginAs(manager)
+    const invited = await User.findByOrFail('email', 'pendente@example.com')
+
+    const list = await client.get(`/api/v1/stores/${store.id}/members`).loginAs(manager)
+    list.assertBodyContains({ data: [{ id: manager.id, invitePending: false }] })
+    const pending = list.body().data.find((member: { id: string }) => member.id === invited.id)
+    assert.isTrue(pending.invitePending)
+
+    const resent = await client
+      .post(`/api/v1/stores/${store.id}/members/${invited.id}/invite`)
+      .loginAs(manager)
+    const fromOtherStore = await client
+      .post(`/api/v1/stores/${store.id}/members/${invited.id}/invite`)
+      .loginAs(other.manager)
+    resent.assertStatus(200)
+    fromOtherStore.assertStatus(403)
+    fake.mails.assertQueuedCount(StaffInviteNotification, 2)
+
+    // Only the latest link works.
+    const [first, latest] = fake.mails
+      .queued((sent) => sent instanceof StaffInviteNotification)
+      .map((sent) => new URL((sent as unknown as { setPasswordUrl: string }).setPasswordUrl))
+    const old = await client
+      .post('/api/v1/auth/reset-password')
+      .json({ token: first.searchParams.get('token'), password: 'senha-nova-123' })
+    const current = await client
+      .post('/api/v1/auth/reset-password')
+      .json({ token: latest.searchParams.get('token'), password: 'senha-nova-123' })
+    old.assertStatus(422)
+    current.assertStatus(200)
+
+    await invited.refresh()
+    assert.isFalse(invited.invitePending)
+    const afterAccepted = await client
+      .post(`/api/v1/stores/${store.id}/members/${invited.id}/invite`)
+      .loginAs(manager)
+    afterAccepted.assertStatus(409)
+    afterAccepted.assertBodyContains({ code: 'E_INVITE_ACCEPTED' })
+  })
+
+  test('signing in also settles a pending invite', async ({ client, assert }) => {
+    const user = await createUser({ password: 'secret123' })
+    user.invitePending = true
+    await user.save()
+
+    const login = await client
+      .post('/api/v1/auth/login')
+      .json({ email: user.email, password: 'secret123' })
+
+    login.assertStatus(200)
+    await user.refresh()
+    assert.isFalse(user.invitePending)
   })
 
   test('roles change, and the store always keeps a manager', async ({ client }) => {

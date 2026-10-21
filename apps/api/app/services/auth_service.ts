@@ -22,6 +22,10 @@ export default class AuthService {
    * httpOnly cookie that expires together with the token.
    */
   async createSession(user: User, ctx: Pick<HttpContext, 'response' | 'auth'>) {
+    if (user.invitePending) {
+      user.invitePending = false
+      await user.save()
+    }
     const accessToken = await ctx.auth.use('api').createToken(user)
     const serializedToken = accessToken.toJSON()
 

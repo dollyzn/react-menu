@@ -73,6 +73,7 @@ export default class PasswordResetService {
 
       const user = await User.findOrFail(record.userId, { client: trx })
       user.password = password
+      user.invitePending = false
       await user.save()
 
       record.usedAt = DateTime.now()

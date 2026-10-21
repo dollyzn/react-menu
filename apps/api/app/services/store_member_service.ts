@@ -8,7 +8,10 @@ import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
 import Store from '#models/store'
 import User from '#models/user'
+import env from '#start/env'
 import StaffInviteNotification from '#mails/staff_invite_notification'
+import StoreAccessNotification from '#mails/store_access_notification'
+import NotificationService from '#services/notification_service'
 import PasswordResetService from '#services/password_reset_service'
 
 export type StoreMember = {
@@ -17,25 +20,31 @@ export type StoreMember = {
   email: string
   role: StoreRole
   since: string
+  invitePending: boolean
 }
 
 const ROLE_ORDER = [StoreRole.MANAGER, StoreRole.ATTENDANT, StoreRole.KITCHEN]
+const INVITE_TTL = { days: 7 }
 
 /**
  * The team of a store (store_user.role). Managers add people by e-mail:
  * existing accounts are linked, new ones get an invite to create their
- * password. A store always keeps at least one manager.
+ * password (and can get it again while they haven't used it). A store
+ * always keeps at least one manager.
  */
 @inject()
 export default class StoreMemberService {
-  constructor(private passwords: PasswordResetService) {}
+  constructor(
+    private passwords: PasswordResetService,
+    private notifications: NotificationService
+  ) {}
 
   async list(storeId: string): Promise<StoreMember[]> {
     const rows = await db
       .from('store_user as su')
       .join('users as u', 'u.id', 'su.user_id')
       .where('su.store_id', storeId)
-      .select('u.id', 'u.name', 'u.email', 'su.role', 'su.created_at')
+      .select('u.id', 'u.name', 'u.email', 'u.invite_pending', 'su.role', 'su.created_at')
     return rows
       .map((row) => ({
         id: row.id,
@@ -43,6 +52,7 @@ export default class StoreMemberService {
         email: row.email,
         role: row.role,
         since: DateTime.fromJSDate(row.created_at).toISO()!,
+        invitePending: row.invite_pending,
       }))
       .sort(
         (a, b) =>
@@ -67,8 +77,10 @@ export default class StoreMemberService {
         existing = await User.create(
           {
             email,
-            name: input.name?.trim() || null,
+            // users.name is required; the e-mail's local part until they change it.
+            name: input.name?.trim() || email.split('@')[0],
             password: randomBytes(24).toString('base64url'),
+            invitePending: true,
           },
           { client: trx }
         )
@@ -87,18 +99,63 @@ export default class StoreMemberService {
     })
 
     if (invited) {
-      const url = await this.passwords.issueLink(user, { days: 7 }, { invite: true })
+      await this.sendInvite(user, store, input.role, actor)
+    } else {
+      await this.notifications.notify(
+        'store.member_added',
+        {
+          storeId,
+          storeName: store.name,
+          role: input.role,
+          addedBy: actor.name ?? actor.email,
+        },
+        { userIds: [user.id] }
+      )
       await mail.sendLater(
-        new StaffInviteNotification(
+        new StoreAccessNotification(
           { email: user.email, name: user.name },
-          { storeName: store.name, role: input.role, invitedBy: actor.name },
-          url
+          { storeName: store.name, role: input.role, addedBy: actor.name },
+          `${env.get('FRONTEND_URL')}/app/stores/${storeId}`
         )
       )
     }
 
     const members = await this.list(storeId)
     return { member: members.find((candidate) => candidate.id === user.id)!, invited }
+  }
+
+  /**
+   * A new invite link (the previous one stops working) for a member who
+   * hasn't set a password or signed in yet.
+   */
+  async resendInvite(storeId: string, userId: string, actor: User) {
+    const store = await Store.findOrFail(storeId)
+    const membership = await db
+      .from('store_user')
+      .where({ store_id: storeId, user_id: userId })
+      .first()
+    if (!membership) throw new AppException('Membro não encontrado nesta loja.', 404)
+    const user = await User.findOrFail(userId)
+    if (!user.invitePending) {
+      throw new AppException(
+        'Essa pessoa já acessou o painel. Se esqueceu a senha, ela pode usar "Esqueci minha senha".',
+        409,
+        'E_INVITE_ACCEPTED'
+      )
+    }
+    await this.sendInvite(user, store, membership.role, actor)
+    return user
+  }
+
+  private async sendInvite(user: User, store: Store, role: StoreRole, actor: User) {
+    const url = await this.passwords.issueLink(user, INVITE_TTL, { invite: true })
+    await mail.sendLater(
+      new StaffInviteNotification(
+        { email: user.email, name: user.name },
+        { storeName: store.name, role, invitedBy: actor.name },
+        url
+      )
+    )
   }
 
   async changeRole(storeId: string, userId: string, role: StoreRole) {

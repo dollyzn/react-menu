@@ -1,5 +1,6 @@
 import type { NotificationCategory } from '@react-menu/contracts'
 import StoreStatus from '#enums/store_status'
+import StoreRole from '#enums/store_role'
 
 /**
  * Every notification the system can send is declared here. To add a new
@@ -29,6 +30,12 @@ function defineTemplate<Data extends Record<string, unknown>>(template: Template
   return template
 }
 
+export const storeRoleLabels: Record<StoreRole, string> = {
+  [StoreRole.MANAGER]: 'gerente',
+  [StoreRole.ATTENDANT]: 'atendente',
+  [StoreRole.KITCHEN]: 'cozinha',
+}
+
 const storeStatusLabels: Record<StoreStatus, string> = {
   [StoreStatus.OPEN]: 'aberta',
   [StoreStatus.CLOSED]: 'fechada',
@@ -46,6 +53,20 @@ export const notificationTemplates = {
     render: ({ storeId, storeName, status, changedBy }) => ({
       title: `${storeName} está ${storeStatusLabels[status]}`,
       body: `${changedBy} alterou o status da loja para ${storeStatusLabels[status]}.`,
+      url: `/app/stores/${storeId}`,
+    }),
+  }),
+
+  'store.member_added': defineTemplate<{
+    storeId: string
+    storeName: string
+    role: StoreRole
+    addedBy: string
+  }>({
+    category: 'store',
+    render: ({ storeId, storeName, role, addedBy }) => ({
+      title: `Você agora faz parte da ${storeName}`,
+      body: `${addedBy} adicionou você à equipe como ${storeRoleLabels[role]}.`,
       url: `/app/stores/${storeId}`,
     }),
   }),

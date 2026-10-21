@@ -25,6 +25,9 @@ export const membersApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_res, _err, { storeId }) => [tag(storeId)],
     }),
+    resendInvite: build.mutation<void, { storeId: string; userId: string }>({
+      query: ({ storeId, userId }) => ({ url: `stores/${storeId}/members/${userId}/invite`, method: "POST" }),
+    }),
     removeMember: build.mutation<void, { storeId: string; userId: string }>({
       query: ({ storeId, userId }) => ({ url: `stores/${storeId}/members/${userId}`, method: "DELETE" }),
       invalidatesTags: (_res, _err, { storeId }) => [tag(storeId)],
@@ -37,4 +40,5 @@ export const {
   useAddMemberMutation,
   useUpdateMemberRoleMutation,
   useRemoveMemberMutation,
+  useResendInviteMutation,
 } = membersApi;

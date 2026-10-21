@@ -5,7 +5,13 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-The technical items below, one PR at a time.
+Manual testing of the current build comes first; then these Product items,
+one PR at a time:
+
+1. Order receipt by e-mail
+2. Store opening hours
+3. Choice groups
+4. Reports
 
 ## Standby (decided not to do for now)
 
@@ -29,9 +35,6 @@ The technical items below, one PR at a time.
 - **Reports**: sales per day/item, best sellers, stock consumption, payment
   method mix (Pix vs card vs counter).
 - **Notification preferences** (per category, email digest).
-- **Team**: notify a person when they are added to a store (in-app and
-  e-mail for existing accounts); resend an invite whose link expired
-  (today: remove and add again, or "Esqueci minha senha").
 - **Order receipt by e-mail** for customers who typed an e-mail at the
   Pix/card step (the mail pipeline exists since the password reset).
 - **Delivery and table service**: only pickup at the counter is supported
@@ -44,7 +47,8 @@ The technical items below, one PR at a time.
   collector. Failed jobs already notify (super users; managers for refunds).
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
-  `subscribe` with `void` and never catches it. Report upstream.
+  `subscribe` with `void` and never catches it. Reported in
+  [boringnode/bus#73](https://github.com/boringnode/bus/issues/73).
 - Lucid runs a query's preloads in parallel; inside one transaction pg
   queues them and warns that pg 9 will refuse it. pg 9 isn't out; its
   major is ignored by Dependabot until Lucid supports it.

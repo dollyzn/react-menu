@@ -26,6 +26,11 @@ test("team: invite someone, change their role, remove them", async ({ page }) =>
   const row = team.getByRole("listitem", { name: "Nova Pessoa" });
   await expect(row.getByRole("combobox", { name: "Função de Nova Pessoa" })).toHaveText(/Cozinha/);
 
+  // Until they create their password, the invite can be sent again.
+  await expect(row.getByText("Convite pendente")).toBeVisible();
+  await row.getByRole("button", { name: "Reenviar convite" }).click();
+  await expect(page.getByText(`Convite reenviado para ${email}`)).toBeVisible();
+
   await row.getByRole("combobox", { name: "Função de Nova Pessoa" }).click();
   await page.getByRole("option", { name: "Atendente" }).click();
   await expect(page.getByText("Nova Pessoa agora é atendente")).toBeVisible();

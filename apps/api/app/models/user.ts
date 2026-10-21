@@ -58,6 +58,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare superUser: boolean
 
+  /** Invited to a store and hasn't set a password or signed in yet. */
+  @column()
+  declare invitePending: boolean
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
