@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Ban, Banknote, CircleCheck, ExternalLink, MessageCircle, Phone } from "lucide-react";
+import { AlertTriangle, Ban, Banknote, CircleCheck, ExternalLink, MessageCircle, Phone, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -14,10 +14,12 @@ import {
   useCompleteOrderMutation,
   useGetOrderQuery,
   useMarkOrderPaidMutation,
+  useRefundOrderMutation,
 } from "@/redux/features/order/orderApi";
+import { useStoreRole } from "@/hooks/use-store-role";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { cn } from "@/lib/utils";
-import { CHANNEL, PAYMENT, STATUS } from "./order-labels";
+import { ATTEMPT, CHANNEL, PAYMENT, STATUS } from "./order-labels";
 
 const ACTIVE = new Set(["pending_payment", "received", "preparing", "ready"]);
 
@@ -40,6 +42,8 @@ export function OrderDetailSheet({
   const [complete, { isLoading: completing }] = useCompleteOrderMutation();
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
   const [markPaid, { isLoading: paying }] = useMarkOrderPaidMutation();
+  const [refund, { isLoading: refunding }] = useRefundOrderMutation();
+  const isManager = useStoreRole(storeId) === "manager";
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const show = order && order.id === orderId ? order : null;
@@ -80,8 +84,17 @@ export function OrderDetailSheet({
                     return (
                       <>
                         <channel.icon className="size-3.5" /> {channel.label} · {PAYMENT[show.paymentMethod]} ·{" "}
-                        <span className={show.paymentStatus === "paid" ? "text-emerald-600 dark:text-emerald-400" : ""}>
-                          {show.paymentStatus === "paid" ? "pago" : "não pago"}
+                        <span
+                          className={cn(
+                            show.paymentStatus === "paid" && "text-emerald-600 dark:text-emerald-400",
+                            show.paymentStatus === "refunded" && "text-sky-600 dark:text-sky-400"
+                          )}
+                        >
+                          {show.paymentStatus === "paid"
+                            ? "pago"
+                            : show.paymentStatus === "refunded"
+                              ? "reembolsado"
+                              : "não pago"}
                         </span>
                       </>
                     );
@@ -134,6 +147,61 @@ export function OrderDetailSheet({
                 </ul>
                 {show.notes && <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-sm">{show.notes}</p>}
               </section>
+
+              {(show.refundPending || (show.payments && show.payments.length > 0)) && (
+                <section aria-labelledby="order-payments" className="space-y-2">
+                  <h3 id="order-payments" className="text-sm font-semibold">
+                    Pagamento online
+                  </h3>
+                  {show.refundPending && (
+                    <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                      <p className="flex items-start gap-2 font-medium text-amber-800 dark:text-amber-200">
+                        <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                        Reembolso pendente: o pedido foi cancelado, mas o valor ainda não voltou para o cliente.
+                      </p>
+                      {isManager ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          loading={refunding}
+                          onClick={async () => {
+                            try {
+                              await refund({ storeId, orderId: show.id }).unwrap();
+                              toast.success(`Pedido #${show.number} reembolsado`);
+                            } catch {
+                              // baseApi shows the gateway's answer.
+                            }
+                          }}
+                        >
+                          <Undo2 /> Reembolsar agora
+                        </Button>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">Peça a um gerente para reembolsar.</p>
+                      )}
+                    </div>
+                  )}
+                  {show.payments && show.payments.length > 0 && (
+                    <ul className="divide-y rounded-xl border text-sm">
+                      {show.payments.map((payment, index) => (
+                        <li key={index} className="flex items-center justify-between gap-3 p-3">
+                          <span>
+                            {PAYMENT[payment.method]}{" "}
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              · {format(parseISO(payment.createdAt), "HH:mm")}
+                            </span>
+                          </span>
+                          <span
+                            className={cn("rounded-full px-2 py-0.5 text-xs font-semibold", ATTEMPT[payment.status].tone)}
+                            title={payment.statusDetail ?? undefined}
+                          >
+                            {ATTEMPT[payment.status].label}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              )}
 
               {show.history && show.history.length > 0 && (
                 <section aria-labelledby="order-timeline">
@@ -195,7 +263,11 @@ export function OrderDetailSheet({
               onOpenChange={setConfirmCancel}
               loading={cancelling}
               title={`Cancelar o pedido #${show.number}?`}
-              description="O pedido sai da cozinha e o estoque usado é devolvido. Esta ação não pode ser desfeita."
+              description={
+                show.paymentStatus === "paid" && show.paymentMethod !== "counter"
+                  ? "O pedido sai da cozinha, o estoque usado é devolvido e o valor pago online é reembolsado ao cliente. Esta ação não pode ser desfeita."
+                  : "O pedido sai da cozinha e o estoque usado é devolvido. Esta ação não pode ser desfeita."
+              }
               confirmLabel="Cancelar pedido"
               onConfirm={async () => {
                 await cancel({ storeId, orderId: show.id }).unwrap();

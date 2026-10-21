@@ -17,6 +17,7 @@ const paymentSettingsValidator = vine.create(
       .regex(/^(APP_USR|TEST)-[0-9a-f-]{36}$/i)
       .nullable()
       .optional(),
+    maxInstallments: vine.number().withoutDecimals().min(1).max(12).optional(),
     mercadoPagoWebhookSecret: vine
       .string()
       .trim()

@@ -37,6 +37,7 @@ export default class PaymentsController {
     return ok({
       mercadoPagoEnabled: store.mercadoPagoEnabled,
       mercadoPagoPublicKey: store.mercadoPagoPublicKey,
+      maxInstallments: store.maxInstallments,
     })
   }
 }

@@ -83,7 +83,11 @@ export function PaymentPanel({ order }: { order: PublicOrder }) {
         {method === "pix" ? (
           <PixPayment order={order} />
         ) : (
-          <CardPayment order={order} publicKey={checkout.mercadoPagoPublicKey} />
+          <CardPayment
+            order={order}
+            publicKey={checkout.mercadoPagoPublicKey}
+            maxInstallments={checkout.maxInstallments}
+          />
         )}
       </div>
 
@@ -206,7 +210,15 @@ function PixPayment({ order }: { order: PublicOrder }) {
   );
 }
 
-function CardPayment({ order, publicKey }: { order: PublicOrder; publicKey: string | null }) {
+function CardPayment({
+  order,
+  publicKey,
+  maxInstallments,
+}: {
+  order: PublicOrder;
+  publicKey: string | null;
+  maxInstallments: number;
+}) {
   const dispatch = useAppDispatch();
   const savedEmail = useAppSelector((state) => state.customer.email);
   const [error, setError] = useState<string | null>(null);
@@ -242,7 +254,13 @@ function CardPayment({ order, publicKey }: { order: PublicOrder; publicKey: stri
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       {payment?.status !== "pending" && (
-        <CardPaymentForm publicKey={publicKey} amount={order.total} email={savedEmail} onPay={onPay} />
+        <CardPaymentForm
+          publicKey={publicKey}
+          amount={order.total}
+          maxInstallments={maxInstallments}
+          email={savedEmail}
+          onPay={onPay}
+        />
       )}
     </div>
   );

@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { frontOfHouse } from '#routes/store/shared'
+import { frontOfHouse, managersOnly } from '#routes/store/shared'
 
 const OrdersController = () => import('#controllers/orders_controller')
 const KitchenController = () => import('#controllers/kitchen_controller')
@@ -17,6 +17,11 @@ export default function registerStoreOrderRoutes() {
     .post('/orders/:orderId/cancel', [OrdersController, 'cancel'])
     .as('orders.cancel')
     .use(frontOfHouse)
+  // Retry of an automatic refund that didn't go through (managers).
+  router
+    .post('/orders/:orderId/refund', [OrdersController, 'refund'])
+    .as('orders.refund')
+    .use(managersOnly)
   router
     .post('/orders/:orderId/payment', [OrdersController, 'markPaid'])
     .as('orders.markPaid')
