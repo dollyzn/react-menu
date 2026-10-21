@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { Column } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -10,7 +11,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import { format, isEqual } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -36,6 +36,7 @@ import {
   SelectLabel,
   SelectItem,
 } from "@/components/ui/select";
+import { FilterSummary, filterTriggerClassName } from "./data-table-filter-parts";
 
 interface DataTableDateRangeFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -130,21 +131,15 @@ export function DataTableDateRangeFilter<TData, TValue>({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 border-dashed"
+            className={filterTriggerClassName(Boolean(hasSelectedValues))}
             aria-label={`Filtrar por ${columnName.toLowerCase()}`}
           />
         }
       >
-        <CalendarIcon />
-        <span className="capitalize">{columnName}</span>
-        {hasSelectedValues && (
-          <>
-            <Separator orientation="vertical" className="mx-1 my-auto h-4" />
-            <Badge variant="secondary" className="rounded-sm px-1 font-normal">
-              {formatDateRange()}
-            </Badge>
-          </>
-        )}
+        <CalendarIcon className={cn(hasSelectedValues && "text-primary")} />
+        <span className="first-letter:uppercase">{columnName}</span>
+        {hasSelectedValues && <FilterSummary>{formatDateRange()}</FilterSummary>}
+        <ChevronsUpDown className="opacity-50" />
       </WrapperTrigger>
       <WrapperContent
         className={

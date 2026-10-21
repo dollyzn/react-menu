@@ -8,7 +8,7 @@ import { ok } from '#helpers/api_response'
 import { publicOrder, publicOrderSummary } from '#orders/public_order'
 import OrderService from '#services/order_service'
 import PublicMenuService from '#services/public_menu_service'
-import { lookupTokens, orderLookupValidator, publicOrderValidator } from '#validators/order'
+import { lookupTokens, publicOrderValidator } from '#validators/order'
 import CustomerAccessService from '#services/customer_access_service'
 import AppException from '#exceptions/app_exception'
 
@@ -74,7 +74,10 @@ export default class PublicMenuController {
 
   /** Live status of the orders this device placed (by their public tokens). */
   async lookupOrders({ request }: HttpContext) {
-    const { tokens } = await request.validateUsing(orderLookupValidator)
+    // The query parser splits commas (`comma: true`): "a,b" arrives as a list.
+    const tokens = [request.qs().tokens]
+      .flat()
+      .flatMap((value) => (typeof value === 'string' ? value.split(',') : []))
     const orders = await this.orders.findManyByToken(lookupTokens(tokens))
     return ok(orders.map((order) => publicOrderSummary(order, order.store)))
   }

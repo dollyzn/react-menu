@@ -75,9 +75,10 @@ test.group('Customer order history', (group) => {
     })
     const publicToken = placed.body().data.publicToken as string
 
-    const response = await client
-      .get('/api/v1/public/orders')
-      .qs({ tokens: `${publicToken},${randomUUID()},not-a-token` })
+    // Literal commas, like the browser sends them (the query parser splits them).
+    const response = await client.get(
+      `/api/v1/public/orders?tokens=${publicToken},${randomUUID()},not-a-token`
+    )
 
     response.assertStatus(200)
     assert.lengthOf(response.body().data, 1)

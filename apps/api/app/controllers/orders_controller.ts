@@ -23,6 +23,8 @@ export default class OrdersController {
       channel: list(qs.channel),
       paymentMethod: list(qs.paymentMethod),
       sort: [qs.sort].flat()[0],
+      // A comma in the search ("Silva, Ana") arrives split (`comma: true`).
+      customerName: qs.customerName === undefined ? undefined : [qs.customerName].flat().join(','),
     })
 
     // History (paginated, any period) or the live board (one business day).

@@ -222,6 +222,34 @@ test.group('Kitchen and pickup', (group) => {
     )
   })
 
+  test('undoing a finished batch puts the order back in the kitchen queue', async ({
+    client,
+    assert,
+  }) => {
+    const cook = await createUser()
+    const { store, carne } = await createMenuStore()
+    await linkUser(store, cook, StoreRole.KITCHEN)
+    await placeAll(client, store.slug, [carne.id])
+    const queue = () => client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(cook)
+    const before = await queue()
+    const lineId = before.body().data[0].units[0].lineId as number
+    const prepare = (quantity: number) =>
+      client
+        .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
+        .json({ units: [{ lineId, quantity }] })
+        .loginAs(cook)
+
+    await prepare(1)
+    const done = await queue()
+    assert.lengthOf(done.body().data, 0)
+
+    const undo = await prepare(-1)
+    undo.assertStatus(200)
+    const after = await queue()
+    assert.lengthOf(after.body().data, 1)
+    assert.equal(after.body().data[0].name, 'Pastel de Carne')
+  })
+
   test('marking units moves orders to preparing, ready and completed', async ({
     client,
     assert,

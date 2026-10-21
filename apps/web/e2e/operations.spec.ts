@@ -155,3 +155,26 @@ test("kitchen: swipe right finishes the batch", async ({ page }) => {
   await expect(page.getByText(/2× .* prontos/)).toBeVisible();
   await expect(page.getByText("Tudo pronto por aqui!")).toBeVisible();
 });
+
+test("kitchen: undo from the toast brings the batch back", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [{ itemId: menu.categories[0].items[2].id, quantity: 1 }],
+      customer: { name: "Desfazer", phone: "11900000001" },
+      paymentMethod: "counter",
+    },
+  });
+  await api.dispose();
+
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(page.url().replace(/\/[^/]+$/, "/kitchen"));
+  await page.getByRole("region", { name: "Fazer agora" }).getByRole("button", { name: "Pronto" }).click();
+  await expect(page.getByText("Tudo pronto por aqui!")).toBeVisible();
+
+  await page.getByRole("button", { name: "Desfazer" }).click();
+  await expect(page.getByRole("region", { name: "Fazer agora" })).toBeVisible();
+  await clearKitchen();
+});

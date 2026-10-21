@@ -14,6 +14,19 @@ export const flattenOptions = (options: FilterOption[] | FilterGroup[] | undefin
   (grouped ? (options as FilterGroup[] | undefined)?.flatMap((group) => group.options) : (options as FilterOption[] | undefined)) ??
   [];
 
+/** Shared look of every filter button: dashed when idle, tinted when active. */
+export const filterTriggerClassName = (active: boolean) =>
+  cn("h-8 gap-1.5", active ? "border-primary/40 bg-primary/5 hover:bg-primary/10" : "border-dashed");
+
+/** What the filter is set to, next to its name. */
+export function FilterSummary({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="ml-0.5 max-w-[180px] truncate rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+      {children}
+    </span>
+  );
+}
+
 /** The filter button: dashed when idle, tinted when it filters something. */
 export function FilterTrigger({
   label,
@@ -33,10 +46,7 @@ export function FilterTrigger({
         <Button
           variant="outline"
           size="sm"
-          className={cn(
-            "h-8 gap-1.5",
-            active ? "border-primary/40 bg-primary/5 hover:bg-primary/10" : "border-dashed"
-          )}
+          className={filterTriggerClassName(active)}
           aria-label={`Filtrar por ${label.toLowerCase()}`}
           loading={loading}
         />
@@ -44,11 +54,7 @@ export function FilterTrigger({
     >
       {!loading && <ListFilter className={cn(active && "text-primary")} />}
       <span className="first-letter:uppercase">{label}</span>
-      {active && summary && (
-        <span className="ml-0.5 max-w-[180px] truncate rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
-          {summary}
-        </span>
-      )}
+      {active && summary && <FilterSummary>{summary}</FilterSummary>}
       <ChevronsUpDown className="opacity-50" />
     </PopoverTrigger>
   );

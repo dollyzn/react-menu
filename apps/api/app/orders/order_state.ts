@@ -5,7 +5,13 @@ const transitions: Record<OrderStatus, OrderStatus[]> = {
   [OrderStatus.PENDING_PAYMENT]: [OrderStatus.RECEIVED, OrderStatus.CANCELLED],
   [OrderStatus.RECEIVED]: [OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.CANCELLED],
   [OrderStatus.PREPARING]: [OrderStatus.RECEIVED, OrderStatus.READY, OrderStatus.CANCELLED],
-  [OrderStatus.READY]: [OrderStatus.PREPARING, OrderStatus.COMPLETED, OrderStatus.CANCELLED],
+  // READY -> RECEIVED/PREPARING: the kitchen undid "Fiz todos" (or some units).
+  [OrderStatus.READY]: [
+    OrderStatus.RECEIVED,
+    OrderStatus.PREPARING,
+    OrderStatus.COMPLETED,
+    OrderStatus.CANCELLED,
+  ],
   [OrderStatus.COMPLETED]: [],
   [OrderStatus.CANCELLED]: [],
 }
