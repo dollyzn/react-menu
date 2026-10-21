@@ -8,7 +8,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | --- | --- |
 | Admin routes | `app/app/(dashboard)/stores/[store]/<domain>/` (page + `components/`); `(dashboard)/layout.tsx` holds the shell; `(dashboard)/settings` |
 | Panel shell | `components/app/layout/`: `app-sidebar` (store switcher, groups from `lib/menu-itens.ts`, account menu), `app-header` (breadcrumbs from the route, notifications), `page-header` |
-| Store team | `…/members` (list, roles, invite dialog); invites land on `/app/redefinir-senha?convite=1` |
+| Store team | `…/members` (list, roles, invite dialog, resend a pending invite); invites land on `/app/redefinir-senha?convite=1` |
 | Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` |
 | Auth pages | `app/app/(auth)/` |
 | Customer menu (SSR) | `app/(menu)/` (`/`, `/[slug]`, `/pedidos`, `/pedido/[token]`), shared parts in `_components/`, helpers in `_lib/` |

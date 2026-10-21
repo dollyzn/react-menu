@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { UserMinus, Users } from "lucide-react";
+import { MailPlus, UserMinus, Users } from "lucide-react";
 import type { StoreMember, StoreRole } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,7 @@ import { useAppSelector } from "@/redux/hooks";
 import {
   useGetMembersQuery,
   useRemoveMemberMutation,
+  useResendInviteMutation,
   useUpdateMemberRoleMutation,
 } from "@/redux/features/store/membersApi";
 import { ManagementPageShell } from "../components/management-page-shell";
@@ -34,6 +35,7 @@ export default function MembersPage() {
   const { data: members = [], isLoading } = useGetMembersQuery(storeId);
   const [updateRole] = useUpdateMemberRoleMutation();
   const [remove, { isLoading: removing }] = useRemoveMemberMutation();
+  const [resendInvite, resending] = useResendInviteMutation();
   const [toRemove, setRemoving] = useState<StoreMember | null>(null);
 
   const changeRole = async (member: StoreMember, role: StoreRole) => {
@@ -43,6 +45,15 @@ export default function MembersPage() {
       toast.success(`${member.name ?? member.email} agora é ${ROLES[role].label.toLowerCase()}`);
     } catch {
       // baseApi shows the reason (e.g. the last manager).
+    }
+  };
+
+  const resend = async (member: StoreMember) => {
+    try {
+      await resendInvite({ storeId, userId: member.id }).unwrap();
+      toast.success(`Convite reenviado para ${member.email}`);
+    } catch {
+      // baseApi shows the reason.
     }
   };
 
@@ -81,6 +92,7 @@ export default function MembersPage() {
                 <p className="flex items-center gap-2 truncate font-medium">
                   {member.name ?? member.email}
                   {isMe && <Badge variant="secondary">Você</Badge>}
+                  {member.invitePending && <Badge variant="outline">Convite pendente</Badge>}
                 </p>
                 <p className="truncate text-sm text-muted-foreground">{member.email}</p>
               </div>
@@ -101,6 +113,16 @@ export default function MembersPage() {
                   ))}
                 </SelectContent>
               </Select>
+              {member.invitePending && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={resending.isLoading && resending.originalArgs?.userId === member.id}
+                  onClick={() => void resend(member)}
+                >
+                  <MailPlus /> Reenviar convite
+                </Button>
+              )}
               <Button
                 variant="ghost"
                 size="icon-sm"

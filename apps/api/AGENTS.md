@@ -23,7 +23,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Payments (in-app checkout, ADR 0015) | `app/services/payment_service.ts`, gateways in `app/payments/` (`gateway.ts`, `mercado_pago_gateway.ts`, `fake_gateway.ts`), attempts in `app/models/payment.ts` |
 | Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
 | Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner, logo and Pexels menu photos go to the Drive disk; sources in `CREDITS.md`) |
-| Store team (members, roles, invites) | `app/services/store_member_service.ts` (a store always keeps a manager), `start/routes/store/members.ts` (managers only); invites reuse `PasswordResetService.issueLink` |
+| Store team (members, roles, invites) | `app/services/store_member_service.ts` (a store always keeps a manager), `start/routes/store/members.ts` (managers only); invites reuse `PasswordResetService.issueLink` and can be resent while `users.invite_pending` (cleared by setting a password or signing in); existing accounts get `store.member_added` + e-mail |
 | Background jobs (ADR 0016) | `app/jobs/*` (`@inject`, payload with ids only, extend `AppJob`: a job that gives up notifies the super users), `config/queue.ts`, worker `node ace queue:work`; tests: `tests/helpers/queue.ts` (`fakeQueue`, `runJob`, `failJob`) |
 | E-mail | `app/mails/*` (`BaseMail`, markup from `app/mails/layout.ts`), sent with `mail.sendLater` → `SendEmail` job (`start/mail.ts`); tests use `mail.fake()` |
 | Idempotency (`Idempotency-Key`) | `app/middleware/idempotency_middleware.ts`, `orders.idempotency_key` (ADR 0013) |

@@ -129,4 +129,6 @@ export type StoreMember = {
   role: StoreRole;
   /** When they joined the store. */
   since: string;
+  /** Invited and hasn't set a password or signed in yet (the invite can be resent). */
+  invitePending: boolean;
 };

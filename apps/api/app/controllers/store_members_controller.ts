@@ -29,6 +29,15 @@ export default class StoreMembersController {
     )
   }
 
+  async resendInvite({ params, auth }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const userId = await uuidValidator.validate(params.userId)
+
+    const user = await this.members.resendInvite(storeId, userId, auth.getUserOrFail())
+
+    return messageOnly(`Convite reenviado para ${user.email}.`)
+  }
+
   async update({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const userId = await uuidValidator.validate(params.userId)
