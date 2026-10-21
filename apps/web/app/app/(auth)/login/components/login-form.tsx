@@ -264,15 +264,12 @@ export function LoginForm() {
               <Field data-invalid={fieldState.invalid}>
                 <div className="flex w-full items-center justify-between gap-2">
                   <FieldLabel htmlFor="login-password">Senha</FieldLabel>
-                  <Button
-                    variant="link"
-                    className="h-auto p-0 text-xs text-primary"
-                    type="button"
-                    nativeButton={false}
-                    render={<Link href="/esqueci-minha-senha" />}
+                  <Link
+                    href="/app/esqueci-minha-senha"
+                    className="text-xs text-primary underline-offset-4 hover:underline"
                   >
                     Esqueceu a senha?
-                  </Button>
+                  </Link>
                 </div>
                 <div className="relative">
                   <Lock

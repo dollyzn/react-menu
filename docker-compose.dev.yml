@@ -1,7 +1,7 @@
 # Development services.
 #
 #   docker compose -f docker-compose.dev.yml up -d
-#     Postgres + Redis for running the apps on your machine (`pnpm dev`),
+#     Postgres, Redis and Mailpit (e-mail inbox) for running the apps on your machine (`pnpm dev`),
 #     matching apps/api/.env.example (creates the dev, test and e2e databases).
 #
 #   docker compose -f docker-compose.dev.yml --profile app up
@@ -36,6 +36,12 @@ services:
       timeout: 5s
       retries: 10
 
+  # Catches every e-mail the app sends (password reset…): SMTP on 1025,
+  # inbox at http://localhost:8025. Nothing leaves the machine.
+  mailpit:
+    image: axllent/mailpit:v1.31.4
+    ports: ["${DEV_SMTP_PORT:-1025}:1025", "${DEV_MAILPIT_PORT:-8025}:8025"]
+
   # ---- profile "app": the apps themselves, with hot reload ----
   deps:
     profiles: [app]
@@ -67,6 +73,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
     ports: ["${DEV_API_PORT:-3333}:3333"]
     volumes: *workspace
     depends_on:
@@ -88,6 +96,8 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
+      SMTP_HOST: mailpit
+      SMTP_PORT: 1025
     volumes: *workspace
     depends_on:
       api: { condition: service_started }

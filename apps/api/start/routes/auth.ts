@@ -9,6 +9,14 @@ export default function authRoutes() {
   router
     .group(() => {
       router.post('/login', [AuthController, 'login']).as('auth.login')
+      router
+        .post('/forgot-password', [AuthController, 'forgotPassword'])
+        .as('auth.forgotPassword')
+        .use(throttle)
+      router
+        .post('/reset-password', [AuthController, 'resetPassword'])
+        .as('auth.resetPassword')
+        .use(throttle)
       router.get('/me', [AuthController, 'me']).use([middleware.auth(), throttle]).as('auth.me')
 
       router

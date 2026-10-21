@@ -52,7 +52,8 @@ docker compose -f docker-compose.dev.yml up -d
 ```
 
 This starts Postgres (with the `jjpasteis-menu`, `-test` and `-e2e`
-databases) and Redis. Ports already taken? Set `DEV_POSTGRES_PORT` /
+databases), Redis and Mailpit, which catches every e-mail the app sends
+(password reset…) in an inbox at <http://localhost:8025>. Ports already taken? Set `DEV_POSTGRES_PORT` /
 `DEV_REDIS_PORT` (defaults 5432 / 6379) and the same ports in
 `apps/api/.env`.
 
@@ -130,7 +131,8 @@ cp .env.docker.example .env
 
 Fill `.env`: `SITE_ADDRESS` and `PUBLIC_URL` (your domain; Caddy gets the
 HTTPS certificate automatically), `APP_KEY` (`openssl rand -base64 32`), the
-admin login and the passwords. Then:
+admin login and the passwords, and an SMTP provider (`SMTP_*`) so "Esqueci
+minha senha" can send e-mail. Then:
 
 ```bash
 docker compose up -d --build

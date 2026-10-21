@@ -73,6 +73,7 @@
     "@adonisjs/drive": "^4.0.0",
     "@adonisjs/limiter": "^3.0.1",
     "@adonisjs/lucid": "^22.4.2",
+    "@adonisjs/mail": "10.4.0",
     "@adonisjs/queue": "0.7.0",
     "@adonisjs/redis": "^11.0.0",
     "@adonisjs/static": "^2.0.1",

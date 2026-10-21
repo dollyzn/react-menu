@@ -31,6 +31,7 @@ export default defineConfig({
     () => import('@adonisjs/lucid/commands'),
     () => import('@adonisjs/bouncer/commands'),
     () => import('@adonisjs/queue/commands'),
+    () => import('@adonisjs/mail/commands'),
   ],
 
   /*
@@ -62,6 +63,7 @@ export default defineConfig({
     () => import('@adonisjs/redis/redis_provider'),
     () => import('@adonisjs/ally/ally_provider'),
     () => import('@adonisjs/queue/queue_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
   ],
 
   /*
@@ -90,6 +92,10 @@ export default defineConfig({
     {
       file: () => import('#start/scheduler'),
       environment: ['web'],
+    },
+    {
+      file: () => import('#start/mail'),
+      environment: ['web', 'console'],
     },
   ],
 

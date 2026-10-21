@@ -5,22 +5,17 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-1. **Transactional e-mail with `@adonisjs/mail`** (sent by a job, ADR
-   0016): password reset (the login links to `/esqueci-minha-senha`, which
-   does not exist yet)
-   and, optionally, the order receipt for customers who gave an e-mail at
-   the Pix/card step.
-2. **Staff management**: no API/UI to invite staff or set a member's store
+1. **Staff management**: no API/UI to invite staff or set a member's store
    role (`store_user.role`); seeds and SQL do it today. `PUT /users/:id`
    with `storeIds` links users as managers. Needs a members screen per store.
-3. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
+2. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
    - refund status and a "reembolsar" retry in the staff order detail
      (refunds that gave up are only logged today);
    - installments per store (the card form allows 1x today);
    - a second gateway (Asaas, Pagar.me, Stripe…) through `PaymentGateway`;
    - move `MercadoPagoGateway` to the Orders API (`/v1/orders`) once its
      rejection statuses, refunds and webhook signature are documented.
-4. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
+3. **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
    `features` registry, new types) touching 38 files; majors are ignored by
    Dependabot until then.
 
@@ -35,6 +30,8 @@ they are picked up; done items leave this file (see the git history).
 - **Reports**: sales per day/item, best sellers, stock consumption, payment
   method mix (Pix vs card vs counter).
 - **Notification preferences** (per category, email digest).
+- **Order receipt by e-mail** for customers who typed an e-mail at the
+  Pix/card step (the mail pipeline exists since the password reset).
 - **Delivery and table service**: only pickup at the counter is supported
   by design for now.
 - **Store opening hours**: open/closed is a manual switch; schedule it.
@@ -63,9 +60,9 @@ they are picked up; done items leave this file (see the git history).
   move the tests to its replacement.
 - Cookie domain is not configurable (`config/app.ts`); add an env var if web
   and API must live on different hosts.
-- Deploys: the "Deploy web to VPS" workflow (PM2, web only) fails on every
-  push without its SSH secrets. Replace it with a Docker Compose deploy of
-  the whole stack (README "Production"), or remove it.
+- Deploys: "Deploy web to VPS" (PM2, web only) now runs only on a published
+  release or by hand, and needs the VPS_* secrets. Replace it with a Docker
+  Compose deploy of the whole stack (README "Production") before releases.
 - Database names still carry the original client's name
   (`jjpasteis-menu*`); rename for a neutral open-source default.
 - Many unused shadcn components in `apps/web/components/ui`; prune with a
