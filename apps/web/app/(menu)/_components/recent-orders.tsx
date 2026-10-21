@@ -1,54 +1,45 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { formatDistanceToNow, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
-import { ChevronRight, ReceiptText } from "lucide-react";
-import { ResponsiveModal } from "@/components/app/responsive-modal";
-import { Button } from "@/components/ui/button";
+import { ReceiptText } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import { useRehydrated } from "@/hooks/use-rehydrated";
-import { formatCurrencyBRL } from "@/utils/string";
+import { useGetOrderHistoryQuery } from "@/redux/features/public/publicApi";
+import { isActiveOrder } from "../_lib/customer-orders";
 
-/** Orders placed from this device, kept locally (no customer account). */
+/**
+ * Link to "Meus pedidos". Always rendered (server included) so nothing pops
+ * in after F5; only the "order in progress" dot depends on this device.
+ */
 export function RecentOrdersButton() {
   const rehydrated = useRehydrated();
-  const orders = useAppSelector((state) => state.customer.recentOrders);
-  const [open, setOpen] = useState(false);
+  const recent = useAppSelector((state) => state.customer.recentOrders);
+  const tokenMap = useAppSelector((state) => state.customer.tokens);
+  const tokens = recent.map((order) => order.publicToken);
+  const links = Object.entries(tokenMap ?? {}).map(([storeSlug, token]) => ({ storeSlug, token }));
 
-  if (!rehydrated || orders.length === 0) return null;
+  const { data } = useGetOrderHistoryQuery(
+    { tokens, links },
+    { skip: !rehydrated || (tokens.length === 0 && links.length === 0) }
+  );
+  const inProgress = data?.orders.filter((order) => isActiveOrder(order.status)).length ?? 0;
 
   return (
-    <>
-      <Button variant="ghost" size="icon" className="rounded-full" aria-label="Meus pedidos" onClick={() => setOpen(true)}>
-        <ReceiptText />
-      </Button>
-      <ResponsiveModal open={open} onOpenChange={setOpen} title="Meus pedidos" description="Pedidos feitos neste aparelho">
-        <ul className="divide-y p-2">
-          {orders.map((order) => (
-            <li key={order.publicToken}>
-              <Link
-                href={`/pedido/${order.publicToken}`}
-                onClick={() => setOpen(false)}
-                className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:bg-muted/60"
-              >
-                <span className="flex size-10 items-center justify-center rounded-full bg-primary/10 font-bold text-primary">
-                  #{order.number}
-                </span>
-                <span className="flex-1">
-                  <span className="block text-sm font-medium">{order.storeName}</span>
-                  <span className="block text-xs text-muted-foreground">
-                    {formatDistanceToNow(parseISO(order.createdAt), { addSuffix: true, locale: ptBR })} ·{" "}
-                    {formatCurrencyBRL(order.total)}
-                  </span>
-                </span>
-                <ChevronRight className="size-4 text-muted-foreground" />
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </ResponsiveModal>
-    </>
+    // A real link (not role="button"): it navigates to another page.
+    <Link
+      href="/pedidos"
+      className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "relative rounded-full")}
+      aria-label={inProgress > 0 ? `Meus pedidos (${inProgress} em andamento)` : "Meus pedidos"}
+    >
+      <ReceiptText />
+      {inProgress > 0 && (
+        <span className="absolute top-1.5 right-1.5 flex size-2.5">
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+        </span>
+      )}
+    </Link>
   );
 }

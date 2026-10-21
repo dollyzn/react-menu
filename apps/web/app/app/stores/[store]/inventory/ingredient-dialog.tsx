@@ -21,6 +21,7 @@ import {
   useUpdateIngredientMutation,
 } from "@/redux/features/inventory/inventoryApi";
 import { unitLabels } from "@/utils/units";
+import { IngredientIconPicker } from "./ingredient-icon-picker";
 
 interface IngredientDialogProps {
   storeId: string;
@@ -59,10 +60,11 @@ function IngredientForm({
   const [unit, setUnit] = useState<IngredientUnit>(ingredient?.unit ?? "g");
   const [minStock, setMinStock] = useState(String(ingredient?.minStock ?? ""));
   const [stock, setStock] = useState("");
+  const [icon, setIcon] = useState<string | null>(ingredient?.icon ?? null);
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const data = { name: name.trim(), unit, minStock: minStock ? toNumber(minStock) : 0 };
+    const data = { name: name.trim(), unit, icon, minStock: minStock ? toNumber(minStock) : 0 };
     if (ingredient) {
       await update({ storeId, id: ingredient.id, data }).unwrap();
       toast.success("Ingrediente atualizado");
@@ -101,6 +103,11 @@ function IngredientForm({
             <Input id="ingredient-stock" inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" />
           </Field>
         )}
+        <Field>
+          <FieldLabel>Ícone na cozinha</FieldLabel>
+          <IngredientIconPicker value={icon} onChange={setIcon} />
+          <FieldDescription>Ajuda a cozinha a reconhecer o recheio de relance.</FieldDescription>
+        </Field>
         <Field>
           <FieldLabel htmlFor="ingredient-min">Estoque mínimo ({unit})</FieldLabel>
           <Input id="ingredient-min" inputMode="decimal" value={minStock} onChange={(e) => setMinStock(e.target.value)} placeholder="0" />

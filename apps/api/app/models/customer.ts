@@ -18,6 +18,10 @@ export default class Customer extends BaseModel {
   @column()
   declare phone: string
 
+  /** SHA-256 of the order-history token (CustomerAccessService). */
+  @column({ serializeAs: null })
+  declare accessTokenHash: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

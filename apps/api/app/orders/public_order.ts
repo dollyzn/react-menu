@@ -23,14 +23,39 @@ export function publicOrder(order: Order, store: Store, checkoutUrl: string | nu
       address: store.address,
       phone: store.phone,
     },
+    // Status changes with their time (needs `history` preloaded).
+    timeline: (order.history ?? [])
+      .slice()
+      .sort((a, b) => a.id - b.id)
+      .map((entry) => ({ status: entry.toStatus, at: entry.createdAt.toISO()! })),
     items: order.items.map((line) => ({
+      itemId: line.itemId,
       name: line.name,
       unitPrice: line.unitPrice,
       quantity: line.quantity,
       notes: line.notes,
       total: line.total,
-      addons: line.addons.map((addon) => ({ name: addon.name, unitPrice: addon.unitPrice })),
+      addons: line.addons.map((addon) => ({
+        addonId: addon.addonId,
+        name: addon.name,
+        unitPrice: addon.unitPrice,
+      })),
     })),
     checkoutUrl,
+  }
+}
+
+/** Compact order for history lists (PublicOrderSummary contract). */
+export function publicOrderSummary(order: Order, store: Pick<Store, 'name' | 'slug'>) {
+  return {
+    publicToken: order.publicToken,
+    number: order.number,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    total: order.total,
+    createdAt: order.createdAt.toISO(),
+    readyAt: order.readyAt?.toISO() ?? null,
+    store: { name: store.name, slug: store.slug },
+    items: order.items.map((line) => ({ name: line.name, quantity: line.quantity })),
   }
 }

@@ -153,6 +153,11 @@ export default function KitchenPage() {
                 <span className="text-7xl font-black tabular-nums lg:text-8xl">{current.quantity}×</span>
                 <h2 className="text-3xl leading-tight font-bold text-balance lg:text-5xl">{current.name}</h2>
               </div>
+              {fillingIcons(current).length > 0 && (
+                <p className="mt-2 font-emoji text-5xl tracking-widest lg:text-6xl" aria-hidden>
+                  {fillingIcons(current).join(" ")}
+                </p>
+              )}
 
               {current.addons.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
@@ -179,9 +184,15 @@ export default function KitchenPage() {
                     {current.ingredients.map((ingredient) => (
                       <li
                         key={ingredient.name}
-                        className="flex items-center justify-between gap-3 rounded-2xl bg-muted/60 px-4 py-3"
+                        className="flex items-center gap-3 rounded-2xl bg-muted/60 px-3 py-3"
                       >
-                        <span className="text-xl font-medium">{ingredient.name}</span>
+                        <span
+                          aria-hidden
+                          className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-background font-emoji text-3xl shadow-sm"
+                        >
+                          {ingredient.icon ?? "•"}
+                        </span>
+                        <span className="flex-1 text-xl font-medium">{ingredient.name}</span>
                         <span className="text-2xl font-bold tabular-nums">
                           {formatQuantity(ingredient.quantity, ingredient.unit)}
                         </span>
@@ -246,7 +257,12 @@ export default function KitchenPage() {
                   >
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-black tabular-nums">{batch.quantity}×</span>
-                      <span className="text-lg font-semibold">{batch.name}</span>
+                      <span className="flex-1 text-lg font-semibold">{batch.name}</span>
+                      {fillingIcons(batch).length > 0 && (
+                        <span className="font-emoji text-2xl" aria-hidden>
+                          {fillingIcons(batch).join("")}
+                        </span>
+                      )}
                     </div>
                     {(batch.addons.length > 0 || batch.notes) && (
                       <p className="mt-1 text-sm text-muted-foreground">
@@ -266,6 +282,17 @@ export default function KitchenPage() {
       )}
     </div>
   );
+}
+
+/** The filling at a glance: ingredient emoji except the dough every pastry has. */
+function fillingIcons(batch: ProductionBatch) {
+  return [
+    ...new Set(
+      batch.ingredients.flatMap((ingredient) =>
+        ingredient.icon && ingredient.icon !== "🥟" ? [ingredient.icon] : []
+      )
+    ),
+  ].slice(0, 4);
 }
 
 function EmptyKitchen() {

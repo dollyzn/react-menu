@@ -48,13 +48,21 @@ export default function PosPage() {
   const categories = menu?.categories ?? [];
   const totalItems = categories.reduce((sum, category) => sum + category.items.length, 0);
 
-  const items = useMemo(() => {
+  // Grouped by category, so "Tudo" reads as sections instead of one long grid.
+  const groups = useMemo(() => {
     const term = normalizeSearch(query);
     return (menu?.categories ?? [])
-      .filter((category) => categoryId === "all" || category.id === categoryId)
-      .flatMap((category) => category.items)
-      .filter((item) => !term || normalizeSearch(`${item.name} ${item.description ?? ""}`).includes(term));
+      .map((category, index) => ({
+        id: category.id,
+        name: category.name,
+        accent: CATEGORY_ACCENTS[index % CATEGORY_ACCENTS.length],
+        items: category.items.filter(
+          (item) => !term || normalizeSearch(`${item.name} ${item.description ?? ""}`).includes(term)
+        ),
+      }))
+      .filter((group) => (categoryId === "all" || group.id === categoryId) && group.items.length > 0);
   }, [menu, query, categoryId]);
+  const items = groups.flatMap((group) => group.items);
 
   const inTicket = useMemo(() => {
     const counts = new Map<string, number>();
@@ -219,9 +227,33 @@ export default function PosPage() {
               )}
             </div>
           ) : (
-            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              {items.map((item) => (
-                <ProductCard key={item.id} item={item} quantity={inTicket.get(item.id) ?? 0} onAdd={() => quickAdd(item)} />
+            <div className="space-y-6">
+              {groups.map((group) => (
+                <section key={group.id} aria-labelledby={`pos-category-${group.id}`}>
+                  {/* One category selected: its name is already on the chip. */}
+                  {(categoryId === "all" || query) && (
+                    <h3
+                      id={`pos-category-${group.id}`}
+                      className="mb-2 flex items-center gap-2 text-sm font-semibold"
+                    >
+                      <span aria-hidden className={cn("size-2.5 rounded-full", group.accent.dot)} />
+                      {group.name}
+                      <span className="font-normal text-muted-foreground tabular-nums">{group.items.length}</span>
+                      <span aria-hidden className="h-px flex-1 bg-border" />
+                    </h3>
+                  )}
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                    {group.items.map((item) => (
+                      <ProductCard
+                        key={item.id}
+                        item={item}
+                        accent={group.accent.border}
+                        quantity={inTicket.get(item.id) ?? 0}
+                        onAdd={() => quickAdd(item)}
+                      />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           )}
@@ -277,7 +309,30 @@ export default function PosPage() {
   );
 }
 
-function ProductCard({ item, quantity, onAdd }: { item: PublicMenuItem; quantity: number; onAdd: () => void }) {
+/** Per-category color: a dot on the section header and the cards' left edge. */
+const CATEGORY_ACCENTS = [
+  { dot: "bg-orange-500", border: "border-l-orange-500" },
+  { dot: "bg-sky-500", border: "border-l-sky-500" },
+  { dot: "bg-emerald-500", border: "border-l-emerald-500" },
+  { dot: "bg-violet-500", border: "border-l-violet-500" },
+  { dot: "bg-rose-500", border: "border-l-rose-500" },
+  { dot: "bg-amber-500", border: "border-l-amber-500" },
+  { dot: "bg-teal-500", border: "border-l-teal-500" },
+  { dot: "bg-fuchsia-500", border: "border-l-fuchsia-500" },
+];
+
+function ProductCard({
+  item,
+  quantity,
+  accent,
+  onAdd,
+}: {
+  item: PublicMenuItem;
+  quantity: number;
+  /** Category color for the left edge. */
+  accent: string;
+  onAdd: () => void;
+}) {
   const price = item.isAvailable ? formatCurrencyBRL(item.price) : "Esgotado";
 
   return (
@@ -288,7 +343,8 @@ function ProductCard({ item, quantity, onAdd }: { item: PublicMenuItem; quantity
       onClick={onAdd}
       aria-label={`${item.name} ${price}${quantity ? `, ${quantity} na comanda` : ""}`}
       className={cn(
-        "group flex items-center gap-3 rounded-xl border bg-card p-2 pr-3 text-left transition-all outline-none hover:border-primary/50 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50",
+        "group flex items-center gap-3 rounded-xl border border-l-4 bg-card p-2 pr-3 text-left transition-all outline-none hover:border-primary/50 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50",
+        accent,
         quantity > 0 && "border-primary bg-primary/5",
         !item.isAvailable && "cursor-not-allowed opacity-50"
       )}

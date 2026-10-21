@@ -11,15 +11,17 @@ export type RecentOrder = {
 
 /**
  * Menu customer identity (anota.ai style): just name and phone, remembered
- * on this device. Not a staff account.
+ * on this device. Not a staff account. `tokens` (per store slug) link this
+ * device to the customer's whole order history (see CustomerAccessService).
  */
 interface CustomerState {
   name: string;
   phone: string;
   recentOrders: RecentOrder[];
+  tokens?: Record<string, string>;
 }
 
-const initialState: CustomerState = { name: "", phone: "", recentOrders: [] };
+const initialState: CustomerState = { name: "", phone: "", recentOrders: [], tokens: {} };
 
 const customerSlice = createSlice({
   name: "customer",
@@ -35,11 +37,21 @@ const customerSlice = createSlice({
         ...state.recentOrders.filter((o) => o.publicToken !== action.payload.publicToken),
       ].slice(0, 10);
     },
+    /** Links this device to a customer's history in one store. */
+    linkStore(state, action: PayloadAction<{ storeSlug: string; token: string }>) {
+      state.tokens = { ...state.tokens, [action.payload.storeSlug]: action.payload.token };
+    },
+    unlinkStore(state, action: PayloadAction<string>) {
+      const tokens = { ...state.tokens };
+      delete tokens[action.payload];
+      state.tokens = tokens;
+    },
     forgetCustomer() {
       return initialState;
     },
   },
 });
 
-export const { rememberCustomer, addRecentOrder, forgetCustomer } = customerSlice.actions;
+export const { rememberCustomer, addRecentOrder, linkStore, unlinkStore, forgetCustomer } =
+  customerSlice.actions;
 export default customerSlice.reducer;

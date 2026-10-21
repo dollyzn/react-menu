@@ -77,11 +77,38 @@ export type PublicOrder = Pick<
 > & {
   publicToken: string;
   store: { name: string; slug: string; pickupEtaMinutes: number; address: string | null; phone: string | null };
-  items: (Pick<OrderItem, 'name' | 'unitPrice' | 'quantity' | 'notes' | 'total'> & {
-    addons: Pick<OrderItemAddon, 'name' | 'unitPrice'>[];
+  /** Status changes, oldest first. */
+  timeline: { status: OrderStatus; at: string }[];
+  items: (Pick<OrderItem, 'itemId' | 'name' | 'unitPrice' | 'quantity' | 'notes' | 'total'> & {
+    addons: Pick<OrderItemAddon, 'addonId' | 'name' | 'unitPrice'>[];
   })[];
   /** Mercado Pago checkout to finish paying, while payment is pending. */
   checkoutUrl: string | null;
+};
+
+/** Response of placing a public order. */
+export type PlacedPublicOrder = PublicOrder & {
+  /**
+   * History token for this device (`Customer-Token` header): set on the
+   * customer's first order or when the device already holds it; null when
+   * the phone belongs to a customer this device is not linked to.
+   */
+  customerToken: string | null;
+};
+
+/** One order in a customer's history list. */
+export type PublicOrderSummary = Pick<
+  PublicOrder,
+  'publicToken' | 'number' | 'status' | 'paymentStatus' | 'total' | 'createdAt' | 'readyAt'
+> & {
+  store: { name: string; slug: string };
+  items: { name: string; quantity: number }[];
+};
+
+/** GET /public/menu/:slug/my-orders */
+export type CustomerOrders = {
+  customer: { name: string; phone: string };
+  orders: PublicOrderSummary[];
 };
 
 /** One line of a new order. Prices are always computed by the API. */
@@ -110,6 +137,8 @@ export type Ingredient = {
   storeId: string;
   name: string;
   unit: IngredientUnit;
+  /** Emoji shown in the kitchen. */
+  icon: string | null;
   stockQuantity: number;
   minStock: number;
   isLowStock: boolean;
@@ -141,7 +170,7 @@ export type ProductionBatch = {
   quantity: number;
   units: { orderId: string; orderNumber: number; lineId: number; quantity: number }[];
   /** Total ingredients for the whole batch. */
-  ingredients: { name: string; unit: IngredientUnit; quantity: number }[];
+  ingredients: { name: string; unit: IngredientUnit; icon: string | null; quantity: number }[];
 };
 
 /** GET /public/menu[/:slug]: what customers see (no private store fields). */

@@ -4,8 +4,12 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import {
-  ArrowLeft,
   Ban,
+  Bell,
+  BellRing,
+  Clock,
+  Phone,
+  RotateCcw,
   Check,
   ChefHat,
   CreditCard,
@@ -15,7 +19,6 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import type { OrderStatus, OrderTrackingEvent } from "@react-menu/contracts";
-import { ThemeToggleButton } from "@/components/app/theme-toggle-button";
 import { BorderBeam } from "@/components/ui/border-beam";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 import { Button } from "@/components/ui/button";
@@ -27,6 +30,11 @@ import { getTransmit } from "@/lib/transmit";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { InstallAppCard } from "@/components/app/pwa/install-app";
+import { format, parseISO } from "date-fns";
+import { CustomerShell } from "./customer-shell";
+import { RecentOrdersButton } from "./recent-orders";
+import { useReorder } from "../_lib/customer-orders";
+import { useReadyAlert } from "../_lib/use-ready-alert";
 
 const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: "received", label: "Pedido recebido", icon: ReceiptText },
@@ -52,6 +60,8 @@ export function OrderTracking({ token }: { token: string }) {
     pollingInterval: 30_000,
     skipPollingIfUnfocused: true,
   });
+  const readyAlert = useReadyAlert(order?.status, order?.number);
+  const reorder = useReorder();
 
   // Realtime hint: refetch the order whenever the store updates it.
   useEffect(() => {
@@ -77,7 +87,7 @@ export function OrderTracking({ token }: { token: string }) {
 
   if (isError) {
     return (
-      <Shell>
+      <CustomerShell>
         <div className="flex flex-col items-center gap-3 py-24 text-center">
           <Ban className="size-10 text-muted-foreground" />
           <p className="font-semibold">Pedido não encontrado</p>
@@ -85,27 +95,35 @@ export function OrderTracking({ token }: { token: string }) {
             Voltar ao cardápio
           </Button>
         </div>
-      </Shell>
+      </CustomerShell>
     );
   }
 
   if (isLoading || !order) {
     return (
-      <Shell>
+      <CustomerShell>
         <div className="space-y-4 py-8" aria-busy>
           <Skeleton className="h-40 w-full rounded-2xl" />
           <Skeleton className="h-56 w-full rounded-2xl" />
         </div>
-      </Shell>
+      </CustomerShell>
     );
   }
 
   const headline = HEADLINES[order.status];
+  const at = (status: OrderStatus) => order.timeline.findLast((entry) => entry.status === status)?.at;
+  const eta =
+    order.status === "received" || order.status === "preparing"
+      ? format(
+          new Date(parseISO(at("received") ?? order.createdAt).getTime() + order.store.pickupEtaMinutes * 60_000),
+          "HH:mm"
+        )
+      : null;
   const currentStep = STEPS.findIndex((step) => step.status === order.status);
   const isReady = order.status === "ready";
 
   return (
-    <Shell backHref={`/${order.store.slug}`}>
+    <CustomerShell backHref={`/${order.store.slug}`} actions={<RecentOrdersButton />}>
       <Confetti ref={confettiRef} manualstart className="pointer-events-none fixed inset-0 z-50 size-full" />
 
       <motion.section
@@ -132,6 +150,26 @@ export function OrderTracking({ token }: { token: string }) {
             <p className="text-sm text-muted-foreground">{headline.subtitle}</p>
           </motion.div>
         </AnimatePresence>
+
+        {eta && (
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-sm">
+            <Clock className="size-4 text-primary" /> Previsão: pronto por volta das <strong>{eta}</strong>
+          </p>
+        )}
+
+        {readyAlert.supported && (order.status === "received" || order.status === "preparing") && (
+          <div className="mt-4">
+            {readyAlert.armed ? (
+              <p className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+                <BellRing className="size-4" /> Vamos te avisar quando ficar pronto
+              </p>
+            ) : (
+              <Button variant="outline" className="rounded-full" onClick={() => void readyAlert.arm()}>
+                <Bell /> Avisar quando ficar pronto
+              </Button>
+            )}
+          </div>
+        )}
 
         {order.status === "pending_payment" && order.checkoutUrl && (
           <Button size="lg" className="mt-4 rounded-full" render={<a href={order.checkoutUrl} />} nativeButton={false}>
@@ -170,7 +208,14 @@ export function OrderTracking({ token }: { token: string }) {
                 </motion.span>
                 <div className="pt-2">
                   <p className={cn("font-medium", !done && !active && "text-muted-foreground")}>{step.label}</p>
-                  {active && <p className="text-xs text-muted-foreground">Agora</p>}
+                  {(done || active) && at(step.status) ? (
+                    <p className="text-xs text-muted-foreground tabular-nums">
+                      {active ? "Agora · " : ""}
+                      {format(parseISO(at(step.status)!), "HH:mm")}
+                    </p>
+                  ) : (
+                    active && <p className="text-xs text-muted-foreground">Agora</p>
+                  )}
                 </div>
               </li>
             );
@@ -211,6 +256,27 @@ export function OrderTracking({ token }: { token: string }) {
         </p>
       </section>
 
+      {(order.status === "completed" || order.status === "cancelled") && (
+        <Button
+          size="lg"
+          className="mt-6 h-12 w-full rounded-full"
+          onClick={() => reorder(order.publicToken, order.store.slug)}
+        >
+          <RotateCcw /> Pedir de novo
+        </Button>
+      )}
+
+      {order.store.phone && (
+        <Button
+          variant="outline"
+          className="mt-4 w-full rounded-full"
+          render={<a href={`tel:+55${order.store.phone}`} />}
+          nativeButton={false}
+        >
+          <Phone /> Ligar para a loja
+        </Button>
+      )}
+
       {order.store.address && (
         <p className="mt-4 flex items-center justify-center gap-1 text-sm text-muted-foreground">
           <MapPin className="size-4" /> Retirada em {order.store.address}
@@ -223,22 +289,6 @@ export function OrderTracking({ token }: { token: string }) {
         description={`Instale o cardápio da ${order.store.name} para pedir de novo e ver o andamento em um toque.`}
         className="mt-6"
       />
-    </Shell>
-  );
-}
-
-function Shell({ children, backHref = "/" }: { children: React.ReactNode; backHref?: string }) {
-  return (
-    <div className="min-h-svh bg-background">
-      <header className="sticky top-0 z-30 border-b bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex h-14 max-w-lg items-center justify-between px-4">
-          <Button variant="ghost" size="sm" render={<Link href={backHref} />} nativeButton={false}>
-            <ArrowLeft /> Cardápio
-          </Button>
-          <ThemeToggleButton className="rounded-full" />
-        </div>
-      </header>
-      <main className="mx-auto max-w-lg px-4 py-6">{children}</main>
-    </div>
+    </CustomerShell>
   );
 }

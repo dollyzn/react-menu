@@ -9,7 +9,8 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Admin routes | `app/app/stores/[store]/<domain>/` (page + `components/`) |
 | Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` |
 | Auth pages | `app/app/(auth)/` |
-| Customer menu (SSR) | `app/(menu)/` (`/`, `/[slug]`, `/pedido/[token]`), shared parts in `_components/` |
+| Customer menu (SSR) | `app/(menu)/` (`/`, `/[slug]`, `/pedidos`, `/pedido/[token]`), shared parts in `_components/`, helpers in `_lib/` |
+| Customer history and device link | `_lib/customer-orders.ts`, `_components/order-history.tsx`, `customer.tokens` (ADR 0014) |
 | Bag and customer identity | `redux/slices/cart.ts`, `redux/slices/customer.ts` (persisted) |
 | Sidebar by role | `lib/menu-itens.ts` (`getManageMenuItems`, `homeForRole`) |
 | Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
@@ -49,6 +50,10 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 - Forms: react-hook-form + zod + `Field*` components (see
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.
+- Navigation is a `<Link>` styled with `buttonVariants`, not `Button`
+  `render={<Link/>}` (Base UI gives it role="button").
+- Ingredient emoji use the `font-emoji` class (Noto Color Emoji), so they
+  render on devices without an emoji font.
 
 ## Tests
 

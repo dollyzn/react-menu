@@ -22,9 +22,12 @@ interface AlertDialogDestructiveProps {
   onOpenChange?: (open: boolean) => void;
   loading?: boolean;
   onConfirm: () => void;
+  /** Action button text (default "Excluir"). */
+  confirmLabel?: string;
 }
 
 export function AlertDialogDestructive({
+  confirmLabel = "Excluir",
   children,
   title,
   description,
@@ -55,7 +58,7 @@ export function AlertDialogDestructive({
             onClick={onConfirm}
             loading={loading}
           >
-            {loading ? "Excluindo..." : "Excluir"}
+            {loading ? "Aguarde..." : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

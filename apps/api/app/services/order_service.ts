@@ -289,10 +289,30 @@ export default class OrderService {
     const order = await Order.query()
       .where({ publicToken })
       .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('history')
       .preload('store')
       .first()
     if (!order) throw new AppException('Pedido não encontrado', 404)
     return order
+  }
+
+  /** Orders of the given public tokens (a device's own history), newest first. */
+  async findManyByToken(publicTokens: string[]) {
+    if (publicTokens.length === 0) return []
+    return await Order.query()
+      .whereIn('publicToken', publicTokens)
+      .preload('items', (items) => items.orderBy('id'))
+      .preload('store')
+      .orderBy('createdAt', 'desc')
+  }
+
+  /** A customer's latest orders in one store, newest first. */
+  async listForCustomer(storeId: string, customerId: string, limit = 30) {
+    return await Order.query()
+      .where({ storeId, customerId })
+      .preload('items', (items) => items.orderBy('id'))
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
   }
 
   private assertCanOrder(store: Store, input: CreateOrderInput) {

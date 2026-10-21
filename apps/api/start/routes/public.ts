@@ -14,6 +14,10 @@ export default function publicRoutes() {
         .as('public.orders.store')
         .use(orderThrottle)
       router
+        .get('/menu/:slug/my-orders', [PublicMenuController, 'myOrders'])
+        .as('public.orders.mine')
+      router.get('/orders', [PublicMenuController, 'lookupOrders']).as('public.orders.lookup')
+      router
         .get('/orders/:token', [PublicMenuController, 'trackOrder'])
         .as('public.orders.show')
         .where('token', router.matchers.uuid())

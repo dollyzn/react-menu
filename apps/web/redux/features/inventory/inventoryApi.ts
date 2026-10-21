@@ -3,7 +3,14 @@ import type { Ingredient, IngredientUnit, StockMovement } from "@react-menu/cont
 
 const listTag = (storeId: string) => ({ type: "Ingredient" as const, id: `store-${storeId}` });
 
-type IngredientInput = { name: string; unit: IngredientUnit; minStock?: number; stockQuantity?: number };
+type IngredientInput = {
+  name: string;
+  unit: IngredientUnit;
+  /** Emoji for the kitchen; null = suggested from the name. */
+  icon?: string | null;
+  minStock?: number;
+  stockQuantity?: number;
+};
 type RecipeLine = { ingredientId: number; quantity: number };
 
 export const inventoryApi = baseApi.injectEndpoints({

@@ -18,6 +18,10 @@ export default class Ingredient extends BaseModel {
   @column()
   declare unit: IngredientUnit
 
+  /** Emoji for the kitchen display (see #kitchen/ingredient_icons). */
+  @column()
+  declare icon: string | null
+
   @column(decimal)
   declare stockQuantity: number
 

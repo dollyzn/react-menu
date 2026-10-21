@@ -8,6 +8,7 @@ import Ingredient from '#models/ingredient'
 import Item from '#models/item'
 import StockMovement from '#models/stock_movement'
 import Store from '#models/store'
+import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 
 type Stock = { unit: IngredientUnit; stock: number; min: number }
 
@@ -212,6 +213,7 @@ export default class DemoInventorySeeder extends BaseSeeder {
             storeId: store.id,
             name,
             unit: stock.unit,
+            icon: suggestIngredientIcon(name),
             minStock: stock.min,
             stockQuantity: stock.stock,
           },

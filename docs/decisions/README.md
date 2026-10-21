@@ -19,6 +19,7 @@ an accepted ADR, supersede it with a new one.
 | [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Accepted |
 | [0012](0012-two-installable-apps.md) | Two installable apps: customer menu and staff panel | Accepted |
 | [0013](0013-idempotent-writes.md) | Idempotent writes for unstable networks | Accepted |
+| [0014](0014-customer-history-token.md) | Customer order history across devices without accounts | Accepted |
 
 ## Template
 

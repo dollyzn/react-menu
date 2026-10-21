@@ -63,4 +63,28 @@ const orderListValidator = vine.create(
   })
 )
 
-export { publicOrderValidator, posOrderValidator, prepareUnitsValidator, orderListValidator }
+/** `?tokens=a,b`: the public tokens of orders this device placed. */
+const orderLookupValidator = vine.create(
+  vine.object({
+    tokens: vine
+      .string()
+      .trim()
+      .transform((value) => [...new Set(value.split(',').filter(Boolean))])
+      .optional(),
+  })
+)
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+/** Keeps up to 30 well-formed tokens; anything else is ignored. */
+function lookupTokens(tokens: string[] | undefined) {
+  return (tokens ?? []).filter((token) => UUID.test(token)).slice(0, 30)
+}
+
+export {
+  publicOrderValidator,
+  posOrderValidator,
+  prepareUnitsValidator,
+  orderListValidator,
+  orderLookupValidator,
+  lookupTokens,
+}

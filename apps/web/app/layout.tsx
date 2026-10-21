@@ -8,7 +8,7 @@ import { SessionProvider } from "@/contexts/session-provider";
 import { NotificationProvider } from "@/contexts/notification-provider";
 
 import { Toaster } from "@/components/ui/sonner";
-import { fontMono, fontSans } from "@/lib/fonts";
+import { fontEmoji, fontMono, fontSans } from "@/lib/fonts";
 import { cn } from "@/lib/utils";
 import { env } from "@/lib/env";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -92,7 +92,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
       className={cn(
         "font-sans antialiased",
         fontSans.variable,
-        fontMono.variable
+        fontMono.variable,
+        fontEmoji.variable
       )}
     >
       <head>
@@ -108,6 +109,8 @@ export default function RootLayout({ children }: RootLayoutProps) {
             __html: `
               (function() {
                 try {
+                  // Saved choice for the theme button's icon before hydration.
+                  document.documentElement.dataset.themeChoice = localStorage.getItem('theme') || 'system';
                   if (
                     localStorage.getItem('theme') === 'dark' ||
                     (
@@ -136,7 +139,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
             <NotificationProvider>
               <SessionProvider>
                 <TooltipProvider>{children}</TooltipProvider>
-                <Toaster closeButton richColors />
+                {/* On phones toasts sit above the fixed bottom bars ("Ver sacola",
+                    "Comanda") instead of covering them. */}
+                <Toaster closeButton richColors mobileOffset={{ bottom: "6rem" }} />
                 <ServiceWorkerRegistrar />
               </SessionProvider>
             </NotificationProvider>

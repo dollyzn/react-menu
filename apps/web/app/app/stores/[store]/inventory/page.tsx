@@ -110,7 +110,10 @@ export default function InventoryPage() {
               className={cn("flex flex-col gap-3 rounded-2xl border bg-card p-4", ingredient.isLowStock && "border-amber-500/50")}
             >
               <div className="flex items-start justify-between gap-2">
-                <div>
+                <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted font-emoji text-2xl">
+                  {ingredient.icon ?? "•"}
+                </span>
+                <div className="min-w-0 flex-1">
                   <p className="font-semibold">{ingredient.name}</p>
                   <p className="text-xs text-muted-foreground">
                     Mínimo {formatQuantity(ingredient.minStock, ingredient.unit)}

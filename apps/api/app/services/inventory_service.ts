@@ -11,6 +11,7 @@ import type Order from '#models/order'
 import StockMovement from '#models/stock_movement'
 import Store from '#models/store'
 import IngredientRepository from '#repositories/ingredient_repository'
+import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 
 type RecipeLine = { ingredientId: number; quantity: number }
 
@@ -27,7 +28,13 @@ export default class InventoryService {
 
   async create(
     storeId: string,
-    data: { name: string; unit: Ingredient['unit']; minStock?: number; stockQuantity?: number },
+    data: {
+      name: string
+      unit: Ingredient['unit']
+      icon?: string | null
+      minStock?: number
+      stockQuantity?: number
+    },
     userId: string
   ) {
     return await db.transaction(async (trx) => {
@@ -39,7 +46,13 @@ export default class InventoryService {
       if (exists) throw new AppException('Já existe um ingrediente com esse nome', 422)
 
       const ingredient = await Ingredient.create(
-        { storeId, name: data.name, unit: data.unit, minStock: data.minStock ?? 0 },
+        {
+          storeId,
+          name: data.name,
+          unit: data.unit,
+          icon: data.icon ?? suggestIngredientIcon(data.name),
+          minStock: data.minStock ?? 0,
+        },
         { client: trx }
       )
       if (data.stockQuantity) {
@@ -55,10 +68,12 @@ export default class InventoryService {
   async update(
     storeId: string,
     id: number,
-    data: Partial<Pick<Ingredient, 'name' | 'unit' | 'minStock'>>
+    data: Partial<Pick<Ingredient, 'name' | 'unit' | 'minStock' | 'icon'>>
   ) {
     const ingredient = await this.repo.findInStore(storeId, id)
     ingredient.merge(data)
+    // Cleared icon: back to the suggestion for the (possibly new) name.
+    if (data.icon === null) ingredient.icon = suggestIngredientIcon(ingredient.name)
     await ingredient.save()
     return ingredient
   }

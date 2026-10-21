@@ -3,10 +3,17 @@ import type { ProductionBatch } from '@react-menu/contracts'
 import OrderStatus from '#enums/order_status'
 import type IngredientUnit from '#enums/ingredient_unit'
 import { buildProductionQueue, type PendingUnit } from '#kitchen/production_queue'
+import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 import Order from '#models/order'
 import Store from '#models/store'
 
-type RecipeRow = { owner_id: string; name: string; unit: IngredientUnit; quantity: string }
+type RecipeRow = {
+  owner_id: string
+  name: string
+  unit: IngredientUnit
+  icon: string | null
+  quantity: string
+}
 
 const round3 = (value: number) => Math.round(value * 1000) / 1000
 
@@ -47,9 +54,17 @@ export default class KitchenService {
         ...first.addonIds.flatMap((id) => recipes.addons.get(id) ?? []),
       ]
 
-      const totals = new Map<string, { name: string; unit: IngredientUnit; quantity: number }>()
+      const totals = new Map<
+        string,
+        { name: string; unit: IngredientUnit; icon: string | null; quantity: number }
+      >()
       for (const row of rows) {
-        const current = totals.get(row.name) ?? { name: row.name, unit: row.unit, quantity: 0 }
+        const current = totals.get(row.name) ?? {
+          name: row.name,
+          unit: row.unit,
+          icon: row.icon ?? suggestIngredientIcon(row.name),
+          quantity: 0,
+        }
         current.quantity = round3(current.quantity + Number(row.quantity) * batch.quantity)
         totals.set(row.name, current)
       }
@@ -67,14 +82,14 @@ export default class KitchenService {
           .from('item_ingredients as r')
           .join('ingredients as i', 'i.id', 'r.ingredient_id')
           .whereIn('r.item_id', itemIds)
-          .select('r.item_id as owner_id', 'i.name', 'i.unit', 'r.quantity')
+          .select('r.item_id as owner_id', 'i.name', 'i.unit', 'i.icon', 'r.quantity')
       : []
     const addonRows: RecipeRow[] = addonIds.length
       ? await db
           .from('addon_ingredients as r')
           .join('ingredients as i', 'i.id', 'r.ingredient_id')
           .whereIn('r.addon_id', addonIds)
-          .select('r.addon_id as owner_id', 'i.name', 'i.unit', 'r.quantity')
+          .select('r.addon_id as owner_id', 'i.name', 'i.unit', 'i.icon', 'r.quantity')
       : []
 
     const group = (rows: RecipeRow[]) => {

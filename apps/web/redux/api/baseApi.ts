@@ -159,8 +159,10 @@ const baseQueryWithHandling: BaseQueryFn<
       (status !== undefined && errorMessages[status]) ||
       "Erro na requisição";
 
+    const url = typeof args === "string" ? args : args.url;
     if (status === 401) {
-      api.dispatch(setIsSessionExpired(true));
+      // A customer link that stopped working is handled by the menu, not the staff session.
+      if (!url.startsWith("public/")) api.dispatch(setIsSessionExpired(true));
     } else if (message) {
       toast.error(message);
     }
