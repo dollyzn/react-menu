@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
 import StoreRole from '#enums/store_role'
 import Customer from '#models/customer'
 import Notification from '#models/notification'
@@ -344,12 +345,34 @@ test.group('Kitchen and pickup', (group) => {
 test.group('Menu views', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
-  test('customer visits are counted, staff previews are not', async ({ client, assert }) => {
+  test('customer visits are counted per hour, staff previews are not', async ({
+    client,
+    assert,
+  }) => {
     const { store } = await createMenuStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const phone = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) Mobile/15E148'
 
     await client.get(`/api/v1/public/menu/${store.slug}`)
+    await client.get(`/api/v1/public/menu/${store.slug}`)
+    await client.get(`/api/v1/public/menu/${store.slug}`).header('user-agent', phone)
     await client.get(`/api/v1/public/menu/${store.slug}?preview=1`)
 
-    assert.equal(await store.loadStoreViewsCount(), 1)
+    // One row per hour and platform, however many visits.
+    const rows = await db.from('store_view_counts').where('store_id', store.id)
+    assert.lengthOf(rows, 2)
+    assert.sameMembers(
+      rows.map((row) => `${row.platform}:${row.count}`),
+      ['desktop:2', 'mobile:1']
+    )
+
+    const overview = await client
+      .get(`/api/v1/stores/${store.id}/dashboard/overview`)
+      .loginAs(manager)
+    const chart = await client.get(`/api/v1/stores/${store.id}/dashboard/chart`).loginAs(manager)
+    assert.equal(overview.body().data.accesses.total, 3)
+    const today = chart.body().data.at(-1)
+    assert.deepInclude(today, { desktop: 2, mobile: 1 })
   })
 })

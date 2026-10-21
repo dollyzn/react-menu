@@ -1,7 +1,8 @@
 import Addon from '#models/addon'
 import Category from '#models/category'
 import Item from '#models/item'
-import StoreViews from '#models/store_views'
+import db from '@adonisjs/lucid/services/db'
+import { BUSINESS_TIMEZONE } from '#services/order_service'
 import { DateTime } from 'luxon'
 import type { LucidModel, ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 
@@ -76,8 +77,29 @@ export default class DashboardService {
       { label: 'no último mês', duration: { months: 1 }, upperBound: { weeks: 1 } },
     ]
 
+    /** Menu visits are aggregated per hour (store_view_counts): sum them. */
+    const visitMetric = async () => {
+      const sum = async (from?: DateTime, to?: DateTime) => {
+        const query = db.from('store_view_counts').where('store_id', storeId)
+        if (from) query.where('hour', '>=', from.startOf('hour').toSQL()!)
+        if (to) query.where('hour', '<', to.startOf('hour').toSQL()!)
+        const [row] = await query.sum('count as total')
+        return Number(row?.total ?? 0)
+      }
+      const deltas = await Promise.all(
+        intervals.map(async ({ label, duration, upperBound }) => ({
+          interval: label,
+          value: await sum(
+            DateTime.now().minus(duration),
+            upperBound ? DateTime.now().minus(upperBound) : undefined
+          ),
+        }))
+      )
+      return { total: await sum(), message: generateDynamicMessage(deltas, intervals) }
+    }
+
     const [accesses, categories, items, addons] = await Promise.all([
-      fetchMetricData(StoreViews, (model) => model.query().where('storeId', storeId), intervals),
+      visitMetric(),
       fetchMetricData(Category, (model) => model.query().where('storeId', storeId), intervals),
       fetchMetricData(
         Item,
@@ -107,8 +129,8 @@ export default class DashboardService {
   }
 
   async chart(storeId: string) {
-    const startDate = DateTime.now().minus({ months: 3 }).startOf('day')
-    const endDate = DateTime.now().startOf('day')
+    const startDate = DateTime.now().setZone(BUSINESS_TIMEZONE).minus({ months: 3 }).startOf('day')
+    const endDate = DateTime.now().setZone(BUSINESS_TIMEZONE).startOf('day')
 
     const dateSequence: string[] = []
     let currentDate = startDate
@@ -118,25 +140,21 @@ export default class DashboardService {
       currentDate = currentDate.plus({ days: 1 })
     }
 
-    const results = await StoreViews.query()
-      .where('storeId', storeId)
-      .andWhere('createdAt', '>=', startDate.toSQL())
-      .orderBy('createdAt', 'asc')
+    // Per business day (São Paulo) and platform.
+    const rows = await db
+      .from('store_view_counts')
+      .where('store_id', storeId)
+      .where('hour', '>=', startDate.toSQL()!)
+      .select(db.raw(`to_char(hour at time zone ?, 'YYYY-MM-DD') as date`, [BUSINESS_TIMEZONE]))
+      .select('platform')
+      .sum('count as total')
+      .groupBy('date', 'platform')
 
-    const groupedResults = results.reduce(
-      (acc: Record<string, { date: string; desktop: number; mobile: number }>, row) => {
-        const date = row.createdAt.toSQLDate()
-        const platform = row.platform
-        if (date) {
-          if (!acc[date]) {
-            acc[date] = { date, desktop: 0, mobile: 0 }
-          }
-          acc[date][platform] += 1
-        }
-        return acc
-      },
-      {}
-    )
+    const groupedResults: Record<string, { date: string; desktop: number; mobile: number }> = {}
+    for (const row of rows as { date: string; platform: 'mobile' | 'desktop'; total: string }[]) {
+      groupedResults[row.date] ??= { date: row.date, desktop: 0, mobile: 0 }
+      groupedResults[row.date][row.platform] += Number(row.total)
+    }
 
     return dateSequence.map((date) => {
       return groupedResults[date] || { date, desktop: 0, mobile: 0 }

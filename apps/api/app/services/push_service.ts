@@ -1,8 +1,8 @@
-import { cert, getApps, initializeApp, type App } from 'firebase-admin/app'
-import { getMessaging, type BatchResponse } from 'firebase-admin/messaging'
+import type { BatchResponse } from 'firebase-admin/messaging'
+import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
-import env from '#start/env'
 import PushRegistration from '#models/push_registration'
+import FcmClient from '#notifications/fcm_client'
 
 export type PushMessage = {
   title: string
@@ -32,27 +32,12 @@ export function unregisteredFids(fids: string[], response: BatchResponse) {
  * Web push through Firebase Cloud Messaging (free tier), addressed by
  * Firebase Installation ID. Disabled (no-op) unless FIREBASE_* env vars are set.
  */
+@inject()
 export default class PushService {
-  get isEnabled() {
-    return Boolean(
-      env.get('FIREBASE_PROJECT_ID') &&
-      env.get('FIREBASE_CLIENT_EMAIL') &&
-      env.get('FIREBASE_PRIVATE_KEY')
-    )
-  }
+  constructor(private fcm: FcmClient) {}
 
-  #app(): App {
-    return (
-      getApps()[0] ??
-      initializeApp({
-        credential: cert({
-          projectId: env.get('FIREBASE_PROJECT_ID'),
-          clientEmail: env.get('FIREBASE_CLIENT_EMAIL'),
-          // Env files keep the PEM on one line with escaped newlines.
-          privateKey: env.get('FIREBASE_PRIVATE_KEY')!.replace(/\\n/g, '\n'),
-        }),
-      })
-    )
+  get isEnabled() {
+    return this.fcm.isConfigured
   }
 
   /**
@@ -82,15 +67,11 @@ export default class PushService {
 
     // Data-only message: public/sw.js renders it, so the app controls the
     // notification and skips it while a tab is focused (the in-app toast shows it).
-    const response = await getMessaging(this.#app()).sendEachForMulticast({
-      fids,
-      data: {
-        title: message.title,
-        body: message.body,
-        url: message.url ?? '',
-        tag: message.tag ?? '',
-      },
-      webpush: { headers: { Urgency: 'high', TTL: String(60 * 60 * 24) } },
+    const response = await this.fcm.send(fids, {
+      title: message.title,
+      body: message.body,
+      url: message.url ?? '',
+      tag: message.tag ?? '',
     })
 
     const gone = unregisteredFids(fids, response)

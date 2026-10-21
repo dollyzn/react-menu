@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   getMessaging,
   isSupported as isMessagingSupported,
+  onRegistered,
   register,
   unregister,
 } from "firebase/messaging";
@@ -44,6 +45,30 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const [error, setError] = useState<string | null>(null);
   const dispatch = useAppDispatch();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const signedIn = useRef(isAuthenticated);
+  const stopListening = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    signedIn.current = isAuthenticated;
+  }, [isAuthenticated]);
+
+  useEffect(() => () => stopListening.current?.(), []);
+
+  /**
+   * FCM may hand this browser a new installation ID (refresh, restore):
+   * send it to the API so push keeps arriving. Only while signed in and
+   * subscribed on this device.
+   */
+  function listenForNewInstallations() {
+    if (stopListening.current) return;
+    stopListening.current = onRegistered(getMessaging(getFirebaseApp()), (fid) => {
+      if (!signedIn.current) return;
+      void dispatch(notificationApi.endpoints.registerPush.initiate({ fid }))
+        .unwrap()
+        .then(() => setIsSubscribed(true))
+        .catch(() => undefined);
+    });
+  }
 
   async function setup() {
     if (!isPushConfigured()) {
@@ -71,6 +96,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
         notificationApi.endpoints.checkPush.initiate({ fid: await currentFid() })
       ).unwrap();
       setIsSubscribed(registered);
+      if (registered) listenForNewInstallations();
     } catch {
       setError("Não foi possível preparar as notificações push.");
       setIsSupported(false);
@@ -113,6 +139,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       ).unwrap();
 
       setIsSubscribed(true);
+      listenForNewInstallations();
     } catch {
       setError("Não foi possível ativar as notificações push. Tente novamente.");
     } finally {
@@ -128,6 +155,8 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
     }
 
     setLoading(true);
+    stopListening.current?.();
+    stopListening.current = null;
 
     try {
       const fid = await currentFid();
