@@ -10,7 +10,7 @@ import {
   updateValidator,
 } from '#validators/item'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
+import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class ItemsController {
@@ -20,11 +20,18 @@ export default class ItemsController {
     const storeId = await storeExistValidator.validate(params.storeId)
     const q = request.qs()
 
+    // Query string uses snake_case (`category_name`); the repository camelCase.
+    const { name, category_name: categoryName } = pickQueryFilters(q, ['name', 'category_name'])
     const items = await this.itemService.listInStore(storeId, {
       ...parsePagination(q),
-      filters: {
-        ...pickQueryFilters(q, ['name', 'category_name']),
-      },
+      sort: parseSort(q, {
+        name: 'name',
+        description: 'description',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+        price: 'price',
+      }),
+      filters: { name, categoryName },
     })
 
     return ok(items.all(), items.getMeta())

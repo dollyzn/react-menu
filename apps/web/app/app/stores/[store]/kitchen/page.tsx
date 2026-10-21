@@ -24,6 +24,7 @@ import {
 } from "@/redux/features/order/orderApi";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatQuantity } from "@/utils/units";
+import { SwipeCard } from "./swipe-card";
 import { cn } from "@/lib/utils";
 
 /**
@@ -139,16 +140,32 @@ export default function KitchenPage() {
       ) : (
         <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
           <AnimatePresence mode="popLayout">
-            <motion.section
+            <motion.div
               key={current.key + current.units.map((u) => u.lineId).join()}
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
+              exit={{ opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              aria-label="Fazer agora"
-              className="flex flex-col rounded-3xl border-2 border-primary/40 bg-card p-5 shadow-lg lg:col-span-2 lg:min-h-0 lg:overflow-y-auto lg:p-8"
+              className="lg:col-span-2 lg:min-h-0"
             >
-              <p className="text-sm font-semibold tracking-wider text-primary uppercase">Fazer agora</p>
+            <SwipeCard
+              className="h-full"
+              disabled={saving}
+              rightLabel={current.quantity > 1 ? `Fiz todos (${current.quantity})` : "Pronto"}
+              onSwipeRight={() => markDone(current, true)}
+              leftLabel="Fiz 1"
+              onSwipeLeft={() => markDone(current, false)}
+            >
+            <section
+              aria-label="Fazer agora"
+              className="flex h-full flex-col rounded-3xl border-2 border-primary/40 bg-card p-5 shadow-lg lg:min-h-0 lg:overflow-y-auto lg:p-8"
+            >
+              <p className="flex items-center justify-between gap-2 text-sm font-semibold tracking-wider text-primary uppercase">
+                Fazer agora
+                <span className="hidden text-xs font-normal tracking-normal text-muted-foreground normal-case sm:inline">
+                  Arraste → pronto · ← fiz 1
+                </span>
+              </p>
               <div className="mt-2 flex items-baseline gap-4">
                 <span className="text-7xl font-black tabular-nums lg:text-8xl">{current.quantity}×</span>
                 <h2 className="text-3xl leading-tight font-bold text-balance lg:text-5xl">{current.name}</h2>
@@ -232,7 +249,9 @@ export default function KitchenPage() {
                   {current.quantity > 1 ? `Fiz todos (${current.quantity})` : "Pronto"}
                 </Button>
               </div>
-            </motion.section>
+            </section>
+            </SwipeCard>
+            </motion.div>
           </AnimatePresence>
 
           <aside aria-label="Próximos" className="flex flex-col gap-3 lg:min-h-0">

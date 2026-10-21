@@ -247,6 +247,8 @@ export function UpdateItemDialog({
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor={field.name}>Categoria</FieldLabel>
                     <Select
+                      // Lets the trigger show the category name, not its id.
+                      items={categories.map((category) => ({ value: category.id.toString(), label: category.name }))}
                       value={field.value}
                       onValueChange={field.onChange}
                       disabled={busy}

@@ -1,3 +1,4 @@
+import type { SortSpec } from '#helpers/query_string_parser'
 import type Category from '#models/category'
 
 export type CategoryPreloadKey = keyof Pick<Category, 'items' | 'store'>
@@ -16,6 +17,7 @@ export type CategoryListFilters = {
 export type CategoryListOptions = {
   page?: number
   perPage?: number
+  sort?: SortSpec
   filters?: CategoryListFilters
   preload?: CategoryPreloadOption
 }

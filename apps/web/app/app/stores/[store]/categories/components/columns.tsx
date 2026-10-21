@@ -84,6 +84,8 @@ export const columns: ColumnDef<Category>[] = [
   },
   {
     id: "itemsCount",
+    // Computed column: the API does not sort by it.
+    enableSorting: false,
     accessorKey: "itemsCount",
     header: ({ column }) => (
       <DataTableColumnHeader

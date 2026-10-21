@@ -36,7 +36,8 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 - Validate route params (`uuidValidator`, `storeExistValidator`), not only bodies.
 - Wrap multi-step writes in `db.transaction`; broadcast/notify after commit.
 - Money columns are `decimal(10,2)`.
-- Lists use `parsePagination` + `pickQueryFilters` and return
+- Lists use `parsePagination` + `pickQueryFilters` (+ `parseSort` with an
+  allowlist of column ids; never order by a raw query value) and return
   `ok(paginator.all(), paginator.getMeta())` (snake_case meta).
 - Rate limiting: `throttle` must run after `middleware.auth()` or the
   request is limited as a guest (per IP). Public order creation has its own

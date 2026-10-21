@@ -16,26 +16,45 @@ export default class OrdersController {
   async index({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const qs = request.qs()
+    const list = (value: unknown) => (value === undefined ? undefined : [value].flat())
     const filters = await orderListValidator.validate({
-      status: qs.status === undefined ? undefined : [qs.status].flat(),
-      date: qs.date,
+      ...qs,
+      status: list(qs.status),
+      channel: list(qs.channel),
+      paymentMethod: list(qs.paymentMethod),
+      sort: [qs.sort].flat()[0],
     })
 
-    const orders = await this.orders.list(storeId, {
-      statuses: filters.status,
-      date: filters.date
-        ? DateTime.fromJSDate(filters.date, { zone: BUSINESS_TIMEZONE })
-        : undefined,
-    })
-
-    return ok(orders)
+    // History (paginated, any period) or the live board (one business day).
+    if (filters.page) {
+      const page = await this.orders.listHistory(storeId, filters)
+      return ok(page.all(), page.getMeta())
+    }
+    return ok(
+      await this.orders.list(storeId, {
+        statuses: filters.status,
+        date: filters.date
+          ? DateTime.fromJSDate(filters.date, { zone: BUSINESS_TIMEZONE })
+          : undefined,
+      })
+    )
   }
 
   async show({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const orderId = await uuidValidator.validate(params.orderId)
 
-    return ok(await this.orders.find(storeId, orderId))
+    const order = await this.orders.find(storeId, orderId)
+    return ok({
+      ...order.serialize(),
+      // Who changed each status: only the name leaves the API.
+      history: order.history.map((entry) => ({
+        fromStatus: entry.fromStatus,
+        toStatus: entry.toStatus,
+        createdAt: entry.createdAt.toISO(),
+        user: entry.user ? { id: entry.user.id, name: entry.user.name } : null,
+      })),
+    })
   }
 
   /** Point of sale: paid at the counter, goes straight to the kitchen. */

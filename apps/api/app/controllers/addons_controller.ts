@@ -9,7 +9,7 @@ import {
 } from '#validators/addon'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
+import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class AddonsController {
@@ -21,6 +21,13 @@ export default class AddonsController {
 
     const addons = await this.addonService.listInStore(storeId, {
       ...parsePagination(q),
+      sort: parseSort(q, {
+        name: 'name',
+        description: 'description',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+        price: 'price',
+      }),
       filters: pickQueryFilters(q, ['name']),
     })
 

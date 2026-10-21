@@ -93,3 +93,65 @@ test("with a long queue the kitchen's action button stays on screen", async ({ p
 
   await clearKitchen();
 });
+
+test("orders history: search, open the detail and see who did what", async ({ page }) => {
+  const customer = `Histórico ${Date.now()}`;
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const item = menu.categories[0].items[0];
+  const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: { lines: [{ itemId: item.id, quantity: 1 }], customer: { name: customer, phone: "11955554444" }, paymentMethod: "counter" },
+  });
+  const number = (await placed.json()).data.number as number;
+  await api.dispose();
+
+  await login(page);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  await page.getByRole("tab", { name: "Histórico" }).click();
+  await expect(page).toHaveURL(/view=historico/);
+
+  await page.getByRole("button", { name: "Filtrar por número, cliente ou telefone" }).click();
+  await page.getByPlaceholder("Digite para filtrar...").fill(customer);
+  await page.getByRole("button", { name: "Aplicar filtro" }).click();
+  const row = page.getByRole("row", { name: new RegExp(customer) });
+  await expect(row).toBeVisible();
+  await row.click();
+
+  const detail = page.getByRole("dialog");
+  await expect(detail.getByText(`#${number}`)).toBeVisible();
+  await expect(detail.getByText("Linha do tempo")).toBeVisible();
+  await expect(page).toHaveURL(/pedido=/);
+
+  // The open order survives a reload.
+  await page.reload();
+  await expect(page.getByRole("dialog").getByText(`#${number}`)).toBeVisible();
+});
+
+test("kitchen: swipe right finishes the batch", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [{ itemId: menu.categories[0].items[1].id, quantity: 2 }],
+      customer: { name: "Swipe", phone: "11900000000" },
+      paymentMethod: "counter",
+    },
+  });
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(page.url().replace(/\/[^/]+$/, "/kitchen"));
+  const card = page.getByRole("region", { name: "Fazer agora" });
+  await expect(card).toBeVisible();
+
+  const box = (await card.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 80);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step++) await page.mouse.move(box.x + box.width / 2 + step * 30, box.y + 80);
+  await page.mouse.up();
+
+  await expect(page.getByText(/2× .* prontos/)).toBeVisible();
+  await expect(page.getByText("Tudo pronto por aqui!")).toBeVisible();
+});

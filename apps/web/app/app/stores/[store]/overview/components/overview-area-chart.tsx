@@ -31,6 +31,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
+
+const TIME_RANGES = [
+  { value: "90d", label: "Últimos 3 meses" },
+  { value: "30d", label: "Últimos 30 dias" },
+  { value: "7d", label: "Últimos 7 dias" },
+];
 dayjs.locale("pt-br");
 
 const chartConfig = {
@@ -108,13 +114,14 @@ export function OverviewAreaChart({
         </div>
         <Select
           value={timeRange}
+          items={TIME_RANGES}
           onValueChange={(value) => setTimeRange(value ?? "90d")}
         >
           <SelectTrigger
             className="w-[160px] rounded-lg sm:ml-auto"
-            aria-label="Select a value"
+            aria-label="Período do gráfico"
           >
-            <SelectValue placeholder="Last 3 months" />
+            <SelectValue placeholder="Últimos 3 meses" />
           </SelectTrigger>
           <SelectContent className="rounded-xl">
             <SelectItem value="90d" className="rounded-lg">

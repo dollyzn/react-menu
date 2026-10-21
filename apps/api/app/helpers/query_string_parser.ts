@@ -84,3 +84,19 @@ export function pickQueryPositiveInts<K extends string>(
   }
   return out
 }
+
+export type SortSpec = { column: string; direction: 'asc' | 'desc' }[]
+
+/**
+ * `sort=name:asc&sort=price:desc` (the data-table format). Only ids in
+ * `allowed` are used, mapped to their database column; anything else is
+ * ignored, so the URL can never order by an arbitrary column.
+ */
+export function parseSort(q: QueryStringRecord, allowed: Record<string, string>): SortSpec {
+  return allNonEmptyStrings(q.sort).flatMap((entry) => {
+    const [id, direction] = entry.split(':')
+    const column = allowed[id ?? '']
+    if (!column || (direction !== 'asc' && direction !== 'desc')) return []
+    return [{ column, direction }]
+  })
+}

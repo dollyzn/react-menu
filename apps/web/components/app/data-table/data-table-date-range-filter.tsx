@@ -50,10 +50,12 @@ export function DataTableDateRangeFilter<TData, TValue>({
 }: DataTableDateRangeFilterProps<TData, TValue>) {
   const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange>(() => {
-    const filterValue = column?.getFilterValue() as DateRange | undefined;
-    return filterValue ?? { from: undefined, to: undefined };
-  });
+  // The column filter (from the URL) is the source of truth: no local copy
+  // that "Limpar" or a reload could leave stale.
+  const dateRange: DateRange = (column?.getFilterValue() as DateRange | undefined) ?? {
+    from: undefined,
+    to: undefined,
+  };
 
   const Wrapper = isMobile ? Drawer : Popover;
   const WrapperTrigger = isMobile ? DrawerTrigger : PopoverTrigger;
@@ -61,9 +63,7 @@ export function DataTableDateRangeFilter<TData, TValue>({
 
   const handleDateRangeChange = useCallback(
     (range: DateRange | undefined) => {
-      const nextRange = range || { from: undefined, to: undefined };
-      setDateRange(nextRange);
-      column?.setFilterValue(range);
+      column?.setFilterValue(range?.from || range?.to ? range : undefined);
     },
     [column]
   );
@@ -74,10 +74,10 @@ export function DataTableDateRangeFilter<TData, TValue>({
 
       const preset = presets.find((preset) => preset.shortcut === e.key);
       if (preset) {
+        const current = column?.getFilterValue() as DateRange | undefined;
         const isSameRange =
-          dateRange &&
-          dateRange.from?.getTime() === preset.from.getTime() &&
-          dateRange.to?.getTime() === preset.to.getTime();
+          current?.from?.getTime() === preset.from.getTime() &&
+          current?.to?.getTime() === preset.to.getTime();
 
         if (isSameRange) {
           handleDateRangeChange({ from: undefined, to: undefined });
@@ -89,13 +89,12 @@ export function DataTableDateRangeFilter<TData, TValue>({
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, presets, dateRange, handleDateRangeChange]);
+  }, [open, presets, column, handleDateRangeChange]);
 
   const columnName = title || column?.columnDef.meta?.name || "Data";
   const hasSelectedValues = dateRange.from || dateRange.to;
 
   const handleClearFilters = () => {
-    setDateRange({ from: undefined, to: undefined });
     column?.setFilterValue(undefined);
   };
 
@@ -268,6 +267,7 @@ export function DatePresetsSelect({
   return (
     <Select
       value={value}
+      items={presets.map(({ label, shortcut }) => ({ value: shortcut, label }))}
       onValueChange={(v) => {
         const preset = presets.find((p) => p.shortcut === v);
         if (preset) {

@@ -40,6 +40,7 @@ export default class AddonRepository {
     whereEqOrInColumn(query, 'store_id', storeId)
     whereLikeAnyColumn(query, 'name', name)
 
+    for (const { column, direction } of options?.sort ?? []) query.orderBy(column, direction)
     return query.orderBy('created_at', 'desc')
   }
 

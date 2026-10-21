@@ -46,6 +46,7 @@ export default class CategoryRepository {
       iq.as('itemsCount')
     })
 
+    for (const { column, direction } of options?.sort ?? []) query.orderBy(column, direction)
     return query.orderBy('order', 'asc')
   }
 

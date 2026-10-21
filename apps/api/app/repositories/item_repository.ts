@@ -168,6 +168,7 @@ export default class ItemRepository {
       }
     }
 
+    for (const { column, direction } of options?.sort ?? []) query.orderBy(column, direction)
     return await query.orderBy('created_at', 'desc').paginate(page, perPage)
   }
 

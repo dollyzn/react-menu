@@ -1,5 +1,4 @@
 import { Table } from "@tanstack/react-table";
-import { useMemo } from "react";
 import { Filter, FilterX, LayoutGrid, Table2, X } from "lucide-react";
 import { ColumnsConfig, DensityOption, ViewMode } from ".";
 
@@ -54,8 +53,9 @@ export function DataTableToolbar<TData>({
   const isFiltered = table.getState().columnFilters.length > 0;
   const filtersCount = table.getState().columnFilters.length;
 
-  const filterControls = useMemo(
-    () => (
+  // Not memoized: `table` keeps the same reference while its state changes,
+  // so a memo keyed on it would freeze the filters' UI.
+  const filterControls = (
       <>
         {columnsConfig?.map(
           (columnConfig) =>
@@ -106,8 +106,6 @@ export function DataTableToolbar<TData>({
           return null;
         })}
       </>
-    ),
-    [columnsConfig, table]
   );
 
   const leftActions = (

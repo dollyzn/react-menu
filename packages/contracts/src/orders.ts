@@ -58,6 +58,16 @@ export type Order = {
   createdAt: string;
   updatedAt: string;
   items: OrderItem[];
+  /** Only on GET /orders/:id: status changes and who made them. */
+  history?: OrderHistoryEntry[];
+};
+
+export type OrderHistoryEntry = {
+  fromStatus: OrderStatus | null;
+  toStatus: OrderStatus;
+  createdAt: string;
+  /** null: the customer (online order) or the system (payment webhook). */
+  user: { id: string; name: string | null } | null;
 };
 
 /** Customer view at GET /public/orders/:token (no internal ids or phone). */

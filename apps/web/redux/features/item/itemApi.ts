@@ -82,6 +82,7 @@ export const itemApi = baseApi.injectEndpoints({
         const tags: Array<{ type: "Item" | "Category" | "Addon"; id: string }> =
           [];
         if (res?.id) tags.push({ type: "Item", id: res.id });
+        tags.push({ type: "Item", id: "PUBLIC_MENU" });
         if (res?.categoryId != null)
           tags.push({ type: "Item", id: `category-${res.categoryId}` });
         const storeId = res?.category?.storeId;

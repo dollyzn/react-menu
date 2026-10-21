@@ -104,6 +104,8 @@ export const columns: ColumnDef<Item>[] = [
   },
   {
     id: "category.name",
+    // Computed column: the API does not sort by it.
+    enableSorting: false,
     accessorKey: "category.name",
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -128,6 +130,8 @@ export const columns: ColumnDef<Item>[] = [
   },
   {
     id: "addonsCount",
+    // Computed column: the API does not sort by it.
+    enableSorting: false,
     accessorKey: "addonsCount",
     header: ({ column }) => (
       <DataTableColumnHeader

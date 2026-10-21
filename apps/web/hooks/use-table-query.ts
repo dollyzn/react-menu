@@ -1,10 +1,10 @@
-import { useState } from "react";
 import type {
   ColumnFiltersState,
   PaginationState,
   SortingState,
 } from "@tanstack/react-table";
 import { useTransformTableParams } from "@/hooks/use-transform-data-table-params";
+import { useUrlTableState } from "@/hooks/use-url-table-state";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { Meta, Pagination } from "@/types/request";
 import { getMetaTotal } from "@/types/paginated-list";
@@ -45,8 +45,9 @@ export interface TableQueryReturn<T> {
 }
 
 /**
- * useTableQuery centraliza o estado da tabela (paginação, ordenação, filtros)
- * e integra com um hook de RTK Query fornecido (ex.: useGetClientsQuery).
+ * useTableQuery centraliza o estado da tabela (paginação, ordenação, filtros,
+ * guardados na URL por useUrlTableState) e integra com um hook de RTK Query
+ * fornecido (ex.: useGetItemsByStoreIdQuery).
  *
  * T: tipo do item da lista
  * R: resposta do endpoint contendo { data: T[]; meta: Meta }
@@ -65,15 +66,12 @@ export function useTableQuery<
   }) => A,
   options?: UseTableQueryOptions
 ): TableQueryReturn<T> {
-  const [pagination, setPagination] = useState<PaginationState>(
-    options?.initialPagination ?? { pageIndex: 0, pageSize: 10 }
-  );
-  const [sorting, setSorting] = useState<SortingState>(
-    options?.initialSorting ?? []
-  );
-  const [filters, setFilters] = useState<ColumnFiltersState>(
-    options?.initialFilters ?? []
-  );
+  // Page, sorting and filters live in the URL (survive reloads, shareable).
+  const { pagination, sorting, filters, setPagination, setSorting, setFilters } = useUrlTableState({
+    pageSize: options?.initialPagination?.pageSize,
+    sorting: options?.initialSorting,
+    filters: options?.initialFilters,
+  });
 
   const { filterParam, sortingParam, paginationParam } =
     useTransformTableParams({ filters, sorting, pagination });

@@ -30,9 +30,11 @@ interface OrderCardProps {
   /** Minutes after which the waiting time turns red. */
   etaMinutes: number;
   canOperate: boolean;
+  /** Opens the order detail. */
+  onOpen: (orderId: string) => void;
 }
 
-export function OrderCard({ order, storeId, now, etaMinutes, canOperate }: OrderCardProps) {
+export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen }: OrderCardProps) {
   const [complete, { isLoading: completing }] = useCompleteOrderMutation();
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
   const [markPaid] = useMarkOrderPaidMutation();
@@ -63,10 +65,15 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate }: Order
       )}
     >
       <header className="flex items-start justify-between gap-2">
-        <div>
+        <button
+          type="button"
+          onClick={() => onOpen(order.id)}
+          aria-label={`Ver detalhes do pedido ${order.number}`}
+          className="-m-1 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
           <p className="text-2xl font-black tabular-nums">#{order.number}</p>
           <p className="font-medium">{order.customerName}</p>
-        </div>
+        </button>
         <div className="flex flex-col items-end gap-1">
           <span
             className={cn(
@@ -144,6 +151,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate }: Order
         loading={cancelling}
         title={`Cancelar o pedido #${order.number}?`}
         description="O pedido sai da cozinha e o estoque usado é devolvido. Esta ação não pode ser desfeita."
+        confirmLabel="Cancelar pedido"
         onConfirm={async () => {
           await cancel({ storeId, orderId: order.id }).unwrap();
           setConfirmCancel(false);

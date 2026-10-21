@@ -47,6 +47,15 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   horizontal strips (it scrolls the window too; scroll the strip instead).
 - Search fields use `components/app/search-input.tsx` (one clear button,
   Escape clears).
+- Base UI `Select` shows the raw value in the trigger unless the root gets
+  `items` (`[{ value, label }]`): always pass it.
+- Data tables keep page, size, sorting and filters in the URL
+  (`hooks/use-url-table-state.ts` via `useTableQuery`): reloads and shared
+  links keep the view; filter/sort changes go back to page 1. When writing
+  the URL yourself use `history.replaceState(null, …)`: Next only syncs
+  `useSearchParams` for app-made entries, not its own state object.
+- Never memoize JSX on the TanStack `table` object (same reference while its
+  state changes): the UI freezes.
 - Forms: react-hook-form + zod + `Field*` components (see
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.

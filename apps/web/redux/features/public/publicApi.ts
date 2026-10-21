@@ -19,6 +19,8 @@ export const publicApi = baseApi.injectEndpoints({
     getPublicMenu: build.query<PublicMenu, { slug?: string; preview?: boolean }>({
       query: ({ slug, preview }) =>
         `${slug ? `public/menu/${slug}` : "public/menu"}${preview ? "?preview=1" : ""}`,
+      // The POS reads this: editing items (e.g. "esgotar") refreshes it.
+      providesTags: [{ type: "Item", id: "PUBLIC_MENU" }],
     }),
 
     /** `idempotencyKey`: keep it across taps/reloads so a lost response never duplicates the order. */

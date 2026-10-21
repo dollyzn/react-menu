@@ -4,6 +4,7 @@ import {
   SortingState,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
+import { filterToParam } from "@/hooks/use-url-table-state";
 
 interface UseTransformTableParamsProps {
   filters: ColumnFiltersState;
@@ -19,11 +20,9 @@ export const useTransformTableParams = ({
   const filterParam = useMemo(() => {
     return filters.reduce(
       (acc, filter) => {
-        if (Array.isArray(filter.value)) {
-          acc[filter.id] = filter.value;
-        } else {
-          acc[filter.id] = String(filter.value);
-        }
+        // Arrays stay arrays; date ranges become "from~to" (not "[object Object]").
+        const value = filterToParam(filter.value);
+        if (value !== undefined) acc[filter.id] = value;
         return acc;
       },
       {} as Record<string, unknown>

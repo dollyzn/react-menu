@@ -276,10 +276,55 @@ export default class OrderService {
       .orderBy('createdAt', 'asc')
   }
 
+  /** Paginated order history with filters (staff "Histórico"). */
+  async listHistory(
+    storeId: string,
+    filters: {
+      status?: OrderStatus[]
+      channel?: OrderChannel[]
+      paymentMethod?: PaymentMethod[]
+      createdAt?: string
+      customerName?: string
+      sort?: 'createdAt:desc' | 'createdAt:asc' | 'total:desc' | 'total:asc'
+      page?: number
+      perPage?: number
+    }
+  ) {
+    const [from, to] = (filters.createdAt ?? '~').split('~')
+    const search = filters.customerName?.trim()
+    const digits = search?.replace(/\D/g, '') ?? ''
+    const [column, direction] = (filters.sort ?? 'createdAt:desc').split(':') as [
+      'createdAt' | 'total',
+      'asc' | 'desc',
+    ]
+
+    return await Order.query()
+      .where({ storeId })
+      .if(from, (query) => query.where('business_date', '>=', from))
+      .if(to, (query) => query.where('business_date', '<=', to))
+      .if(filters.status?.length, (query) => query.whereIn('status', filters.status!))
+      .if(filters.channel?.length, (query) => query.whereIn('channel', filters.channel!))
+      .if(filters.paymentMethod?.length, (query) =>
+        query.whereIn('payment_method', filters.paymentMethod!)
+      )
+      .if(search, (query) =>
+        query.where((match) => {
+          match.whereILike('customer_name', `%${search}%`)
+          // "#12" or "12": the order number; 8+ digits: part of the phone.
+          if (/^#?\d{1,5}$/.test(search!)) match.orWhere('number', Number(digits))
+          if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
+        })
+      )
+      .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .orderBy(column === 'total' ? 'total' : 'created_at', direction)
+      .paginate(filters.page ?? 1, filters.perPage ?? 20)
+  }
+
   async find(storeId: string, orderId: string) {
     const order = await Order.query()
       .where({ id: orderId, storeId })
       .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('history', (history) => history.preload('user').orderBy('id'))
       .first()
     if (!order) throw new AppException('Pedido não encontrado', 404)
     return order

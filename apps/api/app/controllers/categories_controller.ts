@@ -9,7 +9,7 @@ import {
 } from '#validators/category'
 import { numberValidator, storeExistValidator } from '#validators/common'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, pickQueryFilters } from '#helpers/query_string_parser'
+import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 
 @inject()
 export default class CategoriesController {
@@ -21,6 +21,12 @@ export default class CategoriesController {
 
     const categories = await this.categoryService.list({
       ...parsePagination(q),
+      sort: parseSort(q, {
+        name: 'name',
+        description: 'description',
+        createdAt: 'created_at',
+        updatedAt: 'updated_at',
+      }),
       preload: false,
       filters: {
         storeId,

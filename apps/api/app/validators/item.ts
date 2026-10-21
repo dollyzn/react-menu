@@ -39,7 +39,8 @@ const updateValidator = vine.create(
     name: name.optional(),
     description,
     price: price.optional(),
-    categoryId,
+    // Optional: partial updates (e.g. "Marcar esgotado") send only what changes.
+    categoryId: categoryId.optional(),
     photoUrl,
     addonIds,
     isAvailable: vine.boolean().optional(),
