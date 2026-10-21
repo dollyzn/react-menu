@@ -5,6 +5,7 @@ import { DateTime } from 'luxon'
 import type { Notification as NotificationDto } from '@react-menu/contracts'
 import Notification from '#models/notification'
 import PushService from '#services/push_service'
+import type StoreRole from '#enums/store_role'
 import SendPushNotification from '#jobs/send_push_notification'
 import { broadcastUserEvent } from '#helpers/realtime'
 import {
@@ -88,18 +89,25 @@ export default class NotificationService {
     storeId: string,
     type: Type,
     data: NotificationData<Type>,
-    options: { exceptUserId?: string } = {}
+    options: { exceptUserId?: string; roles?: StoreRole[] } = {}
   ) {
     const members = await db
       .from('store_user')
       .where('store_id', storeId)
       .if(options.exceptUserId, (query) => query.whereNot('user_id', options.exceptUserId!))
+      .if(options.roles?.length, (query) => query.whereIn('role', options.roles!))
       .select('user_id')
 
     return await this.notify(type, data, {
       userIds: members.map((member) => member.user_id),
       storeId,
     })
+  }
+
+  /** Platform admins (super users), e.g. for background job failures. */
+  async notifySuperUsers<Type extends NotificationType>(type: Type, data: NotificationData<Type>) {
+    const admins = await db.from('users').where('super_user', true).select('id')
+    return await this.notify(type, data, { userIds: admins.map((admin) => admin.id) })
   }
 
   async list(userId: string, { page = 1, perPage = 20, unreadOnly = false }: ListOptions = {}) {

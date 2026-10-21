@@ -40,9 +40,8 @@ The technical items below, one PR at a time.
 
 ## Technical
 
-- Queue observability: failed jobs are only logged; consider a small staff
-  page (or alerts) listing failed jobs, and OpenTelemetry
-  (`@adonisjs/queue/otel`) once there is a collector.
+- Queue tracing: OpenTelemetry (`@adonisjs/queue/otel`) once there is a
+  collector. Failed jobs already notify (super users; managers for refunds).
 - Short ace commands that use Redis may print "Connection is closed" on
   exit (Transmit's Redis transport closing before it connected); report
   upstream to `@boringnode/bus`.

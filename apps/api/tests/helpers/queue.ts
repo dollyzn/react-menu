@@ -21,3 +21,14 @@ export async function runJob<Payload>(
   job.$hydrate(payload, { jobId: 'test', attempt: 1, queue: 'default' } as never)
   await job.execute()
 }
+
+/** Calls a job's `failed` hook, as the worker does after the last retry. */
+export async function failJob<Payload>(
+  JobClass: new (...args: any[]) => Job<Payload>,
+  payload: Payload,
+  error: Error
+) {
+  const job = await app.container.make(JobClass)
+  job.$hydrate(payload, { jobId: 'test', attempt: 9, queue: 'default' } as never)
+  await (job as unknown as { failed: (error: Error) => Promise<void> }).failed(error)
+}

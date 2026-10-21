@@ -1,6 +1,7 @@
 import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
-import { Job, exponentialBackoff } from '@adonisjs/queue'
+import { exponentialBackoff } from '@adonisjs/queue'
+import AppJob from '#jobs/app_job'
 import type { JobOptions } from '@adonisjs/queue/types'
 import { DateTime } from 'luxon'
 import OrderStatus from '#enums/order_status'
@@ -22,7 +23,7 @@ type Payload = { orderId: string }
  * review) postpones it instead.
  */
 @inject()
-export default class ExpireUnpaidOrder extends Job<Payload> {
+export default class ExpireUnpaidOrder extends AppJob<Payload> {
   static options: JobOptions = {
     maxRetries: 5,
     retry: { backoff: exponentialBackoff({ baseDelay: '30s', maxDelay: '10m' }) },
