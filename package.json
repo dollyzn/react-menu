@@ -19,6 +19,6 @@
     "test:e2e": "pnpm --filter @react-menu/web run test:e2e"
   },
   "devDependencies": {
-    "concurrently": "^9.2.5"
+    "concurrently": "^10.0.6"
   }
 }
