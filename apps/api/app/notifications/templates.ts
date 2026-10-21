@@ -64,6 +64,27 @@ export const notificationTemplates = {
     }),
   }),
 
+  'order.refund_failed': defineTemplate<{
+    storeId: string
+    orderId: string
+    orderNumber: number
+  }>({
+    category: 'order',
+    render: ({ storeId, orderId, orderNumber }) => ({
+      title: `Reembolso do pedido #${orderNumber} não concluído`,
+      body: 'O reembolso automático falhou várias vezes. Tente "Reembolsar agora" no pedido ou faça pelo Mercado Pago.',
+      url: `/app/stores/${storeId}/orders?view=historico&pedido=${orderId}`,
+    }),
+  }),
+
+  'system.job_failed': defineTemplate<{ job: string; detail: string }>({
+    category: 'system',
+    render: ({ job, detail }) => ({
+      title: 'Tarefa em segundo plano falhou',
+      body: `${job} desistiu depois de todas as tentativas: ${detail}`,
+    }),
+  }),
+
   'system.announcement': defineTemplate<{ title: string; body: string; url?: string }>({
     category: 'system',
     render: ({ title, body, url }) => ({ title, body, url }),
