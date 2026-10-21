@@ -12,11 +12,13 @@ export const notificationApi = baseApi.injectEndpoints({
 
     markNotificationAsRead: build.mutation<void, string>({
       query: (id) => ({ url: `notifications/${id}/read`, method: "PATCH" }),
+      extraOptions: { background: true },
       invalidatesTags: [listTag],
     }),
 
     markAllNotificationsAsRead: build.mutation<void, void>({
       query: () => ({ url: "notifications/read-all", method: "POST" }),
+      extraOptions: { background: true },
       invalidatesTags: [listTag],
     }),
 
@@ -27,14 +29,17 @@ export const notificationApi = baseApi.injectEndpoints({
 
     registerPush: build.mutation<void, { fid: string }>({
       query: (body) => ({ url: "notifications/push/register", method: "POST", body }),
+      extraOptions: { background: true },
     }),
 
     unregisterPush: build.mutation<void, { fid: string }>({
       query: (body) => ({ url: "notifications/push/unregister", method: "POST", body }),
+      extraOptions: { background: true },
     }),
 
     checkPush: build.mutation<{ registered: boolean }, { fid: string }>({
       query: (body) => ({ url: "notifications/push/check", method: "POST", body }),
+      extraOptions: { background: true },
     }),
 
     clearNotifications: build.mutation<void, void>({

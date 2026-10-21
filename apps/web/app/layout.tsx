@@ -14,6 +14,7 @@ import { env } from "@/lib/env";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegistrar } from "@/components/app/pwa/service-worker-registrar";
 import { HeadScripts } from "@/components/app/head-scripts";
+import { PendingWritesGuard } from "@/components/app/pending-writes-guard";
 
 const DESCRIPTION =
   "Cardápio digital e pedidos para restaurantes: pedido pelo celular, retirada no balcão, PDV e tela da cozinha.";
@@ -113,6 +114,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
                     "Comanda") instead of covering them. */}
                 <Toaster closeButton richColors mobileOffset={{ bottom: "6rem" }} />
                 <ServiceWorkerRegistrar />
+                <PendingWritesGuard />
               </SessionProvider>
             </NotificationProvider>
           </ReduxProvider>

@@ -30,6 +30,10 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 - Server data goes through RTK Query with tags; mutations invalidate tags.
   Don't add new `request()` (axios) calls.
 - Only a 401 means the session ended; 429/5xx/offline are transient.
+- Writes in flight hold navigation (`PendingWritesGuard` in the root
+  layout, counter in `lib/pending-writes.ts`): reload/close asks, in-app
+  links wait and continue when the save ends. Writes the user doesn't wait
+  for (mark as read, push registration) pass `extraOptions: { background: true }`.
 - Mutations get an `Idempotency-Key` and automatic retries in `baseApi`.
   Anything a user may resubmit after a dropped connection (checkout, POS)
   passes a `stableIdempotencyKey(scope, payload)` and releases it on success

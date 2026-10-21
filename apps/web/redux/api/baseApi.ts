@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { env } from "@/lib/env";
 import { IDEMPOTENCY_HEADER, randomId } from "@/lib/idempotency";
+import { trackWrite } from "@/lib/pending-writes";
 
 const errorMessages: Record<string | number, string> = {
   401: "Sua sessão expirou",
@@ -134,12 +135,23 @@ async function withRetries(
   return result;
 }
 
+/** Per-endpoint options (`extraOptions` in an endpoint definition). */
+type ExtraOptions = {
+  /** A write the user doesn't wait for (mark as read, push registration): never holds navigation. */
+  background?: boolean;
+};
+
+const isWriteRequest = (args: string | FetchArgs) =>
+  typeof args !== "string" && !["GET", "HEAD"].includes((args.method ?? "GET").toUpperCase());
+
 const baseQueryWithHandling: BaseQueryFn<
   string | FetchArgs,
   unknown,
-  FetchBaseQueryError
+  FetchBaseQueryError,
+  ExtraOptions
 > = async (args, api, extraOptions) => {
-  let result = await withRetries(args, api, extraOptions);
+  const run = withRetries(args, api, {});
+  let result = await (isWriteRequest(args) && !extraOptions?.background ? trackWrite(run) : run);
 
   if (result.data !== undefined) {
     result = {
