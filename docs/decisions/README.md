@@ -16,10 +16,11 @@ an accepted ADR, supersede it with a new one.
 | [0008](0008-web-push-with-fcm-installation-ids.md) | Web push with FCM, addressed by installation ID | Accepted |
 | [0009](0009-orders-kitchen-batching-and-inventory.md) | Orders, kitchen batching and recipe-based inventory | Accepted |
 | [0010](0010-store-roles.md) | Roles inside a store | Accepted |
-| [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Accepted |
+| [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Superseded by 0015 |
 | [0012](0012-two-installable-apps.md) | Two installable apps: customer menu and staff panel | Accepted |
 | [0013](0013-idempotent-writes.md) | Idempotent writes for unstable networks | Accepted |
 | [0014](0014-customer-history-token.md) | Customer order history across devices without accounts | Accepted |
+| [0015](0015-in-app-checkout.md) | In-app checkout with payment gateways (Pix, card) | Accepted |
 
 ## Template
 

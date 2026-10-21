@@ -12,7 +12,6 @@ import {
   RotateCcw,
   Check,
   ChefHat,
-  CreditCard,
   MapPin,
   PartyPopper,
   ReceiptText,
@@ -32,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { InstallAppCard } from "@/components/app/pwa/install-app";
 import { format, parseISO } from "date-fns";
 import { CustomerShell } from "./customer-shell";
+import { PaymentPanel } from "./payment-panel";
 import { RecentOrdersButton } from "./recent-orders";
 import { useReorder } from "../_lib/customer-orders";
 import { useReadyAlert } from "../_lib/use-ready-alert";
@@ -44,7 +44,7 @@ const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
 ];
 
 const HEADLINES: Record<OrderStatus, { title: string; subtitle: string }> = {
-  pending_payment: { title: "Aguardando pagamento", subtitle: "Assim que o pagamento for aprovado, a cozinha começa." },
+  pending_payment: { title: "Falta pagar", subtitle: "Assim que o pagamento for aprovado, a cozinha começa." },
   received: { title: "Recebemos seu pedido!", subtitle: "Ele já está na fila da cozinha." },
   preparing: { title: "Mão na massa!", subtitle: "Seus pastéis estão sendo preparados agora." },
   ready: { title: "Pronto! Pode vir buscar", subtitle: "Retire no balcão informando o número do pedido." },
@@ -171,12 +171,9 @@ export function OrderTracking({ token }: { token: string }) {
           </div>
         )}
 
-        {order.status === "pending_payment" && order.checkoutUrl && (
-          <Button size="lg" className="mt-4 rounded-full" render={<a href={order.checkoutUrl} />} nativeButton={false}>
-            <CreditCard /> Pagar agora
-          </Button>
-        )}
       </motion.section>
+
+      {order.status === "pending_payment" && <PaymentPanel order={order} />}
 
       {order.status !== "cancelled" && order.status !== "pending_payment" && (
         <ol className="mt-6 space-y-0" aria-label="Andamento do pedido">
@@ -251,8 +248,10 @@ export function OrderTracking({ token }: { token: string }) {
               ? "Pago no balcão"
               : "Pagamento na retirada"
             : order.paymentStatus === "paid"
-              ? "Pago online"
-              : "Pagamento online pendente"}
+              ? `Pago online${order.paymentMethod === "pix" ? " com Pix" : order.paymentMethod === "card" ? " com cartão" : ""}`
+              : order.paymentStatus === "refunded"
+                ? "Pagamento devolvido"
+                : "Pagamento online pendente"}
         </p>
       </section>
 

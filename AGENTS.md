@@ -77,9 +77,12 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
 7. **Store roles** (`manager | attendant | kitchen`, pivot `store_user.role`):
    guard routes with `managersOnly` / `frontOfHouse` from
    `start/routes/store/shared.ts` after `storeAccess`.
-8. **Payments** go through `PaymentService` (Mercado Pago per store,
-   credentials encrypted). Webhooks are trusted only after the signature
-   check and a server-side payment lookup.
+8. **Payments** go through `PaymentService` and a `PaymentGateway`
+   (ADR 0015): Mercado Pago per store (credentials encrypted), or the
+   development fake. Orders are paid on their tracking page (Pix QR code,
+   card tokenized in the browser); card data never reaches the API.
+   Webhooks are trusted only after the signature check and a server-side
+   payment lookup. New providers implement `PaymentGateway`.
 9. **Base UI, not Radix patterns.** Use the `render` prop (never `asChild`).
    A trigger that renders a non-`<button>` needs `nativeButton={false}`;
    prefer rendering a real `Button`. Icon-only controls need `aria-label`.

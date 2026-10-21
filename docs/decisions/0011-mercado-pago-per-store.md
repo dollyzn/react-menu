@@ -1,6 +1,6 @@
 # 0011. Online payment with Mercado Pago, per store
 
-- Status: Accepted
+- Status: Superseded by 0015 (checkout); per-store credentials still apply
 - Date: 2026-10-20
 
 ## Context

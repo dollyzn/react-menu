@@ -34,6 +34,9 @@ export default class PaymentsController {
     store.merge(data)
     await store.save()
 
-    return ok({ mercadoPagoEnabled: store.mercadoPagoEnabled })
+    return ok({
+      mercadoPagoEnabled: store.mercadoPagoEnabled,
+      mercadoPagoPublicKey: store.mercadoPagoPublicKey,
+    })
   }
 }

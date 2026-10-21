@@ -1,13 +1,12 @@
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import type { OrderLineInput } from '@react-menu/contracts'
 import AppException from '#exceptions/app_exception'
 import OrderChannel from '#enums/order_channel'
 import OrderStatus from '#enums/order_status'
-import PaymentMethod from '#enums/payment_method'
+import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
 import StoreStatus from '#enums/store_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
@@ -147,8 +146,8 @@ export default class OrderService {
 
       await this.history(created, null, OrderStatus.PENDING_PAYMENT, trx, actor)
 
-      // Mercado Pago orders wait for payment; everything else goes to the kitchen.
-      if (input.paymentMethod !== PaymentMethod.MERCADO_PAGO) {
+      // Online payments wait for approval; counter orders go to the kitchen.
+      if (!isOnlinePayment(input.paymentMethod)) {
         await this.enterKitchen(created, trx, actor)
       }
       return { order: created, replayed: false }
@@ -180,6 +179,16 @@ export default class OrderService {
     })
 
     await this.afterChange(order, { notifyStaff: wasAwaitingPayment })
+    return order
+  }
+
+  /** A new payment attempt started (e.g. a new Pix after a rejected card). */
+  async markPaymentPending(order: Order) {
+    if (order.paymentStatus === PaymentStatus.PENDING) return order
+    if (order.paymentStatus === PaymentStatus.PAID) return order
+    order.paymentStatus = PaymentStatus.PENDING
+    await order.save()
+    await this.afterChange(order)
     return order
   }
 
@@ -256,12 +265,6 @@ export default class OrderService {
       await this.inventory.reverseForOrder(order, trx)
       await order.save()
     })
-    if (
-      order.paymentStatus === PaymentStatus.PAID &&
-      order.paymentMethod === PaymentMethod.MERCADO_PAGO
-    ) {
-      logger.warn({ orderId: order.id }, 'cancelled a paid Mercado Pago order: refund it manually')
-    }
     await this.afterChange(order)
     return order
   }
@@ -366,9 +369,6 @@ export default class OrderService {
     }
     if (input.channel === OrderChannel.ONLINE && store.status !== StoreStatus.OPEN) {
       throw new AppException('A loja não está aceitando pedidos agora.', 409, 'E_STORE_CLOSED')
-    }
-    if (input.paymentMethod === PaymentMethod.MERCADO_PAGO && !store.mercadoPagoEnabled) {
-      throw new AppException('Pagamento online indisponível nesta loja.', 422)
     }
     if (
       input.paymentMethod === PaymentMethod.COUNTER &&

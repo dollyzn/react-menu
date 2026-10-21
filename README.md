@@ -7,7 +7,7 @@ kitchen display that batches identical pastries and shows the ingredients.
 
 - **Customer menu**: search, item details with add-ons and notes, bag,
   checkout with name + phone (no account), pay at the counter or online
-  (Mercado Pago), live order tracking
+  with Pix or card without leaving the app (Mercado Pago), live order tracking
 - **Operations**: orders board, POS, kitchen display (KDS), store roles
   (manager, attendant, kitchen), realtime updates and notifications
 - **Management**: categories/items/add-ons with drag-and-drop ordering,
@@ -85,6 +85,12 @@ and staff accounts:
 | Manager (super user) | `ADMIN_USER` from `apps/api/.env` | `ADMIN_PASS` |
 | Attendant (POS, orders) | `atendente@jjpasteis.dev` | `demo12345` |
 | Kitchen (KDS) | `cozinha@jjpasteis.dev` | `demo12345` |
+
+Online payments work locally without Mercado Pago credentials:
+`PAYMENTS_FAKE_GATEWAY=true` (the `.env.example` default, ignored in
+production) offers a test Pix on the order page with a "Simular pagamento
+aprovado" button. Real Pix and card need the store's credentials in
+**Loja › Pagamentos online**.
 
 Images are stored on the local disk (`DRIVE_DISK=fs`). Web push is optional
 (Firebase Cloud Messaging, free): see the `FIREBASE_*` notes in both

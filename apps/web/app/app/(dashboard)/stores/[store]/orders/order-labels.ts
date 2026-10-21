@@ -18,7 +18,9 @@ export const CHANNEL: Record<OrderChannel, { label: string; icon: LucideIcon }> 
 
 export const PAYMENT: Record<PaymentMethod, string> = {
   counter: "Na retirada",
-  mercado_pago: "Mercado Pago",
+  pix: "Pix",
+  card: "Cartão",
+  mercado_pago: "Mercado Pago (antigo)",
 };
 
 export const toOptions = <K extends string>(record: Record<K, { label: string } | string>) =>

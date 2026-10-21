@@ -3,17 +3,13 @@ import AppException from '#exceptions/app_exception'
 
 const API = 'https://api.mercadopago.com'
 
-export type PreferenceInput = {
-  externalReference: string
-  items: { title: string; quantity: number; unitPrice: number }[]
-  payer: { name: string; phone?: string | null }
-  backUrl: string
-  notificationUrl: string
-  statementDescriptor: string
-}
-
 export type MercadoPagoPayment = {
   id: number
+  status_detail?: string | null
+  date_of_expiration?: string | null
+  point_of_interaction?: {
+    transaction_data?: { qr_code?: string; qr_code_base64?: string; ticket_url?: string }
+  }
   status:
     | 'approved'
     | 'pending'
@@ -24,14 +20,6 @@ export type MercadoPagoPayment = {
     | 'refunded'
     | 'charged_back'
   external_reference: string | null
-}
-
-/** Test credentials (TEST-…) use the sandbox checkout. */
-export const isTestToken = (accessToken: string) => accessToken.startsWith('TEST-')
-
-export function checkoutUrl(preferenceId: string, accessToken: string) {
-  const host = isTestToken(accessToken) ? 'sandbox.mercadopago.com.br' : 'www.mercadopago.com.br'
-  return `https://${host}/checkout/v1/redirect?pref_id=${preferenceId}`
 }
 
 /**
@@ -57,35 +45,64 @@ export function isValidWebhookSignature(input: {
   return given.length === wanted.length && timingSafeEqual(given, wanted)
 }
 
-/** Minimal Mercado Pago REST client (Checkout Pro). Swapped by a fake in tests. */
+/** Body of POST /v1/payments (Checkout Transparente: Pix or tokenized card). */
+export type PaymentInput = {
+  transaction_amount: number
+  description: string
+  payment_method_id: string
+  external_reference: string
+  notification_url: string
+  payer: {
+    email: string
+    first_name?: string
+    identification?: { type: string; number: string }
+  }
+  token?: string
+  installments?: number
+  issuer_id?: string
+  date_of_expiration?: string
+  statement_descriptor?: string
+}
+
+/** Minimal Mercado Pago REST client. Swapped by a fake in tests. */
 export default class MercadoPagoClient {
-  async createPreference(accessToken: string, input: PreferenceInput): Promise<{ id: string }> {
-    return await this.request(accessToken, 'POST', '/checkout/preferences', {
-      external_reference: input.externalReference,
-      items: input.items.map((item) => ({
-        title: item.title,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        currency_id: 'BRL',
-      })),
-      payer: { name: input.payer.name },
-      back_urls: { success: input.backUrl, pending: input.backUrl, failure: input.backUrl },
-      auto_return: 'approved',
-      notification_url: input.notificationUrl,
-      statement_descriptor: input.statementDescriptor.slice(0, 22),
-    })
+  /** Mercado Pago requires an idempotency key on payment writes. */
+  async createPayment(
+    accessToken: string,
+    input: PaymentInput,
+    idempotencyKey: string
+  ): Promise<MercadoPagoPayment> {
+    return await this.request(accessToken, 'POST', '/v1/payments', input, idempotencyKey)
+  }
+
+  /** Full refund. */
+  async refundPayment(accessToken: string, paymentId: string, idempotencyKey: string) {
+    await this.request(
+      accessToken,
+      'POST',
+      `/v1/payments/${encodeURIComponent(paymentId)}/refunds`,
+      {},
+      idempotencyKey
+    )
   }
 
   async getPayment(accessToken: string, paymentId: string): Promise<MercadoPagoPayment> {
     return await this.request(accessToken, 'GET', `/v1/payments/${encodeURIComponent(paymentId)}`)
   }
 
-  private async request<T>(accessToken: string, method: string, path: string, body?: unknown) {
+  private async request<T>(
+    accessToken: string,
+    method: string,
+    path: string,
+    body?: unknown,
+    idempotencyKey?: string
+  ) {
     const response = await fetch(`${API}${path}`, {
       method,
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
+        ...(idempotencyKey && { 'X-Idempotency-Key': idempotencyKey }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
       signal: AbortSignal.timeout(10_000),

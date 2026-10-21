@@ -17,6 +17,8 @@ export type RecentOrder = {
 interface CustomerState {
   name: string;
   phone: string;
+  /** For online payments only (the gateway's receipt); optional. */
+  email?: string;
   recentOrders: RecentOrder[];
   tokens?: Record<string, string>;
 }
@@ -30,6 +32,9 @@ const customerSlice = createSlice({
     rememberCustomer(state, action: PayloadAction<{ name: string; phone: string }>) {
       state.name = action.payload.name;
       state.phone = action.payload.phone;
+    },
+    rememberEmail(state, action: PayloadAction<string>) {
+      state.email = action.payload;
     },
     addRecentOrder(state, action: PayloadAction<RecentOrder>) {
       state.recentOrders = [
@@ -52,6 +57,6 @@ const customerSlice = createSlice({
   },
 });
 
-export const { rememberCustomer, addRecentOrder, linkStore, unlinkStore, forgetCustomer } =
+export const { rememberCustomer, rememberEmail, addRecentOrder, linkStore, unlinkStore, forgetCustomer } =
   customerSlice.actions;
 export default customerSlice.reducer;

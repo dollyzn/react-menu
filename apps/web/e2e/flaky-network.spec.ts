@@ -30,6 +30,7 @@ test("a lost response while ordering never duplicates the order", async ({ page 
   await page.getByLabel("Seu nome").fill(customerName);
   await page.getByLabel("Celular (WhatsApp)").fill("11987654321");
   await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByText("Pagar na retirada", { exact: true }).click();
   await page.getByRole("button", { name: /Fazer pedido/ }).click();
 
   await expect(page).toHaveURL(/\/pedido\/[0-9a-f-]{36}$/);

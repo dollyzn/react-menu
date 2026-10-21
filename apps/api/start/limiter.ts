@@ -28,7 +28,10 @@ export const throttle = limiter.define('global', (ctx) => {
    * one IP (NAT), so this is per-network, not per-person. Login has its own
    * brute-force limiter in AuthService.
    */
-  return limiter.allowRequests(60).every('1 minute').usingKey(`ip_${ctx.request.ip()}`)
+  return limiter
+    .allowRequests(env.get('PUBLIC_RATE_LIMIT', 60))
+    .every('1 minute')
+    .usingKey(`ip_${ctx.request.ip()}`)
 })
 
 /**

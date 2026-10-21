@@ -20,7 +20,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Orders (pricing, numbering, status machine) | `app/services/order_service.ts`, `app/orders/*` |
 | Kitchen queue (pure batching + ingredients) | `app/kitchen/production_queue.ts`, `app/services/kitchen_service.ts` |
 | Inventory (stock, recipes, consumption) | `app/services/inventory_service.ts` |
-| Payments (Mercado Pago) | `app/payments/mercado_pago_client.ts`, `app/services/payment_service.ts` |
+| Payments (in-app checkout, ADR 0015) | `app/services/payment_service.ts`, gateways in `app/payments/` (`gateway.ts`, `mercado_pago_gateway.ts`, `fake_gateway.ts`), attempts in `app/models/payment.ts` |
 | Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
 | Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner, logo and Pexels menu photos go to the Drive disk; sources in `CREDITS.md`) |
 | Idempotency (`Idempotency-Key`) | `app/middleware/idempotency_middleware.ts`, `orders.idempotency_key` (ADR 0013) |

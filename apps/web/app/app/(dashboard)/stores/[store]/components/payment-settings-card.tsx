@@ -21,7 +21,7 @@ import { useUpdatePaymentSettingsMutation } from "@/redux/features/store/storeAp
 import { getApiOrigin } from "@/lib/api-base-url";
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
 
-/** Mercado Pago (Checkout Pro) credentials of the store; managers only. */
+/** Mercado Pago credentials of the in-app checkout (ADR 0015); managers only. */
 export function PaymentSettingsCard({ store }: { store: Store }) {
   const [open, setOpen] = useState(false);
   const webhookUrl = `${getApiOrigin()}/api/v1/webhooks/mercado-pago/${store.id}`;
@@ -35,10 +35,19 @@ export function PaymentSettingsCard({ store }: { store: Store }) {
           <Badge variant={enabled ? "default" : "secondary"}>{enabled ? "Ativo" : "Desligado"}</Badge>
         </CardTitle>
         <CardDescription>
-          Pix e cartão pelo Mercado Pago. O pedido só vai para a cozinha depois do pagamento aprovado.
+          Pix e cartão pagos dentro do cardápio, sem sair do app. O pedido só vai para a cozinha depois do
+          pagamento aprovado, e pedidos pagos cancelados são reembolsados automaticamente.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
+        {enabled && (
+          <div className="flex flex-wrap gap-2 text-xs">
+            <Badge variant="outline">Pix ativo</Badge>
+            <Badge variant={store.mercadoPagoPublicKey ? "outline" : "secondary"}>
+              {store.mercadoPagoPublicKey ? "Cartão ativo" : "Cartão: falta a Public Key"}
+            </Badge>
+          </div>
+        )}
         <div className="space-y-1">
           <p className="text-xs font-medium text-muted-foreground">URL de notificação (webhook)</p>
           <div className="flex items-center gap-2">
@@ -78,12 +87,17 @@ function PaymentSettingsDialog({
   const [save, { isLoading }] = useUpdatePaymentSettingsMutation();
   const [token, setToken] = useState("");
   const [secret, setSecret] = useState("");
+  const [publicKey, setPublicKey] = useState(store.mercadoPagoPublicKey ?? "");
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     await save({
       id: store.id,
-      data: { mercadoPagoAccessToken: token.trim(), mercadoPagoWebhookSecret: secret.trim() },
+      data: {
+        mercadoPagoAccessToken: token.trim(),
+        mercadoPagoWebhookSecret: secret.trim(),
+        mercadoPagoPublicKey: publicKey.trim() || null,
+      },
     }).unwrap();
     toast.success("Pagamentos online configurados");
     setToken("");
@@ -92,7 +106,10 @@ function PaymentSettingsDialog({
   };
 
   const disable = async () => {
-    await save({ id: store.id, data: { mercadoPagoAccessToken: null, mercadoPagoWebhookSecret: null } }).unwrap();
+    await save({
+      id: store.id,
+      data: { mercadoPagoAccessToken: null, mercadoPagoWebhookSecret: null, mercadoPagoPublicKey: null },
+    }).unwrap();
     toast.success("Pagamentos online desligados");
     onOpenChange(false);
   };
@@ -125,7 +142,8 @@ function PaymentSettingsDialog({
                 </div>
               </Step>
               <Step n={2} title="Copie as credenciais">
-                O Access Token fica em “Credenciais”; a assinatura secreta aparece depois de salvar o webhook.
+                Em “Credenciais” ficam a Public Key e o Access Token; a assinatura secreta aparece depois de salvar
+                o webhook.
               </Step>
             </ol>
             <FieldGroup>
@@ -140,7 +158,18 @@ function PaymentSettingsDialog({
                   onChange={(e) => setToken(e.target.value)}
                   placeholder="APP_USR-… ou TEST-…"
                 />
-                <FieldDescription>Tokens TEST- usam o checkout de testes (sandbox).</FieldDescription>
+                <FieldDescription>Credenciais de teste (TEST-) não cobram de verdade.</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="mp-public-key">Public Key (para cartão)</FieldLabel>
+                <Input
+                  id="mp-public-key"
+                  autoComplete="off"
+                  value={publicKey}
+                  onChange={(e) => setPublicKey(e.target.value)}
+                  placeholder="APP_USR-… ou TEST-…"
+                />
+                <FieldDescription>Opcional. Sem ela, o cardápio oferece só o Pix.</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="mp-secret">Assinatura secreta do webhook</FieldLabel>

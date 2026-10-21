@@ -45,6 +45,9 @@ export default defineConfig({
         LIMITER_STORE: "memory",
         // Every e2e request comes from localhost.
         PUBLIC_ORDER_RATE_LIMIT: "10000",
+        PUBLIC_RATE_LIMIT: "10000",
+        // Local Pix gateway: the checkout runs without Mercado Pago credentials.
+        PAYMENTS_FAKE_GATEWAY: "true",
         DRIVE_DISK: "fs",
         FRONTEND_URL: `http://localhost:${WEB_PORT}`,
         ADMIN_USER: E2E_ADMIN.email,

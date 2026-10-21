@@ -21,6 +21,16 @@ export default function publicRoutes() {
         .get('/orders/:token', [PublicMenuController, 'trackOrder'])
         .as('public.orders.show')
         .where('token', router.matchers.uuid())
+      router
+        .post('/orders/:token/payments', [PublicMenuController, 'payOrder'])
+        .as('public.orders.pay')
+        .where('token', router.matchers.uuid())
+        .use(orderThrottle)
+      // Development fake gateway only (404 otherwise).
+      router
+        .post('/orders/:token/payments/simulate', [PublicMenuController, 'simulatePayment'])
+        .as('public.orders.pay.simulate')
+        .where('token', router.matchers.uuid())
     })
     .prefix('/public')
     .use(throttle)

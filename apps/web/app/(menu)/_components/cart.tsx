@@ -9,13 +9,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   ArrowLeft,
-  CreditCard,
   MapPin,
   User,
   Minus,
   Plus,
   ShoppingBag,
-  Store as StoreIcon,
   Trash2,
 } from "lucide-react";
 import type { PublicMenu } from "@react-menu/contracts";
@@ -36,6 +34,7 @@ import { useRehydrated } from "@/hooks/use-rehydrated";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { cn } from "@/lib/utils";
+import { CHECKOUT_METHODS } from "../_lib/payment-methods";
 
 type Store = PublicMenu["store"];
 
@@ -272,7 +271,7 @@ const CheckoutSchema = z.object({
   phone: z
     .string()
     .refine((value) => [10, 11].includes(value.replace(/\D/g, "").length), "Informe DDD + número"),
-  paymentMethod: z.enum(["counter", "mercado_pago"]),
+  paymentMethod: z.enum(["pix", "card", "counter"]),
   notes: z.string().max(500).optional(),
 });
 type CheckoutValues = z.infer<typeof CheckoutSchema>;
@@ -299,20 +298,9 @@ function CheckoutFlow({
   const [placeOrder, { isLoading }] = usePlaceOrderMutation();
   const [error, setError] = useState<string | null>(null);
 
-  const methods = [
-    store.mercadoPagoEnabled && {
-      value: "mercado_pago" as const,
-      label: "Pix ou cartão agora",
-      hint: "Pague online com Mercado Pago",
-      icon: CreditCard,
-    },
-    store.counterPaymentEnabled && {
-      value: "counter" as const,
-      label: "Pagar na retirada",
-      hint: "Dinheiro, cartão ou Pix no balcão",
-      icon: StoreIcon,
-    },
-  ].filter(Boolean) as { value: CheckoutValues["paymentMethod"]; label: string; hint: string; icon: typeof StoreIcon }[];
+  // The API lists what this store accepts; online methods are paid on the
+  // order page right after (no redirect).
+  const methods = store.paymentMethods.map((value) => ({ value, ...CHECKOUT_METHODS[value] }));
 
   const form = useForm<CheckoutValues>({
     resolver: zodResolver(CheckoutSchema),
@@ -368,8 +356,7 @@ function CheckoutFlow({
       dispatch(clearCart());
       onDone();
 
-      if (order.checkoutUrl) window.location.assign(order.checkoutUrl);
-      else router.push(`/pedido/${order.publicToken}`);
+      router.push(`/pedido/${order.publicToken}`);
     } catch (err) {
       setError(
         isConnectionError(err)

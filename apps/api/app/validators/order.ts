@@ -25,9 +25,36 @@ const publicOrderValidator = vine.create(
       name: customerName,
       phone: vine.string().trim().minLength(8).maxLength(25),
     }),
-    paymentMethod: vine.enum(Object.values(PaymentMethod)),
+    // Checkout Pro (mercado_pago) is legacy: only older orders carry it.
+    paymentMethod: vine.enum([PaymentMethod.PIX, PaymentMethod.CARD, PaymentMethod.COUNTER]),
     lines,
     notes,
+  })
+)
+
+/**
+ * Paying an order on its tracking page. Card data never reaches us: the
+ * browser tokenizes it (Card Payment Brick) and sends only the token.
+ */
+const publicPaymentValidator = vine.create(
+  vine.object({
+    method: vine.enum([PaymentMethod.PIX, PaymentMethod.CARD]),
+    payer: vine.object({ email: vine.string().trim().email().maxLength(254) }),
+    card: vine
+      .object({
+        token: vine.string().trim().maxLength(255),
+        installments: vine.number().withoutDecimals().min(1).max(24),
+        paymentMethodId: vine.string().trim().maxLength(40),
+        issuerId: vine.string().trim().maxLength(40).optional(),
+        identification: vine
+          .object({
+            type: vine.string().trim().maxLength(10),
+            number: vine.string().trim().maxLength(20),
+          })
+          .optional(),
+      })
+      .optional()
+      .requiredWhen('method', '=', PaymentMethod.CARD),
   })
 )
 
@@ -87,6 +114,7 @@ function lookupTokens(tokens: string[] | undefined) {
 }
 
 export {
+  publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,
   prepareUnitsValidator,

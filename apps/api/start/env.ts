@@ -53,6 +53,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   R2_ENDPOINT: Env.schema.string.optional(),
 
   LIMITER_STORE: Env.schema.enum(['redis', 'memory'] as const),
+
+  /** Development only: a local Pix gateway to try the checkout without credentials. */
+  PAYMENTS_FAKE_GATEWAY: Env.schema.boolean.optional(),
+  /** Guest requests per IP per minute (default 60). */
+  PUBLIC_RATE_LIMIT: Env.schema.number.optional(),
   /** Public orders per IP every 10 minutes (default 10). */
   PUBLIC_ORDER_RATE_LIMIT: Env.schema.number.optional(),
 

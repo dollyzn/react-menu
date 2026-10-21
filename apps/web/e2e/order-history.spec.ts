@@ -14,6 +14,7 @@ async function order(page: Page, name: string) {
   await page.getByLabel("Celular (WhatsApp)").fill(phone);
   await page.getByRole("button", { name: "Continuar" }).click();
   const placed = page.waitForResponse((r) => r.url().endsWith("/orders") && r.request().method() === "POST");
+  await page.getByText("Pagar na retirada", { exact: true }).click();
   await page.getByRole("button", { name: /Fazer pedido/ }).click();
   const body = await (await placed).json();
   await expect(page).toHaveURL(/\/pedido\//);

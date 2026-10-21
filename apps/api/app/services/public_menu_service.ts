@@ -4,9 +4,11 @@ import AppException from '#exceptions/app_exception'
 import StoreStatus from '#enums/store_status'
 import Store from '#models/store'
 import InventoryService from '#services/inventory_service'
+import PaymentService from '#services/payment_service'
+import type PaymentMethod from '#enums/payment_method'
 
 /** Public store fields; never includes credentials or internal settings. */
-export function publicStore(store: Store) {
+export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
   return {
     id: store.id,
     name: store.name,
@@ -21,14 +23,17 @@ export function publicStore(store: Store) {
     bannerUrl: store.bannerUrl,
     photoUrl: store.photoUrl,
     pickupEtaMinutes: store.pickupEtaMinutes,
-    counterPaymentEnabled: store.counterPaymentEnabled,
-    mercadoPagoEnabled: store.mercadoPagoEnabled,
+    /** Checkout options, in display order (online first). */
+    paymentMethods,
   }
 }
 
 @inject()
 export default class PublicMenuService {
-  constructor(private inventory: InventoryService) {}
+  constructor(
+    private inventory: InventoryService,
+    private payments: PaymentService
+  ) {}
 
   /** The menu of a store by slug, or of the default store when slug is omitted. */
   async menu(slug: string | undefined, userAgent: string | undefined, options = { track: true }) {
@@ -54,7 +59,7 @@ export default class PublicMenuService {
     if (options.track) await this.trackView(store, userAgent)
 
     return {
-      store: publicStore(store),
+      store: publicStore(store, this.payments.checkoutMethods(store)),
       categories: store.categories
         .filter((category) => category.items.length > 0)
         .map((category) => ({

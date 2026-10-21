@@ -11,6 +11,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` |
 | Auth pages | `app/app/(auth)/` |
 | Customer menu (SSR) | `app/(menu)/` (`/`, `/[slug]`, `/pedidos`, `/pedido/[token]`), shared parts in `_components/`, helpers in `_lib/` |
+| Checkout payment methods | `_lib/payment-methods.ts` (labels), `_components/payment-panel.tsx` (Pix, card) and `card-payment-form.tsx` (Card Payment Brick, loaded on demand) |
 | Customer history and device link | `_lib/customer-orders.ts`, `_components/order-history.tsx`, `customer.tokens` (ADR 0014) |
 | Bag and customer identity | `redux/slices/cart.ts`, `redux/slices/customer.ts` (persisted) |
 | Sidebar by role | `lib/menu-itens.ts` (`getManageMenuGroups`, `homeForRole`); new store sections also need a label in `app-breadcrumbs.tsx` |

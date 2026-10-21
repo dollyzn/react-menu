@@ -5,12 +5,17 @@ import OrderChannel from '#enums/order_channel'
 import PaymentMethod from '#enums/payment_method'
 import { ok, updated, created } from '#helpers/api_response'
 import OrderService, { BUSINESS_TIMEZONE } from '#services/order_service'
+import PaymentService from '#services/payment_service'
+import Store from '#models/store'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { orderListValidator, posOrderValidator } from '#validators/order'
 
 @inject()
 export default class OrdersController {
-  constructor(private orders: OrderService) {}
+  constructor(
+    private orders: OrderService,
+    private payments: PaymentService
+  ) {}
 
   /** Orders of a business day (today by default), optionally by status. */
   async index({ params, request }: HttpContext) {
@@ -92,6 +97,8 @@ export default class OrdersController {
     const orderId = await uuidValidator.validate(params.orderId)
 
     const order = await this.orders.cancel(storeId, orderId, auth.getUserOrFail())
+    // A paid online order gives the money back automatically.
+    await this.payments.refundCancelled(order, await Store.findOrFail(storeId))
 
     return updated(order, `Pedido #${order.number} cancelado`)
   }

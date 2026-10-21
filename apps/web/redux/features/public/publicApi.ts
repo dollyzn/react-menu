@@ -7,6 +7,7 @@ import type {
   PublicMenu,
   PublicOrder,
   PublicOrderSummary,
+  PublicPaymentRequest,
 } from "@react-menu/contracts";
 
 /** Header with the device's order-history token (see customer slice). */
@@ -98,6 +99,33 @@ export const publicApi = baseApi.injectEndpoints({
       query: (token) => `public/orders/${token}`,
       providesTags: (_res, _err, token) => [{ type: "PublicOrder", id: token }],
     }),
+
+    /** Pix QR code or a tokenized card for an order waiting for payment. */
+    payOrder: build.mutation<
+      PublicOrder,
+      { token: string; input: PublicPaymentRequest; idempotencyKey: string }
+    >({
+      query: ({ token, input, idempotencyKey }) => ({
+        url: `public/orders/${token}/payments`,
+        method: "POST",
+        body: input,
+        headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
+      }),
+      // The response is the updated order: no refetch needed.
+      async onQueryStarted({ token }, { dispatch, queryFulfilled }) {
+        const { data } = await queryFulfilled;
+        dispatch(publicApi.util.upsertQueryData("getPublicOrder", token, data));
+      },
+    }),
+
+    /** Development fake gateway only: approves the pending Pix. */
+    simulatePayment: build.mutation<PublicOrder, string>({
+      query: (token) => ({ url: `public/orders/${token}/payments/simulate`, method: "POST" }),
+      async onQueryStarted(token, { dispatch, queryFulfilled }) {
+        const { data } = await queryFulfilled;
+        dispatch(publicApi.util.upsertQueryData("getPublicOrder", token, data));
+      },
+    }),
   }),
 });
 
@@ -105,6 +133,8 @@ export const {
   useGetPublicMenuQuery,
   usePlaceOrderMutation,
   useGetPublicOrderQuery,
+  usePayOrderMutation,
+  useSimulatePaymentMutation,
   useGetMyOrdersQuery,
   useLookupOrdersQuery,
   useGetOrderHistoryQuery,

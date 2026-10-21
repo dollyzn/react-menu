@@ -69,6 +69,10 @@ export default class Store extends BaseModel {
   @column({ serializeAs: null, prepare: encryptNullable, consume: decryptNullable })
   declare mercadoPagoWebhookSecret: string | null
 
+  /** Public key for the card form (Card Payment Brick); safe to expose. */
+  @column()
+  declare mercadoPagoPublicKey: string | null
+
   @computed()
   get mercadoPagoEnabled() {
     return Boolean(this.mercadoPagoAccessToken)

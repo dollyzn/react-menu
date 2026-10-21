@@ -1,14 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import OrderChannel from '#enums/order_channel'
-import PaymentMethod from '#enums/payment_method'
-import OrderStatus from '#enums/order_status'
 import PaymentService from '#services/payment_service'
 import { ok } from '#helpers/api_response'
 import { publicOrder, publicOrderSummary } from '#orders/public_order'
 import OrderService from '#services/order_service'
 import PublicMenuService from '#services/public_menu_service'
-import { lookupTokens, publicOrderValidator } from '#validators/order'
+import { lookupTokens, publicOrderValidator, publicPaymentValidator } from '#validators/order'
+import type Order from '#models/order'
+import type Store from '#models/store'
 import CustomerAccessService from '#services/customer_access_service'
 import AppException from '#exceptions/app_exception'
 
@@ -32,18 +32,16 @@ export default class PublicMenuController {
     const store = await this.menus.findBySlug(params.slug)
     const input = await request.validateUsing(publicOrderValidator)
 
+    if (!this.payments.checkoutMethods(store).includes(input.paymentMethod)) {
+      throw new AppException('Esta forma de pagamento não está disponível.', 422)
+    }
+
+    // Online orders are paid next, on their tracking page (POST .../payments).
     const order = await this.orders.create(store.id, {
       ...input,
       channel: OrderChannel.ONLINE,
       idempotencyKey: request.header('idempotency-key'),
     })
-    // A retried request gets the same order: reuse its checkout, never pay twice.
-    const checkoutUrl =
-      input.paymentMethod === PaymentMethod.MERCADO_PAGO &&
-      order.status === OrderStatus.PENDING_PAYMENT
-        ? (this.payments.checkoutUrlFor(order, store) ??
-          (await this.payments.startCheckout(order, store)))
-        : null
 
     await order.load('history')
     // History token for this device (see CustomerAccessService).
@@ -51,7 +49,10 @@ export default class PublicMenuController {
       order.customerId,
       request.header('customer-token')
     )
-    return ok({ ...publicOrder(order, store, checkoutUrl), customerToken })
+    return ok({
+      ...publicOrder(order, store, await this.checkoutState(order, store)),
+      customerToken,
+    })
   }
 
   /** Every order of the customer behind the `Customer-Token` header. */
@@ -84,7 +85,39 @@ export default class PublicMenuController {
 
   async trackOrder({ params }: HttpContext) {
     const order = await this.orders.findByToken(params.token)
-    return ok(publicOrder(order, order.store, this.payments.checkoutUrlFor(order, order.store)))
+    return ok(publicOrder(order, order.store, await this.checkoutState(order, order.store)))
+  }
+
+  /** Pays an order waiting for payment: Pix QR code or a tokenized card. */
+  async payOrder({ params, request }: HttpContext) {
+    const order = await this.orders.findByToken(params.token)
+    const input = await request.validateUsing(publicPaymentValidator)
+    const key = request.header('idempotency-key')
+
+    await this.payments.pay(order, order.store, {
+      ...input,
+      // Scoped to the order: the same browser key never pays another order.
+      idempotencyKey: key ? `${order.id}:${key}` : undefined,
+    })
+
+    const fresh = await this.orders.findByToken(params.token)
+    return ok(publicOrder(fresh, fresh.store, await this.checkoutState(fresh, fresh.store)))
+  }
+
+  /** Development fake gateway: approves the pending Pix. */
+  async simulatePayment({ params }: HttpContext) {
+    const order = await this.orders.findByToken(params.token)
+    await this.payments.simulateApproval(order)
+
+    const fresh = await this.orders.findByToken(params.token)
+    return ok(publicOrder(fresh, fresh.store, await this.checkoutState(fresh, fresh.store)))
+  }
+
+  private async checkoutState(order: Order, store: Store) {
+    return {
+      payment: await this.payments.latestFor(order),
+      methods: this.payments.onlineMethods(store),
+    }
   }
 }
 

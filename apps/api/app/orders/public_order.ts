@@ -1,8 +1,39 @@
+import PaymentAttemptStatus from '#enums/payment_attempt_status'
+import OrderStatus from '#enums/order_status'
+import type PaymentMethod from '#enums/payment_method'
 import type Order from '#models/order'
+import type Payment from '#models/payment'
 import type Store from '#models/store'
 
+/** What the tracking page needs to pay: the latest attempt and the options. */
+export type CheckoutState = {
+  payment: Payment | null
+  methods: PaymentMethod[]
+}
+
+/** Customer-facing payment attempt: never gateway ids. */
+function publicPayment(payment: Payment) {
+  const pending = payment.status === PaymentAttemptStatus.PENDING
+  return {
+    method: payment.method,
+    status: payment.status,
+    statusDetail: payment.statusDetail,
+    amount: payment.amount,
+    pix:
+      payment.pixQrCode && pending
+        ? {
+            qrCode: payment.pixQrCode,
+            ticketUrl: payment.pixTicketUrl,
+            expiresAt: payment.expiresAt?.toISO() ?? null,
+          }
+        : null,
+    /** Development fake gateway: the page offers "Simular pagamento". */
+    simulated: payment.gateway === 'fake',
+  }
+}
+
 /** Customer-facing order (PublicOrder contract): no ids, no phone. */
-export function publicOrder(order: Order, store: Store, checkoutUrl: string | null = null) {
+export function publicOrder(order: Order, store: Store, checkout?: CheckoutState) {
   return {
     publicToken: order.publicToken,
     number: order.number,
@@ -41,7 +72,12 @@ export function publicOrder(order: Order, store: Store, checkoutUrl: string | nu
         unitPrice: addon.unitPrice,
       })),
     })),
-    checkoutUrl,
+    payment: checkout?.payment ? publicPayment(checkout.payment) : null,
+    // Only while the order waits for payment.
+    checkout:
+      order.status === OrderStatus.PENDING_PAYMENT && checkout
+        ? { methods: checkout.methods, mercadoPagoPublicKey: store.mercadoPagoPublicKey }
+        : null,
   }
 }
 

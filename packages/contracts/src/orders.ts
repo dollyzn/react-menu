@@ -6,7 +6,13 @@ export type OrderStatus =
   | 'completed'
   | 'cancelled';
 export type OrderChannel = 'online' | 'pos';
-export type PaymentMethod = 'mercado_pago' | 'counter';
+/** `mercado_pago` is legacy (Checkout Pro redirect); new orders use pix/card/counter. */
+export type PaymentMethod = 'pix' | 'card' | 'counter' | 'mercado_pago';
+/** Methods a customer can pick at checkout. */
+export type CheckoutPaymentMethod = 'pix' | 'card' | 'counter';
+/** Online methods paid on the order page. */
+export type OnlinePaymentMethod = 'pix' | 'card';
+export type PaymentAttemptStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'refunded';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 export type IngredientUnit = 'g' | 'kg' | 'ml' | 'l' | 'un';
 export type StockMovementType = 'purchase' | 'adjustment' | 'waste' | 'consumption' | 'reversal';
@@ -92,8 +98,36 @@ export type PublicOrder = Pick<
   items: (Pick<OrderItem, 'itemId' | 'name' | 'unitPrice' | 'quantity' | 'notes' | 'total'> & {
     addons: Pick<OrderItemAddon, 'addonId' | 'name' | 'unitPrice'>[];
   })[];
-  /** Mercado Pago checkout to finish paying, while payment is pending. */
-  checkoutUrl: string | null;
+  /** Latest payment attempt (Pix or card), if any. */
+  payment: PublicPayment | null;
+  /** How the order can be paid; only while it waits for payment. */
+  checkout: { methods: OnlinePaymentMethod[]; mercadoPagoPublicKey: string | null } | null;
+};
+
+/** A payment attempt as the customer sees it (no gateway ids). */
+export type PublicPayment = {
+  method: OnlinePaymentMethod;
+  status: PaymentAttemptStatus;
+  /** Gateway detail, e.g. `cc_rejected_insufficient_amount`. */
+  statusDetail: string | null;
+  amount: number;
+  /** Pix to pay, while it is pending. */
+  pix: { qrCode: string; ticketUrl: string | null; expiresAt: string | null } | null;
+  /** Development fake gateway: the page may simulate the payment. */
+  simulated: boolean;
+};
+
+/** POST /public/orders/:token/payments. Card data is tokenized in the browser. */
+export type PublicPaymentRequest = {
+  method: OnlinePaymentMethod;
+  payer: { email: string };
+  card?: {
+    token: string;
+    installments: number;
+    paymentMethodId: string;
+    issuerId?: string;
+    identification?: { type: string; number: string };
+  };
 };
 
 /** Response of placing a public order. */
@@ -199,8 +233,8 @@ export type PublicMenu = {
     bannerUrl: string | null;
     photoUrl: string | null;
     pickupEtaMinutes: number;
-    counterPaymentEnabled: boolean;
-    mercadoPagoEnabled: boolean;
+    /** Checkout options, online first. */
+    paymentMethods: CheckoutPaymentMethod[];
   };
   categories: PublicMenuCategory[];
 };

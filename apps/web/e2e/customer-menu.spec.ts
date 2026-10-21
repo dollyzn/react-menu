@@ -41,6 +41,7 @@ test.describe("Customer menu", () => {
     await expect(dialog.getByText("Ana Cliente")).toBeVisible();
     await expect(dialog.getByText("Como você prefere pagar?")).toBeVisible();
     await page.screenshot({ path: "test-results/menu-checkout.png", caret: "initial" });
+    await page.getByText("Pagar na retirada", { exact: true }).click();
     await page.getByRole("button", { name: /Fazer pedido/ }).click();
 
     await expect(page).toHaveURL(/\/pedido\/[0-9a-f-]{36}$/);
