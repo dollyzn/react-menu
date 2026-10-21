@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/contexts/session-provider";
 import { Icons } from "@/components/app/icons";
 import { delay, motion } from "motion/react";
-import { request } from "@/lib/api";
+import { useAppDispatch } from "@/redux/hooks";
+import { authApi } from "@/redux/features/auth/authApi";
 
 /** useSearchParams needs a Suspense boundary for static prerendering. */
 export default function AuthSocialPage() {
@@ -22,16 +23,15 @@ function AuthSocial() {
   const provider = searchParams.get("provider") as "google" | "linkedin" | null;
   const error = searchParams.get("error");
   const { verify } = useSession();
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     async function startAuth() {
       if (!provider) return;
 
-      const response = await request<{ data: { url: string } }>({
-        url: `auth/social/${provider}/redirect`,
-      });
+      const result = await dispatch(authApi.endpoints.socialRedirect.initiate(provider, { subscribe: false }));
 
-      if (!response.success || !response.data?.url) {
+      if (!result.data?.url) {
         window.opener?.postMessage(
           { type: "SOCIAL_AUTH_ERROR", error: "Falha ao iniciar login." },
           window.location.origin
@@ -40,11 +40,11 @@ function AuthSocial() {
         return;
       }
 
-      window.location.href = response.data.url;
+      window.location.href = result.data.url;
     }
 
     startAuth();
-  }, [provider]);
+  }, [provider, dispatch]);
 
   useEffect(() => {
     async function handleCallback() {

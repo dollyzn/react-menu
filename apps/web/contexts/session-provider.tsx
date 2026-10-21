@@ -1,12 +1,6 @@
 "use client";
 
-import type {
-  LoginProps,
-  LoginResponse,
-  SessionContextType,
-  SessionProviderProps,
-} from "@/types/session";
-import { RequestError } from "@/types/request";
+import type { LoginProps, SessionContextType, SessionProviderProps } from "@/types/session";
 
 import { createContext, useCallback, useContext, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -22,7 +16,8 @@ import {
   setDefaultOptions,
 } from "date-fns";
 import { persistor } from "./redux-provider";
-import { request } from "@/lib/api";
+import { authApi } from "@/redux/features/auth/authApi";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { ptBR } from "date-fns/locale";
 import { useNotification } from "./notification-provider";
 import { clearSessionCookie } from "@/app/app/(auth)/actions";
@@ -85,25 +80,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const login = useCallback(
     async ({ email, password }: LoginProps) => {
       try {
-        const response = await request<LoginResponse>({
-          url: "auth/login",
-          method: "post",
-          data: { email, password },
-        });
-
-        if (!response.success)
-          throw new RequestError(response.error || "Erro desconhecido");
-
-        const data = response.data.user;
-
-        if (!data) throw new RequestError("Erro ao realizar login");
-
+        const { user } = await dispatch(authApi.endpoints.login.initiate({ email, password })).unwrap();
         dispatch(setIsSessionExpired(false));
-        dispatch(setUser(data));
+        dispatch(setUser(user));
       } catch (error) {
-        return error instanceof RequestError
-          ? error.message
-          : "Não foi possível efetuar o login. Por favor, tente novamente mais tarde.";
+        return getErrorMessage(
+          error as { data?: { error?: string } },
+          "Não foi possível efetuar o login. Por favor, tente novamente mais tarde."
+        );
       }
     },
     [dispatch]
@@ -113,10 +97,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
     if (user) {
       try {
         await unsubscribe();
-        await request({
-          url: "auth/logout",
-          method: "delete",
-        });
+        await dispatch(authApi.endpoints.logout.initiate()).unwrap();
         await clearSessionCookie();
       } catch (error) {
         console.error("Logout failed", error);
@@ -127,31 +108,24 @@ export function SessionProvider({ children }: SessionProviderProps) {
     persistor.purge();
   }
 
+  /** Loads the session (and renews it when it is past half its life). */
   const verify = useCallback(async () => {
-    const maxAttempts = 3;
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const response = await request<LoginResponse>({ url: "auth/me" });
-
-      if (response.success && response.data?.user) {
-        dispatch(setIsSessionExpired(false));
-        dispatch(setUser(response.data.user));
-        return response.data.user;
-      }
-
+    try {
+      const { user } = await dispatch(
+        authApi.endpoints.me.initiate(undefined, { forceRefetch: true, subscribe: false })
+      ).unwrap();
+      dispatch(setIsSessionExpired(false));
+      dispatch(setUser(user));
+      return user;
+    } catch (error) {
       // Only a 401 means the session is gone. Rate limiting, server errors
-      // and being offline are transient: keep the current session state.
-      if (response.status === 401) {
-        if (isAuthenticated) dispatch(setIsSessionExpired(true));
-        return null;
+      // and being offline are transient (baseApi already retried): keep the
+      // current session state.
+      if ((error as { status?: unknown }).status === 401 && isAuthenticated) {
+        dispatch(setIsSessionExpired(true));
       }
-
-      if (attempt < maxAttempts) {
-        await new Promise((resolve) => setTimeout(resolve, attempt * 2000));
-      }
+      return null;
     }
-
-    return null;
   }, [dispatch, isAuthenticated]);
 
   useDebouncedEffect(() => {

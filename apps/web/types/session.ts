@@ -19,11 +19,3 @@ export interface LoginProps {
   email: string;
   password: string;
 }
-
-export interface LoginResponse {
-  success: boolean;
-  data: {
-    user?: User;
-  };
-  error?: string;
-}

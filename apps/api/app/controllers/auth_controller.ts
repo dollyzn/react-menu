@@ -45,8 +45,8 @@ export default class AuthController {
     return messageOnly('Senha redefinida. Entre com a nova senha.')
   }
 
-  async me({ auth }: HttpContext) {
-    const user = await this.authService.me(auth.getUserOrFail())
+  async me({ auth, response }: HttpContext) {
+    const user = await this.authService.me(auth.getUserOrFail(), { auth, response })
 
     return ok({ user })
   }

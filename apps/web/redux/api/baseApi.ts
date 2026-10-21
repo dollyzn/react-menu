@@ -141,6 +141,8 @@ type ExtraOptions = {
   background?: boolean;
   /** The screen shows this endpoint's errors itself: no global toast. */
   quiet?: boolean;
+  /** Session endpoints (login, me…): a 401 means "not signed in", not "session expired". */
+  session?: boolean;
 };
 
 const isWriteRequest = (args: string | FetchArgs) =>
@@ -176,7 +178,7 @@ const baseQueryWithHandling: BaseQueryFn<
     const url = typeof args === "string" ? args : args.url;
     if (status === 401) {
       // A customer link that stopped working is handled by the menu, not the staff session.
-      if (!url.startsWith("public/")) api.dispatch(setIsSessionExpired(true));
+      if (!url.startsWith("public/") && !extraOptions?.session) api.dispatch(setIsSessionExpired(true));
     } else if (message && !extraOptions?.quiet) {
       toast.error(message);
     }

@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import type { AccessToken } from '@adonisjs/auth/access_tokens'
 import app from '@adonisjs/core/services/app'
 import limiter from '@adonisjs/limiter/services/main'
+import string from '@adonisjs/core/helpers/string'
 import User, { SESSION_TTL } from '#models/user'
 import env from '#start/env'
 import AppException from '#exceptions/app_exception'
@@ -77,8 +78,28 @@ export default class AuthService {
     return result
   }
 
-  async me(user: User & { currentAccessToken?: AccessToken }) {
-    return await this.sessionUser(user, user.currentAccessToken?.toJSON().expiresAt)
+  /**
+   * The current session. Sliding renewal: when less than half of the session
+   * is left, a fresh token replaces it (new cookie, old token deleted), so
+   * people who use the panel regularly never get logged out, while an
+   * abandoned session still expires.
+   */
+  async me(
+    user: User & { currentAccessToken?: AccessToken },
+    ctx: Pick<HttpContext, 'response' | 'auth'>
+  ) {
+    const current = user.currentAccessToken
+    const expiresAt = current?.expiresAt
+    if (this.sendCookie && current && expiresAt && this.shouldRenew(expiresAt)) {
+      const renewed = await this.createSession(user, ctx)
+      await User.accessTokens.delete(user, current.identifier)
+      return await this.sessionUser(user, renewed.expiresAt)
+    }
+    return await this.sessionUser(user, expiresAt)
+  }
+
+  private shouldRenew(expiresAt: Date) {
+    return expiresAt.getTime() - Date.now() < string.milliseconds.parse(SESSION_TTL) / 2
   }
 
   /** SessionUser contract: the user, its permissions, and each store with its role. */

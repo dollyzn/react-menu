@@ -128,6 +128,4 @@ decision that is hard to reverse, update this file and add an ADR in
 
 ## Known debt (don't copy these patterns)
 
-- `apps/web/lib/api.ts` (axios `request()`) is still used by the session
-  provider; new code uses RTK Query.
 - See `docs/development/roadmap.md` for the full list.
