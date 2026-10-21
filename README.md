@@ -51,15 +51,15 @@ user.
 docker compose -f docker-compose.dev.yml up -d
 ```
 
-This starts Postgres (with the `jjpasteis-menu`, `-test` and `-e2e`
+This starts Postgres (with the `react-menu`, `-test` and `-e2e`
 databases), Redis and Mailpit, which catches every e-mail the app sends
 (password reset…) in an inbox at <http://localhost:8025>. Ports already taken? Set `DEV_POSTGRES_PORT` /
 `DEV_REDIS_PORT` (defaults 5432 / 6379) and the same ports in
 `apps/api/.env`.
 
 Without Docker: create the three databases yourself (`createdb
-jjpasteis-menu`, `createdb jjpasteis-menu-test`, `createdb
-jjpasteis-menu-e2e`) and point `DB_*` and `REDIS_*` in `apps/api/.env` at
+react-menu`, `createdb react-menu-test`, `createdb
+react-menu-e2e`) and point `DB_*` and `REDIS_*` in `apps/api/.env` at
 your servers.
 
 ### 3. Create the tables and the demo data
@@ -115,6 +115,11 @@ the `.env.example` ones: new variables are added there. To start over with
 fresh demo data (this **erases** the development database):
 `pnpm --filter @react-menu/api exec node ace migration:fresh --seed`.
 
+Older checkouts used databases named `jjpasteis-menu*`. Your `apps/api/.env`
+keeps working; the tests now use `react-menu-test` and `react-menu-e2e`, so
+create them (`createdb react-menu-test`, `createdb react-menu-e2e`) and drop
+the old `-test` / `-e2e` ones when you like.
+
 ## Production (Docker)
 
 One server with Docker runs everything: Caddy (HTTPS and a single origin for
@@ -166,14 +171,33 @@ resets the admin password to `ADMIN_PASS`. If a release upgrades
 `@adonisjs/queue` and says so, stop the worker and run
 `docker compose run --rm worker node ace queue:migrate` before starting it.
 
+### Automatic deploys (GitHub Actions)
+
+`.github/workflows/deploy.yml` runs the update above on the server when a
+GitHub release is published (or by hand from the Actions tab, for any tag or
+commit): it checks out the release tag, saves a compressed database backup
+in `backups/` (the last 10 are kept), runs `docker compose up -d --build`
+and waits for the API to answer. Set it up once:
+
+1. Do the first install above on the server, as a user that can run
+   `docker` and owns the clone.
+2. Create an SSH key for GitHub Actions and add its public half to that
+   user's `~/.ssh/authorized_keys`.
+3. In the repository's **Settings › Secrets and variables › Actions**, add
+   `VPS_HOST`, `VPS_PORT` (usually 22), `VPS_USER`, `VPS_KEY` (the private
+   key) and `VPS_PATH` (the clone's absolute path).
+
+Then publishing a release deploys it. The `.env` on the server is never
+touched by the workflow.
+
 ## Commands
 
 | | |
 | --- | --- |
 | `pnpm dev` / `dev:api` / `dev:web` | Run apps in development |
 | `pnpm lint` / `pnpm typecheck` | Static checks for every package |
-| `pnpm test` | API functional tests (needs database `jjpasteis-menu-test`) |
-| `pnpm test:e2e` | Playwright end-to-end tests (needs database `jjpasteis-menu-e2e`; first run `pnpm --filter @react-menu/web exec playwright install chromium`) |
+| `pnpm test` | API functional tests (needs database `react-menu-test`) |
+| `pnpm test:e2e` | Playwright end-to-end tests (needs database `react-menu-e2e`; first run `pnpm --filter @react-menu/web exec playwright install chromium`) |
 | `pnpm check` | lint + typecheck + API tests |
 | `pnpm build` | Production builds |
 
