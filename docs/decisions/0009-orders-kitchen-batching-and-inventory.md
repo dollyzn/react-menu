@@ -39,5 +39,8 @@ together without making anyone wait too long.
 
 ## Consequences
 
-- Lookahead (3) is a constant in code; make it a store setting if needed.
+- Lookahead is a store setting (`stores.kitchen_batch_lookahead`, 0–5,
+  default 3; 0 = strict arrival order). Added after testing in the shop:
+  finishing two later orders while the first one waited felt wrong, so
+  each store chooses the trade-off.
 - Recipes must be kept accurate for stock and kitchen ingredients to be.

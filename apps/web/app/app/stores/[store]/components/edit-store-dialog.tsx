@@ -16,6 +16,7 @@ import {
   FieldLabel,
   FieldSeparator,
 } from "@/components/ui/field";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { formatPhoneBR } from "@/utils/string";
@@ -69,7 +70,17 @@ const EditStoreSchema = z.object({
   pickupEtaMinutes: z.number({ message: "Informe os minutos." }).int().min(1).max(240),
   inventoryEnabled: z.boolean(),
   counterPaymentEnabled: z.boolean(),
+  kitchenBatchLookahead: z.number().int().min(0).max(5),
 });
+
+const LOOKAHEAD_OPTIONS = [
+  { value: 0, label: "Desligado: ordem de chegada" },
+  { value: 1, label: "Até 1 pedido à frente" },
+  { value: 2, label: "Até 2 pedidos à frente" },
+  { value: 3, label: "Até 3 pedidos à frente" },
+  { value: 4, label: "Até 4 pedidos à frente" },
+  { value: 5, label: "Até 5 pedidos à frente" },
+];
 
 type EditStoreFormValues = z.infer<typeof EditStoreSchema>;
 
@@ -98,6 +109,7 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
       pickupEtaMinutes: data.pickupEtaMinutes ?? 20,
       inventoryEnabled: data.inventoryEnabled ?? false,
       counterPaymentEnabled: data.counterPaymentEnabled ?? true,
+      kitchenBatchLookahead: data.kitchenBatchLookahead ?? 3,
     },
   });
   const { isSubmitting } = form.formState;
@@ -340,6 +352,31 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
                       <FieldLabel htmlFor={field.name}>Aceitar pagamento na retirada</FieldLabel>
                       <FieldDescription>Clientes podem pedir online e pagar no balcão.</FieldDescription>
                     </div>
+                  </Field>
+                )}
+              />
+              <Controller
+                name="kitchenBatchLookahead"
+                control={form.control}
+                render={({ field }) => (
+                  <Field>
+                    <FieldLabel htmlFor={field.name}>Agrupar pastéis iguais na cozinha</FieldLabel>
+                    <NativeSelect
+                      id={field.name}
+                      value={String(field.value)}
+                      onChange={(event) => field.onChange(Number(event.target.value))}
+                      disabled={busy}
+                    >
+                      {LOOKAHEAD_OPTIONS.map((option) => (
+                        <NativeSelectOption key={option.value} value={String(option.value)}>
+                          {option.label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                    <FieldDescription>
+                      A cozinha faz de uma vez os pastéis iguais de pedidos próximos. Quanto mais pedidos à frente,
+                      mais rápido sai o lote, mas um pedido que chegou antes pode ficar esperando.
+                    </FieldDescription>
                   </Field>
                 )}
               />

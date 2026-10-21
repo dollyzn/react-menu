@@ -158,7 +158,7 @@ export default function PosPage() {
             aria-label="Buscar produto"
             className="h-10 rounded-xl"
           />
-          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 scrollbar-none" role="group" aria-label="Categorias">
+          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 scrollbar-none scroll-fade-x scroll-fade-12" role="group" aria-label="Categorias">
             {[{ id: "all" as const, name: "Tudo", size: totalItems }, ...categories.map((c) => ({ ...c, size: c.items.length }))].map(
               (category) => {
                 const selected = categoryId === category.id;

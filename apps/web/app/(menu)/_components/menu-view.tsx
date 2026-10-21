@@ -77,9 +77,8 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
           </div>
         )}
 
-        <div className="mt-4">
-          <CategoryNav categories={categories} />
-        </div>
+        {/* Direct child of <main>: a wrapper would stop it from sticking. */}
+        <CategoryNav categories={categories} className="mt-4" />
 
         {categories.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">

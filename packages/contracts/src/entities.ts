@@ -25,6 +25,8 @@ export type Store = {
   /** When true, stock is tracked and can make items unavailable. */
   inventoryEnabled: boolean;
   counterPaymentEnabled: boolean;
+  /** Kitchen groups identical pastries from up to this many later orders (0 = arrival order). */
+  kitchenBatchLookahead: number;
   /** True when Mercado Pago credentials are configured (never exposed). */
   mercadoPagoEnabled: boolean;
   /** Only when the view count was loaded (public menu). */

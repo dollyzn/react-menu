@@ -58,6 +58,10 @@ export default class Store extends BaseModel {
   @column()
   declare counterPaymentEnabled: boolean
 
+  /** Later orders the kitchen may pull identical pastries from (0 = arrival order). */
+  @column()
+  declare kitchenBatchLookahead: number
+
   /** Encrypted at rest with APP_KEY; never serialized. */
   @column({ serializeAs: null, prepare: encryptNullable, consume: decryptNullable })
   declare mercadoPagoAccessToken: string | null

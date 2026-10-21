@@ -65,3 +65,31 @@ test("POS → kitchen → pickup: the whole shop floor flow", async ({ page, bro
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
   await expect(card).toBeHidden();
 });
+
+test("with a long queue the kitchen's action button stays on screen", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const items = menu.categories.flatMap((c: { items: { id: string }[] }) => c.items);
+  for (let i = 0; i < 8; i++) {
+    await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+      data: {
+        lines: [{ itemId: items[i].id, quantity: 1 }],
+        customer: { name: `Fila ${i}`, phone: "11999990000" },
+        paymentMethod: "counter",
+      },
+    });
+  }
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(page.url().replace(/\/[^/]+$/, "/kitchen"));
+  const now = page.getByRole("region", { name: "Fazer agora" });
+  await expect(now).toBeVisible();
+  await expect(page.getByRole("complementary", { name: "Próximos" }).getByRole("listitem")).toHaveCount(7);
+  await expect(now.getByRole("button", { name: "Pronto" })).toBeInViewport();
+  await page.screenshot({ path: "test-results/kitchen-long-queue.png", caret: "initial" });
+
+  await clearKitchen();
+});

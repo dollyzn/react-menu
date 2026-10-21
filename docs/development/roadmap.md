@@ -28,8 +28,6 @@ they are picked up.
 - Replace the remaining `apps/web/lib/api.ts` (axios) usage in the session
   provider with RTK Query, then drop axios.
 - Sliding session renewal (tokens currently expire after 7 days).
-- Kitchen lookahead (3 orders) is a constant; make it a store setting if
-  shops need different trade-offs.
 - `GET /public/menu` writes one `store_views` row per customer visit;
   aggregate or sample before traffic grows.
 - FCM: re-register when `onRegistered` reports a new installation ID; wrap

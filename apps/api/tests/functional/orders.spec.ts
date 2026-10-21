@@ -186,6 +186,42 @@ test.group('Kitchen and pickup', (group) => {
     )
   })
 
+  test('managers can turn batching off so the kitchen follows arrival order', async ({
+    client,
+    assert,
+  }) => {
+    const manager = await createUser()
+    const cook = await createUser()
+    const { store, carne, queijo } = await createMenuStore()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    await linkUser(store, cook, StoreRole.KITCHEN)
+    await placeAll(client, store.slug, [carne.id, queijo.id, carne.id])
+
+    const settings = (lookahead: number) => ({ slug: store.slug, kitchenBatchLookahead: lookahead })
+    const denied = await client.put(`/api/v1/stores/${store.id}`).json(settings(0)).loginAs(cook)
+    denied.assertStatus(403)
+    const invalid = await client
+      .put(`/api/v1/stores/${store.id}`)
+      .json(settings(9))
+      .loginAs(manager)
+    invalid.assertStatus(422)
+
+    const updated = await client
+      .put(`/api/v1/stores/${store.id}`)
+      .json(settings(0))
+      .loginAs(manager)
+    updated.assertStatus(200)
+    updated.assertBodyContains({ data: { kitchenBatchLookahead: 0 } })
+
+    const response = await client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(cook)
+    assert.deepEqual(
+      response
+        .body()
+        .data.map((b: { quantity: number; name: string }) => `${b.quantity}x ${b.name}`),
+      ['1x Pastel de Carne', '1x Pastel de Queijo', '1x Pastel de Carne']
+    )
+  })
+
   test('marking units moves orders to preparing, ready and completed', async ({
     client,
     assert,

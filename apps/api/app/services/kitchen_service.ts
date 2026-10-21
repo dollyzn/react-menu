@@ -4,6 +4,7 @@ import OrderStatus from '#enums/order_status'
 import type IngredientUnit from '#enums/ingredient_unit'
 import { buildProductionQueue, type PendingUnit } from '#kitchen/production_queue'
 import Order from '#models/order'
+import Store from '#models/store'
 
 type RecipeRow = { owner_id: string; name: string; unit: IngredientUnit; quantity: string }
 
@@ -11,7 +12,8 @@ const round3 = (value: number) => Math.round(value * 1000) / 1000
 
 export default class KitchenService {
   /** What to make next, grouped into batches with their total ingredients. */
-  async queue(storeId: string, lookahead?: number): Promise<ProductionBatch[]> {
+  async queue(storeId: string): Promise<ProductionBatch[]> {
+    const store = await Store.findOrFail(storeId)
     const orders = await Order.query()
       .where({ storeId })
       .whereIn('status', [OrderStatus.RECEIVED, OrderStatus.PREPARING])
@@ -35,7 +37,7 @@ export default class KitchenService {
       }))
     )
 
-    const batches = buildProductionQueue(pending, lookahead)
+    const batches = buildProductionQueue(pending, store.kitchenBatchLookahead)
     const recipes = await this.recipes(pending)
 
     return batches.map((batch) => {

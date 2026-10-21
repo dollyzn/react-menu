@@ -4,8 +4,9 @@
  * The cook always works on the oldest pending unit, but identical units from
  * the next few orders are pulled into the same batch, so "carne, queijo,
  * carne" becomes "2× carne, then 1× queijo". The look-ahead is bounded by
- * `lookahead` orders, so no order is ever overtaken by more than that many
- * later orders.
+ * `lookahead` orders (per store, `stores.kitchen_batch_lookahead`), so no
+ * order is ever overtaken by more than that many later orders. 0 keeps
+ * strict arrival order: only units of the same order are grouped.
  */
 
 export type PendingUnit = {
@@ -34,6 +35,7 @@ export type ProductionBatch = {
 }
 
 export const DEFAULT_LOOKAHEAD = 3
+export const MAX_KITCHEN_LOOKAHEAD = 5
 
 export function unitKey(
   unit: Pick<PendingUnit, 'itemId' | 'name' | 'addons' | 'notes' | 'lineId'>

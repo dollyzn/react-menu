@@ -11,6 +11,7 @@ import {
   CheckCheck,
   ChefHat,
   Expand,
+  Layers,
   MessageSquareWarning,
   Shrink,
 } from "lucide-react";
@@ -21,18 +22,23 @@ import {
   useGetKitchenQueueQuery,
   usePrepareUnitsMutation,
 } from "@/redux/features/order/orderApi";
+import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatQuantity } from "@/utils/units";
 import { cn } from "@/lib/utils";
 
 /**
  * Kitchen display. The cook works top-down: the API already groups identical
- * pastries from nearby orders (never skipping more than 3 orders).
+ * pastries from nearby orders, as far ahead as the store allows
+ * (`kitchenBatchLookahead`, 0 = arrival order). On large screens nothing
+ * scrolls the page: the action buttons stay visible and the "next" list
+ * scrolls on its own.
  */
 export default function KitchenPage() {
   const { store: storeId } = useParams<{ store: string }>();
   const { data: batches = [], isLoading } = useGetKitchenQueueQuery(storeId, {
     pollingInterval: 20_000,
   });
+  const { data: store } = useGetStoreByIdQuery(storeId);
   const [prepare, { isLoading: saving }] = usePrepareUnitsMutation();
   const [soundOn, setSoundOn] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
@@ -85,7 +91,7 @@ export default function KitchenPage() {
       : document.documentElement.requestFullscreen().catch(() => undefined);
 
   return (
-    <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-4 p-4 lg:p-6">
+    <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-4 p-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:p-6">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ChefHat className="size-6 text-primary" />
@@ -93,6 +99,14 @@ export default function KitchenPage() {
           <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium tabular-nums">
             {batches.reduce((sum, batch) => sum + batch.quantity, 0)} na fila
           </span>
+          {store && (
+            <span className="hidden items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground sm:flex">
+              <Layers className="size-3.5" />
+              {store.kitchenBatchLookahead === 0
+                ? "Ordem de chegada"
+                : `Agrupa até ${store.kitchenBatchLookahead} ${store.kitchenBatchLookahead === 1 ? "pedido" : "pedidos"} à frente`}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -116,14 +130,14 @@ export default function KitchenPage() {
       </header>
 
       {isLoading ? (
-        <div className="grid flex-1 gap-4 lg:grid-cols-3">
+        <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
           <Skeleton className="min-h-80 rounded-3xl lg:col-span-2" />
           <Skeleton className="min-h-80 rounded-3xl" />
         </div>
       ) : !current ? (
         <EmptyKitchen />
       ) : (
-        <div className="grid flex-1 gap-4 lg:grid-cols-3">
+        <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
           <AnimatePresence mode="popLayout">
             <motion.section
               key={current.key + current.units.map((u) => u.lineId).join()}
@@ -132,7 +146,7 @@ export default function KitchenPage() {
               exit={{ opacity: 0, y: -24, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               aria-label="Fazer agora"
-              className="flex flex-col rounded-3xl border-2 border-primary/40 bg-card p-5 shadow-lg lg:col-span-2 lg:p-8"
+              className="flex flex-col rounded-3xl border-2 border-primary/40 bg-card p-5 shadow-lg lg:col-span-2 lg:min-h-0 lg:overflow-y-auto lg:p-8"
             >
               <p className="text-sm font-semibold tracking-wider text-primary uppercase">Fazer agora</p>
               <div className="mt-2 flex items-baseline gap-4">
@@ -186,7 +200,8 @@ export default function KitchenPage() {
                 ))}
               </div>
 
-              <div className="mt-auto grid gap-3 pt-8 sm:grid-cols-2">
+              {/* Always reachable: sticks to the screen (phones) or the card (large screens). */}
+              <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 bg-card/95 px-5 pt-6 pb-5 backdrop-blur sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
                 {current.quantity > 1 && (
                   <Button
                     variant="outline"
@@ -209,7 +224,7 @@ export default function KitchenPage() {
             </motion.section>
           </AnimatePresence>
 
-          <aside aria-label="Próximos" className="flex flex-col gap-3">
+          <aside aria-label="Próximos" className="flex flex-col gap-3 lg:min-h-0">
             <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
               Próximos {next.length > 0 && `(${next.length})`}
             </h2>
@@ -218,7 +233,7 @@ export default function KitchenPage() {
                 Nada depois deste lote.
               </p>
             )}
-            <ul className="flex flex-col gap-2">
+            <ul className="flex flex-col gap-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y">
               <AnimatePresence initial={false}>
                 {next.map((batch, index) => (
                   <motion.li

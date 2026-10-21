@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { MAX_KITCHEN_LOOKAHEAD } from '#kitchen/production_queue'
 import StoreStatus from '../enums/store_status.js'
 
 const name = vine.string().trim()
@@ -56,6 +57,12 @@ const updateValidator = vine.create(
     pickupEtaMinutes: vine.number().withoutDecimals().min(1).max(240).optional(),
     inventoryEnabled: vine.boolean().optional(),
     counterPaymentEnabled: vine.boolean().optional(),
+    kitchenBatchLookahead: vine
+      .number()
+      .withoutDecimals()
+      .min(0)
+      .max(MAX_KITCHEN_LOOKAHEAD)
+      .optional(),
   })
 )
 

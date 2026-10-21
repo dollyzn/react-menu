@@ -8,10 +8,11 @@ export const categoryAnchor = (id: number) => `categoria-${id}`;
 
 interface CategoryNavProps {
   categories: { id: number; name: string }[];
+  className?: string;
 }
 
 /** Sticky category chips that follow the scroll (scrollspy). */
-export function CategoryNav({ categories }: CategoryNavProps) {
+export function CategoryNav({ categories, className }: CategoryNavProps) {
   const [active, setActive] = useState<number | null>(categories[0]?.id ?? null);
   const listRef = useRef<HTMLDivElement>(null);
   const clickedRef = useRef(false);
@@ -61,11 +62,11 @@ export function CategoryNav({ categories }: CategoryNavProps) {
   return (
     <nav
       aria-label="Categorias"
-      className="sticky top-14 z-20 -mx-4 border-b bg-background/80 backdrop-blur-md"
+      className={cn("sticky top-14 z-20 -mx-4 border-b bg-background/80 backdrop-blur-md", className)}
     >
       <div
         ref={listRef}
-        className="relative mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative mx-auto flex max-w-3xl gap-1 overflow-x-auto px-4 py-2 scrollbar-none scroll-fade-x scroll-fade-12"
       >
         {categories.map((category) => (
           <button

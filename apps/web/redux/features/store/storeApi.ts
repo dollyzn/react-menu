@@ -30,7 +30,8 @@ export const storeApi = baseApi.injectEndpoints({
         method: "PUT",
         body: data,
       }),
-      invalidatesTags: (_res, _err, { id }) => [storeTag(id)],
+      // Settings like kitchen batching change the kitchen queue too.
+      invalidatesTags: (_res, _err, { id }) => [storeTag(id), { type: "Kitchen", id }],
     }),
 
     updateStoreImages: build.mutation<

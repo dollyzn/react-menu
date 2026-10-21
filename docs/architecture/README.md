@@ -95,7 +95,8 @@ upsert customer by phone, number = max(today) + 1 under a store row lock
 
 Kitchen batches (`app/kitchen/production_queue.ts`): start from the oldest
 pending unit and pull identical units (same item and add-ons, no notes) from
-at most the next 3 orders, so no order waits behind more than 3 newer ones.
+at most the next N orders (`stores.kitchen_batch_lookahead`, default 3; 0 =
+arrival order), so no order waits behind more than N newer ones.
 Each batch carries the summed ingredients of its recipes.
 
 ## Realtime and notifications
