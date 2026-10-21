@@ -73,6 +73,12 @@ export const orderApi = baseApi.injectEndpoints({
       invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
     }),
 
+    /** Managers: retry the refund of a cancelled paid order. */
+    refundOrder: build.mutation<Order, { storeId: string; orderId: string }>({
+      query: ({ storeId, orderId }) => ({ url: `stores/${storeId}/orders/${orderId}/refund`, method: "POST" }),
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId)],
+    }),
+
     markOrderPaid: build.mutation<Order, { storeId: string; orderId: string }>({
       query: ({ storeId, orderId }) => ({ url: `stores/${storeId}/orders/${orderId}/payment`, method: "POST" }),
       invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
@@ -103,6 +109,7 @@ export const {
   useCompleteOrderMutation,
   useCancelOrderMutation,
   useMarkOrderPaidMutation,
+  useRefundOrderMutation,
   useGetKitchenQueueQuery,
   usePrepareUnitsMutation,
 } = orderApi;

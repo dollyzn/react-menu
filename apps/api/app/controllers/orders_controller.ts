@@ -6,13 +6,20 @@ import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import { ok, updated, created } from '#helpers/api_response'
 import OrderService, { BUSINESS_TIMEZONE } from '#services/order_service'
 import RefundOrder from '#jobs/refund_order'
+import PaymentService from '#services/payment_service'
+import Store from '#models/store'
+import type Order from '#models/order'
+import OrderStatus from '#enums/order_status'
 import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { orderListValidator, posOrderValidator } from '#validators/order'
 
 @inject()
 export default class OrdersController {
-  constructor(private orders: OrderService) {}
+  constructor(
+    private orders: OrderService,
+    private payments: PaymentService
+  ) {}
 
   /** Orders of a business day (today by default), optionally by status. */
   async index({ params, request }: HttpContext) {
@@ -49,8 +56,37 @@ export default class OrdersController {
     const orderId = await uuidValidator.validate(params.orderId)
 
     const order = await this.orders.find(storeId, orderId)
-    return ok({
+    return ok(await this.detail(order))
+  }
+
+  /** Managers: retries the refund of a cancelled paid order right away. */
+  async refund({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const orderId = await uuidValidator.validate(params.orderId)
+
+    const order = await this.orders.find(storeId, orderId)
+    await this.payments.refundNow(order, await Store.findOrFail(storeId))
+
+    return updated(await this.detail(order), `Pedido #${order.number} reembolsado`)
+  }
+
+  /** Staff detail: status history with who did it, and the payment attempts. */
+  private async detail(order: Order) {
+    const payments = await this.payments.listFor(order)
+    return {
       ...order.serialize(),
+      payments: payments.map((payment) => ({
+        method: payment.method,
+        status: payment.status,
+        statusDetail: payment.statusDetail,
+        amount: payment.amount,
+        createdAt: payment.createdAt.toISO(),
+      })),
+      // Paid online and cancelled, but the money hasn't gone back yet.
+      refundPending:
+        order.status === OrderStatus.CANCELLED &&
+        order.paymentStatus === PaymentStatus.PAID &&
+        isOnlinePayment(order.paymentMethod),
       // Who changed each status: only the name leaves the API.
       history: order.history.map((entry) => ({
         fromStatus: entry.fromStatus,
@@ -58,7 +94,7 @@ export default class OrdersController {
         createdAt: entry.createdAt.toISO(),
         user: entry.user ? { id: entry.user.id, name: entry.user.name } : null,
       })),
-    })
+    }
   }
 
   /** Point of sale: paid at the counter, goes straight to the kitchen. */

@@ -76,7 +76,11 @@ export function publicOrder(order: Order, store: Store, checkout?: CheckoutState
     // Only while the order waits for payment.
     checkout:
       order.status === OrderStatus.PENDING_PAYMENT && checkout
-        ? { methods: checkout.methods, mercadoPagoPublicKey: store.mercadoPagoPublicKey }
+        ? {
+            methods: checkout.methods,
+            mercadoPagoPublicKey: store.mercadoPagoPublicKey,
+            maxInstallments: store.maxInstallments,
+          }
         : null,
   }
 }

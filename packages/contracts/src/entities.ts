@@ -31,6 +31,8 @@ export type Store = {
   mercadoPagoEnabled: boolean;
   /** Public key for the in-app card form (safe to expose). */
   mercadoPagoPublicKey: string | null;
+  /** Card installments offered at checkout (1 = à vista). */
+  maxInstallments: number;
   /** Only when the view count was loaded (public menu). */
   views?: number;
   createdAt: string;

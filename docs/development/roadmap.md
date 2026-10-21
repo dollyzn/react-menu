@@ -6,9 +6,6 @@ they are picked up; done items leave this file (see the git history).
 ## Next up (in order)
 
 1. **Payments, follow-ups of the in-app checkout (ADR 0015)**:
-   - refund status and a "reembolsar" retry in the staff order detail
-     (refunds that gave up are only logged today);
-   - installments per store (the card form allows 1x today);
    - a second gateway (Asaas, Pagar.me, Stripe…) through `PaymentGateway`;
    - move `MercadoPagoGateway` to the Orders API (`/v1/orders`) once its
      rejection statuses, refunds and webhook signature are documented.

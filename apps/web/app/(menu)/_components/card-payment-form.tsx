@@ -22,11 +22,14 @@ function ensureMercadoPago(publicKey: string) {
 export default function CardPaymentForm({
   publicKey,
   amount,
+  maxInstallments,
   email,
   onPay,
 }: {
   publicKey: string;
   amount: number;
+  /** The store's limit (1 = à vista). */
+  maxInstallments: number;
   email?: string;
   onPay: (input: PublicPaymentRequest) => Promise<void>;
 }) {
@@ -38,7 +41,7 @@ export default function CardPaymentForm({
       {!ready && <Skeleton className="absolute inset-0 rounded-2xl" />}
       <CardPayment
         initialization={{ amount, payer: email ? { email } : undefined }}
-        customization={{ paymentMethods: { maxInstallments: 1 }, visual: { hideFormTitle: true } }}
+        customization={{ paymentMethods: { maxInstallments }, visual: { hideFormTitle: true } }}
         locale="pt-BR"
         onReady={() => setReady(true)}
         onError={() => setReady(true)}

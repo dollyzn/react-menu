@@ -74,6 +74,26 @@ export default class PaymentService {
     return this.gatewayFor(store)?.methods ?? []
   }
 
+  /** Every attempt of the order, oldest first (staff order detail). */
+  async listFor(order: Order) {
+    return await Payment.query().where('orderId', order.id).orderBy('createdAt', 'asc')
+  }
+
+  /**
+   * Manual "Reembolsar agora" from the staff order detail, for a cancelled
+   * paid order whose automatic refund didn't go through.
+   */
+  async refundNow(order: Order, store: Store) {
+    if (order.status !== OrderStatus.CANCELLED || order.paymentStatus !== PaymentStatus.PAID) {
+      throw new AppException(
+        'Este pedido não tem pagamento a devolver.',
+        409,
+        'E_NOTHING_TO_REFUND'
+      )
+    }
+    await this.refundCancelled(order, store)
+  }
+
   /** Latest attempt of the order, shown on its tracking page. */
   async latestFor(order: Order) {
     return await Payment.query().where('orderId', order.id).orderBy('createdAt', 'desc').first()
@@ -94,6 +114,18 @@ export default class PaymentService {
     const gateway = this.gatewayFor(store)
     if (!gateway || !gateway.methods.includes(input.method)) {
       throw new AppException('Esta forma de pagamento não está disponível.', 422)
+    }
+
+    if (
+      input.method === PaymentMethod.CARD &&
+      (input.card?.installments ?? 1) > store.maxInstallments
+    ) {
+      throw new AppException(
+        store.maxInstallments === 1
+          ? 'Esta loja aceita cartão só à vista.'
+          : `Esta loja parcela em até ${store.maxInstallments}x.`,
+        422
+      )
     }
 
     if (input.method === PaymentMethod.PIX) {

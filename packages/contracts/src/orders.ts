@@ -66,6 +66,19 @@ export type Order = {
   items: OrderItem[];
   /** Only on GET /orders/:id: status changes and who made them. */
   history?: OrderHistoryEntry[];
+  /** Only on GET /orders/:id: online payment attempts, oldest first. */
+  payments?: StaffPayment[];
+  /** Only on GET /orders/:id: cancelled after an online payment that wasn't refunded yet. */
+  refundPending?: boolean;
+};
+
+/** A payment attempt as staff see it (no gateway ids). */
+export type StaffPayment = {
+  method: OnlinePaymentMethod;
+  status: PaymentAttemptStatus;
+  statusDetail: string | null;
+  amount: number;
+  createdAt: string;
 };
 
 export type OrderHistoryEntry = {
@@ -101,7 +114,12 @@ export type PublicOrder = Pick<
   /** Latest payment attempt (Pix or card), if any. */
   payment: PublicPayment | null;
   /** How the order can be paid; only while it waits for payment. */
-  checkout: { methods: OnlinePaymentMethod[]; mercadoPagoPublicKey: string | null } | null;
+  checkout: {
+    methods: OnlinePaymentMethod[];
+    mercadoPagoPublicKey: string | null;
+    /** Card installments the store offers (1 = à vista). */
+    maxInstallments: number;
+  } | null;
 };
 
 /** A payment attempt as the customer sees it (no gateway ids). */

@@ -18,6 +18,12 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { useUpdatePaymentSettingsMutation } from "@/redux/features/store/storeApi";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const INSTALLMENT_ITEMS = Array.from({ length: 12 }, (_, index) => ({
+  value: String(index + 1),
+  label: index === 0 ? "Só à vista" : `Até ${index + 1}x`,
+}));
 import { getApiOrigin } from "@/lib/api-base-url";
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
 
@@ -88,6 +94,7 @@ function PaymentSettingsDialog({
   const [token, setToken] = useState("");
   const [secret, setSecret] = useState("");
   const [publicKey, setPublicKey] = useState(store.mercadoPagoPublicKey ?? "");
+  const [installments, setInstallments] = useState(String(store.maxInstallments ?? 1));
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -97,6 +104,7 @@ function PaymentSettingsDialog({
         mercadoPagoAccessToken: token.trim(),
         mercadoPagoWebhookSecret: secret.trim(),
         mercadoPagoPublicKey: publicKey.trim() || null,
+        maxInstallments: Number(installments),
       },
     }).unwrap();
     toast.success("Pagamentos online configurados");
@@ -170,6 +178,22 @@ function PaymentSettingsDialog({
                   placeholder="APP_USR-… ou TEST-…"
                 />
                 <FieldDescription>Opcional. Sem ela, o cardápio oferece só o Pix.</FieldDescription>
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="mp-installments">Parcelamento no cartão</FieldLabel>
+                <Select items={INSTALLMENT_ITEMS} value={installments} onValueChange={(value) => setInstallments(String(value))}>
+                  <SelectTrigger id="mp-installments" className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INSTALLMENT_ITEMS.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription>Os juros seguem a configuração da sua conta do Mercado Pago.</FieldDescription>
               </Field>
               <Field>
                 <FieldLabel htmlFor="mp-secret">Assinatura secreta do webhook</FieldLabel>

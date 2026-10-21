@@ -61,7 +61,10 @@ class FakeMercadoPago extends MercadoPagoClient {
     return this.payments.get(paymentId)!
   }
 
+  failRefunds = false
+
   async refundPayment(_token: string, paymentId: string) {
+    if (this.failRefunds) throw new AppException('down', 502, 'E_PAYMENT_PROVIDER')
     this.refunds.push(paymentId)
   }
 }
@@ -373,5 +376,89 @@ test.group('Payments (in-app checkout)', (group) => {
 
     response.assertStatus(409)
     simulate.assertStatus(404)
+  })
+  test('staff see the attempts; a failed refund can be retried by a manager', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const manager = await createUser()
+    const attendant = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    fake.nextCardStatus = 'rejected'
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: { token: 't1', installments: 1, paymentMethodId: 'visa' },
+    })
+    fake.nextCardStatus = 'approved'
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: { token: 't2', installments: 1, paymentMethodId: 'visa' },
+    })
+    const order = await Order.findByOrFail('publicToken', token)
+
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
+    fake.failRefunds = true
+    await assert.rejects(() => runJob(RefundOrder, { orderId: order.id }))
+
+    const detail = await client
+      .get(`/api/v1/stores/${store.id}/orders/${order.id}`)
+      .loginAs(manager)
+    detail.assertBodyContains({
+      data: {
+        refundPending: true,
+        payments: [
+          { method: 'card', status: 'rejected' },
+          { method: 'card', status: 'approved' },
+        ],
+      },
+    })
+    assert.notProperty(detail.body().data.payments[0], 'gatewayPaymentId')
+
+    fake.failRefunds = false
+    const byAttendant = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/refund`)
+      .loginAs(attendant)
+    const refunded = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/refund`)
+      .loginAs(manager)
+    const again = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/refund`)
+      .loginAs(manager)
+
+    byAttendant.assertStatus(403)
+    refunded.assertBodyContains({ data: { paymentStatus: 'refunded', refundPending: false } })
+    again.assertStatus(409)
+  })
+
+  test('card installments follow the store limit', async ({ client }) => {
+    const { store, carne, queijo } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const card = { token: 'tk', installments: 3, paymentMethodId: 'master' }
+
+    const first = await placeOrder(client, store.slug, carne.id, 'card')
+    const refused = await client
+      .post(`/api/v1/public/orders/${first}/payments`)
+      .json({ method: 'card', payer, card })
+
+    const settings = await client
+      .put(`/api/v1/stores/${store.id}/payment-settings`)
+      .json({ maxInstallments: 6 })
+      .loginAs(manager)
+    const second = await placeOrder(client, store.slug, queijo.id, 'card')
+    const tracked = await client.get(`/api/v1/public/orders/${second}`)
+    const accepted = await client
+      .post(`/api/v1/public/orders/${second}/payments`)
+      .json({ method: 'card', payer, card })
+
+    refused.assertStatus(422)
+    settings.assertBodyContains({ data: { maxInstallments: 6 } })
+    tracked.assertBodyContains({ data: { checkout: { maxInstallments: 6 } } })
+    accepted.assertBodyContains({ data: { paymentStatus: 'paid' } })
   })
 })
