@@ -32,8 +32,10 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   passes a `stableIdempotencyKey(scope, payload)` and releases it on success
   (`lib/idempotency.ts`). Use `randomId()`, not `crypto.randomUUID()` (it
   fails on plain-http LAN testing).
-- Images from the API's `/uploads` skip the Next optimizer
-  (`lib/image-loader.ts`); stores without banner/logo show neutral placeholders.
+- Images: import `Image` from `@/components/app/image` (lint-enforced), never
+  `next/image`. Files from the API's `/uploads` skip the optimizer, the rest is
+  optimized. Don't set a custom `images.loader`: it disables `/_next/image`.
+  Stores without banner/logo show neutral placeholders.
 - Base UI: `render` prop for composition; dialogs opened from menu items are
   controlled with state (`open`/`onOpenChange`) instead of nesting triggers;
   confirm destructive actions with `AlertDialogDestructive`.
@@ -52,4 +54,5 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 
 Playwright in `e2e/` (`pnpm test:e2e` from the root). It starts the API on
 :3334 against a recreated `jjpasteis-menu-e2e` database and Next on :3100.
-Tests fail on any console warning/error and on unnamed controls.
+Tests fail on any console warning/error, any image that answers 4xx/5xx, and
+on unnamed controls.

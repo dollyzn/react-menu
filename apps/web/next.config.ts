@@ -17,8 +17,6 @@ const nextConfig: NextConfig = {
   // with a developer's running dev server.
   distDir: process.env.NEXT_DIST_DIR || ".next",
   images: {
-    loader: "custom",
-    loaderFile: "./lib/image-loader.ts",
     remotePatterns: [
       {
         protocol: "https",

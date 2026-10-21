@@ -46,7 +46,7 @@ import { EditStoreDialog } from "./components/edit-store-dialog";
 import { CommentRatings } from "./components/rating";
 import { SortingTabs } from "./components/sorting-tabs";
 import { PaymentSettingsCard } from "./components/payment-settings-card";
-import Image from "next/image";
+import Image from "@/components/app/image";
 
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
 

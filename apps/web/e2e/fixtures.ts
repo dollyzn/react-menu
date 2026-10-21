@@ -32,6 +32,13 @@ export const test = base.extend<{ consoleEntries: ConsoleEntry[] }>({
     page.on("pageerror", (error) =>
       entries.push({ type: "pageerror", text: error.message, url: page.url() })
     );
+    // A broken image is a defect even though the console only logs it as a
+    // generic failed resource (ignored above).
+    page.on("response", (response) => {
+      if (response.request().resourceType() === "image" && response.status() >= 400) {
+        entries.push({ type: "image", text: `${response.status()} ${response.url()}`, url: page.url() });
+      }
+    });
     await use(entries);
     expect(entries, "browser console warnings/errors").toEqual([]);
   }, { auto: true }],

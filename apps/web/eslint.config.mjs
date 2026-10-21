@@ -18,9 +18,18 @@ export default defineConfig([
               allowTypeImports: true,
               message: "Contracts are type-only: use `import type`.",
             },
+            {
+              name: "next/image",
+              message:
+                "Use @/components/app/image: API uploads must skip the optimizer.",
+            },
           ],
         },
       ],
     },
+  },
+  {
+    files: ["components/app/image.tsx"],
+    rules: { "@typescript-eslint/no-restricted-imports": "off" },
   },
 ]);

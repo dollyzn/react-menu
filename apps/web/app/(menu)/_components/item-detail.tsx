@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Image from "@/components/app/image";
 import { Check, Minus, Plus } from "lucide-react";
 import { toast } from "sonner";
 import type { PublicMenuItem } from "@react-menu/contracts";

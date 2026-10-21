@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/app/image";
 import { motion } from "motion/react";
 import { ImageOff, Plus } from "lucide-react";
 import type { PublicMenuItem } from "@react-menu/contracts";

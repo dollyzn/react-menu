@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
+import Image from "@/components/app/image";
 import { AnimatePresence, motion } from "motion/react";
 import { Download, Share, SquarePlus } from "lucide-react";
 import { toast } from "sonner";

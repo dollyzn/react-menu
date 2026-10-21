@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/app/image";
 import { motion } from "motion/react";
 import { Clock, MapPin, Star } from "lucide-react";
 import { Icons } from "@/components/app/icons";
