@@ -25,6 +25,7 @@ import registerStoreItemRoutes from '#routes/store/items'
 import registerStoreAddonRoutes from '#routes/store/addons'
 import registerStoreInventoryRoutes from '#routes/store/inventory'
 import registerStoreOrderRoutes from '#routes/store/orders'
+import registerStoreMemberRoutes from '#routes/store/members'
 import { authThrottle } from '#routes/store/shared'
 
 healthRoutes()
@@ -54,6 +55,7 @@ router
             registerStoreItemRoutes()
             registerStoreAddonRoutes()
             registerStoreInventoryRoutes()
+            registerStoreMemberRoutes()
             registerStoreOrderRoutes()
           })
           .prefix('/stores/:storeId')

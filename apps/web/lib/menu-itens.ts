@@ -10,6 +10,7 @@ import {
   Puzzle,
   ShoppingCart,
   Store,
+  Users,
 } from "lucide-react";
 
 const ALL: StoreRole[] = ["manager", "attendant", "kitchen"];
@@ -49,7 +50,8 @@ export function getManageMenuGroups(storeId: string, role: StoreRole | null): Si
       items: [
         { label: "Visão geral", url: `${base}/overview`, icon: LayoutDashboard, order: 0, roles: MANAGER },
         { label: "Estoque", url: `${base}/inventory`, icon: Boxes, order: 1, roles: MANAGER },
-        { label: "Loja", url: base, icon: Store, order: 2, roles: MANAGER, exact: true },
+        { label: "Equipe", url: `${base}/members`, icon: Users, order: 2, roles: MANAGER },
+        { label: "Loja", url: base, icon: Store, order: 3, roles: MANAGER, exact: true },
       ],
     },
   ];

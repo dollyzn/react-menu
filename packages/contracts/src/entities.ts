@@ -120,3 +120,13 @@ export type SessionUser = Omit<User, 'role' | 'stores'> & {
   stores: (Store & { role: StoreRole })[];
   tokenExpiresAt: string | null;
 };
+
+/** A member of a store's team (GET /stores/:id/members). */
+export type StoreMember = {
+  id: string;
+  name: string | null;
+  email: string;
+  role: StoreRole;
+  /** When they joined the store. */
+  since: string;
+};
