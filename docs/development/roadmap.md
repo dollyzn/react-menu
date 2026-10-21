@@ -5,7 +5,13 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-The technical items below, one PR at a time.
+Manual testing of the current build comes first; then these Product items,
+one PR at a time:
+
+1. Order receipt by e-mail
+2. Store opening hours
+3. Choice groups
+4. Reports
 
 ## Standby (decided not to do for now)
 
