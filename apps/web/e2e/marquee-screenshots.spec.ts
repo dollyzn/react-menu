@@ -75,19 +75,44 @@ test("capture the login marquee screenshots", async ({ page }) => {
     await capture(page, `menu-${scheme}`);
     await page.getByRole("button", { name: /^Pastel de Carne/ }).first().click();
     await capture(page, `item-${scheme}`);
-    await page.keyboard.press("Escape");
+    await page.getByRole("dialog").getByRole("button", { name: "Aumentar quantidade" }).click();
+    await page.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
+    await page.getByRole("button", { name: /Ver sacola/ }).click();
+    await capture(page, `cart-${scheme}`);
 
     await page.goto(`/pedido/${token}`, { timeout: 30_000 });
     await capture(page, `tracking-${scheme}`);
   }
 
   await login(page);
-  const sections = ["overview", "orders", "pos", "kitchen", "items", "inventory", "categories", "members"];
+  const store = `/app/stores/${storeId}`;
+  const screens: Record<string, string> = {
+    store,
+    overview: `${store}/overview`,
+    orders: `${store}/orders`,
+    history: `${store}/orders?view=historico`,
+    pos: `${store}/pos`,
+    kitchen: `${store}/kitchen`,
+    items: `${store}/items`,
+    categories: `${store}/categories`,
+    addons: `${store}/addons`,
+    inventory: `${store}/inventory`,
+    members: `${store}/members`,
+    settings: "/app/settings",
+  };
   for (const scheme of ["light", "dark"] as const) {
     await page.emulateMedia({ colorScheme: scheme });
-    for (const section of sections) {
-      await page.goto(`/app/stores/${storeId}/${section}`, { timeout: 30_000 });
-      await capture(page, `${section}-${scheme}`);
+    for (const [name, url] of Object.entries(screens)) {
+      await page.goto(url, { timeout: 30_000 });
+      await capture(page, `${name}-${scheme}`);
     }
+
+    await page.goto(`${store}/orders?view=historico`);
+    await page.getByRole("row", { name: /Ana Souza/ }).first().click();
+    await capture(page, `order-detail-${scheme}`);
+
+    await page.goto(`${store}/pos`);
+    await page.getByRole("button", { name: /^Pastel de Carne R\$/ }).click();
+    await capture(page, `pos-item-${scheme}`);
   }
 });
