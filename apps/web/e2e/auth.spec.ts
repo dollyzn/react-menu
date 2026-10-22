@@ -1,3 +1,4 @@
+import { request as playwrightRequest } from "@playwright/test";
 import { test, expect, login, createStoreViaApi } from "./fixtures";
 import { API_URL } from "../playwright.config";
 
@@ -74,4 +75,20 @@ test("privacy policy and terms are linked from the login and the menu", async ({
 
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Privacidade" })).toHaveAttribute("href", "/privacy");
+});
+
+test("logging out after the session already ended on the server is quiet and clears the cookie", async ({ page }) => {
+  await login(page);
+  // The token dies on the server (expired, signed out elsewhere, APP_KEY
+  // changed…) while this browser keeps the cookie: another context sends it.
+  const cookie = (await page.context().cookies(API_URL)).map((c) => `${c.name}=${c.value}`).join("; ");
+  const elsewhere = await playwrightRequest.newContext();
+  expect((await elsewhere.delete(`${API_URL}/api/v1/auth/logout`, { headers: { cookie } })).ok()).toBeTruthy();
+  await elsewhere.dispose();
+
+  await page.goto("/app/logout");
+  await expect(page).toHaveURL(/\/app\/login/, { timeout: 15_000 });
+  // The dead cookie is gone, so the guard doesn't send us back into the panel.
+  await page.goto("/app/stores");
+  await expect(page).toHaveURL(/\/app\/login$/);
 });

@@ -98,11 +98,13 @@ export function SessionProvider({ children }: SessionProviderProps) {
       try {
         await unsubscribe();
         await dispatch(authApi.endpoints.logout.initiate()).unwrap();
-        await clearSessionCookie();
       } catch (error) {
-        console.error("Logout failed", error);
+        // 401: the session had already ended (expired, signed out elsewhere,
+        // APP_KEY changed). Either way the local sign-out below goes on.
+        if ((error as { status?: unknown }).status !== 401) console.warn("Logout request failed", error);
       }
     }
+    await clearSessionCookie().catch(() => undefined);
     closeTransmit();
     dispatch(setUser(null));
     persistor.purge();
