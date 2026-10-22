@@ -11,16 +11,23 @@ interface RequireAuthProps {
 }
 
 export default function RequireAuth({ children }: RequireAuthProps) {
-  const { user } = useSession();
+  const { user, verify } = useSession();
   const rehydrated = useRehydrated();
   const router = useRouter();
 
   useEffect(() => {
     // Before rehydration the persisted user isn't loaded yet.
-    if (rehydrated && !user) {
-      redirectToLogin(router);
-    }
-  }, [rehydrated, user, router]);
+    if (!rehydrated || user) return;
+    // Ask the API first: a valid cookie loads the user here, and a refused
+    // one is cleared by verify(), so the login page isn't bounced back.
+    let active = true;
+    void verify().then((current) => {
+      if (active && !current) redirectToLogin(router);
+    });
+    return () => {
+      active = false;
+    };
+  }, [rehydrated, user, router, verify]);
 
   if (!rehydrated || !user) return null;
 

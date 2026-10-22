@@ -92,3 +92,13 @@ test("logging out after the session already ended on the server is quiet and cle
   await page.goto("/app/stores");
   await expect(page).toHaveURL(/\/app\/login$/);
 });
+
+test("a session cookie the API refuses (another project on localhost) leads to the login page", async ({ page }) => {
+  await page.context().addCookies([
+    { name: "session-token", value: "cookie-de-outro-projeto", domain: "localhost", path: "/" },
+  ]);
+
+  await page.goto("/app/stores");
+  await expect(page).toHaveURL(/\/app\/login$/, { timeout: 15_000 });
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
+});
