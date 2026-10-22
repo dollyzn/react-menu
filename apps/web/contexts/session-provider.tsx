@@ -123,8 +123,14 @@ export function SessionProvider({ children }: SessionProviderProps) {
       // Only a 401 means the session is gone. Rate limiting, server errors
       // and being offline are transient (baseApi already retried): keep the
       // current session state.
-      if ((error as { status?: unknown }).status === 401 && isAuthenticated) {
-        dispatch(setIsSessionExpired(true));
+      if ((error as { status?: unknown }).status === 401) {
+        if (isAuthenticated) dispatch(setIsSessionExpired(true));
+        // In the panel, the cookie the API refused (expired, another
+        // project's on the same host, APP_KEY changed) would keep the route
+        // guard sending /app/login back to the panel.
+        if (window.location.pathname.startsWith("/app")) {
+          await clearSessionCookie().catch(() => undefined);
+        }
       }
       return null;
     }
