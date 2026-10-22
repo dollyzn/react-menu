@@ -17,7 +17,7 @@ type StoredKey = { key: string; fingerprint: string; at: number };
 
 /** crypto.randomUUID needs a secure context; LAN http (testing on a phone) has none. */
 export function randomId(): string {
-  if (typeof window !== "undefined" && window.isSecureContext && "randomUUID" in crypto) {
+  if (typeof window !== "undefined" && window.isSecureContext && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
   }
   const bytes = crypto.getRandomValues(new Uint8Array(16));
