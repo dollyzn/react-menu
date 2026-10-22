@@ -1,3 +1,4 @@
+import type { BulkUpdateChange } from "@react-menu/contracts";
 import type { BulkDeleteResult } from "@/types/request";
 import { baseApi } from "@/redux/api/baseApi";
 import {
@@ -105,6 +106,22 @@ export const itemApi = baseApi.injectEndpoints({
       ],
     }),
 
+    /** All or nothing; a 409 (rows changed meanwhile) refetches the list too. */
+    bulkUpdateItemsByStoreId: build.mutation<
+      { updated: number },
+      { storeId: string; changes: BulkUpdateChange[] }
+    >({
+      query: ({ storeId, changes }) => ({
+        url: `stores/${storeId}/items/bulk-update`,
+        method: "POST",
+        body: { changes },
+      }),
+      // The dialog explains a conflict itself.
+      extraOptions: { quiet: true },
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Item", id: `store-${arg.storeId}` },
+      ],
+    }),
     bulkDeleteItemsByStoreId: build.mutation<
       BulkDeleteResult<Item>,
       { storeId: string; ids: string[] }
@@ -145,5 +162,6 @@ export const {
   useUpdateItemMutation,
   useDeleteItemByStoreIdMutation,
   useBulkDeleteItemsByStoreIdMutation,
+  useBulkUpdateItemsByStoreIdMutation,
   useReorderItemsMutation,
 } = itemApi;

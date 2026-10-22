@@ -8,10 +8,9 @@ they are picked up; done items leave this file (see the git history).
 Manual testing of the current build comes first; then these Product items,
 one PR at a time:
 
-1. Order receipt by e-mail
-2. Store opening hours
-3. Choice groups
-4. Reports
+1. Store opening hours
+2. Choice groups
+3. Reports
 
 ## Standby (decided not to do for now)
 
@@ -35,8 +34,6 @@ one PR at a time:
 - **Reports**: sales per day/item, best sellers, stock consumption, payment
   method mix (Pix vs card vs counter).
 - **Notification preferences** (per category, email digest).
-- **Order receipt by e-mail** for customers who typed an e-mail at the
-  Pix/card step (the mail pipeline exists since the password reset).
 - **Delivery and table service**: only pickup at the counter is supported
   by design for now.
 - **Store opening hours**: open/closed is a manual switch; schedule it.

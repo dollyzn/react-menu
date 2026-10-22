@@ -7,6 +7,10 @@ const AddonsController = () => import('#controllers/addons_controller')
 export default function registerStoreItemRoutes() {
   router.get('/items', [ItemsController, 'index']).as('items.index')
   router
+    .post('/items/bulk-update', [ItemsController, 'bulkUpdate'])
+    .as('items.bulkUpdate')
+    .use(managersOnly)
+  router
     .post('/items/bulk-delete', [ItemsController, 'bulkDelete'])
     .as('items.bulkDelete')
     .use(managersOnly)
