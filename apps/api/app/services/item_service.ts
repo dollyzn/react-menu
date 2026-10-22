@@ -3,6 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Item from '#models/item'
 import { deleteEach } from '#helpers/bulk_delete'
+import { applyBulkChanges, type BulkChange } from '#helpers/bulk_update'
 import { applyOrder } from '#helpers/reorder'
 import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
@@ -104,6 +105,22 @@ export default class ItemService {
     return await db.transaction(async (trx) => {
       await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       await this.repo.delete(id, trx)
+    })
+  }
+
+  /** Prices/availability of many items at once, all or nothing (see applyBulkChanges). */
+  async bulkUpdateForStore(storeId: string, changes: BulkChange[]) {
+    return await db.transaction(async (trx) => {
+      const items = await Item.query({ client: trx })
+        .whereIn(
+          'id',
+          changes.map((change) => change.id)
+        )
+        .whereHas('category', (q) => {
+          q.where('store_id', storeId)
+        })
+        .forUpdate()
+      return await applyBulkChanges(items, changes, trx)
     })
   }
 

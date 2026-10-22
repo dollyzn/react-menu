@@ -7,6 +7,10 @@ export default function registerStoreAddonRoutes() {
   router.get('/addons', [AddonsController, 'index']).as('addons.index')
   router.post('/addons', [AddonsController, 'store']).as('addons.store').use(managersOnly)
   router
+    .post('/addons/bulk-update', [AddonsController, 'bulkUpdate'])
+    .as('addons.bulkUpdate')
+    .use(managersOnly)
+  router
     .post('/addons/bulk-delete', [AddonsController, 'bulkDelete'])
     .as('addons.bulkDelete')
     .use(managersOnly)

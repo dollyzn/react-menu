@@ -15,6 +15,10 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 import RefundOrder from '#jobs/refund_order'
+import SendOrderReceipt from '#jobs/send_order_receipt'
+import mail from '@adonisjs/mail/services/main'
+import OrderReceiptNotification from '#mails/order_receipt_notification'
+import OrderRefundNotification from '#mails/order_refund_notification'
 
 const TOKEN = 'TEST-1234567890-abcdef'
 const PUBLIC_KEY = 'TEST-0b7c6a2e-3d4f-4a1b-9c8d-123456789abc'
@@ -460,5 +464,67 @@ test.group('Payments (in-app checkout)', (group) => {
     settings.assertBodyContains({ data: { maxInstallments: 6 } })
     tracked.assertBodyContains({ data: { checkout: { maxInstallments: 6 } } })
     accepted.assertBodyContains({ data: { paymentStatus: 'paid' } })
+  })
+
+  test('an approved payment e-mails one receipt to the payer', async ({ client, assert }) => {
+    const mails = mail.fake()
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id)
+    await client
+      .post(`/api/v1/public/orders/${token}/payments`)
+      .json({ method: 'pix', payer: { email: ' Ana@Example.com ' } })
+    fake.payments.get('1001')!.status = 'approved'
+
+    // Mercado Pago repeats notifications.
+    for (const requestId of ['req-1', 'req-2']) {
+      await client
+        .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+        .header('x-signature', signature('1001', requestId))
+        .header('x-request-id', requestId)
+        .json({ type: 'payment', data: { id: '1001' } })
+    }
+
+    const payment = await Payment.findByOrFail('gatewayPaymentId', '1001')
+    assert.equal(payment.payerEmail, 'ana@example.com')
+    queue.assertPushed('SendOrderReceipt', { payload: { paymentId: payment.id } })
+    // Even if the job runs twice (retry, duplicate), one receipt goes out.
+    await runJob(SendOrderReceipt, { paymentId: payment.id })
+    await runJob(SendOrderReceipt, { paymentId: payment.id })
+
+    mails.mails.assertSentCount(OrderReceiptNotification, 1)
+    const order = await Order.findByOrFail('publicToken', token)
+    mails.mails.assertSent(OrderReceiptNotification, (sent) => {
+      sent.message.assertTo('ana@example.com')
+      sent.message.assertSubject(`Pagamento confirmado · Pedido #${order.number} · ${store.name}`)
+      sent.message.assertHtmlIncludes(`/pedido/${token}`)
+      return true
+    })
+    await payment.refresh()
+    assert.isNotNull(payment.receiptSentAt)
+    mail.restore()
+  })
+
+  test('a refunded order e-mails the payer', async ({ client }) => {
+    const mails = mail.fake()
+    const { store, carne } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: { token: 't', installments: 1, paymentMethodId: 'visa' },
+    })
+    const order = await Order.findByOrFail('publicToken', token)
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
+
+    await runJob(RefundOrder, { orderId: order.id })
+
+    mails.mails.assertQueued(OrderRefundNotification, (queued) => {
+      queued.message.assertTo(payer.email)
+      queued.message.assertSubject(`Reembolso do pedido #${order.number} · ${store.name}`)
+      return true
+    })
+    mail.restore()
   })
 })

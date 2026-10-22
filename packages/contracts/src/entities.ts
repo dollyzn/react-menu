@@ -121,6 +121,18 @@ export type SessionUser = Omit<User, 'role' | 'stores'> & {
   tokenExpiresAt: string | null;
 };
 
+/**
+ * One row of a bulk edit (POST /stores/:id/items|addons/bulk-update): the
+ * final values plus the `updatedAt` the client saw. A 409 `E_STALE_ROWS`
+ * lists in `details.ids` the rows that changed meanwhile (nothing is saved).
+ */
+export type BulkUpdateChange = {
+  id: string;
+  updatedAt: string;
+  price?: number;
+  isAvailable?: boolean;
+};
+
 /** Social sign-in providers (GET /auth/social/providers lists the configured ones). */
 export type SocialProvider = "google" | "twitter" | "facebook";
 

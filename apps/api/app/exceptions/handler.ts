@@ -141,6 +141,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         success: false,
         error: error.message,
         code: error.code ?? 'APP_EXCEPTION',
+        details: error.details,
         stack: this.debug ? (error as any).stack : undefined,
       })
     else

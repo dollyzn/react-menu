@@ -11,6 +11,7 @@ import User from '#models/user'
 import env from '#start/env'
 import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
+import { storeBrand } from '#mails/layout'
 import NotificationService from '#services/notification_service'
 import PasswordResetService from '#services/password_reset_service'
 
@@ -114,7 +115,7 @@ export default class StoreMemberService {
       await mail.sendLater(
         new StoreAccessNotification(
           { email: user.email, name: user.name },
-          { storeName: store.name, role: input.role, addedBy: actor.name },
+          { store: storeBrand(store), role: input.role, addedBy: actor.name },
           `${env.get('FRONTEND_URL')}/app/stores/${storeId}`
         )
       )
@@ -152,7 +153,7 @@ export default class StoreMemberService {
     await mail.sendLater(
       new StaffInviteNotification(
         { email: user.email, name: user.name },
-        { storeName: store.name, role, invitedBy: actor.name },
+        { store: storeBrand(store), role, invitedBy: actor.name },
         url
       )
     )

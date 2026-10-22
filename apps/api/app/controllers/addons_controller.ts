@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { bulkUpdateValidator } from '#validators/bulk_update'
 import { inject } from '@adonisjs/core'
 import AddonService from '#services/addon_service'
 import {
@@ -80,6 +81,18 @@ export default class AddonsController {
     await this.addonService.removeInStore(storeId, addonId)
 
     return messageOnly('Complemento excluído com sucesso')
+  }
+
+  async bulkUpdate({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const { changes } = await request.validateUsing(bulkUpdateValidator)
+
+    const count = await this.addonService.bulkUpdateForStore(storeId, changes)
+
+    return updated(
+      { updated: count },
+      count === 1 ? '1 adicional atualizado' : `${count} adicionais atualizados`
+    )
   }
 
   async bulkDelete({ params, request }: HttpContext) {

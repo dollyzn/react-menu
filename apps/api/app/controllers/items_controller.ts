@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { bulkUpdateValidator } from '#validators/bulk_update'
 import { inject } from '@adonisjs/core'
 import ItemService from '#services/item_service'
 import { numberValidator, storeExistValidator, uuidValidator } from '#validators/common'
@@ -93,6 +94,18 @@ export default class ItemsController {
     await this.itemService.reorderInCategory(storeId, categoryId, ids)
 
     return messageOnly('Ordem atualizada com sucesso')
+  }
+
+  async bulkUpdate({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const { changes } = await request.validateUsing(bulkUpdateValidator)
+
+    const count = await this.itemService.bulkUpdateForStore(storeId, changes)
+
+    return updated(
+      { updated: count },
+      count === 1 ? '1 item atualizado' : `${count} itens atualizados`
+    )
   }
 
   async bulkDelete({ params, request }: HttpContext) {

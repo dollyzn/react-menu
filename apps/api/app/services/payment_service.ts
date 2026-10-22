@@ -10,6 +10,11 @@ import PaymentMethod from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
 import Order from '#models/order'
 import Payment from '#models/payment'
+import SendOrderReceipt from '#jobs/send_order_receipt'
+import mail from '@adonisjs/mail/services/main'
+import OrderRefundNotification from '#mails/order_refund_notification'
+import { storeBrand } from '#mails/layout'
+import { orderEmailData } from '#mails/order_email_data'
 import type Store from '#models/store'
 import FakeGateway from '#payments/fake_gateway'
 import type { GatewayPayment, PaymentGateway } from '#payments/gateway'
@@ -170,6 +175,7 @@ export default class PaymentService {
       pixQrCode: result.pix?.qrCode ?? null,
       pixTicketUrl: result.pix?.ticketUrl ?? null,
       expiresAt: result.pix?.expiresAt ?? null,
+      payerEmail: input.payer.email.trim().toLowerCase(),
     })
 
     if (order.paymentMethod !== input.method) {
@@ -276,6 +282,16 @@ export default class PaymentService {
     }
     order.paymentStatus = PaymentStatus.REFUNDED
     await order.save()
+
+    const payerEmail = targets.find((target) => target.payment?.payerEmail)?.payment?.payerEmail
+    if (payerEmail) {
+      await order.load((loader) =>
+        loader.preload('items', (items) => items.orderBy('id').preload('addons'))
+      )
+      await mail.sendLater(
+        new OrderRefundNotification(payerEmail, storeBrand(store), orderEmailData(order))
+      )
+    }
   }
 
   /**
@@ -304,6 +320,7 @@ export default class PaymentService {
         mercadoPagoPaymentId:
           payment.gateway === 'mercado_pago' ? (payment.gatewayPaymentId ?? undefined) : undefined,
       })
+      await SendOrderReceipt.dispatchFor(payment)
       // Paid after it expired (a late Pix): give the money back.
       if (order.status === OrderStatus.CANCELLED) {
         const { default: RefundOrder } = await import('#jobs/refund_order')
