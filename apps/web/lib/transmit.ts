@@ -1,5 +1,6 @@
 import { Transmit } from "@adonisjs/transmit-client";
 import { getApiOrigin } from "@/lib/api-base-url";
+import { randomId } from "@/lib/idempotency";
 
 let client: Transmit | null = null;
 
@@ -12,7 +13,8 @@ export function getTransmit(): Transmit {
     throw new Error("Transmit is only available in the browser.");
   }
 
-  client ??= new Transmit({ baseUrl: getApiOrigin() });
+  // Its default id uses crypto.randomUUID, missing on plain-http LAN addresses.
+  client ??= new Transmit({ baseUrl: getApiOrigin(), uidGenerator: randomId });
   return client;
 }
 
