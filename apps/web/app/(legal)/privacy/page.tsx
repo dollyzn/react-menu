@@ -27,7 +27,8 @@ export default function PrivacyPage() {
         </li>
         <li>
           <strong>E-mail</strong>, apenas se você pagar com Pix ou cartão pelo site: o Mercado Pago o
-          exige para emitir o pagamento.
+          exige para emitir o pagamento, e enviamos para ele o recibo e, se houver, o aviso de
+          reembolso.
         </li>
         <li>
           <strong>No seu aparelho</strong>: a sacola, o seu nome e celular (para não digitar de novo)

@@ -44,6 +44,13 @@ export default class Payment extends BaseModel {
   @column.dateTime()
   declare expiresAt: DateTime | null
 
+  /** Typed by the customer at the payment step; receipts are sent there. */
+  @column()
+  declare payerEmail: string | null
+
+  @column.dateTime()
+  declare receiptSentAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

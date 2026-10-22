@@ -200,7 +200,7 @@ function PixPayment({ order }: { order: PublicOrder }) {
           onChange={(event) => setEmail(event.target.value)}
           placeholder="voce@exemplo.com"
         />
-        <FieldDescription>O Mercado Pago pede o e-mail para enviar o comprovante.</FieldDescription>
+        <FieldDescription>Enviamos o recibo do pedido para este e-mail.</FieldDescription>
       </Field>
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Button type="submit" size="lg" className="w-full rounded-full" loading={isLoading}>
