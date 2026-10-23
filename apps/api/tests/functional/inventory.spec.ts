@@ -85,6 +85,67 @@ test.group('Inventory', (group) => {
     order.assertStatus(422)
   })
 
+  test('an order needing more than the stock is refused, whole cart counted', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, catupiry, massa, manager, catupiryStock } = await stockedStore()
+    const order = (lines: object[]) =>
+      client
+        .post(`/api/v1/public/menu/${store.slug}/orders`)
+        .json({ customer, paymentMethod: 'counter', lines })
+
+    // 3 dough sheets: 10 meat pastries can't be made.
+    const tooMany = await order([{ itemId: carne.id, quantity: 10 }])
+    tooMany.assertStatus(422)
+    tooMany.assertBodyContains({
+      code: 'E_OUT_OF_STOCK',
+      error: 'Só dá para fazer 3 Pastel de Carne agora (acabando massa).',
+      details: { ingredient: 'Massa', itemIds: [carne.id] },
+    })
+    // Split in lines it is the same total.
+    const split = await order([
+      { itemId: carne.id, quantity: 2 },
+      { itemId: carne.id, quantity: 2, notes: 'bem passado' },
+    ])
+    split.assertStatus(422)
+    // Add-ons count per unit of their line: 2 × 30 g of catupiry > 50 g.
+    catupiryStock.stockQuantity = 50
+    await catupiryStock.save()
+    const addon = await order([{ itemId: carne.id, quantity: 2, addonIds: [catupiry.id] }])
+    addon.assertStatus(422)
+    addon.assertBodyContains({ code: 'E_OUT_OF_STOCK' })
+    // The counter (POS) is held to the same stock.
+    const pos = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({ customer: { name: 'Balcão' }, lines: [{ itemId: carne.id, quantity: 4 }] })
+      .loginAs(manager)
+    pos.assertStatus(422)
+
+    await massa.refresh()
+    assert.equal(massa.stockQuantity, 3, 'refused orders consume nothing')
+    const exact = await order([{ itemId: carne.id, quantity: 3 }])
+    exact.assertStatus(200)
+  })
+
+  test('the menu says how many units are left', async ({ client, assert }) => {
+    const { store, carne, queijo, catupiry } = await stockedStore()
+
+    const menu = await client.get(`/api/v1/public/menu/${store.slug}`)
+
+    const items = menu
+      .body()
+      .data.categories.flatMap((category: { items: object[] }) => category.items)
+    const find = (id: string) => items.find((item: { id: string }) => item.id === id)
+    // Dough (3 ÷ 1) is scarcer than meat (500 ÷ 80); catupiry 100 ÷ 30.
+    assert.equal(find(carne.id).stockLeft, 3)
+    assert.equal(
+      find(carne.id).addons.find((a: { id: string }) => a.id === catupiry.id).stockLeft,
+      3
+    )
+    assert.isNull(find(queijo.id).stockLeft, 'no recipe, no limit')
+  })
+
   test('cancelling an order puts its ingredients back', async ({ client, assert }) => {
     const { store, carne, manager, massa } = await stockedStore()
     const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({

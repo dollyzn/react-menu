@@ -7,6 +7,7 @@ import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
 import Order from '#models/order'
 import Payment from '#models/payment'
+import Ingredient from '#models/ingredient'
 import MercadoPagoClient, {
   type MercadoPagoPayment,
   type PaymentInput,
@@ -526,5 +527,41 @@ test.group('Payments (in-app checkout)', (group) => {
       return true
     })
     mail.restore()
+  })
+
+  test('payment is refused (nothing charged) when the stock ran out after ordering', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    store.inventoryEnabled = true
+    await store.save()
+    const ovo = await Ingredient.create({
+      storeId: store.id,
+      name: 'Ovo',
+      unit: 'un',
+      stockQuantity: 1,
+      minStock: 0,
+    })
+    await carne.related('ingredients').attach({ [ovo.id]: { quantity: 1 } })
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    // Online order waits for its Pix (stock is taken only once paid)…
+    const token = await placeOrder(client, store.slug, carne.id)
+    // …meanwhile the counter sells the last egg.
+    const pos = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({ customer: { name: 'Balcão' }, lines: [{ itemId: carne.id, quantity: 1 }] })
+      .loginAs(manager)
+    pos.assertStatus(200)
+
+    const pay = await client
+      .post(`/api/v1/public/orders/${token}/payments`)
+      .json({ method: 'pix', payer })
+
+    pay.assertStatus(422)
+    pay.assertBodyContains({ code: 'E_OUT_OF_STOCK' })
+    assert.lengthOf(fake.created, 0, 'nothing charged')
   })
 })

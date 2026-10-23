@@ -9,7 +9,8 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Admin routes | `app/app/(dashboard)/stores/[store]/<domain>/` (page + `components/`); `(dashboard)/layout.tsx` holds the shell; `(dashboard)/settings` |
 | Panel shell | `components/app/layout/`: `app-sidebar` (store switcher, groups from `lib/menu-itens.ts`, account menu), `app-header` (breadcrumbs from the route, notifications), `page-header` |
 | Store team | `…/members` (list, roles, invite dialog, resend a pending invite); invites land on `/app/redefinir-senha?convite=1` |
-| Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` |
+| Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` (stock dialog with quick amounts for units) |
+| Stock limits in the menu and POS | `lib/stock.ts` (`unitsLeft`, `stockHint`: "Restam N" from `stockLeft`); `ItemCustomizer` caps the quantity (bag/ticket included); the API is authoritative |
 | Auth pages | `app/app/(auth)/`; "Entrar com Google" (`login/components/social-login.tsx`, shown when `GET /auth/social/providers` lists it) opens `/app/social` in a popup that reports over a BroadcastChannel (`lib/social-auth.ts`), full page when popups are blocked or in the installed app |
 | Legal pages | `app/(legal)/privacy`, `app/(legal)/terms` (linked from the login and the menu footer) |
 | Bulk edit of items/add-ons | `components/app/bulk-edit-dialog.tsx` (from the table's selection, preview before saving), math in `lib/bulk-pricing.ts` (sends absolute values); tables that act on selections pass `getRowId` |

@@ -19,7 +19,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Notification templates | `app/notifications/templates.ts` |
 | Orders (pricing, numbering, status machine) | `app/services/order_service.ts`, `app/orders/*` |
 | Kitchen queue (pure batching + ingredients) | `app/kitchen/production_queue.ts`, `app/services/kitchen_service.ts` |
-| Inventory (stock, recipes, consumption) | `app/services/inventory_service.ts` |
+| Inventory (stock, recipes, consumption) | `app/services/inventory_service.ts`: `capacities` (units each item/add-on still makes → `stockLeft` in the public menu), `assertStock` (the whole order against the stock, ingredients locked; on order creation and again before charging an online payment, 422 `E_OUT_OF_STOCK`) |
 | Payments (in-app checkout, ADR 0015) | `app/services/payment_service.ts`, gateways in `app/payments/` (`gateway.ts`, `mercado_pago_gateway.ts`, `fake_gateway.ts`), attempts in `app/models/payment.ts` |
 | Public customer API | `start/routes/public.ts`, `app/controllers/public_menu_controller.ts` |
 | Demo data (development only) | `database/seeders/04-06_*` (JJ Pastéis, stock, staff); files in `database/data/` (banner, logo and Pexels menu photos go to the Drive disk; sources in `CREDITS.md`) |
