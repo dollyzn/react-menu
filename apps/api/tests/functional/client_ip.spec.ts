@@ -5,13 +5,15 @@ import env from '#start/env'
  * Per-IP limits and allowlists use the client's address a trusted proxy
  * forwards, not the proxy's. Here the proxy is loopback; private networks
  * (Caddy and SSR in Docker) are covered by tests/unit/trusted_proxy.spec.ts.
- * /health checks its allowlist (127.0.0.1 here) with request.ip().
+ * /health checks its allowlist (this machine here) with request.ip().
  */
 test.group('Client IP behind proxies', (group) => {
   group.setup(() => {
     const previous = process.env.HEALTH_CHECK_MONITORING_ALLOWLIST
-    process.env.HEALTH_CHECK_MONITORING_ALLOWLIST = '127.0.0.1'
-    env.set('HEALTH_CHECK_MONITORING_ALLOWLIST', '127.0.0.1')
+    // The test client may connect over IPv4 or IPv6 (CI resolves localhost to ::1).
+    const local = '127.0.0.1,::1,::ffff:127.0.0.1'
+    process.env.HEALTH_CHECK_MONITORING_ALLOWLIST = local
+    env.set('HEALTH_CHECK_MONITORING_ALLOWLIST', local)
     return () => {
       if (previous === undefined) delete process.env.HEALTH_CHECK_MONITORING_ALLOWLIST
       env.set('HEALTH_CHECK_MONITORING_ALLOWLIST', previous ?? '')
