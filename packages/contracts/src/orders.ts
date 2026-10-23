@@ -244,6 +244,9 @@ export type ProductionBatch = {
 };
 
 /** GET /public/menu[/:slug]: what customers see (no private store fields). */
+/** GET /public/stores: menus to list in the sitemap. */
+export type PublicStoreListing = { slug: string; isDefault: boolean; updatedAt: string };
+
 export type PublicMenu = {
   store: {
     id: string;
@@ -259,6 +262,9 @@ export type PublicMenu = {
     bannerUrl: string | null;
     photoUrl: string | null;
     pickupEtaMinutes: number;
+    /** Served at "/"; its /<slug> page is a duplicate (canonical "/"). */
+    isDefault: boolean;
+    updatedAt: string;
     /** Checkout options, online first. */
     paymentMethods: CheckoutPaymentMethod[];
   };

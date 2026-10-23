@@ -25,6 +25,11 @@ export default class PublicMenuController {
   ) {}
 
   /** `?preview=1` (staff screens such as the POS) is not counted as a customer visit. */
+  /** Public menus, for the sitemap. */
+  async stores() {
+    return ok(await this.menus.listStores())
+  }
+
   async show({ params, request }: HttpContext) {
     const track = !request.input('preview')
     return ok(await this.menus.menu(params.slug, request.header('user-agent'), { track }))

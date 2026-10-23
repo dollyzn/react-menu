@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { LegalPage } from "../_components/legal-page";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/privacy" },
   title: "Política de Privacidade",
   description: "Quais dados o cardápio e o painel usam, para quê e como pedir acesso ou exclusão.",
 };

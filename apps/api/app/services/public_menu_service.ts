@@ -23,6 +23,9 @@ export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
     bannerUrl: store.bannerUrl,
     photoUrl: store.photoUrl,
     pickupEtaMinutes: store.pickupEtaMinutes,
+    /** Served at "/" (its /<slug> page points there as canonical). */
+    isDefault: store.isDefault,
+    updatedAt: store.updatedAt.toISO()!,
     /** Checkout options, in display order (online first). */
     paymentMethods,
   }
@@ -34,6 +37,19 @@ export default class PublicMenuService {
     private inventory: InventoryService,
     private payments: PaymentService
   ) {}
+
+  /** Menus a search engine may list (sitemap): every store not under maintenance. */
+  async listStores() {
+    const stores = await Store.query()
+      .whereNot('status', StoreStatus.MAINTENANCE)
+      .orderBy('isDefault', 'desc')
+      .orderBy('name', 'asc')
+    return stores.map((store) => ({
+      slug: store.slug,
+      isDefault: store.isDefault,
+      updatedAt: store.updatedAt.toISO()!,
+    }))
+  }
 
   /** The menu of a store by slug, or of the default store when slug is omitted. */
   async menu(slug: string | undefined, userAgent: string | undefined, options = { track: true }) {
