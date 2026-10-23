@@ -1,7 +1,6 @@
 import "server-only";
-import { headers } from "next/headers";
 import type { ApiSuccess, PublicMenu } from "@react-menu/contracts";
-import { serverApiBase } from "@/lib/server-api";
+import { serverApiBase, visitorHeaders } from "@/lib/server-api";
 
 /**
  * Loads a store menu on the server (SSR). Returns null when the store does
@@ -9,11 +8,10 @@ import { serverApiBase } from "@/lib/server-api";
  * `track: false` for requests that aren't a customer visit (icons, manifests).
  */
 export async function fetchMenu(slug?: string, { track = true } = {}): Promise<PublicMenu | null> {
-  const userAgent = (await headers()).get("user-agent") ?? "";
   const query = track ? "" : "?preview=1";
   const response = await fetch(`${serverApiBase()}public/menu${slug ? `/${slug}` : ""}${query}`, {
     cache: "no-store",
-    headers: { "user-agent": userAgent, accept: "application/json" },
+    headers: await visitorHeaders(),
   });
 
   if (response.status === 404) return null;

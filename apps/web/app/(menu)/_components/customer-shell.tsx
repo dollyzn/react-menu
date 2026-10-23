@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { ThemeToggleButton } from "@/components/app/theme-toggle-button";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { PanelShortcut } from "./panel-shortcut";
 
 /** Header + narrow column used by the customer's order pages. */
 export function CustomerShell({
@@ -25,6 +26,7 @@ export function CustomerShell({
           </Link>
           <div className="flex items-center gap-1">
             {actions}
+            <PanelShortcut />
             <ThemeToggleButton className="rounded-full" />
           </div>
         </div>

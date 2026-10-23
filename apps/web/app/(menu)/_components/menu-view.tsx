@@ -53,7 +53,7 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
 
   return (
     <div className="min-h-svh bg-background">
-      <MenuTopBar storeName={menu.store.name} query={query} onQueryChange={search} />
+      <MenuTopBar storeName={menu.store.name} storeSlug={menu.store.slug} query={query} onQueryChange={search} />
 
       <main className="mx-auto max-w-3xl px-4 pb-36">
         <AnimatePresence initial={false}>

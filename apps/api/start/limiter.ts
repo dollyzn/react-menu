@@ -29,7 +29,7 @@ export const throttle = limiter.define('global', (ctx) => {
    * brute-force limiter in AuthService.
    */
   return limiter
-    .allowRequests(env.get('PUBLIC_RATE_LIMIT', 60))
+    .allowRequests(env.get('PUBLIC_RATE_LIMIT', 120))
     .every('1 minute')
     .usingKey(`ip_${ctx.request.ip()}`)
 })

@@ -58,7 +58,7 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /** Development only: a local Pix gateway to try the checkout without credentials. */
   PAYMENTS_FAKE_GATEWAY: Env.schema.boolean.optional(),
-  /** Guest requests per IP per minute (default 60). */
+  /** Guest requests per client IP per minute (default 120). */
   PUBLIC_RATE_LIMIT: Env.schema.number.optional(),
   /** Public orders per IP every 10 minutes (default 10). */
   PUBLIC_ORDER_RATE_LIMIT: Env.schema.number.optional(),

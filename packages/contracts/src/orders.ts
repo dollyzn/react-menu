@@ -105,7 +105,15 @@ export type PublicOrder = Pick<
   | 'completedAt'
 > & {
   publicToken: string;
-  store: { name: string; slug: string; pickupEtaMinutes: number; address: string | null; phone: string | null };
+  store: {
+    name: string;
+    slug: string;
+    pickupEtaMinutes: number;
+    address: string | null;
+    phone: string | null;
+    /** The store's logo (the tracking page uses it as its icon). */
+    photoUrl: string | null;
+  };
   /** Status changes, oldest first. */
   timeline: { status: OrderStatus; at: string }[];
   items: (Pick<OrderItem, 'itemId' | 'name' | 'unitPrice' | 'quantity' | 'notes' | 'total'> & {
