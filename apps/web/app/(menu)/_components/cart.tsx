@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 import Image from "@/components/app/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -39,7 +40,10 @@ import { CHECKOUT_METHODS } from "../_lib/payment-methods";
 type Store = PublicMenu["store"];
 
 /** Floating "view bag" bar + the bag/checkout modal. */
-export function Cart({ store }: { store: Store }) {
+/** Units the stock still makes per item id (null = no limit), from the menu. */
+export type StockMap = Record<string, number | null>;
+
+export function Cart({ store, stock }: { store: Store; stock: StockMap }) {
   const rehydrated = useRehydrated();
   const cart = useAppSelector((state) => state.cart);
   const [open, setOpen] = useState(false);
@@ -102,7 +106,7 @@ export function Cart({ store }: { store: Store }) {
       </AnimatePresence>
 
       <ResponsiveModal open={open || autoOpen} onOpenChange={changeOpen} title="Sua sacola" className="sm:max-w-md">
-        <CartContent store={store} lines={lines} total={total} onDone={() => changeOpen(false)} />
+        <CartContent store={store} stock={stock} lines={lines} total={total} onDone={() => changeOpen(false)} />
       </ResponsiveModal>
     </>
   );
@@ -117,11 +121,13 @@ const STEPS: { id: Step; label: string }[] = [
 
 function CartContent({
   store,
+  stock,
   lines,
   total,
   onDone,
 }: {
   store: Store;
+  stock: StockMap;
   lines: CartLine[];
   total: number;
   onDone: () => void;
@@ -144,7 +150,7 @@ function CartContent({
       <Stepper current={step} onBack={step === "bag" ? undefined : () => setStep(step === "review" && !remembered ? "details" : "bag")} />
       {step === "bag" ? (
         // Returning customers skip straight to the review.
-        <BagStep lines={lines} total={total} onNext={() => setStep(remembered ? "review" : "details")} storeOpen={store.isOpen} />
+        <BagStep lines={lines} stock={stock} total={total} onNext={() => setStep(remembered ? "review" : "details")} storeOpen={store.isOpen} />
       ) : (
         <CheckoutFlow
           store={store}
@@ -191,16 +197,30 @@ function Stepper({ current, onBack }: { current: Step; onBack?: () => void }) {
 
 function BagStep({
   lines,
+  stock,
   total,
   storeOpen,
   onNext,
 }: {
   lines: CartLine[];
+  stock: StockMap;
   total: number;
   storeOpen: boolean;
   onNext: () => void;
 }) {
   const dispatch = useAppDispatch();
+  const inBag = (itemId: string) =>
+    lines.filter((line) => line.itemId === itemId).reduce((sum, line) => sum + line.quantity, 0);
+  const left = (itemId: string) => stock[itemId] ?? null;
+
+  const increase = (line: CartLine) => {
+    const units = left(line.itemId);
+    if (units !== null && inBag(line.itemId) >= units) {
+      toast.info(`Só temos ${units} ${line.name} agora.`, { id: "stock-limit" });
+      return;
+    }
+    dispatch(setQuantity({ key: line.key, quantity: line.quantity + 1 }));
+  };
 
   return (
     <div className="flex flex-col">
@@ -227,6 +247,13 @@ function BagStep({
                 )}
                 {line.notes && <p className="text-xs text-muted-foreground italic">“{line.notes}”</p>}
                 <p className="mt-1 text-sm font-semibold">{formatCurrencyBRL(lineTotal(line))}</p>
+                {left(line.itemId) !== null && inBag(line.itemId) > left(line.itemId)! && (
+                  <p role="alert" className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                    {left(line.itemId) === 0
+                      ? "Acabou agora: remova para continuar."
+                      : `Só temos ${left(line.itemId)} agora: diminua para continuar.`}
+                  </p>
+                )}
               </div>
               <div className="flex items-center self-center rounded-full border">
                 <Button
@@ -244,7 +271,7 @@ function BagStep({
                   size="icon-sm"
                   className="rounded-full"
                   aria-label={`Aumentar ${line.name}`}
-                  onClick={() => dispatch(setQuantity({ key: line.key, quantity: line.quantity + 1 }))}
+                  onClick={() => increase(line)}
                 >
                   <Plus />
                 </Button>

@@ -23,6 +23,13 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
   // read on the client; the invitation never renders during SSR/hydration.
   const [visits] = useState(() => (typeof window === "undefined" ? 0 : countVisit()));
   const hasOrdered = useAppSelector((state) => state.customer.recentOrders.length > 0);
+  const stock = useMemo(
+    () =>
+      Object.fromEntries(
+        menu.categories.flatMap((category) => category.items.map((item) => [item.id, item.stockLeft]))
+      ),
+    [menu]
+  );
 
   // Results start at the top of the list; don't leave the customer halfway
   // down a filtered page.
@@ -129,7 +136,7 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
         storeOpen={menu.store.isOpen}
         onClose={() => setSelected(null)}
       />
-      <Cart store={menu.store} />
+      <Cart store={menu.store} stock={stock} />
     </div>
   );
 }

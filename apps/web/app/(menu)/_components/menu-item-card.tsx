@@ -35,7 +35,7 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
         {item.description && (
           <p className="line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
         )}
-        <div className="mt-auto flex items-center gap-2 pt-1">
+        <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
           <span className="font-semibold text-primary">{formatCurrencyBRL(item.price)}</span>
           {disabled && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
