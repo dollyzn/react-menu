@@ -6,6 +6,7 @@ import { ImageOff, Plus } from "lucide-react";
 import type { PublicMenuItem } from "@react-menu/contracts";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
+import { stockHint } from "@/lib/stock";
 
 interface MenuItemCardProps {
   item: PublicMenuItem;
@@ -14,6 +15,7 @@ interface MenuItemCardProps {
 
 export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
   const disabled = !item.isAvailable;
+  const hint = disabled ? null : stockHint(item.stockLeft);
 
   return (
     <motion.button
@@ -22,7 +24,7 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
       whileTap={disabled ? undefined : { scale: 0.98 }}
       disabled={disabled}
       onClick={() => onSelect(item)}
-      aria-label={`${item.name}, ${formatCurrencyBRL(item.price)}${disabled ? ", esgotado" : ""}`}
+      aria-label={`${item.name}, ${formatCurrencyBRL(item.price)}${disabled ? ", esgotado" : hint ? `, ${hint.toLowerCase()}` : ""}`}
       className={cn(
         "group flex w-full gap-3 rounded-2xl border bg-card p-3 text-left transition-shadow outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
         disabled ? "cursor-not-allowed opacity-60" : "hover:shadow-md"
@@ -38,6 +40,11 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
           {disabled && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               Esgotado
+            </span>
+          )}
+          {hint && (
+            <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+              {hint}
             </span>
           )}
         </div>

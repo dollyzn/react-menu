@@ -55,7 +55,7 @@ export default class PublicMenuService {
       .first()
     if (!store) throw new AppException('Cardápio não encontrado', 404)
 
-    const unavailable = await this.inventory.unavailable(store)
+    const left = await this.inventory.capacities(store)
     if (options.track) await this.trackView(store, userAgent)
 
     return {
@@ -72,14 +72,16 @@ export default class PublicMenuService {
             description: item.description,
             price: item.price,
             photoUrl: item.photoUrl,
-            isAvailable: item.isAvailable && !unavailable.items.has(item.id),
+            isAvailable: item.isAvailable && left.items.get(item.id) !== 0,
+            stockLeft: left.items.get(item.id) ?? null,
             addons: item.addons.map((addon) => ({
               id: addon.id,
               name: addon.name,
               description: addon.description,
               price: addon.price,
               photoUrl: addon.photoUrl,
-              isAvailable: addon.isAvailable && !unavailable.addons.has(addon.id),
+              isAvailable: addon.isAvailable && left.addons.get(addon.id) !== 0,
+              stockLeft: left.addons.get(addon.id) ?? null,
             })),
           })),
         })),

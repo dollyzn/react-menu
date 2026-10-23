@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
 import { useCreatePosOrderMutation } from "@/redux/features/order/orderApi";
+import { stockHint, unitsLeft } from "@/lib/stock";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/string";
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
@@ -71,6 +72,12 @@ export default function PosPage() {
     return counts;
   }, [lines]);
 
+  /** Units the stock still allows for an item, after what the ticket holds (null = no limit). */
+  const leftFor = (itemId: string) => {
+    const item = categories.flatMap((category) => category.items).find((candidate) => candidate.id === itemId);
+    return unitsLeft(item?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
+  };
+
   const total = lines.reduce((sum, line) => sum + lineTotal(line), 0);
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
 
@@ -97,12 +104,15 @@ export default function PosPage() {
     });
   };
 
-  const changeQuantity = (key: string, delta: number) =>
+  const changeQuantity = (key: string, delta: number) => {
+    const line = lines.find((candidate) => candidate.key === key);
+    if (delta > 0 && line && leftFor(line.itemId) === 0) return;
     setLines((current) =>
       current
         .map((line) => (line.key === key ? { ...line, quantity: line.quantity + delta } : line))
         .filter((line) => line.quantity > 0)
     );
+  };
 
   const clearTicket = () => {
     const previous = lines;
@@ -112,7 +122,7 @@ export default function PosPage() {
 
   // Enter in the search adds the product when only one matches.
   const addSingleResult = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key !== "Enter" || items.length !== 1 || !items[0].isAvailable) return;
+    if (event.key !== "Enter" || items.length !== 1 || !items[0].isAvailable || leftFor(items[0].id) === 0) return;
     event.preventDefault();
     quickAdd(items[0]);
     setQuery("");
@@ -161,6 +171,7 @@ export default function PosPage() {
     onCustomerName: setCustomerName,
     onCustomerPhone: setCustomerPhone,
     onQuantity: changeQuantity,
+    canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
     onSend: send,
     sending,
@@ -251,6 +262,7 @@ export default function PosPage() {
                         item={item}
                         accent={group.accent.border}
                         quantity={inTicket.get(item.id) ?? 0}
+                        left={leftFor(item.id)}
                         onAdd={() => quickAdd(item)}
                       />
                     ))}
@@ -300,6 +312,7 @@ export default function PosPage() {
             key={picking.id}
             item={picking}
             ctaLabel="Adicionar"
+            alreadyChosen={inTicket.get(picking.id) ?? 0}
             onAdd={(line) => {
               addToTicket(line);
               setPicking(null);
@@ -326,29 +339,34 @@ const CATEGORY_ACCENTS = [
 function ProductCard({
   item,
   quantity,
+  left,
   accent,
   onAdd,
 }: {
   item: PublicMenuItem;
   quantity: number;
+  /** Units the stock still allows after the ticket (null = no limit). */
+  left: number | null;
   /** Category color for the left edge. */
   accent: string;
   onAdd: () => void;
 }) {
   const price = item.isAvailable ? formatCurrencyBRL(item.price) : "Esgotado";
+  const canAdd = item.isAvailable && left !== 0;
+  const hint = item.isAvailable ? stockHint(left) : null;
 
   return (
     <motion.button
       type="button"
       whileTap={{ scale: 0.97 }}
-      disabled={!item.isAvailable}
+      disabled={!canAdd}
       onClick={onAdd}
-      aria-label={`${item.name} ${price}${quantity ? `, ${quantity} na comanda` : ""}`}
+      aria-label={`${item.name} ${price}${quantity ? `, ${quantity} na comanda` : ""}${hint ? `, ${hint.toLowerCase()}` : ""}`}
       className={cn(
         "group flex items-center gap-3 rounded-xl border border-l-4 bg-card p-2 pr-3 text-left transition-all outline-none hover:border-primary/50 hover:shadow-sm focus-visible:ring-3 focus-visible:ring-ring/50",
         accent,
         quantity > 0 && "border-primary bg-primary/5",
-        !item.isAvailable && "cursor-not-allowed opacity-50"
+        !canAdd && "cursor-not-allowed opacity-50"
       )}
     >
       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
@@ -375,6 +393,11 @@ function ProductCard({
         <span className="line-clamp-2 text-sm leading-tight font-medium">{item.name}</span>
         <span className="mt-1 flex items-center gap-2 text-sm">
           <span className="font-semibold text-primary">{price}</span>
+          {hint && (
+            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+              {hint}
+            </span>
+          )}
           {item.addons.length > 0 && (
             <SlidersHorizontal aria-hidden className="size-3.5 text-muted-foreground">
               <title>Tem adicionais</title>
@@ -382,7 +405,7 @@ function ProductCard({
           )}
         </span>
       </div>
-      {item.isAvailable && (
+      {canAdd && (
         <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
           <Plus className="size-4" />
         </span>
@@ -401,6 +424,7 @@ function Ticket({
   onCustomerName,
   onCustomerPhone,
   onQuantity,
+  canIncrease,
   onClear,
   onSend,
   sending,
@@ -415,6 +439,8 @@ function Ticket({
   onCustomerName: (value: string) => void;
   onCustomerPhone: (value: string) => void;
   onQuantity: (key: string, delta: number) => void;
+  /** False when the stock allows no more units of that item. */
+  canIncrease: (itemId: string) => boolean;
   onClear: () => void;
   onSend: () => void;
   sending: boolean;
@@ -516,6 +542,7 @@ function Ticket({
                     size="icon-sm"
                     className="rounded-full"
                     aria-label={`Aumentar ${line.name}`}
+                    disabled={!canIncrease(line.itemId)}
                     onClick={() => onQuantity(line.key, 1)}
                   >
                     <Plus />

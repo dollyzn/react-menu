@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
+import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import AppException from '#exceptions/app_exception'
@@ -21,6 +22,7 @@ import type { GatewayPayment, PaymentGateway } from '#payments/gateway'
 import MercadoPagoClient, { isValidWebhookSignature } from '#payments/mercado_pago_client'
 import MercadoPagoGateway from '#payments/mercado_pago_gateway'
 import OrderService from '#services/order_service'
+import InventoryService from '#services/inventory_service'
 
 /** Pix QR codes are valid for 30 minutes (Mercado Pago's minimum). */
 const PIX_TTL_MINUTES = 30
@@ -56,7 +58,8 @@ const fakeGatewayEnabled = () =>
 export default class PaymentService {
   constructor(
     private client: MercadoPagoClient,
-    private orders: OrderService
+    private orders: OrderService,
+    private inventory: InventoryService
   ) {}
 
   /** The store's gateway: its Mercado Pago account, or the dev fake. */
@@ -132,6 +135,9 @@ export default class PaymentService {
         422
       )
     }
+
+    // The order was placed earlier; the counter may have used the stock since.
+    await this.assertStillInStock(order, store)
 
     if (input.method === PaymentMethod.PIX) {
       const open = await Payment.query()
@@ -305,6 +311,23 @@ export default class PaymentService {
       return latest.expiresAt && latest.expiresAt > DateTime.now() ? latest.expiresAt : null
     }
     return DateTime.now().plus({ minutes: 30 })
+  }
+
+  /** Online orders take their stock only once paid: check before charging. */
+  private async assertStillInStock(order: Order, store: Store) {
+    await db.transaction(async (trx) => {
+      const lines = await order.related('items').query().useTransaction(trx).preload('addons')
+      await this.inventory.assertStock(
+        store,
+        lines.map((line) => ({
+          itemId: line.itemId,
+          addonIds: line.addons.flatMap((addon) => (addon.addonId ? [addon.addonId] : [])),
+          quantity: line.quantity,
+          name: line.name,
+        })),
+        trx
+      )
+    })
   }
 
   private async update(payment: Payment, result: GatewayPayment) {

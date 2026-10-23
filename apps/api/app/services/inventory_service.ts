@@ -17,6 +17,9 @@ import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 
 type RecipeLine = { ingredientId: number; quantity: number }
 
+/** An order line as far as stock is concerned. */
+export type StockLine = { itemId: string | null; addonIds: string[]; quantity: number }
+
 /** Rounds to the 3 decimals stored in the database. */
 const round3 = (value: number) => Math.round(value * 1000) / 1000
 
@@ -136,71 +139,132 @@ export default class InventoryService {
   }
 
   /**
-   * Items and add-ons that cannot be sold now: switched off by hand, or (when
-   * the store tracks stock) missing an ingredient for one unit.
+   * How many units of each item and add-on the stock still makes (the
+   * scarcest ingredient of its recipe decides). Only for stores that track
+   * stock, and only for things with a recipe; the rest are unlimited.
    */
-  async unavailable(store: Store, trx?: TransactionClientContract) {
+  async capacities(store: Store, trx?: TransactionClientContract) {
     const client = trx ?? db
-    const items = new Set<string>()
-    const addons = new Set<string>()
+    const items = new Map<string, number>()
+    const addons = new Map<string, number>()
+    if (!store.inventoryEnabled) return { items, addons }
 
-    if (store.inventoryEnabled) {
-      const itemRows = await client
-        .from('item_ingredients as r')
+    const capacity = (
+      table: 'item_ingredients' | 'addon_ingredients',
+      key: 'item_id' | 'addon_id'
+    ) =>
+      client
+        .from(`${table} as r`)
         .join('ingredients as i', 'i.id', 'r.ingredient_id')
         .where('i.store_id', store.id)
-        .whereRaw('i.stock_quantity < r.quantity')
-        .distinct('r.item_id')
-      const addonRows = await client
-        .from('addon_ingredients as r')
-        .join('ingredients as i', 'i.id', 'r.ingredient_id')
-        .where('i.store_id', store.id)
-        .whereRaw('i.stock_quantity < r.quantity')
-        .distinct('r.addon_id')
-      for (const row of itemRows) items.add(row.item_id)
-      for (const row of addonRows) addons.add(row.addon_id)
-    }
-
+        .where('r.quantity', '>', 0)
+        .groupBy(`r.${key}`)
+        .select(`r.${key} as id`)
+        .select(db.raw('greatest(min(floor(i.stock_quantity / r.quantity)), 0)::int as units'))
+    for (const row of await capacity('item_ingredients', 'item_id')) items.set(row.id, row.units)
+    for (const row of await capacity('addon_ingredients', 'addon_id')) addons.set(row.id, row.units)
     return { items, addons }
   }
 
   /**
-   * Ingredient needs of an order: item recipes × quantity plus add-on
+   * Items and add-ons that cannot be sold now: switched off by hand, or (when
+   * the store tracks stock) missing an ingredient for one unit.
+   */
+  async unavailable(store: Store, trx?: TransactionClientContract) {
+    const { items, addons } = await this.capacities(store, trx)
+    const empty = (units: Map<string, number>) =>
+      new Set([...units].filter(([, count]) => count < 1).map(([id]) => id))
+    return { items: empty(items), addons: empty(addons) }
+  }
+
+  /**
+   * Ingredient needs of order lines: item recipes × quantity plus add-on
    * recipes × the quantity of the line they belong to.
    */
-  async requirementsFor(order: Order, trx: TransactionClientContract) {
-    const lines = await order.related('items').query().useTransaction(trx).preload('addons')
-    const needs = new Map<number, number>()
-    const add = (ingredientId: number, quantity: number) =>
-      needs.set(ingredientId, round3((needs.get(ingredientId) ?? 0) + quantity))
-
-    const itemIds = [...new Set(lines.flatMap((line) => (line.itemId ? [line.itemId] : [])))]
-    const addonIds = [
-      ...new Set(
-        lines.flatMap((line) =>
-          line.addons.flatMap((addon) => (addon.addonId ? [addon.addonId] : []))
-        )
-      ),
-    ]
+  async needsOf(lines: StockLine[], trx?: TransactionClientContract) {
+    const client = trx ?? db
+    const needs = new Map<number, { quantity: number; itemIds: Set<string> }>()
+    const itemIds = [...new Set(lines.map((line) => line.itemId).filter(Boolean))] as string[]
+    const addonIds = [...new Set(lines.flatMap((line) => line.addonIds))]
 
     const itemRecipes = itemIds.length
-      ? await db.from('item_ingredients').useTransaction(trx).whereIn('item_id', itemIds)
+      ? await client.from('item_ingredients').whereIn('item_id', itemIds)
       : []
     const addonRecipes = addonIds.length
-      ? await db.from('addon_ingredients').useTransaction(trx).whereIn('addon_id', addonIds)
+      ? await client.from('addon_ingredients').whereIn('addon_id', addonIds)
       : []
 
+    const add = (ingredientId: number, quantity: number, itemId: string | null) => {
+      const need = needs.get(ingredientId) ?? { quantity: 0, itemIds: new Set<string>() }
+      need.quantity = round3(need.quantity + quantity)
+      if (itemId) need.itemIds.add(itemId)
+      needs.set(ingredientId, need)
+    }
     for (const line of lines) {
       for (const row of itemRecipes.filter((r) => r.item_id === line.itemId)) {
-        add(row.ingredient_id, Number(row.quantity) * line.quantity)
+        add(row.ingredient_id, Number(row.quantity) * line.quantity, line.itemId)
       }
-      for (const addon of line.addons) {
-        for (const row of addonRecipes.filter((r) => r.addon_id === addon.addonId)) {
-          add(row.ingredient_id, Number(row.quantity) * line.quantity)
+      for (const addonId of line.addonIds) {
+        for (const row of addonRecipes.filter((r) => r.addon_id === addonId)) {
+          add(row.ingredient_id, Number(row.quantity) * line.quantity, line.itemId)
         }
       }
     }
     return needs
+  }
+
+  /** Needs of an existing order (for consuming its stock). */
+  async requirementsFor(order: Order, trx: TransactionClientContract) {
+    const lines = await order.related('items').query().useTransaction(trx).preload('addons')
+    return await this.needsOf(
+      lines.map((line) => ({
+        itemId: line.itemId,
+        addonIds: line.addons.flatMap((addon) => (addon.addonId ? [addon.addonId] : [])),
+        quantity: line.quantity,
+      })),
+      trx
+    )
+  }
+
+  /**
+   * Refuses an order the stock can't make (e.g. 10 egg pastries with one
+   * egg). The ingredients are locked until the caller's transaction ends,
+   * so two orders can't both take the last unit.
+   */
+  async assertStock(
+    store: Store,
+    lines: (StockLine & { name: string })[],
+    trx: TransactionClientContract
+  ) {
+    if (!store.inventoryEnabled) return
+    const needs = await this.needsOf(lines, trx)
+    if (needs.size === 0) return
+
+    const ingredients = await Ingredient.query({ client: trx })
+      .whereIn('id', [...needs.keys()])
+      .where('storeId', store.id)
+      .orderBy('id')
+      .forUpdate()
+    for (const ingredient of ingredients) {
+      const need = needs.get(ingredient.id)!
+      if (ingredient.stockQuantity + 1e-9 >= need.quantity) continue
+
+      const involved = lines.filter((line) => line.itemId && need.itemIds.has(line.itemId))
+      const names = [...new Set(involved.map((line) => line.name))]
+      let message = `Não temos ${ingredient.name.toLowerCase()} suficiente para este pedido. Diminua a quantidade de ${names.join(', ')}.`
+      if (involved.length === 1) {
+        const perUnit = need.quantity / involved[0].quantity
+        const max = Math.max(0, Math.floor((ingredient.stockQuantity + 1e-9) / perUnit))
+        message =
+          max === 0
+            ? `${names[0]} acabou agora.`
+            : `Só dá para fazer ${max} ${names[0]} agora (acabando ${ingredient.name.toLowerCase()}).`
+      }
+      throw new AppException(message, 422, 'E_OUT_OF_STOCK', {
+        ingredient: ingredient.name,
+        itemIds: [...need.itemIds],
+      })
+    }
   }
 
   /** Deducts an order's ingredients once (idempotent via stock_consumed_at). */
@@ -209,7 +273,7 @@ export default class InventoryService {
     const store = await Store.findOrFail(order.storeId, { client: trx })
     if (!store.inventoryEnabled) return
 
-    for (const [ingredientId, quantity] of await this.requirementsFor(order, trx)) {
+    for (const [ingredientId, { quantity }] of await this.requirementsFor(order, trx)) {
       const ingredient = await Ingredient.findOrFail(ingredientId, { client: trx })
       await this.move(ingredient, StockMovementType.CONSUMPTION, -quantity, trx, {
         orderId: order.id,

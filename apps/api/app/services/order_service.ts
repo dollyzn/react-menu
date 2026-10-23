@@ -69,6 +69,16 @@ export default class OrderService {
       this.assertCanOrder(store, input)
 
       const priced = await this.priceLines(store, input.lines, trx)
+      await this.inventory.assertStock(
+        store,
+        priced.map((line) => ({
+          itemId: line.item.id,
+          addonIds: line.addons.map((addon) => addon.id),
+          quantity: line.quantity,
+          name: line.item.name,
+        })),
+        trx
+      )
       const subtotal = money(priced.reduce((sum, line) => sum + line.total, 0))
 
       const phone = input.customer.phone ? normalizeBrazilianPhone(input.customer.phone) : null

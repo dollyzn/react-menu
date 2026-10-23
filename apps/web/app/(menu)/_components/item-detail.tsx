@@ -2,17 +2,21 @@
 
 import { useState } from "react";
 import Image from "@/components/app/image";
-import { Check, Minus, Plus } from "lucide-react";
+import { Check, Minus, Plus, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import type { PublicMenuItem } from "@react-menu/contracts";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useAppDispatch } from "@/redux/hooks";
+import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addLine, type CartLine } from "@/redux/slices/cart";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
+import { stockHint, unitsLeft } from "@/lib/stock";
+
+/** The API accepts up to 50 units per line. */
+const MAX_QUANTITY = 50;
 
 const NOTES_MAX = 200;
 
@@ -25,6 +29,11 @@ interface ItemDetailProps {
 
 export function ItemDetail({ item, storeSlug, storeOpen, onClose }: ItemDetailProps) {
   const dispatch = useAppDispatch();
+  const inBag = useAppSelector((state) =>
+    state.cart.storeSlug === storeSlug
+      ? state.cart.lines.filter((line) => line.itemId === item?.id).reduce((sum, line) => sum + line.quantity, 0)
+      : 0
+  );
 
   return (
     <ResponsiveModal
@@ -42,6 +51,7 @@ export function ItemDetail({ item, storeSlug, storeOpen, onClose }: ItemDetailPr
           item={item}
           ctaLabel={storeOpen ? "Adicionar" : "Loja fechada"}
           disabled={!storeOpen}
+          alreadyChosen={inBag}
           onAdd={(line) => {
             dispatch(addLine({ storeSlug, line }));
             toast.success(`${line.quantity}× ${item.name} na sacola`);
@@ -63,11 +73,14 @@ export function ItemCustomizer({
   item,
   ctaLabel,
   disabled,
+  alreadyChosen = 0,
   onAdd,
 }: {
   item: PublicMenuItem;
   ctaLabel: string;
   disabled?: boolean;
+  /** Units of this item already in the bag/ticket (they count against the stock). */
+  alreadyChosen?: number;
   onAdd: (line: CustomizedLine) => void;
 }) {
   const [addonIds, setAddonIds] = useState<string[]>([]);
@@ -75,6 +88,12 @@ export function ItemCustomizer({
   const [quantity, setQuantity] = useState(1);
 
   const selected = item.addons.filter((addon) => addonIds.includes(addon.id));
+  // The stock caps the quantity (the API refuses more anyway): the item and
+  // every chosen add-on with a recipe.
+  const left = unitsLeft(item.stockLeft, alreadyChosen);
+  const limits = [left, ...selected.map((addon) => addon.stockLeft)].filter((value) => value !== null);
+  const maxQuantity = Math.min(MAX_QUANTITY, ...limits);
+  const hint = stockHint(left);
   const total = (item.price + selected.reduce((sum, addon) => sum + addon.price, 0)) * quantity;
 
   const toggle = (id: string) =>
@@ -181,7 +200,14 @@ export function ItemCustomizer({
         </div>
       </div>
 
-      <div className="sticky bottom-0 flex items-center gap-3 border-t bg-background/95 p-4 backdrop-blur">
+      <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur">
+      {hint && (
+        <p role="status" className="flex items-center gap-1.5 px-4 pt-3 text-sm font-medium text-amber-700 dark:text-amber-400">
+          <TriangleAlert className="size-4" />
+          {maxQuantity < 1 && alreadyChosen > 0 ? "Você já pegou todas as unidades disponíveis" : hint}
+        </p>
+      )}
+      <div className="flex items-center gap-3 p-4">
         <div className="flex items-center rounded-full border">
           <Button
             variant="ghost"
@@ -201,16 +227,22 @@ export function ItemCustomizer({
             size="icon"
             className="rounded-full"
             aria-label="Aumentar quantidade"
-            disabled={quantity >= 50}
+            disabled={quantity >= maxQuantity}
             onClick={() => setQuantity((q) => q + 1)}
           >
             <Plus />
           </Button>
         </div>
-        <Button size="lg" className="h-11 flex-1 justify-between rounded-full px-5" disabled={disabled} onClick={add}>
+        <Button
+          size="lg"
+          className="h-11 flex-1 justify-between rounded-full px-5"
+          disabled={disabled || maxQuantity < 1 || quantity > maxQuantity}
+          onClick={add}
+        >
           {ctaLabel}
           <AnimatedPrice value={total} className="font-semibold" />
         </Button>
+      </div>
       </div>
     </div>
   );

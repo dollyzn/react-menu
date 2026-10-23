@@ -272,6 +272,8 @@ export type PublicMenuItem = {
   photoUrl: string | null;
   /** False when switched off or (with stock tracking) out of an ingredient. */
   isAvailable: boolean;
+  /** Units the stock still makes (stores that track stock, items with a recipe); null = no limit. */
+  stockLeft: number | null;
   addons: PublicMenuAddon[];
 };
 
@@ -282,6 +284,8 @@ export type PublicMenuAddon = {
   price: number;
   photoUrl: string | null;
   isAvailable: boolean;
+  /** Like the item's: null = no limit. */
+  stockLeft: number | null;
 };
 
 /** GET /stores/:id/customers?search= (POS autocomplete). */
