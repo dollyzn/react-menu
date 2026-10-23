@@ -66,6 +66,7 @@ test("the customer asking for more than the stock is told why the counter stops"
     data: { ingredients: [{ ingredientId: ovo.id, quantity: 1 }] },
   });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`/${current.slug}`, { timeout: 30_000 });
   await page.getByRole("button", { name: /^Pastel de ovo/ }).click();
   const dialog = page.getByRole("dialog");
@@ -74,5 +75,23 @@ test("the customer asking for more than the stock is told why the counter stops"
   await expect(dialog.getByRole("status").filter({ hasText: "Só temos 6 disponíveis agora" })).toBeVisible();
   await expect(more).toHaveAttribute("aria-disabled", "true");
   await more.click({ force: true });
+  // The message's shake never scrolls the window sideways (sampled while it moves).
+  let widest = 0;
+  for (let i = 0; i < 20; i++) {
+    widest = Math.max(
+      widest,
+      await dialog.evaluate((root) =>
+        Math.max(
+          0,
+          ...[root, ...root.querySelectorAll("*")]
+            .filter((el) => ["auto", "scroll"].includes(getComputedStyle(el).overflowX))
+            .map((el) => el.scrollWidth - el.clientWidth)
+        )
+      )
+    );
+    await page.waitForTimeout(20);
+  }
+  expect(widest).toBeLessThanOrEqual(1);
   await expect(dialog.getByText("6", { exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

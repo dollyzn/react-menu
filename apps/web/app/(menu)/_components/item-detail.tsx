@@ -226,17 +226,18 @@ export function ItemCustomizer({
         </div>
       </div>
 
-      <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur">
+      {/* overflow-x-clip: the message's shake must not scroll the window sideways. */}
+      <div className="sticky bottom-0 overflow-x-clip border-t bg-background/95 backdrop-blur">
       {hint && (
         <motion.p
           key={nudge}
           role="status"
           animate={nudge ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
           transition={{ duration: 0.35 }}
-          className="flex items-center gap-1.5 px-4 pt-3 text-sm font-medium text-amber-700 dark:text-amber-400"
+          className="flex items-start gap-1.5 px-4 pt-3 text-sm font-medium text-amber-700 dark:text-amber-400"
         >
-          <TriangleAlert className="size-4 shrink-0" />
-          {hint}
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0 break-words">{hint}</span>
         </motion.p>
       )}
       <div className="flex items-center gap-3 p-4">
