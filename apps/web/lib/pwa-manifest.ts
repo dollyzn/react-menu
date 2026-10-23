@@ -1,4 +1,6 @@
 import type { MetadataRoute } from "next";
+import type { PublicMenu } from "@react-menu/contracts";
+import { storeManifestIcons } from "@/lib/store-icons";
 
 /** Shared by the customer app (/manifest.webmanifest) and the staff app (/app/manifest.webmanifest). */
 export const PWA_THEME = {
@@ -12,3 +14,46 @@ export const PWA_ICONS: MetadataRoute.Manifest["icons"] = [
   { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
   { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
 ];
+
+/**
+ * Customer app of a store: named after it, with its logo as the icon. The
+ * default store installs from "/" (id "/"); others from "/<slug>". Scope is
+ * "/" so order tracking (/pedido/…) stays inside the installed app.
+ */
+export function customerManifest(
+  store: PublicMenu["store"] | null,
+  { path = "/" }: { path?: string } = {}
+): MetadataRoute.Manifest {
+  const name = store?.name ?? "Cardápio";
+  return {
+    id: path,
+    name: store ? `${store.name} · Cardápio` : "React Menu · Cardápio",
+    short_name: name.length > 12 ? "Cardápio" : name,
+    description: store?.description || "Peça pelo celular e retire no balcão.",
+    start_url: `${path}?source=pwa`,
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait",
+    lang: "pt-BR",
+    dir: "ltr",
+    categories: ["food", "shopping"],
+    ...PWA_THEME,
+    icons: store ? storeManifestIcons(store) : PWA_ICONS,
+    screenshots: [
+      {
+        src: "/screenshots/menu-narrow.png",
+        sizes: "780x1688",
+        type: "image/png",
+        form_factor: "narrow",
+        label: "Cardápio com busca e categorias",
+      },
+      {
+        src: "/screenshots/menu-wide.png",
+        sizes: "2560x1440",
+        type: "image/png",
+        form_factor: "wide",
+        label: "Cardápio no computador",
+      },
+    ],
+  };
+}
