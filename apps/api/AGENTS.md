@@ -46,7 +46,10 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
   allowlist of column ids; never order by a raw query value) and return
   `ok(paginator.all(), paginator.getMeta())` (snake_case meta).
 - Rate limiting: `throttle` must run after `middleware.auth()` or the
-  request is limited as a guest (per IP). Public order creation has its own
+  request is limited as a guest (per client IP, `PUBLIC_RATE_LIMIT`, default
+  120/min). `request.ip()` is the client's: X-Forwarded-For is trusted from
+  local/private proxies only (`#helpers/trusted_proxy`: Caddy, the web's
+  SSR), so customers behind the same proxy don't share one bucket. Public order creation has its own
   `orderThrottle` (`PUBLIC_ORDER_RATE_LIMIT`).
 - Decimal columns use `@column(decimal)` from `#helpers/columns` so values
   are numbers at runtime.

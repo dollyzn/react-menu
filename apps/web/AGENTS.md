@@ -22,6 +22,8 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Sidebar by role | `lib/menu-itens.ts` (`getManageMenuGroups`, `homeForRole`); new store sections also need a label in `app-breadcrumbs.tsx` |
 | Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
 | Server state | RTK Query: `redux/api/baseApi.ts`, `redux/features/<domain>/<domain>Api.ts` |
+| Server-side API calls (SSR, metadata, icons) | `lib/server-api.ts`: `serverApiBase()` (internal URL in Docker) and `visitorHeaders()` (forwards the visitor's IP so the API's per-IP limit counts them, not the server) |
+| Panel shortcut on customer pages | `app/(menu)/_components/panel-shortcut.tsx` (staff signed in on the device; after rehydration) |
 | Session / push | `contexts/session-provider.tsx`, `contexts/notification-provider.tsx` |
 | PWA (manifests, service worker, install prompt) | `app/manifest.ts` (default store), `app/(menu)/[slug]/manifest.webmanifest/` (other stores), `app/app/manifest.webmanifest/` (`?store=` from a store's panel), all via `customerManifest`/`lib/pwa-manifest.ts`; `public/sw.js`, `components/app/pwa/`, `hooks/use-pwa-install.ts` (ADR 0012) |
 | Store icons (favicon, PWA) | `app/icons/store/[slug]/[file]/route.ts` renders the logo (sharp, on a white tile; no logo → the app's icons); URLs and metadata in `lib/store-icons.ts`, used by the menu pages (`_lib/store-metadata.ts`) and the store's panel layout |

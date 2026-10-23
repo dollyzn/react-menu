@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import type { ApiSuccess, Store } from "@react-menu/contracts";
-import { serverApiBase } from "@/lib/server-api";
+import { serverApiBase, visitorHeaders } from "@/lib/server-api";
 import { storeIconsMetadata } from "@/lib/store-icons";
 import { StoreRealtime } from "./store-realtime";
 
@@ -14,7 +14,7 @@ export async function generateMetadata({ params }: { params: Promise<{ store: st
   try {
     const response = await fetch(`${serverApiBase()}stores/${(await params).store}`, {
       cache: "no-store",
-      headers: { cookie: (await cookies()).toString(), accept: "application/json" },
+      headers: { ...(await visitorHeaders()), cookie: (await cookies()).toString() },
     });
     if (!response.ok) return {};
     const store = ((await response.json()) as ApiSuccess<Store>).data;
