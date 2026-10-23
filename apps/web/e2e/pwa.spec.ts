@@ -44,7 +44,8 @@ test("customer and staff apps are installable", async ({ page, browser }) => {
 
   await login(page);
   const staff = await installability(page);
-  expect(staff.url).toMatch(/\/app\/manifest\.webmanifest$/);
+  // Inside a store, the panel's manifest carries its name and logo (?store=).
+  expect(staff.url).toMatch(/\/app\/manifest\.webmanifest\?store=[\w-]+$/);
   expect(staff.manifest.scope).toBe("/app/");
   const storePath = new URL(page.url()).pathname.replace(/\/$/, "");
 

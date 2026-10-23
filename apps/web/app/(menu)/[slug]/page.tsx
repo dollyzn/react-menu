@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { fetchMenu } from "../_lib/fetch-menu";
+import { storeMetadata } from "../_lib/store-metadata";
 import { MenuView } from "../_components/menu-view";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -8,7 +9,11 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const menu = await fetchMenu((await params).slug);
   return menu
-    ? { title: `${menu.store.name} · Cardápio`, description: menu.store.description ?? undefined }
+    ? {
+        title: `${menu.store.name} · Cardápio`,
+        description: menu.store.description ?? undefined,
+        ...storeMetadata(menu.store, `/${menu.store.slug}/manifest.webmanifest`),
+      }
     : {};
 }
 

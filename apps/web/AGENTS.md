@@ -23,7 +23,8 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
 | Server state | RTK Query: `redux/api/baseApi.ts`, `redux/features/<domain>/<domain>Api.ts` |
 | Session / push | `contexts/session-provider.tsx`, `contexts/notification-provider.tsx` |
-| PWA (manifests, service worker, install prompt) | `app/manifest.ts`, `app/app/manifest.webmanifest/`, `public/sw.js`, `components/app/pwa/`, `hooks/use-pwa-install.ts` (ADR 0012) |
+| PWA (manifests, service worker, install prompt) | `app/manifest.ts` (default store), `app/(menu)/[slug]/manifest.webmanifest/` (other stores), `app/app/manifest.webmanifest/` (`?store=` from a store's panel), all via `customerManifest`/`lib/pwa-manifest.ts`; `public/sw.js`, `components/app/pwa/`, `hooks/use-pwa-install.ts` (ADR 0012) |
+| Store icons (favicon, PWA) | `app/icons/store/[slug]/[file]/route.ts` renders the logo (sharp, on a white tile; no logo → the app's icons); URLs and metadata in `lib/store-icons.ts`, used by the menu pages (`_lib/store-metadata.ts`) and the store's panel layout |
 | Realtime | `lib/transmit.ts`, `hooks/use-store-realtime.ts`, `hooks/use-notifications-realtime.ts` |
 | Design system (shadcn base-nova on Base UI) | `components/ui` (generated; change via shadcn CLI) |
 | App components (data table, layout, dialogs) | `components/app` |
@@ -79,7 +80,9 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `create-category-dialog.tsx`); the API validation is authoritative.
 - User-facing text is pt-BR, including `aria-label`s.
 - Theme changes go through `useThemeTransition` (circular reveal from the
-  click); `ThemeSegmented` is the compact switch. Theme state is
+  click); `ThemeSegmented` is the compact switch. Inside a view transition,
+  always call `setTheme` (not only toggle the class): `@wrksz/themes` puts
+  its stored theme back on `<html>` on the next frame. Theme state is
   `@wrksz/themes` (not next-themes): the root `ThemeProvider` comes from
   `@wrksz/themes/next` in `app/layout.tsx`, hooks from `@wrksz/themes/client`.
 - Never render a raw `<script>` in a component (React warns and never runs it

@@ -1,19 +1,17 @@
 import "server-only";
 import { headers } from "next/headers";
 import type { ApiSuccess, PublicMenu } from "@react-menu/contracts";
-import { getApiBaseUrl } from "@/lib/api-base-url";
+import { serverApiBase } from "@/lib/server-api";
 
 /**
  * Loads a store menu on the server (SSR). Returns null when the store does
  * not exist. Always fresh: availability and opening hours change often.
+ * `track: false` for requests that aren't a customer visit (icons, manifests).
  */
-export async function fetchMenu(slug?: string): Promise<PublicMenu | null> {
+export async function fetchMenu(slug?: string, { track = true } = {}): Promise<PublicMenu | null> {
   const userAgent = (await headers()).get("user-agent") ?? "";
-  // In Docker the server reaches the API over the internal network.
-  const base = process.env.API_INTERNAL_URL
-    ? `${process.env.API_INTERNAL_URL.replace(/\/$/, "")}/`
-    : getApiBaseUrl();
-  const response = await fetch(`${base}public/menu${slug ? `/${slug}` : ""}`, {
+  const query = track ? "" : "?preview=1";
+  const response = await fetch(`${serverApiBase()}public/menu${slug ? `/${slug}` : ""}${query}`, {
     cache: "no-store",
     headers: { "user-agent": userAgent, accept: "application/json" },
   });

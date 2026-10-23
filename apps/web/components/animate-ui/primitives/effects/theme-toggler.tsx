@@ -75,21 +75,22 @@ function ThemeToggler({
         return;
       }
 
-      if (!document.startViewTransition) {
-        flushSync(() => {
-          setPreview({ effective: theme, resolved });
-        });
+      const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (!document.startViewTransition || reduced) {
         setTheme(theme);
         return;
       }
 
+      // The theme is set *inside* the transition: @wrksz/themes watches the
+      // <html> class and puts its stored theme back on the next frame, so a
+      // class toggled by hand (theme set only after the animation) was undone
+      // before the new snapshot, e.g. from "system" (dark) to light.
       await document.startViewTransition(() => {
         flushSync(() => {
           setPreview({ effective: theme, resolved });
-          document.documentElement.classList.toggle(
-            "dark",
-            resolved === "dark"
-          );
+          document.documentElement.classList.toggle("dark", resolved === "dark");
+          document.documentElement.style.colorScheme = resolved;
+          setTheme(theme);
         });
       }).ready;
 
@@ -102,10 +103,7 @@ function ThemeToggler({
             pseudoElement: "::view-transition-new(root)",
           }
         )
-        .finished.finally(() => {
-          setPreview(null);
-          setTheme(theme);
-        });
+        .finished.finally(() => setPreview(null));
     },
     [onImmediateChange, resolvedTheme, fromClip, toClip, setTheme]
   );
