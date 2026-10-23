@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import Image from "@/components/app/image";
 import { Check, Minus, Plus, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
@@ -91,9 +92,34 @@ export function ItemCustomizer({
   // The stock caps the quantity (the API refuses more anyway): the item and
   // every chosen add-on with a recipe.
   const left = unitsLeft(item.stockLeft, alreadyChosen);
-  const limits = [left, ...selected.map((addon) => addon.stockLeft)].filter((value) => value !== null);
-  const maxQuantity = Math.min(MAX_QUANTITY, ...limits);
-  const hint = stockHint(left);
+  const limits = [
+    { name: null as string | null, units: left },
+    ...selected.map((addon) => ({ name: addon.name, units: addon.stockLeft })),
+  ].filter((limit): limit is { name: string | null; units: number } => limit.units !== null);
+  const binding = limits.reduce<(typeof limits)[number] | null>(
+    (lowest, limit) => (lowest === null || limit.units < lowest.units ? limit : lowest),
+    null
+  );
+  const maxQuantity = Math.min(MAX_QUANTITY, binding?.units ?? MAX_QUANTITY);
+  // The stock (not the 50-per-line cap) stops the counter: say so, or the
+  // "+" just seems broken (6 left, the customer wants 7).
+  const atStockLimit = binding !== null && binding.units <= MAX_QUANTITY && quantity >= maxQuantity;
+  const [nudge, setNudge] = useState(0);
+  const limitMessage =
+    maxQuantity < 1
+      ? alreadyChosen > 0
+        ? "Você já pegou todas as unidades disponíveis"
+        : binding?.name
+          ? `${binding.name} acabou agora`
+          : "Acabou agora"
+      : atStockLimit
+        ? binding?.name
+          ? `Só dá para ${maxQuantity} com ${binding.name} agora`
+          : alreadyChosen > 0
+            ? `Com o que já está no pedido, dá para mais ${maxQuantity}`
+            : `Só temos ${maxQuantity} ${maxQuantity === 1 ? "disponível" : "disponíveis"} agora`
+        : null;
+  const hint = limitMessage ?? stockHint(left);
   const total = (item.price + selected.reduce((sum, addon) => sum + addon.price, 0)) * quantity;
 
   const toggle = (id: string) =>
@@ -202,10 +228,16 @@ export function ItemCustomizer({
 
       <div className="sticky bottom-0 border-t bg-background/95 backdrop-blur">
       {hint && (
-        <p role="status" className="flex items-center gap-1.5 px-4 pt-3 text-sm font-medium text-amber-700 dark:text-amber-400">
-          <TriangleAlert className="size-4" />
-          {maxQuantity < 1 && alreadyChosen > 0 ? "Você já pegou todas as unidades disponíveis" : hint}
-        </p>
+        <motion.p
+          key={nudge}
+          role="status"
+          animate={nudge ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
+          transition={{ duration: 0.35 }}
+          className="flex items-center gap-1.5 px-4 pt-3 text-sm font-medium text-amber-700 dark:text-amber-400"
+        >
+          <TriangleAlert className="size-4 shrink-0" />
+          {hint}
+        </motion.p>
       )}
       <div className="flex items-center gap-3 p-4">
         <div className="flex items-center rounded-full border">
@@ -225,10 +257,12 @@ export function ItemCustomizer({
           <Button
             variant="ghost"
             size="icon"
-            className="rounded-full"
             aria-label="Aumentar quantidade"
-            disabled={quantity >= maxQuantity}
-            onClick={() => setQuantity((q) => q + 1)}
+            // At the stock limit it stays clickable and points at the message.
+            aria-disabled={quantity >= maxQuantity}
+            disabled={quantity >= MAX_QUANTITY}
+            className={cn("rounded-full", quantity >= maxQuantity && "opacity-50")}
+            onClick={() => (quantity >= maxQuantity ? setNudge((n) => n + 1) : setQuantity((q) => q + 1))}
           >
             <Plus />
           </Button>

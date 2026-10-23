@@ -106,7 +106,11 @@ export default function PosPage() {
 
   const changeQuantity = (key: string, delta: number) => {
     const line = lines.find((candidate) => candidate.key === key);
-    if (delta > 0 && line && leftFor(line.itemId) === 0) return;
+    if (delta > 0 && line && leftFor(line.itemId) === 0) {
+      const stock = inTicket.get(line.itemId) ?? 0;
+      toast.info(`Só tem ${stock} ${line.name} no estoque: a comanda já tem todas.`, { id: "stock-limit" });
+      return;
+    }
     setLines((current) =>
       current
         .map((line) => (line.key === key ? { ...line, quantity: line.quantity + delta } : line))
@@ -540,9 +544,10 @@ function Ticket({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className="rounded-full"
                     aria-label={`Aumentar ${line.name}`}
-                    disabled={!canIncrease(line.itemId)}
+                    // At the stock limit it stays clickable: the click explains why.
+                    aria-disabled={!canIncrease(line.itemId)}
+                    className={cn("rounded-full", !canIncrease(line.itemId) && "opacity-50")}
                     onClick={() => onQuantity(line.key, 1)}
                   >
                     <Plus />
