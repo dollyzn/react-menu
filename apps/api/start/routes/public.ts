@@ -7,6 +7,7 @@ const PublicMenuController = () => import('#controllers/public_menu_controller')
 export default function publicRoutes() {
   router
     .group(() => {
+      router.get('/stores', [PublicMenuController, 'stores']).as('public.stores')
       router.get('/menu', [PublicMenuController, 'show']).as('public.menu.default')
       router.get('/menu/:slug', [PublicMenuController, 'show']).as('public.menu')
       router

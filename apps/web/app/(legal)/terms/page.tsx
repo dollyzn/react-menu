@@ -3,6 +3,7 @@ import Link from "next/link";
 import { LegalPage } from "../_components/legal-page";
 
 export const metadata: Metadata = {
+  alternates: { canonical: "/terms" },
   title: "Termos de Uso",
   description: "Como funcionam os pedidos, pagamentos e cancelamentos pelo cardápio digital.",
 };
