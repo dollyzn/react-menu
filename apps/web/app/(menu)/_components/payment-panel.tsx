@@ -20,6 +20,7 @@ import { copyToClipboard } from "@/utils/copy-to-clipboard";
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
 import { CHECKOUT_METHODS, cardRejection } from "../_lib/payment-methods";
+import { CardChallenge } from "./card-challenge";
 
 const CardPaymentForm = dynamic(() => import("./card-payment-form"), {
   ssr: false,
@@ -246,7 +247,10 @@ function CardPayment({
           <AlertDescription>{cardRejection(payment.statusDetail)}</AlertDescription>
         </Alert>
       )}
-      {payment?.status === "pending" && (
+      {payment?.status === "pending" && payment.challenge && (
+        <CardChallenge order={order} challenge={payment.challenge} />
+      )}
+      {payment?.status === "pending" && !payment.challenge && (
         <p className="flex items-center gap-2 text-sm font-medium" aria-live="polite">
           <Loader2 className="size-4 animate-spin text-primary" /> Pagamento em análise. Avisamos aqui assim que
           for aprovado.

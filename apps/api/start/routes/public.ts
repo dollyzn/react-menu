@@ -27,6 +27,11 @@ export default function publicRoutes() {
         .as('public.orders.pay')
         .where('token', router.matchers.uuid())
         .use(orderThrottle)
+      // After a 3-D Secure challenge: read the attempt from the gateway now.
+      router
+        .post('/orders/:token/payments/sync', [PublicMenuController, 'syncPayment'])
+        .as('public.orders.pay.sync')
+        .where('token', router.matchers.uuid())
       // Development fake gateway only (404 otherwise).
       router
         .post('/orders/:token/payments/simulate', [PublicMenuController, 'simulatePayment'])

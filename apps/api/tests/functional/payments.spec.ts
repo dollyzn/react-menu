@@ -65,22 +65,45 @@ class FakeMercadoPago extends MercadoPagoClient {
               ],
             },
           }
-        : {
-            id,
-            status: this.nextCardStatus,
-            status_detail: this.nextCardStatus === 'processed' ? 'accredited' : 'failed',
-            external_reference: input.external_reference,
-            transactions: {
-              payments: [
-                {
-                  id: `PAY${id}`,
-                  status: this.nextCardStatus,
-                  status_detail:
-                    this.nextCardStatus === 'processed' ? 'accredited' : 'rejected_by_issuer',
-                },
-              ],
-            },
-          }
+        : method.token === 'challenge'
+          ? {
+              id,
+              status: 'action_required',
+              status_detail: 'pending_challenge',
+              external_reference: input.external_reference,
+              transactions: {
+                payments: [
+                  {
+                    id: `PAY${id}`,
+                    status: 'action_required',
+                    status_detail: 'pending_challenge',
+                    payment_method: {
+                      id: method.id,
+                      transaction_security: {
+                        url: `https://3ds.mp/challenge/${id}`,
+                        status: 'pending',
+                      },
+                    },
+                  },
+                ],
+              },
+            }
+          : {
+              id,
+              status: this.nextCardStatus,
+              status_detail: this.nextCardStatus === 'processed' ? 'accredited' : 'failed',
+              external_reference: input.external_reference,
+              transactions: {
+                payments: [
+                  {
+                    id: `PAY${id}`,
+                    status: this.nextCardStatus,
+                    status_detail:
+                      this.nextCardStatus === 'processed' ? 'accredited' : 'rejected_by_issuer',
+                  },
+                ],
+              },
+            }
     this.orders.set(id, order)
     return order
   }
@@ -92,6 +115,15 @@ class FakeMercadoPago extends MercadoPagoClient {
     order.status_detail = 'accredited'
     order.transactions!.payments![0].status = 'processed'
     order.transactions!.payments![0].status_detail = 'accredited'
+  }
+
+  /** The bank refused the 3-D Secure challenge. */
+  failChallenge(id: string) {
+    const order = this.orders.get(id)!
+    order.status = 'failed'
+    order.status_detail = 'failed'
+    order.transactions!.payments![0].status = 'failed'
+    order.transactions!.payments![0].status_detail = 'cc_rejected_3ds_challenge'
   }
 
   async getOrder(_token: string, orderId: string) {
@@ -683,5 +715,68 @@ test.group('Payments (in-app checkout)', (group) => {
     await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
     await runJob(RefundOrder, { orderId: order.id })
     assert.deepEqual(fake.refunds, ['987'])
+  })
+
+  test('3-D Secure: the bank challenge is shown, then the payer returning settles it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, queijo } = await onlinePaymentStore()
+    const card = { token: 'challenge', installments: 1, paymentMethodId: 'master' }
+
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    const pay = await client
+      .post(`/api/v1/public/orders/${token}/payments`)
+      .json({ method: 'card', payer, card })
+    pay.assertBodyContains({
+      data: {
+        status: 'pending_payment',
+        paymentStatus: 'pending',
+        payment: {
+          status: 'pending',
+          statusDetail: 'pending_challenge',
+          challenge: { url: 'https://3ds.mp/challenge/ORD1001' },
+        },
+      },
+    })
+    assert.deepEqual(fake.created[0].input.config, {
+      online: {
+        transaction_security: { validation: 'on_fraud_risk', liability_shift: 'required' },
+      },
+    })
+    // Mercado Pago gives the payer 40 minutes.
+    const attempt = await Payment.findByOrFail('gatewayPaymentId', 'ORD1001')
+    assert.closeTo(attempt.expiresAt!.diffNow('minutes').minutes, 40, 1)
+
+    // Nothing new yet: syncing keeps the challenge.
+    const early = await client.post(`/api/v1/public/orders/${token}/payments/sync`)
+    early.assertBodyContains({
+      data: { payment: { challenge: { url: 'https://3ds.mp/challenge/ORD1001' } } },
+    })
+
+    fake.approve('ORD1001')
+    const done = await client.post(`/api/v1/public/orders/${token}/payments/sync`)
+    done.assertBodyContains({
+      data: {
+        status: 'received',
+        paymentStatus: 'paid',
+        payment: { status: 'approved', challenge: null },
+      },
+    })
+
+    // A challenge the bank refuses: the order can be paid again.
+    const refusedToken = await placeOrder(client, store.slug, queijo.id, 'card')
+    await client
+      .post(`/api/v1/public/orders/${refusedToken}/payments`)
+      .json({ method: 'card', payer, card })
+    fake.failChallenge('ORD1002')
+    const refused = await client.post(`/api/v1/public/orders/${refusedToken}/payments/sync`)
+    refused.assertBodyContains({
+      data: {
+        status: 'pending_payment',
+        paymentStatus: 'failed',
+        payment: { status: 'rejected', statusDetail: 'cc_rejected_3ds_challenge', challenge: null },
+      },
+    })
   })
 })

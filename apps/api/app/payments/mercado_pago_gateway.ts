@@ -54,6 +54,10 @@ function fromOrder(order: MercadoPagoOrder, fallbackExpiry?: DateTime): GatewayP
             : (fallbackExpiry ?? null),
         }
       : undefined,
+    challengeUrl:
+      transaction?.status_detail === 'pending_challenge'
+        ? (transaction.payment_method?.transaction_security?.url ?? null)
+        : null,
   }
 }
 
@@ -80,7 +84,8 @@ function fromLegacyPayment(payment: MercadoPagoPayment): GatewayPayment {
 /**
  * Mercado Pago Checkout Transparente on the Orders API: one order per
  * attempt (Pix QR code, or a card tokenized in the browser by the Card
- * Payment Brick; card needs the store's public key). Attempts created
+ * Payment Brick, with 3-D Secure when Mercado Pago asks for it; card needs
+ * the store's public key). Attempts created
  * before it (Payments API) are still read and refunded there.
  */
 export default class MercadoPagoGateway implements PaymentGateway {
@@ -125,7 +130,13 @@ export default class MercadoPagoGateway implements PaymentGateway {
           statement_descriptor: request.statementDescriptor.slice(0, 22),
         },
       },
-      request.card.identification
+      request.card.identification,
+      // 3-D Secure when Mercado Pago sees a risk; the chargeback then falls on the card network.
+      {
+        online: {
+          transaction_security: { validation: 'on_fraud_risk', liability_shift: 'required' },
+        },
+      }
     )
     return fromOrder(order)
   }
@@ -147,7 +158,8 @@ export default class MercadoPagoGateway implements PaymentGateway {
   private async create(
     request: PixRequest | CardRequest,
     payment: OrderInput['transactions']['payments'][number],
-    identification?: { type: string; number: string }
+    identification?: { type: string; number: string },
+    config?: OrderInput['config']
   ) {
     return await this.client.createOrder(
       this.accessToken,
@@ -157,6 +169,7 @@ export default class MercadoPagoGateway implements PaymentGateway {
         total_amount: money(request.amount),
         external_reference: request.orderId,
         description: request.description,
+        config,
         payer: { email: request.payer.email, first_name: request.payer.name, identification },
         transactions: { payments: [payment] },
       },

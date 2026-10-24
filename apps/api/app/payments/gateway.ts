@@ -33,6 +33,8 @@ export type GatewayPayment = {
   /** Order the payment refers to (external reference), when the gateway knows. */
   orderId: string | null
   pix?: { qrCode: string; ticketUrl: string | null; expiresAt: DateTime | null }
+  /** 3-D Secure: the payer must confirm with the bank on this page (status pending). */
+  challengeUrl?: string | null
 }
 
 /**

@@ -114,6 +114,15 @@ export default class PublicMenuController {
     return ok(publicOrder(fresh, fresh.store, await this.checkoutState(fresh, fresh.store)))
   }
 
+  /** The payer finished the bank's challenge: refresh the attempt from the gateway. */
+  async syncPayment({ params }: HttpContext) {
+    const order = await this.orders.findByToken(params.token)
+    await this.payments.sync(order, order.store)
+
+    const fresh = await this.orders.findByToken(params.token)
+    return ok(publicOrder(fresh, fresh.store, await this.checkoutState(fresh, fresh.store)))
+  }
+
   /** Development fake gateway: approves the pending Pix. */
   async simulatePayment({ params }: HttpContext) {
     const order = await this.orders.findByToken(params.token)

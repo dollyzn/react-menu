@@ -118,6 +118,16 @@ export const publicApi = baseApi.injectEndpoints({
       },
     }),
 
+    /** After the bank's 3-D Secure challenge: the API reads the attempt from the gateway now. */
+    syncPayment: build.mutation<PublicOrder, string>({
+      query: (token) => ({ url: `public/orders/${token}/payments/sync`, method: "POST" }),
+      extraOptions: { quiet: true },
+      async onQueryStarted(token, { dispatch, queryFulfilled }) {
+        const { data } = await queryFulfilled;
+        dispatch(publicApi.util.upsertQueryData("getPublicOrder", token, data));
+      },
+    }),
+
     /** Development fake gateway only: approves the pending Pix. */
     simulatePayment: build.mutation<PublicOrder, string>({
       query: (token) => ({ url: `public/orders/${token}/payments/simulate`, method: "POST" }),
@@ -135,6 +145,7 @@ export const {
   useGetPublicOrderQuery,
   usePayOrderMutation,
   useSimulatePaymentMutation,
+  useSyncPaymentMutation,
   useGetMyOrdersQuery,
   useLookupOrdersQuery,
   useGetOrderHistoryQuery,
