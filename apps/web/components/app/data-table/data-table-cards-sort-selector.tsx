@@ -1,4 +1,5 @@
-import type { Table } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { DataTableInstance } from ".";
 
 import {
   Command,
@@ -16,11 +17,11 @@ import {
 import { ArrowDown, ArrowDownUp, ArrowUp, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-interface DataTableCardsSortSelectorProps<TData> {
-  table: Table<TData>;
+interface DataTableCardsSortSelectorProps<TData extends RowData> {
+  table: DataTableInstance<TData>;
 }
 
-export default function DataTableCardsSortSelector<TData>({
+export default function DataTableCardsSortSelector<TData extends RowData>({
   table,
 }: DataTableCardsSortSelectorProps<TData>) {
   return (

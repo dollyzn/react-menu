@@ -75,8 +75,14 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   links keep the view; filter/sort changes go back to page 1. When writing
   the URL yourself use `history.replaceState(null, …)`: Next only syncs
   `useSearchParams` for app-made entries, not its own state object.
-- Never memoize JSX on the TanStack `table` object (same reference while its
-  state changes): the UI freezes.
+- Tables are TanStack Table 9: features are registered in
+  `components/app/data-table/features.ts` (an API exists only if its feature
+  is there; client row models and `'auto'` filter/sort functions too) and
+  table types come from that module (`ColumnDef<Item>`, `Row<Item>`, …,
+  bound to those features; meta via `tableMeta`/`columnMeta`). Read state
+  with `table.state` (reactive), never a snapshot (`table.store.state`,
+  `atoms.*.get()`), and call row/column methods (`() => column.clearSorting()`):
+  they live on prototypes and lose `this` when passed bare.
 - Buttons inside table cells follow the row density: pass
   `size={cellButtonSize(table.options.meta?.density)}`
   (`components/app/data-table/density.ts`).

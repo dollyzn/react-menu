@@ -2,7 +2,7 @@ import {
   ColumnFiltersState,
   PaginationState,
   SortingState,
-} from "@tanstack/react-table";
+} from "@/components/app/data-table/features";
 import { useMemo } from "react";
 import { filterToParam } from "@/hooks/use-url-table-state";
 

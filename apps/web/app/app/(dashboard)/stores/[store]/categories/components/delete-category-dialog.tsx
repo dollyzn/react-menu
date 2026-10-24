@@ -1,6 +1,6 @@
 "use client";
 
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
 import { useDeleteCategoryMutation } from "@/redux/features/category/categoryApi";
 import { toast } from "sonner";

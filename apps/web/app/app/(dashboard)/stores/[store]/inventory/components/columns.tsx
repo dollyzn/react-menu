@@ -1,6 +1,6 @@
 "use client";
 
-import type { ColumnDef, HeaderContext, Row } from "@tanstack/react-table";
+import type { ColumnDef, HeaderContext, Row } from "@/components/app/data-table/features";
 import { AlertTriangle, CheckCircle2, History } from "lucide-react";
 import type { Ingredient } from "@react-menu/contracts";
 import dayjs from "dayjs";

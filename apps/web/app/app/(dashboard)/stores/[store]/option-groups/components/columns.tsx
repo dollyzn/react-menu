@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef, Row } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@/components/app/data-table/features";
 import dayjs from "dayjs";
 import { Calendar } from "lucide-react";
 import type { OptionGroup } from "@react-menu/contracts";

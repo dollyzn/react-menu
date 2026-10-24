@@ -1,6 +1,6 @@
 "use client";
 
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { format, parseISO } from "date-fns";
 import { Clock, FolderOpen, Package } from "lucide-react";
 import { Card } from "@/components/ui/card";

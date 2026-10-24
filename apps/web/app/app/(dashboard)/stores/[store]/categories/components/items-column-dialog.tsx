@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { useGetItemsByCategoryIdQuery, useUpdateItemMutation } from "@/redux/features/item/itemApi";
 
 import {

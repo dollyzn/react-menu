@@ -41,7 +41,7 @@ export default function Categories() {
       pageLabel="Categorias"
       action={<CreateCategoryDialog storeId={storeId} />}
     >
-      <DataTable<Category, unknown>
+      <DataTable<Category>
         tableId={`categories-${storeId}`}
         loading={table.loading}
         data={table.data}

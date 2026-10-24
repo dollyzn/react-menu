@@ -15,9 +15,6 @@ picked from Product below, one PR at a time.
 - **Mercado Pago Orders API (`/v1/orders`)**: revisit when its rejection
   statuses, refunds and webhook signature are documented; the move stays
   inside `MercadoPagoGateway`.
-- **TanStack Table 9**: a rewrite (`useReactTable` → `useTable`, a
-  `features` registry, new types) touching 38 files; majors are ignored by
-  Dependabot until then.
 
 ## Product
 

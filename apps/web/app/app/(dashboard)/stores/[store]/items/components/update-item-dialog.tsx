@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";

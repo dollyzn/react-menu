@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { toast } from "sonner";
 import { ArrowRight, ChevronDown, ImageOff, Loader2, PlusCircle } from "lucide-react";
 import {

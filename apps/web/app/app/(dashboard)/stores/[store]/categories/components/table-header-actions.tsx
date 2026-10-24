@@ -1,13 +1,13 @@
 "use client";
 
-import { Table } from "@tanstack/react-table";
+import { Table } from "@/components/app/data-table/features";
 
 import { BulkDeleteCategoryDialog } from "./bulk-delete-category-dialog";
 
-interface HeaderActionsProps<Category> {
+interface HeaderActionsProps {
   table: Table<Category>;
 }
 
-export function HeaderActions({ table }: HeaderActionsProps<Category>) {
+export function HeaderActions({ table }: HeaderActionsProps) {
   return <BulkDeleteCategoryDialog rows={table.getSelectedRowModel().rows} />;
 }

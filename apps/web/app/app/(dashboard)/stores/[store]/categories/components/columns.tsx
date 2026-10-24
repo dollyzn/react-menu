@@ -1,6 +1,6 @@
 "use client";
 
-import { ColumnDef, Row } from "@tanstack/react-table";
+import { ColumnDef, Row } from "@/components/app/data-table/features";
 import { CategoryCard } from "./category-card";
 
 import { Calendar, History } from "lucide-react";
@@ -21,7 +21,7 @@ export const columns: ColumnDef<Category>[] = [
     header: ({ table }) => (
       <Checkbox
         checked={table.getIsAllPageRowsSelected()}
-        indeterminate={table.getIsSomePageRowsSelected()}
+        indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Selecionar todos"
         className="translate-y-[2px]"

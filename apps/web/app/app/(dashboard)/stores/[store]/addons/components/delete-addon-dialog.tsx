@@ -1,6 +1,6 @@
 "use client";
 
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/utils/get-error-message";

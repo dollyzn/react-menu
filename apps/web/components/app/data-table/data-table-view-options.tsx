@@ -1,4 +1,5 @@
-import type { Table } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { DataTableInstance } from ".";
 import { useMemo } from "react";
 
 import {
@@ -20,11 +21,11 @@ import { Button } from "@/components/ui/button";
 
 import { cn } from "@/lib/utils";
 
-interface DataTableViewOptionsProps<TData> {
-  table: Table<TData>;
+interface DataTableViewOptionsProps<TData extends RowData> {
+  table: DataTableInstance<TData>;
 }
 
-export default function DataTableViewOptions<TData>({
+export default function DataTableViewOptions<TData extends RowData>({
   table,
 }: DataTableViewOptionsProps<TData>) {
   const columns = useMemo(

@@ -1,4 +1,5 @@
-import { Table } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { DataTableInstance } from ".";
 import {
   ChevronLeft,
   ChevronRight,
@@ -16,11 +17,11 @@ import {
 } from "@/components/ui/select";
 import { env } from "@/lib/env";
 
-interface DataTablePaginationProps<TData> {
-  table: Table<TData>;
+interface DataTablePaginationProps<TData extends RowData> {
+  table: DataTableInstance<TData>;
 }
 
-export function DataTablePagination<TData>({
+export function DataTablePagination<TData extends RowData>({
   table,
 }: DataTablePaginationProps<TData>) {
   return (
@@ -28,13 +29,13 @@ export function DataTablePagination<TData>({
       <div className="flex items-center space-x-2">
         <p className="text-sm font-medium sm:block hidden">Linhas por página</p>
         <Select
-          value={`${table.getState().pagination.pageSize}`}
+          value={`${table.state.pagination.pageSize}`}
           onValueChange={(value) => {
             table.setPageSize(Number(value));
           }}
         >
           <SelectTrigger className="h-8 w-[80px] bg-background">
-            <SelectValue placeholder={table.getState().pagination.pageSize} />
+            <SelectValue placeholder={table.state.pagination.pageSize} />
           </SelectTrigger>
           <SelectContent side="bottom">
             {env.NEXT_PUBLIC_PAGE_SIZES.map((pageSize: number) => (
@@ -47,7 +48,7 @@ export function DataTablePagination<TData>({
       </div>
       <div className="flex items-center gap-4 md:gap-6 w-full lg:w-auto">
         <div className="flex items-center justify-center text-sm font-medium ml-auto lg:ml-0">
-          Página {table.getState().pagination.pageIndex + 1} de{" "}
+          Página {table.state.pagination.pageIndex + 1} de{" "}
           {Math.max(table.getPageCount(), 1)}
         </div>
         <div className="flex items-center space-x-2">

@@ -1,4 +1,5 @@
-import { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import { Column } from "@/components/app/data-table/features";
 import {
   ArrowDown,
   ArrowUp,
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface DataTableColumnHeaderProps<
-  TData,
+  TData extends RowData,
   TValue,
 > extends React.HTMLAttributes<HTMLDivElement> {
   column: Column<TData, TValue>;
@@ -26,7 +27,7 @@ interface DataTableColumnHeaderProps<
   titleClassName?: string;
 }
 
-export function DataTableColumnHeader<TData, TValue>({
+export function DataTableColumnHeader<TData extends RowData, TValue>({
   column,
   title,
   className,
@@ -64,7 +65,7 @@ export function DataTableColumnHeader<TData, TValue>({
               className="size-7"
               variant="ghost"
               aria-label="Remover ordenação"
-              onClick={column.clearSorting}
+              onClick={() => column.clearSorting()}
             >
               <FunnelX size={14} className="size-auto" />
             </Button>
