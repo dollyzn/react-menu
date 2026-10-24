@@ -45,7 +45,7 @@ export default function CardPaymentForm({
         locale="pt-BR"
         onReady={() => setReady(true)}
         onError={() => setReady(true)}
-        onSubmit={async (data) => {
+        onSubmit={async (data, additional) => {
           await onPay({
             method: "card",
             payer: { email: data.payer.email ?? email ?? "" },
@@ -53,6 +53,8 @@ export default function CardPaymentForm({
               token: data.token,
               installments: data.installments,
               paymentMethodId: data.payment_method_id,
+              // credit_card / debit_card: the Orders API needs the card type.
+              paymentTypeId: additional?.paymentTypeId,
               issuerId: data.issuer_id ? String(data.issuer_id) : undefined,
               identification:
                 data.payer.identification?.type && data.payer.identification.number

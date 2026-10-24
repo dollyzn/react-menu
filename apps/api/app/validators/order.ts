@@ -45,6 +45,7 @@ const publicPaymentValidator = vine.create(
         token: vine.string().trim().maxLength(255),
         installments: vine.number().withoutDecimals().min(1).max(24),
         paymentMethodId: vine.string().trim().maxLength(40),
+        paymentTypeId: vine.string().trim().maxLength(20).optional(),
         issuerId: vine.string().trim().maxLength(40).optional(),
         identification: vine
           .object({

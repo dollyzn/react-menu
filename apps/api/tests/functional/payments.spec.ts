@@ -9,8 +9,9 @@ import Order from '#models/order'
 import Payment from '#models/payment'
 import Ingredient from '#models/ingredient'
 import MercadoPagoClient, {
+  type MercadoPagoOrder,
   type MercadoPagoPayment,
-  type PaymentInput,
+  type OrderInput,
 } from '#payments/mercado_pago_client'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
@@ -27,46 +28,86 @@ const SECRET = 'webhook-secret-123'
 const customer = { name: 'Ana', phone: '11987654321' }
 const payer = { email: 'ana@example.com' }
 
-/** Mercado Pago double: records requests, answers like the Payments API. */
+/** Mercado Pago double: records requests, answers like the Orders API. */
 class FakeMercadoPago extends MercadoPagoClient {
-  created: { input: PaymentInput; idempotencyKey: string }[] = []
+  created: { input: OrderInput; idempotencyKey: string }[] = []
   refunds: string[] = []
-  payments = new Map<string, MercadoPagoPayment>()
-  nextCardStatus: MercadoPagoPayment['status'] = 'approved'
+  orders = new Map<string, MercadoPagoOrder>()
+  /** Attempts made before the Orders API (numeric ids). */
+  legacyPayments = new Map<string, MercadoPagoPayment>()
+  nextCardStatus: 'processed' | 'failed' = 'processed'
   failing = false
 
-  async createPayment(_token: string, input: PaymentInput, idempotencyKey: string) {
+  async createOrder(_token: string, input: OrderInput, idempotencyKey: string) {
     if (this.failing) throw new AppException('down', 502, 'E_PAYMENT_PROVIDER')
     this.created.push({ input, idempotencyKey })
-    const id = 1000 + this.created.length
-    const payment: MercadoPagoPayment =
-      input.payment_method_id === 'pix'
+    const id = `ORD${1000 + this.created.length}`
+    const method = input.transactions.payments[0].payment_method
+    const order: MercadoPagoOrder =
+      method.id === 'pix'
         ? {
             id,
-            status: 'pending',
-            status_detail: 'pending_waiting_transfer',
+            status: 'action_required',
+            status_detail: 'waiting_transfer',
             external_reference: input.external_reference,
-            date_of_expiration: input.date_of_expiration,
-            point_of_interaction: {
-              transaction_data: { qr_code: `PIX-${id}`, ticket_url: `https://mp/ticket/${id}` },
+            transactions: {
+              payments: [
+                {
+                  id: `PAY${id}`,
+                  status: 'action_required',
+                  status_detail: 'waiting_transfer',
+                  payment_method: {
+                    id: 'pix',
+                    qr_code: `PIX-${id}`,
+                    ticket_url: `https://mp/ticket/${id}`,
+                  },
+                },
+              ],
             },
           }
         : {
             id,
             status: this.nextCardStatus,
-            status_detail:
-              this.nextCardStatus === 'approved' ? 'accredited' : 'cc_rejected_other_reason',
+            status_detail: this.nextCardStatus === 'processed' ? 'accredited' : 'failed',
             external_reference: input.external_reference,
+            transactions: {
+              payments: [
+                {
+                  id: `PAY${id}`,
+                  status: this.nextCardStatus,
+                  status_detail:
+                    this.nextCardStatus === 'processed' ? 'accredited' : 'rejected_by_issuer',
+                },
+              ],
+            },
           }
-    this.payments.set(String(id), payment)
-    return payment
+    this.orders.set(id, order)
+    return order
+  }
+
+  /** What Mercado Pago reports after the customer pays the Pix. */
+  approve(id: string) {
+    const order = this.orders.get(id)!
+    order.status = 'processed'
+    order.status_detail = 'accredited'
+    order.transactions!.payments![0].status = 'processed'
+    order.transactions!.payments![0].status_detail = 'accredited'
+  }
+
+  async getOrder(_token: string, orderId: string) {
+    return this.orders.get(orderId)!
   }
 
   async getPayment(_token: string, paymentId: string) {
-    return this.payments.get(paymentId)!
+    return this.legacyPayments.get(paymentId)!
   }
 
   failRefunds = false
+
+  async refundOrder(_token: string, orderId: string) {
+    if (this.failRefunds) throw new AppException('down', 502, 'E_PAYMENT_PROVIDER')
+    this.refunds.push(orderId)
+  }
 
   async refundPayment(_token: string, paymentId: string) {
     if (this.failRefunds) throw new AppException('down', 502, 'E_PAYMENT_PROVIDER')
@@ -185,14 +226,22 @@ test.group('Payments (in-app checkout)', (group) => {
       .json({ method: 'pix', payer })
 
     first.assertStatus(200)
-    assert.equal(first.body().data.payment.pix.qrCode, 'PIX-1001')
-    assert.equal(again.body().data.payment.pix.qrCode, 'PIX-1001')
+    assert.equal(first.body().data.payment.pix.qrCode, 'PIX-ORD1001')
+    assert.equal(again.body().data.payment.pix.qrCode, 'PIX-ORD1001')
+    assert.isNotNull(first.body().data.payment.pix.expiresAt)
     assert.lengthOf(fake.created, 1)
     const sent = fake.created[0]
-    assert.equal(sent.input.payment_method_id, 'pix')
-    assert.equal(sent.input.transaction_amount, 15)
+    assert.deepInclude(sent.input, {
+      type: 'online',
+      processing_mode: 'automatic',
+      total_amount: '15.00',
+    })
+    assert.deepEqual(sent.input.transactions.payments[0], {
+      amount: '15.00',
+      expiration_time: 'PT30M',
+      payment_method: { id: 'pix', type: 'bank_transfer' },
+    })
     assert.equal(sent.input.payer.email, payer.email)
-    assert.match(sent.input.date_of_expiration!, /T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/)
     assert.include(sent.idempotencyKey, 'browser-key-1')
   })
 
@@ -200,13 +249,13 @@ test.group('Payments (in-app checkout)', (group) => {
     const { store, carne } = await onlinePaymentStore()
     const token = await placeOrder(client, store.slug, carne.id)
     await client.post(`/api/v1/public/orders/${token}/payments`).json({ method: 'pix', payer })
-    fake.payments.get('1001')!.status = 'approved'
+    fake.approve('ORD1001')
 
     const webhook = await client
       .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
-      .header('x-signature', signature('1001', 'req-1'))
+      .header('x-signature', signature('ORD1001', 'req-1'))
       .header('x-request-id', 'req-1')
-      .json({ type: 'payment', data: { id: '1001' } })
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
 
     webhook.assertStatus(200)
     const order = await Order.findByOrFail('publicToken', token)
@@ -226,7 +275,7 @@ test.group('Payments (in-app checkout)', (group) => {
       .json({ method: 'card', payer, card })
     approved.assertBodyContains({ data: { status: 'received', paymentStatus: 'paid' } })
 
-    fake.nextCardStatus = 'rejected'
+    fake.nextCardStatus = 'failed'
     const rejectedToken = await placeOrder(client, store.slug, queijo.id, 'card')
     const rejected = await client
       .post(`/api/v1/public/orders/${rejectedToken}/payments`)
@@ -235,7 +284,7 @@ test.group('Payments (in-app checkout)', (group) => {
       data: {
         status: 'pending_payment',
         paymentStatus: 'failed',
-        payment: { method: 'card', status: 'rejected', statusDetail: 'cc_rejected_other_reason' },
+        payment: { method: 'card', status: 'rejected', statusDetail: 'rejected_by_issuer' },
       },
     })
 
@@ -257,19 +306,19 @@ test.group('Payments (in-app checkout)', (group) => {
     const other = await onlinePaymentStore()
     const token = await placeOrder(client, store.slug, carne.id)
     await client.post(`/api/v1/public/orders/${token}/payments`).json({ method: 'pix', payer })
-    fake.payments.get('1001')!.status = 'approved'
+    fake.approve('ORD1001')
 
     const forged = await client
       .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
-      .header('x-signature', signature('1001', 'req', 'wrong-secret'))
+      .header('x-signature', signature('ORD1001', 'req', 'wrong-secret'))
       .header('x-request-id', 'req')
-      .json({ type: 'payment', data: { id: '1001' } })
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
     // Valid signature for the other store, but the payment belongs to this store's order.
     const foreign = await client
       .post(`/api/v1/webhooks/mercado-pago/${other.store.id}`)
-      .header('x-signature', signature('1001', 'req'))
+      .header('x-signature', signature('ORD1001', 'req'))
       .header('x-request-id', 'req')
-      .json({ type: 'payment', data: { id: '1001' } })
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
 
     forged.assertStatus(401)
     foreign.assertStatus(200)
@@ -297,7 +346,7 @@ test.group('Payments (in-app checkout)', (group) => {
     // Refunds run in a job (retried if the gateway is down).
     queue.assertPushed('RefundOrder', { payload: { orderId: order.id } })
     await runJob(RefundOrder, { orderId: order.id })
-    assert.deepEqual(fake.refunds, ['1001'])
+    assert.deepEqual(fake.refunds, ['ORD1001'])
     await order.refresh()
     assert.equal(order.paymentStatus, 'refunded')
   })
@@ -338,12 +387,12 @@ test.group('Payments (in-app checkout)', (group) => {
       .update({ expiresAt: new Date(Date.now() - 1000) })
     await runJob(ExpireUnpaidOrder, { orderId: order.id })
 
-    fake.payments.get('1001')!.status = 'approved'
+    fake.approve('ORD1001')
     await client
       .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
-      .header('x-signature', signature('1001', 'req-late'))
+      .header('x-signature', signature('ORD1001', 'req-late'))
       .header('x-request-id', 'req-late')
-      .json({ type: 'payment', data: { id: '1001' } })
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
 
     await order.refresh()
     assert.equal(order.status, 'cancelled')
@@ -392,13 +441,13 @@ test.group('Payments (in-app checkout)', (group) => {
     await linkUser(store, manager, StoreRole.MANAGER)
     await linkUser(store, attendant, StoreRole.ATTENDANT)
     const token = await placeOrder(client, store.slug, carne.id, 'card')
-    fake.nextCardStatus = 'rejected'
+    fake.nextCardStatus = 'failed'
     await client.post(`/api/v1/public/orders/${token}/payments`).json({
       method: 'card',
       payer,
       card: { token: 't1', installments: 1, paymentMethodId: 'visa' },
     })
-    fake.nextCardStatus = 'approved'
+    fake.nextCardStatus = 'processed'
     await client.post(`/api/v1/public/orders/${token}/payments`).json({
       method: 'card',
       payer,
@@ -474,18 +523,18 @@ test.group('Payments (in-app checkout)', (group) => {
     await client
       .post(`/api/v1/public/orders/${token}/payments`)
       .json({ method: 'pix', payer: { email: ' Ana@Example.com ' } })
-    fake.payments.get('1001')!.status = 'approved'
+    fake.approve('ORD1001')
 
     // Mercado Pago repeats notifications.
     for (const requestId of ['req-1', 'req-2']) {
       await client
         .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
-        .header('x-signature', signature('1001', requestId))
+        .header('x-signature', signature('ORD1001', requestId))
         .header('x-request-id', requestId)
-        .json({ type: 'payment', data: { id: '1001' } })
+        .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
     }
 
-    const payment = await Payment.findByOrFail('gatewayPaymentId', '1001')
+    const payment = await Payment.findByOrFail('gatewayPaymentId', 'ORD1001')
     assert.equal(payment.payerEmail, 'ana@example.com')
     queue.assertPushed('SendOrderReceipt', { payload: { paymentId: payment.id } })
     // Even if the job runs twice (retry, duplicate), one receipt goes out.
@@ -563,5 +612,76 @@ test.group('Payments (in-app checkout)', (group) => {
     pay.assertStatus(422)
     pay.assertBodyContains({ code: 'E_OUT_OF_STOCK' })
     assert.lengthOf(fake.created, 0, 'nothing charged')
+  })
+
+  test('card: debit or credit and the payer document go on the Mercado Pago order', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'tk',
+        installments: 1,
+        paymentMethodId: 'debelo',
+        paymentTypeId: 'debit_card',
+        identification: { type: 'CPF', number: '12345678909' },
+      },
+    })
+
+    const sent = fake.created[0].input
+    assert.deepInclude(sent.transactions.payments[0].payment_method, {
+      id: 'debelo',
+      type: 'debit_card',
+      token: 'tk',
+      installments: 1,
+    })
+    assert.deepEqual(sent.payer.identification, { type: 'CPF', number: '12345678909' })
+    const order = await Order.findByOrFail('publicToken', token)
+    assert.equal(sent.external_reference, order.id)
+  })
+
+  test('an attempt from before the Orders API still settles and refunds there', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const token = await placeOrder(client, store.slug, carne.id)
+    const order = await Order.findByOrFail('publicToken', token)
+    // A Pix created on the Payments API (numeric id) before the switch.
+    await Payment.create({
+      orderId: order.id,
+      storeId: store.id,
+      gateway: 'mercado_pago',
+      method: 'pix',
+      gatewayPaymentId: '987',
+      status: 'pending',
+      amount: order.total,
+      payerEmail: payer.email,
+    })
+    fake.legacyPayments.set('987', {
+      id: 987,
+      status: 'approved',
+      status_detail: 'accredited',
+      external_reference: order.id,
+    })
+
+    const webhook = await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('987', 'req-legacy'))
+      .header('x-request-id', 'req-legacy')
+      .json({ type: 'payment', data: { id: '987' } })
+    webhook.assertStatus(200)
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'paid')
+
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
+    await runJob(RefundOrder, { orderId: order.id })
+    assert.deepEqual(fake.refunds, ['987'])
   })
 })

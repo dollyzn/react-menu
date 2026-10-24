@@ -12,12 +12,12 @@ picked from Product below, one PR at a time.
 
 - **A second payment gateway** (Asaas, Pagar.me, Stripe…): we stay with
   Mercado Pago. `PaymentGateway` keeps the door open.
-- **Mercado Pago Orders API (`/v1/orders`)**: revisit when its rejection
-  statuses, refunds and webhook signature are documented; the move stays
-  inside `MercadoPagoGateway`.
 
 ## Product
 
+- **3-D Secure on cards**: the Orders API can ask the payer for a bank
+  challenge (`action_required`/`pending_challenge`); today such a card stays
+  pending until it expires (ADR 0017).
 - **Customer verification**: customers identify with name + phone only;
   consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an

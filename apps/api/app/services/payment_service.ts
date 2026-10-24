@@ -157,7 +157,6 @@ export default class PaymentService {
       amount: order.total,
       description: `Pedido #${order.number} · ${store.name}`,
       payer: { name: order.customerName, email: input.payer.email },
-      notificationUrl: `${env.get('APP_URL')}/api/v1/webhooks/mercado-pago/${store.id}`,
       statementDescriptor: store.name,
       idempotencyKey: input.idempotencyKey ?? randomUUID(),
     }
@@ -193,8 +192,10 @@ export default class PaymentService {
   }
 
   /**
-   * Payment notifications. The body is never trusted: after checking the
-   * signature, the payment is fetched from Mercado Pago with the store's token.
+   * Mercado Pago notifications, set up in the store's Mercado Pago panel:
+   * "Order" for attempts on the Orders API, "Pagamentos" for older ones. The
+   * body is never trusted: after checking the signature, the order (or
+   * payment) is fetched from Mercado Pago with the store's token.
    */
   async handleWebhook(store: Store, input: WebhookInput) {
     if (!store.mercadoPagoAccessToken || !store.mercadoPagoWebhookSecret) {
@@ -211,7 +212,7 @@ export default class PaymentService {
     ) {
       throw new AppException('Assinatura inválida', 401, 'E_INVALID_SIGNATURE')
     }
-    if (input.type !== 'payment') return
+    if (input.type !== 'order' && input.type !== 'payment') return
 
     const gateway = new MercadoPagoGateway(this.client, store)
     const result = await gateway.fetch(input.dataId)

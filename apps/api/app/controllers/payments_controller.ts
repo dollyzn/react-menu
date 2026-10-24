@@ -17,7 +17,8 @@ export default class PaymentsController {
 
     await this.payments.handleWebhook(store, {
       type: request.input('type') ?? request.input('topic'),
-      dataId: String(request.input('data.id') ?? request.qs()['data.id'] ?? ''),
+      // The signature covers the query's data.id (as Mercado Pago's SDK reads it).
+      dataId: String(request.qs()['data.id'] ?? request.input('data.id') ?? ''),
       signature: request.header('x-signature'),
       requestId: request.header('x-request-id'),
     })
