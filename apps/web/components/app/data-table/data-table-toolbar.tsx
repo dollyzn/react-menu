@@ -149,14 +149,14 @@ export function DataTableToolbar<TData extends RowData>({
 
   const rightActions = (
     <>
-      <DataTableDensityToggle
-        currentDensity={currentDensity}
-        setDensity={setDensity}
-      />
       {viewMode === "cards" ? (
         <DataTableCardsSortSelector table={table} />
       ) : (
-        <DataTableViewOptions table={table} />
+        <>
+          {/* Row spacing means nothing for cards. */}
+          <DataTableDensityToggle currentDensity={currentDensity} setDensity={setDensity} />
+          <DataTableViewOptions table={table} />
+        </>
       )}
 
       {hasCardView && (

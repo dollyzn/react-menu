@@ -1,93 +1,74 @@
-import { ChevronsUpDown, LayoutDashboard } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { DensityOption } from ".";
+import { useState } from "react";
+import { Rows3 } from "lucide-react";
+import { Command, CommandGroup, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import type { DensityOption } from ".";
+import { FilterOptionRow, ToolbarTrigger } from "./data-table-filter-parts";
+
+/** Three rows drawn with the density's spacing, so the options read at a glance. */
+function glyph(gap: string) {
+  function DensityGlyph({ className }: { className?: string }) {
+    return (
+      <span aria-hidden className={cn("flex h-4 w-4 flex-col justify-center", gap, className)}>
+        {[0, 1, 2].map((line) => (
+          <span key={line} className="h-0.5 w-full rounded-full bg-current" />
+        ))}
+      </span>
+    );
+  }
+  return DensityGlyph;
+}
+
+const OPTIONS: { value: DensityOption; label: string; description: string; icon: ReturnType<typeof glyph> }[] = [
+  { value: "spacious", label: "Espaçoso", description: "Mais espaço e texto maior", icon: glyph("gap-[5px]") },
+  { value: "comfortable", label: "Confortável", description: "Um pouco mais de respiro", icon: glyph("gap-1") },
+  { value: "default", label: "Padrão", description: "O espaçamento do sistema", icon: glyph("gap-[3px]") },
+  { value: "compact", label: "Compacto", description: "Mais linhas na tela", icon: glyph("gap-0.5") },
+  { value: "ultra-compact", label: "Ultra compacto", description: "O máximo de linhas", icon: glyph("gap-px") },
+];
 
 interface DataTableDensityToggleProps {
   setDensity: (density: DensityOption) => void;
   currentDensity: DensityOption;
 }
 
-export function DataTableDensityToggle({
-  setDensity,
-  currentDensity,
-}: DataTableDensityToggleProps) {
-  const densityOptions = [
-    {
-      value: "spacious",
-      label: "Espaçoso",
-      description: "Mais espaço entre linhas",
-    },
-    {
-      value: "comfortable",
-      label: "Confortável",
-      description: "Espaçamento padrão confortável",
-    },
-    {
-      value: "default",
-      label: "Padrão",
-      description: "Espaçamento padrão do sistema",
-    },
-    {
-      value: "compact",
-      label: "Compacto",
-      description: "Menos espaço entre linhas",
-    },
-    {
-      value: "ultra-compact",
-      label: "Ultra Compacto",
-      description: "Mínimo espaço entre linhas",
-    },
-  ];
-
-  const currentOption = densityOptions.find(
-    (opt) => opt.value === currentDensity
-  );
+/** Row spacing of the table (kept per table in localStorage). */
+export function DataTableDensityToggle({ setDensity, currentDensity }: DataTableDensityToggleProps) {
+  const [open, setOpen] = useState(false);
+  const current = OPTIONS.find((option) => option.value === currentDensity) ?? OPTIONS[2];
+  const changed = current.value !== "default";
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={<Button variant="outline" size="sm" className="h-8" />}
-      >
-        <LayoutDashboard />
-        <span className="sm:whitespace-nowrap">
-          {currentOption?.label || "Densidade"}
-        </span>
-        <ChevronsUpDown className="ml-auto opacity-50" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Densidade da Tabela</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          {densityOptions.map((option) => (
-            <DropdownMenuItem
-              key={option.value}
-              onClick={() => setDensity(option.value as DensityOption)}
-              className={cn(
-                "cursor-pointer",
-                currentDensity === option.value && "bg-accent"
-              )}
-            >
-              <div className="flex flex-col">
-                <span>{option.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {option.description}
-                </span>
-              </div>
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <Popover open={open} onOpenChange={setOpen}>
+      <ToolbarTrigger
+        icon={Rows3}
+        label="Densidade"
+        summary={changed ? current.label : undefined}
+        active={changed}
+        ariaLabel={`Densidade das linhas: ${current.label}`}
+      />
+      <PopoverContent align="end" className="w-64 p-0" sideOffset={8}>
+        <Command>
+          <CommandList className="max-h-[min(28rem,60vh)]">
+            <CommandGroup heading="Densidade das linhas">
+              {OPTIONS.map((option) => (
+                <FilterOptionRow
+                  key={option.value}
+                  value={option.value}
+                  option={option}
+                  multiple={false}
+                  selected={option.value === current.value}
+                  onSelect={() => {
+                    setDensity(option.value);
+                    setOpen(false);
+                  }}
+                />
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
