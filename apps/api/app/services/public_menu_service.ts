@@ -14,7 +14,11 @@ export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
     name: store.name,
     slug: store.slug,
     status: store.status,
-    isOpen: store.status === StoreStatus.OPEN,
+    isOpen: store.isOpen,
+    /** When an open store closes / a closed one opens (on a schedule), ISO or null. */
+    closesAt: store.closesAt,
+    opensAt: store.opensAt,
+    openingHours: store.scheduleEnabled ? store.openingHours : null,
     description: store.description,
     address: store.address,
     phone: store.phone,

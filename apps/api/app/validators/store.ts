@@ -91,4 +91,28 @@ const updateStatusValidator = vine.create(
   })
 )
 
-export { storeValidator, updateValidator, updateImagesValidator, updateStatusValidator }
+const time = vine.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+
+/** Weekly schedule (see #helpers/opening_hours for overlap rules). */
+const updateHoursValidator = vine.create(
+  vine.object({
+    scheduleEnabled: vine.boolean(),
+    openingHours: vine
+      .array(
+        vine.object({
+          day: vine.number().withoutDecimals().min(0).max(6),
+          opens: time,
+          closes: time,
+        })
+      )
+      .maxLength(21),
+  })
+)
+
+export {
+  storeValidator,
+  updateValidator,
+  updateImagesValidator,
+  updateStatusValidator,
+  updateHoursValidator,
+}

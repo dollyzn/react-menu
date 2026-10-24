@@ -8,7 +8,6 @@ import OrderChannel from '#enums/order_channel'
 import OrderStatus from '#enums/order_status'
 import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
-import StoreStatus from '#enums/store_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
 import { broadcastOrderTracking, broadcastStoreEvent } from '#helpers/realtime'
 import Customer from '#models/customer'
@@ -377,8 +376,15 @@ export default class OrderService {
     if (input.lines.length === 0) {
       throw new AppException('Adicione pelo menos um item ao pedido.', 422)
     }
-    if (input.channel === OrderChannel.ONLINE && store.status !== StoreStatus.OPEN) {
-      throw new AppException('A loja não está aceitando pedidos agora.', 409, 'E_STORE_CLOSED')
+    if (input.channel === OrderChannel.ONLINE && !store.isOpen) {
+      const opensAt = store.availabilityAt().opensAt
+      throw new AppException(
+        opensAt
+          ? `A loja está fechada agora. Abre ${opensAt.setLocale('pt-BR').toFormat("cccc 'às' HH:mm")}.`
+          : 'A loja não está aceitando pedidos agora.',
+        409,
+        'E_STORE_CLOSED'
+      )
     }
     if (
       input.paymentMethod === PaymentMethod.COUNTER &&
