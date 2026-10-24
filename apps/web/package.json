@@ -17,7 +17,7 @@
     "@dnd-kit/modifiers": "^9.0.0",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@hookform/resolvers": "^5.2.2",
+    "@hookform/resolvers": "^6.0.0",
     "@mercadopago/sdk-react": "1.0.7",
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@react-menu/contracts": "workspace:*",
