@@ -3,6 +3,7 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import AppException from '#exceptions/app_exception'
 import Addon from '#models/addon'
 import OptionGroup from '#models/option_group'
+import type { SortSpec } from '#helpers/query_string_parser'
 
 export type OptionGroupInput = {
   name: string
@@ -14,11 +15,29 @@ export type OptionGroupInput = {
 
 /** Choice groups of a store (see OptionGroup). */
 export default class OptionGroupService {
-  async list(storeId: string) {
-    return await OptionGroup.query()
+  /** Paginated, with how many items use each group (`itemsCount`). */
+  async list(
+    storeId: string,
+    options: {
+      page?: number
+      perPage?: number
+      sort?: SortSpec
+      filters?: Record<string, unknown>
+    } = {}
+  ) {
+    const name = options.filters?.name
+    const sort = options.sort?.length
+      ? options.sort
+      : [{ column: 'name', direction: 'asc' as const }]
+    const query = OptionGroup.query()
       .where('storeId', storeId)
-      .preload('options', (options) => options.orderBy('option_group_addons.order', 'asc'))
-      .orderBy('name', 'asc')
+      .if(typeof name === 'string' && name.trim(), (byName) =>
+        byName.whereILike('name', `%${String(name).trim()}%`)
+      )
+      .preload('options', (opts) => opts.orderBy('option_group_addons.order', 'asc'))
+      .withCount('items')
+    for (const { column, direction } of sort) query.orderBy(column, direction)
+    return await query.paginate(options.page ?? 1, options.perPage ?? 20)
   }
 
   async create(storeId: string, input: OptionGroupInput) {

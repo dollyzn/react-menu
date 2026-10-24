@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import OptionGroupService from '#services/option_group_service'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { optionGroupValidator } from '#validators/option_group'
 
@@ -10,9 +11,15 @@ import { optionGroupValidator } from '#validators/option_group'
 export default class OptionGroupsController {
   constructor(private groups: OptionGroupService) {}
 
-  async index({ params }: HttpContext) {
+  async index({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
-    return ok(await this.groups.list(storeId))
+    const q = request.qs()
+    const groups = await this.groups.list(storeId, {
+      ...parsePagination(q),
+      sort: parseSort(q, { name: 'name', updatedAt: 'updated_at', createdAt: 'created_at' }),
+      filters: pickQueryFilters(q, ['name']),
+    })
+    return ok(groups.all(), groups.getMeta())
   }
 
   async store({ params, request }: HttpContext) {

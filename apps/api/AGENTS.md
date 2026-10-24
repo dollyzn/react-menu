@@ -46,7 +46,7 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 - Money columns are `decimal(10,2)`.
 - Lists use `parsePagination` + `pickQueryFilters` (+ `parseSort` with an
   allowlist of column ids; never order by a raw query value) and return
-  `ok(paginator.all(), paginator.getMeta())` (snake_case meta).
+  `ok(paginator.all(), paginator.getMeta())` (camelCase meta: `total`, `perPage`, `currentPage`…).
 - Rate limiting: `throttle` must run after `middleware.auth()` or the
   request is limited as a guest (per client IP, `PUBLIC_RATE_LIMIT`, default
   120/min). `request.ip()` is the client's: X-Forwarded-For is trusted from

@@ -41,4 +41,11 @@ export default class OptionGroup extends BaseModel {
 
   @manyToMany(() => Item, { pivotTable: 'item_option_groups', pivotColumns: ['order'] })
   declare items: ManyToMany<typeof Item>
+
+  /** How many items use it (from `withCount('items')`). */
+  serializeExtras() {
+    return this.$extras.items_count === undefined
+      ? {}
+      : { itemsCount: Number(this.$extras.items_count) }
+  }
 }

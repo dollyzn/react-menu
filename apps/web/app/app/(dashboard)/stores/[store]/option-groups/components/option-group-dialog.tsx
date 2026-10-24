@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import { NumberStepper } from "@/components/app/number-stepper";
 import { useGetAddonsByStoreIdQuery } from "@/redux/features/addon/addonApi";
 import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
 import {
@@ -104,8 +105,6 @@ export function OptionGroupDialog({
     }
   };
 
-  const number = (value: string) => (value === "" ? Number.NaN : Number(value));
-
   return (
     <Dialog open={open} onOpenChange={close}>
       <DialogContent className="sm:max-w-lg">
@@ -168,14 +167,14 @@ export function OptionGroupDialog({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="group-min">Mínimo</FieldLabel>
-                      <Input
+                      <NumberStepper
                         id="group-min"
-                        type="number"
-                        inputMode="numeric"
+                        label="mínimo"
                         min={0}
-                        value={Number.isNaN(field.value) ? "" : field.value}
-                        onChange={(event) => field.onChange(number(event.target.value))}
-                        aria-invalid={fieldState.invalid}
+                        max={20}
+                        value={field.value}
+                        onChange={field.onChange}
+                        invalid={fieldState.invalid}
                         disabled={busy}
                       />
                       <FieldDescription>0 = opcional</FieldDescription>
@@ -189,14 +188,14 @@ export function OptionGroupDialog({
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
                       <FieldLabel htmlFor="group-max">Máximo</FieldLabel>
-                      <Input
+                      <NumberStepper
                         id="group-max"
-                        type="number"
-                        inputMode="numeric"
+                        label="máximo"
                         min={1}
-                        value={Number.isNaN(field.value) ? "" : field.value}
-                        onChange={(event) => field.onChange(number(event.target.value))}
-                        aria-invalid={fieldState.invalid}
+                        max={20}
+                        value={field.value}
+                        onChange={field.onChange}
+                        invalid={fieldState.invalid}
                         disabled={busy}
                       />
                       <FieldDescription>1 = uma escolha só</FieldDescription>
