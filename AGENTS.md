@@ -23,7 +23,7 @@ packages/contracts  Type-only API contracts shared by both apps
 docs/               architecture/, decisions/ (ADRs), development/
 ```
 
-pnpm workspace, no Turborepo. Node >= 24 (`.nvmrc`), pnpm via corepack.
+pnpm workspace, no Turborepo. Node 24.22.1+ (`.nvmrc`; the October 2026 security release), pnpm via corepack.
 
 `pnpm dev` runs the three processes with `concurrently`, which keeps the
 terminal's stdin away from them: the Adonis dev server's keyboard shortcuts

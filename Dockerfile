@@ -5,7 +5,8 @@
 #   docker build --target web .   → Next.js web, standalone server (production)
 #   docker build --target dev .   → toolchain for docker-compose.dev.yml (profile "app")
 
-ARG NODE_VERSION=24
+# Pinned: 24.22.1 has the October 2026 security fixes (Brotli, DNS, TLS, undici).
+ARG NODE_VERSION=24.22.1
 
 FROM node:${NODE_VERSION}-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH NEXT_TELEMETRY_DISABLED=1 COREPACK_ENABLE_DOWNLOAD_PROMPT=0
