@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Toggle } from "@base-ui/react/toggle";
+import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
 import Image from "@/components/app/image";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -184,7 +186,7 @@ export default function PosPage() {
   return (
     <div className="grid min-h-[calc(100svh-3rem)] grid-cols-1 lg:h-[calc(100svh-3rem)] lg:grid-cols-[1fr_400px] lg:overflow-hidden">
       <section aria-label="Produtos" className="flex min-w-0 min-h-0 flex-col lg:overflow-y-auto">
-        <div className="sticky top-12 z-10 space-y-2 border-b bg-background/90 p-4 pb-3 backdrop-blur-md lg:top-0">
+        <div className="sticky top-12 z-10 flex flex-col gap-2 border-b bg-background/90 p-4 pb-3 backdrop-blur-md lg:top-0">
           <SearchInput
             value={query}
             onValueChange={setQuery}
@@ -193,16 +195,22 @@ export default function PosPage() {
             aria-label="Buscar produto"
             className="h-10 rounded-xl"
           />
-          <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 scrollbar-none scroll-fade-x scroll-fade-12" role="group" aria-label="Categorias">
+          {/* One tab stop; arrow keys move between categories. Always one selected. */}
+          <ToggleGroupPrimitive
+            aria-label="Categorias"
+            value={[String(categoryId)]}
+            onValueChange={(value: string[]) => {
+              if (value[0]) setCategoryId(value[0] === "all" ? "all" : Number(value[0]));
+            }}
+            className="-mx-4 flex gap-1.5 overflow-x-auto px-4 scrollbar-none scroll-fade-x scroll-fade-12"
+          >
             {[{ id: "all" as const, name: "Tudo", size: totalItems }, ...categories.map((c) => ({ ...c, size: c.items.length }))].map(
               (category) => {
                 const selected = categoryId === category.id;
                 return (
-                  <button
+                  <Toggle
                     key={category.id}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setCategoryId(category.id)}
+                    value={String(category.id)}
                     className={cn(
                       "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                       selected ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:bg-muted"
@@ -217,18 +225,18 @@ export default function PosPage() {
                     >
                       {category.size}
                     </span>
-                  </button>
+                  </Toggle>
                 );
               }
             )}
-          </div>
+          </ToggleGroupPrimitive>
         </div>
 
         <div className="flex-1 p-4 pb-28 lg:pb-4">
           {isLoading || !menu ? (
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
               {Array.from({ length: 12 }).map((_, i) => (
-                <Skeleton key={i} className="h-[74px] rounded-xl" />
+                <Skeleton key={i} className="h-18.5 rounded-xl" />
               ))}
             </div>
           ) : items.length === 0 ? (
@@ -244,7 +252,7 @@ export default function PosPage() {
               )}
             </div>
           ) : (
-            <div className="space-y-6">
+            <div className="flex flex-col gap-6">
               {groups.map((group, groupIndex) => (
                 <section key={group.id} aria-labelledby={`pos-category-${group.id}`}>
                   {/* One category selected: its name is already on the chip. */}
@@ -330,7 +338,7 @@ export default function PosPage() {
   );
 }
 
-/** Per-category color: a dot on the section header and the cards' left edge. */
+/** Per-category color (identity, not status: raw palette on purpose): a dot on the section header and the cards' left edge. */
 const CATEGORY_ACCENTS = [
   { dot: "bg-orange-500", border: "border-l-orange-500" },
   { dot: "bg-sky-500", border: "border-l-sky-500" },
@@ -410,7 +418,7 @@ function ProductCard({
         <span className="mt-1 flex items-center gap-2 text-sm">
           <span className="font-semibold text-primary">{price}</span>
           {hint && (
-            <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+            <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning">
               {hint}
             </span>
           )}
@@ -536,7 +544,7 @@ function Ticket({
                   {line.addons.length > 0 && (
                     <p className="text-xs text-muted-foreground">+ {line.addons.map((a) => a.name).join(", ")}</p>
                   )}
-                  {line.notes && <p className="text-xs text-amber-700 italic dark:text-amber-300">“{line.notes}”</p>}
+                  {line.notes && <p className="text-xs text-warning italic">“{line.notes}”</p>}
                   <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
                     {line.quantity} × {formatCurrencyBRL(unitTotal(line))} ={" "}
                     <span className="font-semibold text-foreground">{formatCurrencyBRL(lineTotal(line))}</span>
@@ -571,7 +579,7 @@ function Ticket({
         </ul>
       )}
 
-      <div className={cn("space-y-3 border-t bg-card p-4", inModal && "sticky bottom-0")}>
+      <div className={cn("flex flex-col gap-3 border-t bg-card p-4", inModal && "sticky bottom-0")}>
         <div className="flex items-center justify-between font-semibold">
           <span>Total</span>
           <AnimatedPrice value={total} className="text-xl" />

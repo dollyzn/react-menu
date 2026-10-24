@@ -51,7 +51,7 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
               </span>
             )}
           </div>
-          <div className="min-w-0 flex-1 space-y-1.5">
+          <div className="min-w-0 flex-1 flex flex-col gap-1.5">
             <h1 id="store-name" className="text-xl leading-tight font-bold text-balance">
               {store.name}
             </h1>
@@ -60,18 +60,18 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
                 className={cn(
                   "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
                   store.isOpen
-                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
+                    ? "bg-success/15 text-success"
                     : "bg-muted text-muted-foreground"
                 )}
               >
                 <span className="relative flex size-2">
                   {store.isOpen && (
-                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
+                    <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
                   )}
                   <span
                     className={cn(
                       "relative inline-flex size-2 rounded-full",
-                      store.isOpen ? "bg-emerald-500" : "bg-muted-foreground"
+                      store.isOpen ? "bg-success" : "bg-muted-foreground"
                     )}
                   />
                 </span>

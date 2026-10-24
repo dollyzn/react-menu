@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import type { Column } from "@/components/app/data-table/features";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
+import { Kbd } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
@@ -252,7 +253,7 @@ function DatePresets({
       <h3 className="text-xs mx-3 text-muted-foreground uppercase">
         Períodos rápidos
       </h3>
-      <div className="space-y-1">
+      <div className="flex flex-col gap-1">
         {presets.map(({ label, shortcut, from, to }) => {
           const isActive =
             selected?.from?.getTime() === from.getTime() &&
@@ -266,9 +267,9 @@ function DatePresets({
               className="w-full gap-6 flex items-center justify-between"
             >
               <span>{label}</span>
-              <kbd className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-xs font-mono">
+              <Kbd>
                 {shortcut}
-              </kbd>
+              </Kbd>
             </Button>
           );
         })}
@@ -322,9 +323,9 @@ export function DatePresetsSelect({
               className="flex items-center justify-between [&>span:last-child]:flex [&>span:last-child]:w-full [&>span:last-child]:justify-between"
             >
               <span>{label}</span>
-              <kbd className="bg-muted text-muted-foreground px-1.5 py-0.5 rounded text-xs font-mono">
+              <Kbd>
                 {shortcut}
-              </kbd>
+              </Kbd>
             </SelectItem>
           ))}
         </SelectGroup>
@@ -364,7 +365,7 @@ function CustomDateRange({
   const disabledEndDate = [...[disabled ?? []].flat(), ...(selected?.from ? [{ before: selected.from }] : [])];
 
   return (
-    <div className="p-3 space-y-3">
+    <div className="p-3 flex flex-col gap-3">
       <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
         Período personalizado
       </h4>

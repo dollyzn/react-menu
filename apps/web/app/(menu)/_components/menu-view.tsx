@@ -119,7 +119,7 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
             <p className="text-sm">Tente outro nome ou ingrediente.</p>
           </div>
         ) : (
-          <div className="mt-6 space-y-10">
+          <div className="mt-6 flex flex-col gap-10">
             {categories.map((category) => (
               <section
                 key={category.id}

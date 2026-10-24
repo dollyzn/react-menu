@@ -21,7 +21,7 @@ export const filterTriggerClassName = (active: boolean) =>
 /** What the filter is set to, next to its name. */
 export function FilterSummary({ children }: { children: React.ReactNode }) {
   return (
-    <span className="ml-0.5 max-w-[180px] truncate rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
+    <span className="ml-0.5 max-w-45 truncate rounded-sm bg-primary/10 px-1.5 py-0.5 text-xs font-medium text-primary">
       {children}
     </span>
   );

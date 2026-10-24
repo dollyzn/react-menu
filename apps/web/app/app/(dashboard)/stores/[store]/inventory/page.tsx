@@ -8,6 +8,7 @@ import type { Ingredient } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
 import { useTableQuery } from "@/hooks/use-table-query";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import {
@@ -76,14 +77,14 @@ export default function InventoryPage() {
       description="Pedidos descontam os ingredientes das receitas quando entram na cozinha."
       action={
         <>
-          <Button
-            variant={onlyLow ? "default" : "outline"}
-            aria-pressed={onlyLow}
-            onClick={toggleLow}
-            className={!onlyLow && lowCount > 0 ? "border-amber-500/50 text-amber-700 dark:text-amber-300" : undefined}
+          <Toggle
+            variant="outline"
+            pressed={onlyLow}
+            onPressedChange={toggleLow}
+            className={!onlyLow && lowCount > 0 ? "border-warning/50 text-warning" : undefined}
           >
-            <AlertTriangle /> Acabando ({lowCount})
-          </Button>
+            <AlertTriangle data-icon="inline-start" /> Acabando ({lowCount})
+          </Toggle>
           <Button onClick={() => setEditing(null)}>
             <PlusCircle /> Novo ingrediente
           </Button>

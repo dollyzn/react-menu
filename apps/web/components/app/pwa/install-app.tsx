@@ -142,7 +142,7 @@ function IosInstallSteps({ open, onOpenChange }: { open: boolean; onOpenChange: 
       description="Três toques e o app fica na sua tela inicial."
       className="sm:max-w-sm"
     >
-      <ol className="space-y-3 p-4">
+      <ol className="flex flex-col gap-3 p-4">
         {IOS_STEPS.map((step, index) => (
           <li key={index} className="flex items-center gap-3 rounded-xl border bg-muted/40 p-3 text-sm">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-background text-primary shadow-sm">

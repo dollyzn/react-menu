@@ -113,7 +113,7 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
             aria-label="Alterar logo"
             className="absolute -bottom-2 -right-2"
           >
-            <Upload className="h-4 w-4" />
+            <Upload className="size-4" />
           </Button>
         }
       />

@@ -114,7 +114,7 @@ export function NavUser() {
 function UserInfo({ user }: { user: User }) {
   return (
     <>
-      <Avatar className="h-8 w-8 rounded-full border">
+      <Avatar className="size-8 rounded-full border">
         <AvatarImage
           src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user.name ?? user.email}`}
           alt={user.name ?? user.email}

@@ -180,7 +180,7 @@ export function BulkEditDialog({ rows, noun, onApply, onDone }: BulkEditDialogPr
         render={
           <Button
             size="icon"
-            className="h-8 w-8"
+            className="size-8"
             variant="ghost"
             aria-label="Editar selecionados"
             disabled={!rows.length}

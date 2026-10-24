@@ -44,7 +44,7 @@ export const columns: ColumnDef<OptionGroup>[] = [
     header: ({ column }) => <DataTableColumnHeader titleClassName={headerClass} column={column} title="Nome" />,
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <span className="block min-w-[150px] font-medium">{row.original.name}</span>
+        <span className="block min-w-37.5 font-medium">{row.original.name}</span>
       </DataTableColumnCell>
     ),
     meta: { name: "Nome" },

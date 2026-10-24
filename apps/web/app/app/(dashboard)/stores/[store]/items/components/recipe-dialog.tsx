@@ -96,8 +96,8 @@ function RecipeForm({ item, onDone }: { item: Item; onDone: () => void }) {
 
   return (
     <form onSubmit={submit}>
-      <DialogBody className="space-y-4">
-      <ul className="space-y-2">
+      <DialogBody className="flex flex-col gap-4">
+      <ul className="flex flex-col gap-2">
         {current.map((line, index) => {
           const unit = ingredients.find((i) => i.id === line.ingredientId)?.unit;
           return (

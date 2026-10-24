@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { useParams } from "next/navigation";
 import { Row } from "@/components/app/data-table/features";
 import { useGetItemsByCategoryIdQuery, useUpdateItemMutation } from "@/redux/features/item/itemApi";
@@ -17,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import Link from "next/link";
 import { toast } from "sonner";
-import { ArrowRight, ChevronDown, ImageOff, Loader2, Package } from "lucide-react";
+import { ArrowRight, ChevronDown, ImageOff, Package } from "lucide-react";
 import Image from "@/components/app/image";
 import { SearchInput } from "@/components/app/search-input";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -61,7 +62,7 @@ export function ItemsColumnDialog({ row, size }: ItemsColumnDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="secondary" size={size} disabled={isFetching && open} />}>
         {itemsCount || 0} Ite{itemsCount === 1 ? "m" : "ns"}
-        {isFetching && open ? <Loader2 className="animate-spin" /> : <ChevronDown />}
+        {isFetching && open ? <Spinner /> : <ChevronDown />}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -71,12 +72,12 @@ export function ItemsColumnDialog({ row, size }: ItemsColumnDialogProps) {
             {items.filter((item) => !item.isAvailable).length} esgotado(s)
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="space-y-3">
+        <DialogBody className="flex flex-col gap-3">
           {items.length > 6 && (
             <SearchInput value={query} onValueChange={setQuery} placeholder="Buscar nesta categoria" aria-label="Buscar item na categoria" />
           )}
           {isFetching && items.length === 0 ? (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {Array.from({ length: 4 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 rounded-xl" />
               ))}

@@ -23,7 +23,18 @@ import { AnimatedPrice } from "@/components/app/animated-price";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { clearCart, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
@@ -169,7 +180,7 @@ function CartContent({
 function Stepper({ current, onBack }: { current: Step; onBack?: () => void }) {
   const index = STEPS.findIndex((step) => step.id === current);
   return (
-    <div className="space-y-2 px-4 pt-1 pb-3">
+    <div className="flex flex-col gap-2 px-4 pt-1 pb-3">
       <div className="flex items-center gap-2">
         {onBack ? (
           <Button type="button" variant="ghost" size="icon-sm" className="-ml-2 rounded-full" aria-label="Voltar" onClick={onBack}>
@@ -248,7 +259,7 @@ function BagStep({
                 {line.notes && <p className="text-xs text-muted-foreground italic">“{line.notes}”</p>}
                 <p className="mt-1 text-sm font-semibold">{formatCurrencyBRL(lineTotal(line))}</p>
                 {left(line.itemId) !== null && inBag(line.itemId) > left(line.itemId)! && (
-                  <p role="alert" className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  <p role="alert" className="mt-1 text-xs font-medium text-warning">
                     {left(line.itemId) === 0
                       ? "Acabou agora: remova para continuar."
                       : `Só temos ${left(line.itemId)} agora: diminua para continuar.`}
@@ -280,7 +291,7 @@ function BagStep({
           ))}
         </AnimatePresence>
       </ul>
-      <div className="sticky bottom-0 space-y-3 border-t bg-background/95 p-4 backdrop-blur">
+      <div className="sticky bottom-0 flex flex-col gap-3 border-t bg-background/95 p-4 backdrop-blur">
         <div className="flex items-center justify-between font-semibold">
           <span>Total</span>
           <AnimatedPrice value={total} className="text-lg" />
@@ -400,7 +411,7 @@ function CheckoutFlow({
   return (
     <form onSubmit={form.handleSubmit(submit)} className="flex flex-col">
       {step === "details" ? (
-        <div className="space-y-4 p-4 pt-0">
+        <div className="flex flex-col gap-4 p-4 pt-0">
           <div>
             <h3 className="font-semibold">Quem vai retirar?</h3>
             <p className="text-sm text-muted-foreground">Chamamos pelo nome no balcão. O celular é só para o pedido.</p>
@@ -440,7 +451,7 @@ function CheckoutFlow({
           </FieldGroup>
         </div>
       ) : (
-        <div className="space-y-5 p-4 pt-0">
+        <div className="flex flex-col gap-5 p-4 pt-0">
           <div className="flex items-center gap-3 rounded-xl border p-3">
             <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
               <User className="size-4" />
@@ -458,7 +469,7 @@ function CheckoutFlow({
             <h3 id="checkout-summary" className="mb-2 text-sm font-semibold">
               Seu pedido
             </h3>
-            <ul className="space-y-1.5 rounded-xl bg-muted/40 p-3 text-sm">
+            <ul className="flex flex-col gap-1.5 rounded-xl bg-muted/40 p-3 text-sm">
               {lines.map((line) => (
                 <li key={line.key} className="flex justify-between gap-3">
                   <span className="min-w-0">
@@ -480,47 +491,29 @@ function CheckoutFlow({
             </p>
           </section>
 
-          <fieldset className="space-y-2">
-            <legend className="mb-2 text-sm font-semibold">Como você prefere pagar?</legend>
+          <FieldSet>
+            <FieldLegend variant="label">Como você prefere pagar?</FieldLegend>
             <Controller
               name="paymentMethod"
               control={form.control}
               render={({ field }) => (
-                <div className="grid gap-2" role="radiogroup">
+                <RadioGroup name={field.name} value={field.value} onValueChange={field.onChange}>
                   {methods.map((method) => (
-                    <label
-                      key={method.value}
-                      className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
-                        field.value === method.value ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                      )}
-                    >
-                      <input
-                        type="radio"
-                        className="sr-only"
-                        name={field.name}
-                        value={method.value}
-                        checked={field.value === method.value}
-                        onChange={() => field.onChange(method.value)}
-                      />
-                      <method.icon className="size-5 text-primary" />
-                      <span className="flex-1">
-                        <span className="block text-sm font-medium">{method.label}</span>
-                        <span className="block text-xs text-muted-foreground">{method.hint}</span>
-                      </span>
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "size-4 rounded-full border-2",
-                          field.value === method.value ? "border-primary bg-primary ring-2 ring-background ring-inset" : "border-muted-foreground/40"
-                        )}
-                      />
-                    </label>
+                    <FieldLabel key={method.value} htmlFor={`pay-${method.value}`}>
+                      <Field orientation="horizontal">
+                        <method.icon className="size-5 shrink-0 text-primary" />
+                        <FieldContent>
+                          <FieldTitle>{method.label}</FieldTitle>
+                          <FieldDescription>{method.hint}</FieldDescription>
+                        </FieldContent>
+                        <RadioGroupItem value={method.value} id={`pay-${method.value}`} />
+                      </Field>
+                    </FieldLabel>
                   ))}
-                </div>
+                </RadioGroup>
               )}
             />
-          </fieldset>
+          </FieldSet>
 
           <Controller
             name="notes"
@@ -542,7 +535,7 @@ function CheckoutFlow({
         </div>
       )}
 
-      <div className="sticky bottom-0 space-y-3 border-t bg-background/95 p-4 backdrop-blur">
+      <div className="sticky bottom-0 flex flex-col gap-3 border-t bg-background/95 p-4 backdrop-blur">
         {/* Distinct keys: reusing one <button> and flipping its type to "submit"
             mid-click would submit the order straight from the details step. */}
         {step === "details" ? (

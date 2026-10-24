@@ -14,7 +14,7 @@ interface ManagementPageShellProps {
 /** Catalog pages (categories, items, add-ons): title, action and content. */
 export function ManagementPageShell({ pageLabel, description, action, children }: ManagementPageShellProps) {
   return (
-    <div className="space-y-4 p-4 md:p-6">
+    <div className="flex flex-col gap-4 p-4 md:p-6">
       <PageHeader title={pageLabel} description={description} actions={action} />
       {children}
     </div>

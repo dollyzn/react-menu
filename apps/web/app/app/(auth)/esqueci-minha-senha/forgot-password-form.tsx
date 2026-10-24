@@ -34,10 +34,10 @@ export function ForgotPasswordForm() {
 
   if (sentTo) {
     return (
-      <div className="space-y-4" role="status">
+      <div className="flex flex-col gap-4" role="status">
         <div className="flex items-start gap-3 rounded-xl border bg-muted/40 p-4">
           <MailCheck className="mt-0.5 size-5 shrink-0 text-primary" />
-          <div className="space-y-1 text-sm">
+          <div className="flex flex-col gap-1 text-sm">
             <p className="font-medium">Confira seu e-mail</p>
             <p className="text-muted-foreground">
               Se houver uma conta com <strong>{sentTo}</strong>, enviamos um link para redefinir a senha. Ele vale por
@@ -53,7 +53,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4" noValidate>
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <Field data-invalid={invalid}>
         <FieldLabel htmlFor="forgot-email">E-mail</FieldLabel>
         <div className="relative">

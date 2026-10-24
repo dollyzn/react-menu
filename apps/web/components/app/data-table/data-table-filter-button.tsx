@@ -61,14 +61,14 @@ export function DataTableFilterButton<TData extends RowData, TValue>({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <FilterTrigger label={columnName} active={hasFilter} summary={currentFilterValue} />
-      <PopoverContent className="w-[250px] p-3" align="start" sideOffset={8}>
-        <div className="space-y-4">
-          <div className="space-y-2">
+      <PopoverContent className="w-62.5 p-3" align="start" sideOffset={8}>
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
             <div className="font-medium text-sm">
               Filtrar por {columnName.toLowerCase()}
             </div>
             <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-2 top-2.5 size-4 text-muted-foreground" />
               <Input
                 placeholder={placeholder || `Digite para filtrar...`}
                 value={filterValue}
@@ -79,7 +79,7 @@ export function DataTableFilterButton<TData extends RowData, TValue>({
               />
               {filterValue && (
                 <X
-                  className="absolute right-2 top-2.5 h-4 w-4 text-muted-foreground cursor-pointer hover:text-foreground"
+                  className="absolute right-2 top-2.5 size-4 text-muted-foreground cursor-pointer hover:text-foreground"
                   onClick={() => setFilterValue("")}
                 />
               )}

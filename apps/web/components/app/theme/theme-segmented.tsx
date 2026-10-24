@@ -1,5 +1,7 @@
 "use client";
 
+import { Radio } from "@base-ui/react/radio";
+import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 import { motion } from "motion/react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useHydrated } from "@/hooks/use-hydrated";
@@ -18,23 +20,25 @@ const OPTIONS: { value: ThemeChoice; label: string; icon: typeof Sun }[] = [
  */
 export function ThemeSegmented({ className }: { className?: string }) {
   const hydrated = useHydrated();
-  const { choice, change, originOf } = useThemeTransition();
+  const { choice, change, originOfEvent } = useThemeTransition();
   // The saved choice is only known on the client.
   const current = hydrated ? choice : null;
 
   return (
-    <div role="radiogroup" aria-label="Tema" className={cn("flex items-center rounded-full border bg-muted/40 p-0.5", className)}>
+    <RadioGroupPrimitive
+      aria-label="Tema"
+      value={current}
+      onValueChange={(value, details) => change(value as ThemeChoice, originOfEvent(details.event))}
+      className={cn("flex items-center rounded-full border bg-muted/40 p-0.5", className)}
+    >
       {OPTIONS.map((option) => {
         const selected = current === option.value;
         return (
-          <button
+          <Radio.Root
             key={option.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
+            value={option.value}
             aria-label={option.label}
             title={option.label}
-            onClick={(event) => change(option.value, originOf(event))}
             className={cn(
               "relative flex size-5 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
               selected ? "text-foreground" : "text-muted-foreground hover:text-foreground"
@@ -48,9 +52,9 @@ export function ThemeSegmented({ className }: { className?: string }) {
               />
             )}
             <option.icon className="relative size-3" />
-          </button>
+          </Radio.Root>
         );
       })}
-    </div>
+    </RadioGroupPrimitive>
   );
 }

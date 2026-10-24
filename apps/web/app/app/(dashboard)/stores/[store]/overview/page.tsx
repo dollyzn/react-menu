@@ -42,7 +42,7 @@ function StoreStatus({ store }: { store: DashboardToday["store"] }) {
     <Badge variant="outline" className="h-8 gap-2 px-3 text-sm font-normal">
       <span
         aria-hidden
-        className={cn("size-2 rounded-full", store.isOpen ? "bg-emerald-500" : "bg-muted-foreground")}
+        className={cn("size-2 rounded-full", store.isOpen ? "bg-success" : "bg-muted-foreground")}
       />
       {store.isOpen
         ? `Aberta${store.closesAt ? ` · fecha ${formatWhen(store.closesAt)}` : ""}`
@@ -226,7 +226,7 @@ function AttentionCard({ data, base }: { data: DashboardToday; base: string }) {
       <CardContent className="grid content-start gap-4">
         {lowStock.length === 0 && alerts.length === 0 && (
           <p className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
-            <CircleCheck className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden />
+            <CircleCheck className="size-4 text-success" aria-hidden />
             Tudo certo por aqui.
           </p>
         )}
@@ -276,7 +276,7 @@ function AttentionCard({ data, base }: { data: DashboardToday; base: string }) {
 
 function OverviewSkeleton() {
   return (
-    <div className="space-y-4" aria-busy aria-label="Carregando visão geral">
+    <div className="flex flex-col gap-4" aria-busy aria-label="Carregando visão geral">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
           <Skeleton key={index} className="h-28 rounded-xl" />
@@ -301,7 +301,7 @@ export default function Overview() {
   });
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
+    <div className="flex flex-col gap-4 p-4 md:p-6">
       <PageHeader
         title="Visão geral"
         description="Como a loja está hoje, ao vivo."
@@ -330,7 +330,7 @@ export default function Overview() {
       ) : !data ? (
         <OverviewSkeleton />
       ) : (
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4">
           <SalesTiles data={data} />
           <div className="grid gap-4 lg:grid-cols-5">
             <div className="min-w-0 lg:col-span-3">

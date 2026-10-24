@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { flexRender, useTable, type ReactTable, type RowData } from "@tanstack/react-table";
 import {
   dataTableFeatures,
@@ -23,7 +24,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { AlertCircle, Loader2, Search } from "lucide-react";
+import { AlertCircle, Search } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -247,7 +248,7 @@ export function DataTable<TData extends RowData>({
         setViewMode={setViewMode}
       />
 
-      <div className="space-y-4 relative">
+      <div className="flex flex-col gap-4 relative">
         <ScrollArea
           className={cn(
             "rounded-lg relative",
@@ -302,7 +303,7 @@ export function DataTable<TData extends RowData>({
                       className="h-52 text-center"
                     >
                       <div className="flex flex-col items-center justify-center">
-                        <Loader2 size={24} className="animate-spin mb-2" />
+                        <Spinner className="mb-2 size-6" aria-hidden />
                         Carregando...
                       </div>
                     </TableCell>
@@ -346,7 +347,7 @@ export function DataTable<TData extends RowData>({
                       colSpan={columns.length}
                       className="h-52 text-center"
                     >
-                      <div className="max-w-[400px] mx-auto">
+                      <div className="max-w-100 mx-auto">
                         <Search size={35} className="mx-auto mb-2" />
                         <p className="text-lg font-semibold">
                           Nenhum resultado encontrado
@@ -385,7 +386,7 @@ export function DataTable<TData extends RowData>({
               table.getCoreRowModel().rows.length === 0 ? (
                 <div className="col-span-full h-52 flex items-center justify-center text-center">
                   <div className="flex flex-col items-center justify-center">
-                    <Loader2 size={24} className="animate-spin mb-2" />
+                    <Spinner className="mb-2 size-6" aria-hidden />
                     Carregando...
                   </div>
                 </div>
@@ -405,7 +406,7 @@ export function DataTable<TData extends RowData>({
                 ))
               ) : table.getCoreRowModel().rows.length > 0 ? (
                 <div className="col-span-full h-52 text-center flex items-center justify-center rounded-lg p-4">
-                  <div className="max-w-[400px] mx-auto">
+                  <div className="max-w-100 mx-auto">
                     <Search size={35} className="mx-auto mb-2" />
                     <p className="text-lg font-semibold">
                       Nenhum resultado encontrado
@@ -450,7 +451,7 @@ export function DataTable<TData extends RowData>({
 /** No rows: says whether filters are the reason and offers to clear them. */
 function EmptyState({ filtered, onClear }: { filtered: boolean; onClear: () => void }) {
   return (
-    <div className="mx-auto max-w-[400px] whitespace-normal">
+    <div className="mx-auto max-w-100 whitespace-normal">
       <AlertCircle size={35} className="mx-auto mb-2 text-muted-foreground" />
       <p className="text-lg font-semibold">
         {filtered ? "Nenhum resultado para esses filtros" : "Nenhum registro encontrado"}

@@ -17,7 +17,7 @@ export function CategoryCard({ row }: { row: Row<Category> }) {
         <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <FolderOpen className="size-5" />
         </span>
-        <div className="min-w-0 flex-1 space-y-1">
+        <div className="min-w-0 flex-1 flex flex-col gap-1">
           <h3 className="font-semibold leading-tight text-balance">{category.name}</h3>
           <p className="line-clamp-2 text-sm text-muted-foreground">
             {category.description || "Sem descrição"}

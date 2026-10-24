@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Row } from "@/components/app/data-table/features";
 import { toast } from "sonner";
-import { ArrowRight, ChevronDown, ImageOff, Loader2, PlusCircle } from "lucide-react";
+import { ArrowRight, ChevronDown, ImageOff, PlusCircle } from "lucide-react";
 import {
   useGetAddonsByItemIdQuery,
   useUpdateAddonByStoreIdMutation,
@@ -63,7 +64,7 @@ export function AddonsColumnDialog({ row, size }: AddonsColumnDialogProps) {
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" size={size} disabled={isFetching && open} />}>
         {addonsCount || 0} Adiciona{addonsCount === 1 ? "l" : "is"}
-        {isFetching && open ? <Loader2 className="animate-spin" /> : <ChevronDown />}
+        {isFetching && open ? <Spinner /> : <ChevronDown />}
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
@@ -73,12 +74,12 @@ export function AddonsColumnDialog({ row, size }: AddonsColumnDialogProps) {
             Esgotar um adicional vale para todos os itens que o oferecem.
           </DialogDescription>
         </DialogHeader>
-        <DialogBody className="space-y-3">
+        <DialogBody className="flex flex-col gap-3">
           {addons.length > 6 && (
             <SearchInput value={query} onValueChange={setQuery} placeholder="Buscar adicional" aria-label="Buscar adicional do item" />
           )}
           {isFetching && addons.length === 0 ? (
-            <div className="space-y-2">
+            <div className="flex flex-col gap-2">
               {Array.from({ length: 3 }).map((_, index) => (
                 <Skeleton key={index} className="h-16 rounded-xl" />
               ))}

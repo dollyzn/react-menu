@@ -91,7 +91,7 @@ export function OrderHistory() {
       <h1 className="text-2xl font-bold">Meus pedidos</h1>
 
       {!rehydrated || (isLoading && !nothingToLoad) ? (
-        <div className="mt-6 space-y-3" aria-busy>
+        <div className="mt-6 flex flex-col gap-3" aria-busy>
           <Skeleton className="h-32 rounded-2xl" />
           <Skeleton className="h-20 rounded-2xl" />
           <Skeleton className="h-20 rounded-2xl" />
@@ -101,7 +101,7 @@ export function OrderHistory() {
       ) : (
         <>
           {active.length > 0 && (
-            <section className="mt-6 space-y-3" aria-labelledby="active-orders">
+            <section className="mt-6 flex flex-col gap-3" aria-labelledby="active-orders">
               <h2 id="active-orders" className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                 Em andamento
               </h2>
@@ -113,7 +113,7 @@ export function OrderHistory() {
             </section>
           )}
           {past.length > 0 && (
-            <section className="mt-8 space-y-2" aria-labelledby="past-orders">
+            <section className="mt-8 flex flex-col gap-2" aria-labelledby="past-orders">
               <h2 id="past-orders" className="text-sm font-semibold tracking-wide text-muted-foreground uppercase">
                 Anteriores
               </h2>
@@ -151,7 +151,7 @@ function ActiveOrderCard({ order }: { order: PublicOrderSummary }) {
         href={`/pedido/${order.publicToken}`}
         className={cn(
           "block rounded-2xl border bg-card p-4 shadow-sm transition-colors outline-none hover:bg-muted/40 focus-visible:ring-3 focus-visible:ring-ring/50",
-          order.status === "ready" && "border-emerald-500/50 bg-emerald-500/5"
+          order.status === "ready" && "border-success/50 bg-success/5"
         )}
       >
         <div className="flex items-start justify-between gap-3">
@@ -268,7 +268,7 @@ function DeviceLink({ customers }: { customers: { name: string; phone: string; s
         </p>
       ) : (
         linked.map((customer) => (
-          <div key={customer.storeSlug} className="mt-2 space-y-3">
+          <div key={customer.storeSlug} className="mt-2 flex flex-col gap-3">
             <p className="text-sm text-muted-foreground">
               Vinculado a <span className="font-medium text-foreground">{customer.name}</span> · {customer.phone}
             </p>

@@ -39,12 +39,12 @@ export function StoreStatusDropdown({ store }: { store: Store }) {
           <Button
             aria-label={`Status da loja: ${label}`}
             className={cn(
-              "h-auto py-1 text-white",
+              "h-auto py-1",
               maintenance
-                ? "bg-yellow-600 hover:bg-yellow-700"
+                ? "bg-warning text-warning-foreground hover:bg-warning/90"
                 : store.isOpen
-                  ? "bg-green-600 hover:bg-green-700"
-                  : "bg-red-600 hover:bg-red-700"
+                  ? "bg-success text-success-foreground hover:bg-success/90"
+                  : "bg-destructive text-white hover:bg-destructive/90"
             )}
             size="sm"
           />
@@ -57,28 +57,28 @@ export function StoreStatusDropdown({ store }: { store: Store }) {
         {store.scheduleEnabled ? (
           <>
             <DropdownMenuItem onClick={() => set("open")}>
-              <CalendarClock className="size-4 shrink-0 text-green-600" />
+              <CalendarClock className="size-4 shrink-0 text-success" />
               Seguir o horário
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => set("closed")}>
-              <XCircle className="size-4 shrink-0 text-red-600" />
+              <XCircle className="size-4 shrink-0 text-destructive" />
               Fechar agora (reabre no próximo horário)
             </DropdownMenuItem>
           </>
         ) : (
           <>
             <DropdownMenuItem onClick={() => set("open")}>
-              <CheckCircle className="size-4 shrink-0 text-green-600" />
+              <CheckCircle className="size-4 shrink-0 text-success" />
               Aberto
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => set("closed")}>
-              <XCircle className="size-4 shrink-0 text-red-600" />
+              <XCircle className="size-4 shrink-0 text-destructive" />
               Fechado
             </DropdownMenuItem>
           </>
         )}
         <DropdownMenuItem onClick={() => set("maintenance")}>
-          <Wrench className="size-4 shrink-0 text-yellow-600" />
+          <Wrench className="size-4 shrink-0 text-warning" />
           Em Manutenção
         </DropdownMenuItem>
       </DropdownMenuContent>

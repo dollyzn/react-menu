@@ -128,8 +128,8 @@ export const columnsConfig: ColumnsConfig[] = [
     key: "stock",
     title: "Situação",
     filterOptions: [
-      { label: "Acabando", value: "low", icon: AlertTriangle, iconClassName: "text-amber-600" },
-      { label: "Em dia", value: "ok", icon: CheckCircle2, iconClassName: "text-emerald-600" },
+      { label: "Acabando", value: "low", icon: AlertTriangle, iconClassName: "text-warning" },
+      { label: "Em dia", value: "ok", icon: CheckCircle2, iconClassName: "text-success" },
     ],
   },
   {

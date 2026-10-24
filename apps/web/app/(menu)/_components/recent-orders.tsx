@@ -36,8 +36,8 @@ export function RecentOrdersButton() {
       <ReceiptText />
       {inProgress > 0 && (
         <span className="absolute top-1.5 right-1.5 flex size-2.5">
-          <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
-          <span className="relative inline-flex size-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
+          <span className="absolute inline-flex size-full animate-ping rounded-full bg-success opacity-60" />
+          <span className="relative inline-flex size-2.5 rounded-full bg-success ring-2 ring-background" />
         </span>
       )}
     </Link>

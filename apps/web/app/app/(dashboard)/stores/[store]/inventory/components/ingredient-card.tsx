@@ -8,7 +8,7 @@ import { IngredientMenu, StockMoves } from "./ingredient-actions";
 
 export function LowStockBadge() {
   return (
-    <Badge variant="outline" className="border-amber-500/50 text-amber-700 dark:text-amber-300">
+    <Badge variant="outline" className="border-warning/50 text-warning">
       Acabando
     </Badge>
   );
@@ -21,7 +21,7 @@ export function IngredientCard({ ingredient }: { ingredient: Ingredient }) {
       aria-label={ingredient.name}
       className={cn(
         "flex h-full flex-col gap-3 rounded-2xl border bg-card p-4",
-        ingredient.isLowStock && "border-amber-500/50"
+        ingredient.isLowStock && "border-warning/50"
       )}
     >
       <div className="flex items-start justify-between gap-2">

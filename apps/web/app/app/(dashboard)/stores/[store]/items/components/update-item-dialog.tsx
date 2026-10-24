@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { Row } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -41,7 +42,6 @@ import {
   InputGroupText,
   InputGroupTextarea,
 } from "@/components/ui/input-group";
-import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
@@ -182,7 +182,7 @@ export function UpdateItemDialog({
           <DialogBody className="flex flex-col gap-4">
             {itemAddonsLoading && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Spinner />
                 Carregando adicionais do item…
               </div>
             )}

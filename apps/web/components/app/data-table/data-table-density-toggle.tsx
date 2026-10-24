@@ -10,7 +10,7 @@ import { FilterOptionRow, ToolbarTrigger } from "./data-table-filter-parts";
 function glyph(gap: string) {
   function DensityGlyph({ className }: { className?: string }) {
     return (
-      <span aria-hidden className={cn("flex h-4 w-4 flex-col justify-center", gap, className)}>
+      <span aria-hidden className={cn("flex size-4 flex-col justify-center", gap, className)}>
         {[0, 1, 2].map((line) => (
           <span key={line} className="h-0.5 w-full rounded-full bg-current" />
         ))}
@@ -21,9 +21,9 @@ function glyph(gap: string) {
 }
 
 const OPTIONS: { value: DensityOption; label: string; description: string; icon: ReturnType<typeof glyph> }[] = [
-  { value: "spacious", label: "Espaçoso", description: "Mais espaço e texto maior", icon: glyph("gap-[5px]") },
+  { value: "spacious", label: "Espaçoso", description: "Mais espaço e texto maior", icon: glyph("gap-1.25") },
   { value: "comfortable", label: "Confortável", description: "Um pouco mais de respiro", icon: glyph("gap-1") },
-  { value: "default", label: "Padrão", description: "O espaçamento do sistema", icon: glyph("gap-[3px]") },
+  { value: "default", label: "Padrão", description: "O espaçamento do sistema", icon: glyph("gap-0.75") },
   { value: "compact", label: "Compacto", description: "Mais linhas na tela", icon: glyph("gap-0.5") },
   { value: "ultra-compact", label: "Ultra compacto", description: "O máximo de linhas", icon: glyph("gap-px") },
 ];

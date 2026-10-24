@@ -49,7 +49,7 @@ export function PaymentSettingsCard({ store }: { store: Store }) {
           pagamento aprovado, e pedidos pagos cancelados são reembolsados automaticamente.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="flex flex-col gap-3">
         {enabled && (
           <div className="flex flex-wrap gap-2 text-xs">
             <Badge variant="outline">Pix ativo</Badge>
@@ -58,7 +58,7 @@ export function PaymentSettingsCard({ store }: { store: Store }) {
             </Badge>
           </div>
         )}
-        <div className="space-y-1">
+        <div className="flex flex-col gap-1">
           <p className="text-xs font-medium text-muted-foreground">URL de notificação (webhook)</p>
           <div className="flex items-center gap-2">
             <code className="flex-1 truncate rounded-md bg-muted px-2 py-1.5 text-xs">{webhookUrl}</code>
@@ -187,8 +187,8 @@ function PaymentSettingsDialog({
               No painel do Mercado Pago, abra a sua aplicação em “Suas integrações”.
             </DialogDescription>
           </DialogHeader>
-          <DialogBody className="space-y-5">
-            <ol className="space-y-4 text-sm">
+          <DialogBody className="flex flex-col gap-5">
+            <ol className="flex flex-col gap-4 text-sm">
               <Step n={1} title="Cadastre o webhook">
                 Em Webhooks, cole esta URL e marque os eventos “Order (Mercado Pago)” e “Pagamentos”.
                 <div className="mt-2 flex items-start gap-2">

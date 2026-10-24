@@ -61,12 +61,12 @@ export function CardChallenge({
   }, []);
 
   return (
-    <section aria-labelledby="card-challenge-title" className="space-y-3">
+    <section aria-labelledby="card-challenge-title" className="flex flex-col gap-3">
       <div className="flex items-start gap-3">
         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
           <ShieldCheck className="size-5" aria-hidden />
         </span>
-        <div className="space-y-0.5">
+        <div className="flex flex-col gap-0.5">
           <h3 id="card-challenge-title" className="font-semibold">
             Confirme a compra com o seu banco
           </h3>

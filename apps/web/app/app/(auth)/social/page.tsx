@@ -91,7 +91,7 @@ function AuthSocial() {
     <motion.main
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex min-h-screen flex-col items-center justify-center space-y-2 bg-background p-6 text-center text-foreground"
+      className="flex min-h-screen flex-col items-center justify-center gap-2 bg-background p-6 text-center text-foreground"
     >
       <div className="relative">
         <div className="absolute inset-0 animate-pulse rounded-full bg-primary blur-xl" />
