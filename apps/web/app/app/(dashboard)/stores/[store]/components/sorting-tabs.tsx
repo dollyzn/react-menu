@@ -51,7 +51,8 @@ export function SortingTabs() {
         )}
       </div>
 
-      <ScrollArea className="h-72 pr-3">
+      {/* Radix wraps the content in a display:table div sized by its content: make it a block so long names truncate. */}
+      <ScrollArea className="h-72 pr-3 [&_[data-slot=scroll-area-viewport]>div]:block!">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={selected ? `items-${selected.id}` : "categories"}
