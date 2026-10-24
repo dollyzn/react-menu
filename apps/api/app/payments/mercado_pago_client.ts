@@ -18,7 +18,14 @@ export type MercadoPagoOrder = {
       /** Why it failed: rejected_by_issuer, insufficient_amount, bad_filled_card_data… */
       status_detail?: string | null
       date_of_expiration?: string | null
-      payment_method?: { id?: string; type?: string; qr_code?: string; ticket_url?: string }
+      payment_method?: {
+        id?: string
+        type?: string
+        qr_code?: string
+        ticket_url?: string
+        /** 3-D Secure: `url` is the challenge page while the detail is pending_challenge. */
+        transaction_security?: { url?: string | null; status?: string | null }
+      }
     }[]
   }
 }
@@ -31,6 +38,12 @@ export type OrderInput = {
   total_amount: string
   external_reference: string
   description: string
+  /** 3-D Secure: `on_fraud_risk` lets Mercado Pago ask for the bank's challenge. */
+  config?: {
+    online: {
+      transaction_security: { validation: 'on_fraud_risk' | 'never'; liability_shift?: 'required' }
+    }
+  }
   payer: {
     email: string
     first_name?: string

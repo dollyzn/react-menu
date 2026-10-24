@@ -51,6 +51,8 @@ export function cardRejection(detail: string | null) {
       return "Pagamento recusado por segurança. Tente o Pix.";
     case "max_attempts_exceeded":
       return "Muitas tentativas com este cartão. Use outro cartão ou o Pix.";
+    case "cc_rejected_3ds_challenge":
+      return "O banco não confirmou a compra. Tente de novo, use outro cartão ou o Pix.";
     case "3ds_challenge_expired":
       return "A confirmação do banco expirou. Tente de novo.";
     case "processing_error":

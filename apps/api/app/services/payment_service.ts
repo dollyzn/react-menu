@@ -26,6 +26,8 @@ import InventoryService from '#services/inventory_service'
 
 /** Pix QR codes are valid for 30 minutes (Mercado Pago's minimum). */
 const PIX_TTL_MINUTES = 30
+/** Mercado Pago's limit for the payer to finish a 3-D Secure challenge. */
+const CHALLENGE_TTL_MINUTES = 40
 
 type WebhookInput = {
   type: string | undefined
@@ -179,7 +181,11 @@ export default class PaymentService {
       amount: order.total,
       pixQrCode: result.pix?.qrCode ?? null,
       pixTicketUrl: result.pix?.ticketUrl ?? null,
-      expiresAt: result.pix?.expiresAt ?? null,
+      challengeUrl: result.challengeUrl ?? null,
+      // A 3-D Secure challenge lasts 40 minutes, then Mercado Pago expires the order.
+      expiresAt:
+        result.pix?.expiresAt ??
+        (result.challengeUrl ? DateTime.now().plus({ minutes: CHALLENGE_TTL_MINUTES }) : null),
       payerEmail: input.payer.email.trim().toLowerCase(),
     })
 
@@ -303,15 +309,28 @@ export default class PaymentService {
 
   /**
    * Until when the order may still be paid by an attempt in progress: a
-   * valid Pix (its expiry) or a card in review (half an hour more).
+   * valid Pix or a card in a 3-D Secure challenge (their deadline), or a
+   * card in review (half an hour more).
    */
   async payableUntil(order: Order): Promise<DateTime | null> {
     const latest = await this.latestFor(order)
     if (latest?.status !== PaymentAttemptStatus.PENDING) return null
-    if (latest.method === PaymentMethod.PIX) {
-      return latest.expiresAt && latest.expiresAt > DateTime.now() ? latest.expiresAt : null
-    }
+    if (latest.expiresAt) return latest.expiresAt > DateTime.now() ? latest.expiresAt : null
+    if (latest.method === PaymentMethod.PIX) return null
     return DateTime.now().plus({ minutes: 30 })
+  }
+
+  /**
+   * The payer says they finished (a 3-D Secure challenge): read the latest
+   * pending attempt from the gateway now instead of waiting for the webhook.
+   */
+  async sync(order: Order, store: Store) {
+    const payment = await this.latestFor(order)
+    if (payment?.status !== PaymentAttemptStatus.PENDING || !payment.gatewayPaymentId) return
+    const gateway = payment.gateway === 'fake' ? new FakeGateway() : this.gatewayFor(store)
+    if (!gateway || gateway.name !== payment.gateway) return
+    await this.update(payment, await gateway.fetch(payment.gatewayPaymentId))
+    await this.settle(order, payment)
   }
 
   /** Online orders take their stock only once paid: check before charging. */
@@ -334,6 +353,9 @@ export default class PaymentService {
   private async update(payment: Payment, result: GatewayPayment) {
     payment.status = result.status
     payment.statusDetail = result.statusDetail
+    // The challenge page only matters while the payer still has to confirm.
+    payment.challengeUrl =
+      result.status === PaymentAttemptStatus.PENDING ? (result.challengeUrl ?? null) : null
     await payment.save()
   }
 

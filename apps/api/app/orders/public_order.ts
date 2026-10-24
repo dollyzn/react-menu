@@ -27,6 +27,11 @@ function publicPayment(payment: Payment) {
             expiresAt: payment.expiresAt?.toISO() ?? null,
           }
         : null,
+    /** 3-D Secure: the bank's page where the payer confirms the card. */
+    challenge:
+      payment.challengeUrl && pending
+        ? { url: payment.challengeUrl, expiresAt: payment.expiresAt?.toISO() ?? null }
+        : null,
     /** Development fake gateway: the page offers "Simular pagamento". */
     simulated: payment.gateway === 'fake',
   }

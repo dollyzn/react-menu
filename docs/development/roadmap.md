@@ -15,9 +15,6 @@ picked from Product below, one PR at a time.
 
 ## Product
 
-- **3-D Secure on cards**: the Orders API can ask the payer for a bank
-  challenge (`action_required`/`pending_challenge`); today such a card stays
-  pending until it expires (ADR 0017).
 - **Customer verification**: customers identify with name + phone only;
   consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an

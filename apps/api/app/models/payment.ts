@@ -41,8 +41,13 @@ export default class Payment extends BaseModel {
   @column()
   declare pixTicketUrl: string | null
 
+  /** Pix: when the QR code expires. Card in a 3-D Secure challenge: its deadline. */
   @column.dateTime()
   declare expiresAt: DateTime | null
+
+  /** 3-D Secure: the bank's challenge page while the payer must confirm. */
+  @column()
+  declare challengeUrl: string | null
 
   /** Typed by the customer at the payment step; receipts are sent there. */
   @column()

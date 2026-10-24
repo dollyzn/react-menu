@@ -140,6 +140,8 @@ export type PublicPayment = {
   amount: number;
   /** Pix to pay, while it is pending. */
   pix: { qrCode: string; ticketUrl: string | null; expiresAt: string | null } | null;
+  /** 3-D Secure: the bank's page where the payer confirms the card (pending only). */
+  challenge: { url: string; expiresAt: string | null } | null;
   /** Development fake gateway: the page may simulate the payment. */
   simulated: boolean;
 };
