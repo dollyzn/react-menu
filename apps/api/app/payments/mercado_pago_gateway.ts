@@ -4,10 +4,60 @@ import PaymentAttemptStatus from '#enums/payment_attempt_status'
 import PaymentMethod from '#enums/payment_method'
 import type Store from '#models/store'
 import type MercadoPagoClient from '#payments/mercado_pago_client'
-import type { MercadoPagoPayment, PaymentInput } from '#payments/mercado_pago_client'
+import type {
+  MercadoPagoOrder,
+  MercadoPagoPayment,
+  OrderInput,
+} from '#payments/mercado_pago_client'
 import type { CardRequest, GatewayPayment, PaymentGateway, PixRequest } from '#payments/gateway'
 
-const STATUS: Record<MercadoPagoPayment['status'], PaymentAttemptStatus> = {
+/** Orders API ids ("ORD01…"); attempts made before it have numeric Payments API ids. */
+const isOrderId = (id: string) => id.startsWith('ORD')
+
+const money = (value: number) => value.toFixed(2)
+
+function orderStatus(order: MercadoPagoOrder): PaymentAttemptStatus {
+  switch (order.status) {
+    case 'processed':
+      return PaymentAttemptStatus.APPROVED
+    case 'refunded':
+    case 'charged_back':
+      return PaymentAttemptStatus.REFUNDED
+    case 'failed':
+      return order.status_detail === 'expired'
+        ? PaymentAttemptStatus.EXPIRED
+        : PaymentAttemptStatus.REJECTED
+    case 'canceled':
+    case 'expired':
+      return PaymentAttemptStatus.EXPIRED
+    // created, processing, action_required (waiting_transfer, pending_challenge…)
+    default:
+      return PaymentAttemptStatus.PENDING
+  }
+}
+
+function fromOrder(order: MercadoPagoOrder, fallbackExpiry?: DateTime): GatewayPayment {
+  const transaction = order.transactions?.payments?.[0]
+  const qrCode = transaction?.payment_method?.qr_code
+  return {
+    gatewayPaymentId: order.id,
+    status: orderStatus(order),
+    // The transaction says why a card failed (rejected_by_issuer…); the order only "failed".
+    statusDetail: transaction?.status_detail ?? order.status_detail ?? null,
+    orderId: order.external_reference ?? null,
+    pix: qrCode
+      ? {
+          qrCode,
+          ticketUrl: transaction?.payment_method?.ticket_url ?? null,
+          expiresAt: transaction?.date_of_expiration
+            ? DateTime.fromISO(transaction.date_of_expiration)
+            : (fallbackExpiry ?? null),
+        }
+      : undefined,
+  }
+}
+
+const LEGACY_STATUS: Record<MercadoPagoPayment['status'], PaymentAttemptStatus> = {
   approved: PaymentAttemptStatus.APPROVED,
   authorized: PaymentAttemptStatus.APPROVED,
   pending: PaymentAttemptStatus.PENDING,
@@ -18,29 +68,20 @@ const STATUS: Record<MercadoPagoPayment['status'], PaymentAttemptStatus> = {
   charged_back: PaymentAttemptStatus.REFUNDED,
 }
 
-function toGatewayPayment(payment: MercadoPagoPayment): GatewayPayment {
-  const pix = payment.point_of_interaction?.transaction_data
+function fromLegacyPayment(payment: MercadoPagoPayment): GatewayPayment {
   return {
     gatewayPaymentId: String(payment.id),
-    status: STATUS[payment.status] ?? PaymentAttemptStatus.PENDING,
+    status: LEGACY_STATUS[payment.status] ?? PaymentAttemptStatus.PENDING,
     statusDetail: payment.status_detail ?? null,
     orderId: payment.external_reference,
-    pix: pix?.qr_code
-      ? {
-          qrCode: pix.qr_code,
-          ticketUrl: pix.ticket_url ?? null,
-          expiresAt: payment.date_of_expiration
-            ? DateTime.fromISO(payment.date_of_expiration)
-            : null,
-        }
-      : undefined,
   }
 }
 
 /**
- * Mercado Pago Checkout Transparente (Payments API): Pix QR codes and cards
- * tokenized in the browser by the Card Payment Brick. Card needs the
- * store's public key.
+ * Mercado Pago Checkout Transparente on the Orders API: one order per
+ * attempt (Pix QR code, or a card tokenized in the browser by the Card
+ * Payment Brick; card needs the store's public key). Attempts created
+ * before it (Payments API) are still read and refunded there.
  */
 export default class MercadoPagoGateway implements PaymentGateway {
   readonly name = 'mercado_pago'
@@ -61,52 +102,65 @@ export default class MercadoPagoGateway implements PaymentGateway {
   }
 
   async createPix(request: PixRequest) {
-    return await this.create(request, {
-      payment_method_id: 'pix',
-      // Mercado Pago's format: 2026-10-21T15:30:00.000-03:00
-      date_of_expiration: request.expiresAt.toISO()!,
+    const minutes = Math.max(30, Math.ceil(request.expiresAt.diffNow('minutes').minutes))
+    const order = await this.create(request, {
+      amount: money(request.amount),
+      // ISO 8601 duration; Mercado Pago accepts 30 minutes to 30 days.
+      expiration_time: `PT${minutes}M`,
+      payment_method: { id: 'pix', type: 'bank_transfer' },
     })
+    return fromOrder(order, request.expiresAt)
   }
 
   async createCard(request: CardRequest) {
-    return await this.create(request, {
-      payment_method_id: request.card.paymentMethodId,
-      token: request.card.token,
-      installments: request.card.installments,
-      issuer_id: request.card.issuerId,
-      statement_descriptor: request.statementDescriptor.slice(0, 22),
-      payer: {
-        email: request.payer.email,
-        first_name: request.payer.name,
-        identification: request.card.identification,
+    const order = await this.create(
+      request,
+      {
+        amount: money(request.amount),
+        payment_method: {
+          id: request.card.paymentMethodId,
+          type: request.card.paymentTypeId === 'debit_card' ? 'debit_card' : 'credit_card',
+          token: request.card.token,
+          installments: request.card.installments,
+          statement_descriptor: request.statementDescriptor.slice(0, 22),
+        },
       },
-    })
+      request.card.identification
+    )
+    return fromOrder(order)
   }
 
   async fetch(gatewayPaymentId: string) {
-    return toGatewayPayment(await this.client.getPayment(this.accessToken, gatewayPaymentId))
+    return isOrderId(gatewayPaymentId)
+      ? fromOrder(await this.client.getOrder(this.accessToken, gatewayPaymentId))
+      : fromLegacyPayment(await this.client.getPayment(this.accessToken, gatewayPaymentId))
   }
 
   async refund(gatewayPaymentId: string, idempotencyKey: string) {
-    await this.client.refundPayment(this.accessToken, gatewayPaymentId, idempotencyKey)
+    if (isOrderId(gatewayPaymentId)) {
+      await this.client.refundOrder(this.accessToken, gatewayPaymentId, idempotencyKey)
+    } else {
+      await this.client.refundPayment(this.accessToken, gatewayPaymentId, idempotencyKey)
+    }
   }
 
   private async create(
     request: PixRequest | CardRequest,
-    specific: Partial<PaymentInput> & { payment_method_id: string }
+    payment: OrderInput['transactions']['payments'][number],
+    identification?: { type: string; number: string }
   ) {
-    const payment = await this.client.createPayment(
+    return await this.client.createOrder(
       this.accessToken,
       {
-        transaction_amount: request.amount,
-        description: request.description,
+        type: 'online',
+        processing_mode: 'automatic',
+        total_amount: money(request.amount),
         external_reference: request.orderId,
-        notification_url: request.notificationUrl,
-        payer: { email: request.payer.email, first_name: request.payer.name },
-        ...specific,
+        description: request.description,
+        payer: { email: request.payer.email, first_name: request.payer.name, identification },
+        transactions: { payments: [payment] },
       },
       request.idempotencyKey
     )
-    return toGatewayPayment(payment)
   }
 }

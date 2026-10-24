@@ -190,7 +190,7 @@ function PaymentSettingsDialog({
           <DialogBody className="space-y-5">
             <ol className="space-y-4 text-sm">
               <Step n={1} title="Cadastre o webhook">
-                Em Webhooks, cole esta URL e marque o evento “Pagamentos”.
+                Em Webhooks, cole esta URL e marque os eventos “Order (Mercado Pago)” e “Pagamentos”.
                 <div className="mt-2 flex items-start gap-2">
                   <code className="min-w-0 flex-1 rounded-md bg-muted px-2 py-1.5 text-xs break-all">{webhookUrl}</code>
                   <Button

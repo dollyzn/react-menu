@@ -7,7 +7,6 @@ type BaseRequest = {
   amount: number
   description: string
   payer: { name: string; email: string }
-  notificationUrl: string
   statementDescriptor: string
   /** Same key on a retry: the gateway must not charge twice. */
   idempotencyKey: string
@@ -20,6 +19,8 @@ export type CardRequest = BaseRequest & {
     token: string
     installments: number
     paymentMethodId: string
+    /** credit_card or debit_card (the card form knows); credit when missing. */
+    paymentTypeId?: string
     issuerId?: string
     identification?: { type: string; number: string }
   }

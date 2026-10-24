@@ -152,6 +152,8 @@ export type PublicPaymentRequest = {
     token: string;
     installments: number;
     paymentMethodId: string;
+    /** credit_card or debit_card, from the card form. */
+    paymentTypeId?: string;
     issuerId?: string;
     identification?: { type: string; number: string };
   };
