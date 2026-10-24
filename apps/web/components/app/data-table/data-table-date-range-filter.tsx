@@ -13,7 +13,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { format, isEqual } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import type { DateRange } from "react-day-picker";
+import type { DateRange, Matcher } from "react-day-picker";
 import {
   presets as defaultPresets,
   type DatePreset,
@@ -49,64 +49,14 @@ export function DataTableDateRangeFilter<TData, TValue>({
   title,
   presets = defaultPresets,
 }: DataTableDateRangeFilterProps<TData, TValue>) {
-  const isMobile = useIsMobile();
-  const [open, setOpen] = useState(false);
   // The column filter (from the URL) is the source of truth: no local copy
   // that "Limpar" or a reload could leave stale.
   const dateRange: DateRange = (column?.getFilterValue() as DateRange | undefined) ?? {
     from: undefined,
     to: undefined,
   };
-
-  const Wrapper = isMobile ? Drawer : Popover;
-  const WrapperTrigger = isMobile ? DrawerTrigger : PopoverTrigger;
-  const WrapperContent = isMobile ? DrawerContent : PopoverContent;
-
-  const handleDateRangeChange = useCallback(
-    (range: DateRange | undefined) => {
-      column?.setFilterValue(range?.from || range?.to ? range : undefined);
-    },
-    [column]
-  );
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!open) return;
-
-      const preset = presets.find((preset) => preset.shortcut === e.key);
-      if (preset) {
-        const current = column?.getFilterValue() as DateRange | undefined;
-        const isSameRange =
-          current?.from?.getTime() === preset.from.getTime() &&
-          current?.to?.getTime() === preset.to.getTime();
-
-        if (isSameRange) {
-          handleDateRangeChange({ from: undefined, to: undefined });
-        } else {
-          handleDateRangeChange({ from: preset.from, to: preset.to });
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [open, presets, column, handleDateRangeChange]);
-
   const columnName = title || column?.columnDef.meta?.name || "Data";
-  const hasSelectedValues = dateRange.from || dateRange.to;
-
-  const handleClearFilters = () => {
-    column?.setFilterValue(undefined);
-  };
-
-  const handleCalendarSelect = (range: DateRange | undefined) => {
-    if (range && range.from && !range.to) {
-      const newRange = { from: range.from, to: range.from };
-      handleDateRangeChange(newRange);
-    } else {
-      handleDateRangeChange(range);
-    }
-  };
+  const hasSelectedValues = Boolean(dateRange.from || dateRange.to);
 
   const formatDateRange = () => {
     if (dateRange.from && dateRange.to) {
@@ -125,22 +75,105 @@ export function DataTableDateRangeFilter<TData, TValue>({
   };
 
   return (
-    <Wrapper open={open} onOpenChange={setOpen}>
-      <WrapperTrigger
-        render={
-          <Button
-            variant="outline"
-            size="sm"
-            className={filterTriggerClassName(Boolean(hasSelectedValues))}
-            aria-label={`Filtrar por ${columnName.toLowerCase()}`}
-          />
+    <DateRangePicker
+      title={`Filtrar por ${columnName}`}
+      value={dateRange}
+      onChange={(range) => column?.setFilterValue(range?.from || range?.to ? range : undefined)}
+      presets={presets}
+      trigger={
+        <Button
+          variant="outline"
+          size="sm"
+          className={filterTriggerClassName(hasSelectedValues)}
+          aria-label={`Filtrar por ${columnName.toLowerCase()}`}
+        />
+      }
+    >
+      <CalendarIcon className={cn(hasSelectedValues && "text-primary")} />
+      <span className="first-letter:uppercase">{columnName}</span>
+      {hasSelectedValues && <FilterSummary>{formatDateRange()}</FilterSummary>}
+      <ChevronsUpDown className="opacity-50" />
+    </DateRangePicker>
+  );
+}
+
+/**
+ * Quick periods (with keyboard shortcuts), a calendar and a custom range, in
+ * a popover (a drawer on phones). Controlled: `onChange` gets every change,
+ * `undefined` when cleared.
+ */
+export function DateRangePicker({
+  value,
+  onChange,
+  presets = defaultPresets,
+  title,
+  description = "Selecione um período de data",
+  trigger,
+  children,
+  disabled,
+  clearable = true,
+}: {
+  value: DateRange | undefined;
+  onChange: (range: DateRange | undefined) => void;
+  presets?: DatePreset[];
+  /** Drawer title on phones. */
+  title: string;
+  description?: string;
+  /** The trigger element (a Button); `children` go inside it. */
+  trigger: React.ReactElement;
+  children: React.ReactNode;
+  /** Days that can't be picked (e.g. the future). */
+  disabled?: Matcher | Matcher[];
+  clearable?: boolean;
+}) {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  const dateRange: DateRange = value ?? { from: undefined, to: undefined };
+
+  const Wrapper = isMobile ? Drawer : Popover;
+  const WrapperTrigger = isMobile ? DrawerTrigger : PopoverTrigger;
+  const WrapperContent = isMobile ? DrawerContent : PopoverContent;
+
+  const handleDateRangeChange = useCallback(
+    (range: DateRange | undefined) => onChange(range?.from || range?.to ? range : undefined),
+    [onChange]
+  );
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!open) return;
+
+      const preset = presets.find((preset) => preset.shortcut === e.key);
+      if (preset) {
+        const isSameRange =
+          value?.from?.getTime() === preset.from.getTime() &&
+          value?.to?.getTime() === preset.to.getTime();
+
+        if (isSameRange && clearable) {
+          handleDateRangeChange({ from: undefined, to: undefined });
+        } else {
+          handleDateRangeChange({ from: preset.from, to: preset.to });
         }
-      >
-        <CalendarIcon className={cn(hasSelectedValues && "text-primary")} />
-        <span className="first-letter:uppercase">{columnName}</span>
-        {hasSelectedValues && <FilterSummary>{formatDateRange()}</FilterSummary>}
-        <ChevronsUpDown className="opacity-50" />
-      </WrapperTrigger>
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [open, presets, value, clearable, handleDateRangeChange]);
+
+  const hasSelectedValues = Boolean(dateRange.from || dateRange.to);
+
+  const handleCalendarSelect = (range: DateRange | undefined) => {
+    if (range && range.from && !range.to) {
+      handleDateRangeChange({ from: range.from, to: range.from });
+    } else if (range || clearable) {
+      handleDateRangeChange(range);
+    }
+  };
+
+  return (
+    <Wrapper open={open} onOpenChange={setOpen}>
+      <WrapperTrigger render={trigger}>{children}</WrapperTrigger>
       <WrapperContent
         className={
           isMobile
@@ -152,8 +185,8 @@ export function DataTableDateRangeFilter<TData, TValue>({
       >
         {isMobile && (
           <DrawerHeader>
-            <DrawerTitle>Filtrar por {columnName}</DrawerTitle>
-            <DrawerDescription>Selecione um período de data</DrawerDescription>
+            <DrawerTitle>{title}</DrawerTitle>
+            <DrawerDescription>{description}</DrawerDescription>
           </DrawerHeader>
         )}
         <div className="overflow-auto">
@@ -183,6 +216,7 @@ export function DataTableDateRangeFilter<TData, TValue>({
               onSelect={handleCalendarSelect}
               numberOfMonths={isMobile ? 1 : 2}
               locale={ptBR}
+              disabled={disabled}
               className="rounded-md mx-auto md:mx-0"
               autoFocus
             />
@@ -191,8 +225,10 @@ export function DataTableDateRangeFilter<TData, TValue>({
           <CustomDateRange
             onSelect={handleDateRangeChange}
             selected={dateRange}
-            hasSelectedValues={!!hasSelectedValues}
-            onClear={handleClearFilters}
+            hasSelectedValues={hasSelectedValues}
+            clearable={clearable}
+            disabled={disabled}
+            onClear={() => onChange(undefined)}
             onApply={() => setOpen(false)}
           />
         </div>
@@ -300,12 +336,16 @@ function CustomDateRange({
   selected,
   onSelect,
   hasSelectedValues,
+  clearable,
+  disabled,
   onClear,
   onApply,
 }: {
   selected: DateRange | undefined;
   onSelect: (date: DateRange | undefined) => void;
   hasSelectedValues: boolean;
+  clearable: boolean;
+  disabled?: Matcher | Matcher[];
   onClear: () => void;
   onApply: () => void;
 }) {
@@ -319,19 +359,8 @@ function CustomDateRange({
     return format(date, "d 'de' MMMM 'de' yyyy", { locale: ptBR });
   }
 
-  function disabledStartDate(date: Date) {
-    if (selected?.to) {
-      return date > selected.to;
-    }
-    return false;
-  }
-
-  function disabledEndDate(date: Date) {
-    if (selected?.from) {
-      return date < selected.from;
-    }
-    return false;
-  }
+  const disabledStartDate = [...[disabled ?? []].flat(), ...(selected?.to ? [{ after: selected.to }] : [])];
+  const disabledEndDate = [...[disabled ?? []].flat(), ...(selected?.from ? [{ before: selected.from }] : [])];
 
   return (
     <div className="p-3 space-y-3">
@@ -444,15 +473,17 @@ function CustomDateRange({
           Aplicar
         </Button>
 
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-xs"
-          onClick={onClear}
-          disabled={!hasSelectedValues}
-        >
-          Limpar
-        </Button>
+        {clearable && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-xs"
+            onClick={onClear}
+            disabled={!hasSelectedValues}
+          >
+            Limpar
+          </Button>
+        )}
       </div>
     </div>
   );

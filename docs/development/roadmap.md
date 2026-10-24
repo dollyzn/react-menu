@@ -5,10 +5,8 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-Manual testing of the current build comes first; then these Product items,
-one PR at a time:
-
-1. Reports
+Manual testing of the current build comes first; then the next item is
+picked from Product below, one PR at a time.
 
 ## Standby (decided not to do for now)
 
@@ -27,8 +25,6 @@ one PR at a time:
   consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an
   intentional placeholder for a future review system (not backed by data).
-- **Reports**: sales per day/item, best sellers, stock consumption, payment
-  method mix (Pix vs card vs counter).
 - **Notification preferences** (per category, email digest).
 - **Delivery and table service**: only pickup at the counter is supported
   by design for now.

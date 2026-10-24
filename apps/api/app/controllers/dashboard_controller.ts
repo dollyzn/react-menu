@@ -8,27 +8,8 @@ import { ok } from '#helpers/api_response'
 export default class DashboardController {
   constructor(private dashboardService: DashboardService) {}
 
-  async overview({ params }: HttpContext) {
+  async today({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
-
-    const data = await this.dashboardService.overview(storeId)
-
-    return ok(data)
-  }
-
-  async recentItems({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.storeId)
-
-    const items = await this.dashboardService.recentItems(storeId)
-
-    return ok(items)
-  }
-
-  async chart({ params }: HttpContext) {
-    const storeId = await storeExistValidator.validate(params.storeId)
-
-    const chart = await this.dashboardService.chart(storeId)
-
-    return ok(chart)
+    return ok(await this.dashboardService.today(storeId))
   }
 }

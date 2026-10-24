@@ -26,6 +26,7 @@ const SECTIONS: Record<string, string> = {
   addons: "Adicionais",
   "option-groups": "Grupos de escolha",
   inventory: "Estoque",
+  reports: "Relatórios",
   overview: "Visão geral",
   members: "Equipe",
 };

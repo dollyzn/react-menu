@@ -3,3 +3,4 @@ export type * from './entities.ts';
 export type * from './notifications.ts';
 export type * from './orders.ts';
 export type * from './realtime.ts';
+export type * from './reports.ts';

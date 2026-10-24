@@ -9,7 +9,7 @@ test("admin screens have no unnamed controls", async ({ page }) => {
   await page.context().clearCookies();
   await login(page);
 
-  for (const path of ["", "/overview", "/categories", "/items", "/addons"]) {
+  for (const path of ["", "/overview", "/reports", "/categories", "/items", "/addons"]) {
     await page.goto(`/app/stores/${store.id}${path}`);
     await page.waitForLoadState("networkidle");
 
