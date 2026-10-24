@@ -2,11 +2,12 @@
 
 import Image from "@/components/app/image";
 import { motion } from "motion/react";
-import { CalendarClock, Clock, MapPin, Star } from "lucide-react";
+import { Clock, MapPin, Star } from "lucide-react";
 import { Icons } from "@/components/app/icons";
 import type { PublicMenu } from "@react-menu/contracts";
 import { cn } from "@/lib/utils";
-import { DAY_NAMES, WEEK_ORDER, dayHours, formatWhen } from "@/lib/opening-hours";
+import { formatWhen } from "@/lib/opening-hours";
+import { StoreHours } from "./store-hours";
 
 export function StoreHero({ store }: { store: PublicMenu["store"] }) {
   return (
@@ -84,6 +85,7 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
               <span className="inline-flex items-center gap-1 text-muted-foreground">
                 <Clock className="size-3.5" /> Retirada em ~{store.pickupEtaMinutes} min
               </span>
+              <StoreHours store={store} />
               {/* Placeholder until a review system exists (see roadmap). */}
               <span className="inline-flex items-center gap-0.5" aria-label="Avaliação 5 de 5">
                 {Array.from({ length: 5 }).map((_, i) => (
@@ -111,21 +113,6 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
         </div>
         {store.description && (
           <p className="mt-3 text-sm text-pretty text-muted-foreground">{store.description}</p>
-        )}
-        {store.openingHours && (
-          <details className="group mt-3 text-sm">
-            <summary className="inline-flex cursor-pointer list-none items-center gap-1 font-medium text-primary [&::-webkit-details-marker]:hidden">
-              <CalendarClock className="size-3.5" /> Ver horários
-            </summary>
-            <dl className="mt-2 grid max-w-xs grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-muted-foreground">
-              {WEEK_ORDER.map((day) => (
-                <div key={day} className="contents">
-                  <dt className="font-medium text-foreground">{DAY_NAMES[day]}</dt>
-                  <dd className="tabular-nums">{dayHours(store.openingHours!, day)}</dd>
-                </div>
-              ))}
-            </dl>
-          </details>
         )}
       </motion.div>
     </section>

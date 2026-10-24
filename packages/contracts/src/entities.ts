@@ -157,6 +157,8 @@ export type OptionGroup = {
   minChoices: number;
   maxChoices: number;
   options?: Addon[];
+  /** How many items use the group (in the list). */
+  itemsCount?: number;
   createdAt: string;
   updatedAt: string;
 };

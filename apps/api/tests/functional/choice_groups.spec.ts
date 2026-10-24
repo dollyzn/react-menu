@@ -78,8 +78,12 @@ test.group('Choice groups', (group) => {
       .json({ optionGroupIds: [groupId] })
       .loginAs(other.manager)
     foreignGroup.assertStatus(422)
-    const list = await client.get(url).loginAs(manager)
+    const list = await client.get(url).qs({ name: 'quei', sort: 'name:asc' }).loginAs(manager)
     assert.lengthOf(list.body().data, 1)
+    assert.equal(list.body().data[0].itemsCount, 1, 'used by the meat pastry')
+    assert.properties(list.body().meta, ['total', 'perPage', 'currentPage'])
+    const none = await client.get(url).qs({ name: 'molho' }).loginAs(manager)
+    assert.lengthOf(none.body().data, 0)
   })
 
   test('orders must fill required groups, within their maximum', async ({ client, assert }) => {

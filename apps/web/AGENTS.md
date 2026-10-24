@@ -10,8 +10,8 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Panel shell | `components/app/layout/`: `app-sidebar` (store switcher, groups from `lib/menu-itens.ts`, account menu), `app-header` (breadcrumbs from the route, notifications), `page-header` |
 | Store team | `…/members` (list, roles, invite dialog, resend a pending invite); invites land on `/app/redefinir-senha?convite=1` |
 | Operations | `…/orders` (board), `…/pos` (POS), `…/kitchen` (KDS), `…/inventory` (stock dialog with quick amounts for units) |
-| Choice groups | panel `stores/[store]/option-groups/` (page + dialog, `groupRule` for the "Obrigatório · escolha 1" text), items pick them in their dialogs (`optionGroupIds`); `ItemCustomizer` (menu and POS) renders radios (max 1) or capped checkboxes and blocks "Adicionar" until required groups are filled |
-| Opening hours | panel card `stores/[store]/components/opening-hours-card.tsx`, schedule-aware `store-status-dropdown.tsx`; menu hero/banner text and "Ver horários" (`lib/opening-hours.ts`: `formatWhen`, `dayHours`), `MenuView` refreshes itself when the store opens or closes |
+| Choice groups | panel `stores/[store]/option-groups/` (paginated `DataTable` with `renderCard`, dialog with `NumberStepper` for min/max, `groupRule` for the "Obrigatório · escolha 1" text), items pick them in their dialogs (`optionGroupIds`); `ItemCustomizer` (menu and POS) renders radios (max 1) or capped checkboxes and blocks "Adicionar" until required groups are filled |
+| Opening hours | panel card `stores/[store]/components/opening-hours-card.tsx` (table Dia / Disponibilidade / Horas: "O dia todo" = 00:00–23:59, 30-min `TimeSelect`s), schedule-aware `store-status-dropdown.tsx`; menu hero/banner text and the "Horários" modal (`(menu)/_components/store-hours.tsx`, today highlighted after hydration; `lib/opening-hours.ts`: `formatWhen`, `dayHours`), `MenuView` refreshes itself when the store opens or closes |
 | Stock limits in the menu and POS | `lib/stock.ts` (`unitsLeft`, `stockHint`: "Restam N" from `stockLeft`); `ItemCustomizer` caps the quantity (bag/ticket included); the API is authoritative |
 | Auth pages | `app/app/(auth)/`; "Entrar com Google" (`login/components/social-login.tsx`, shown when `GET /auth/social/providers` lists it) opens `/app/social` in a popup that reports over a BroadcastChannel (`lib/social-auth.ts`), full page when popups are blocked or in the installed app |
 | Legal pages | `app/(legal)/privacy`, `app/(legal)/terms` (linked from the login and the menu footer) |
@@ -83,6 +83,8 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   provides, so `columns` stay module-level (see `inventory/components/ingredient-actions.tsx`).
 - Forms: react-hook-form + zod + `Field*` components (see
   `create-category-dialog.tsx`); the API validation is authoritative.
+  Small whole numbers use `components/app/number-stepper.tsx` (outline −/+
+  around a regular `Input`), not a bare `type="number"`.
 - User-facing text is pt-BR, including `aria-label`s.
 - Theme changes go through `useThemeTransition` (circular reveal from the
   click); `ThemeSegmented` is the compact switch. Inside a view transition,

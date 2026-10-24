@@ -48,7 +48,7 @@ import MoneyInput from "@/components/ui/money-input";
 
 import MultiCombobox from "@/components/app/multi-combobox";
 import { useGetOptionGroupsQuery } from "@/redux/features/option-group/optionGroupApi";
-import { groupRule } from "../../option-groups/option-group-dialog";
+import { groupRule } from "../../option-groups/components/option-group-dialog";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -96,7 +96,8 @@ export function UpdateItemDialog({
   );
   const categories = categoriesRes?.data ?? [];
   const addons = addonsRes?.data ?? [];
-  const { data: optionGroups = [] } = useGetOptionGroupsQuery(storeId, { skip: !open });
+  const { data: groupsRes } = useGetOptionGroupsQuery(storeListPrefetchArg(storeId), { skip: !open });
+  const optionGroups = groupsRes?.data ?? [];
   const { data: itemAddons = [], isFetching: itemAddonsLoading } =
     useGetAddonsByItemIdQuery(
       { storeId, itemId: row.original.id },

@@ -27,7 +27,7 @@ test("a required choice group: created in the panel, chosen on the menu", async 
   await expect(dialog.getByText("Obrigatório · escolha 1")).toBeVisible();
   await dialog.getByRole("button", { name: "Criar grupo" }).click();
   await expect(dialog).toBeHidden();
-  const card = page.getByRole("listitem", { name: "Escolha o queijo" });
+  const card = page.getByRole("row", { name: /Escolha o queijo/ });
   await expect(card).toContainText("Obrigatório · escolha 1");
   await expect(card).toContainText("Mussarela incluso");
   await expect(card).toContainText("Cheddar + R$ 2,00");

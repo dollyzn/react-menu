@@ -1,5 +1,7 @@
 import type { OptionGroup } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
+import { buildStoreListUrl, type StoreScopedListArg } from "@/redux/api/listQueryParams";
+import type { PaginatedList } from "@/types/paginated-list";
 
 export type OptionGroupInput = {
   name: string;
@@ -14,9 +16,14 @@ const tag = (storeId: string) => ({ type: "OptionGroup" as const, id: storeId })
 /** Choice groups of a store ("Escolha o queijo"); items attach them with optionGroupIds. */
 export const optionGroupApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
-    getOptionGroups: build.query<OptionGroup[], string>({
-      query: (storeId) => `stores/${storeId}/option-groups`,
-      providesTags: (_res, _err, storeId) => [tag(storeId)],
+    getOptionGroups: build.query<PaginatedList<OptionGroup>, StoreScopedListArg>({
+      query: (arg) =>
+        buildStoreListUrl(arg.storeId, "option-groups", {
+          filters: arg.filters,
+          pagination: arg.pagination,
+          sort: arg.sort,
+        }),
+      providesTags: (_res, _err, arg) => [tag(arg.storeId)],
     }),
     createOptionGroup: build.mutation<OptionGroup, { storeId: string; data: OptionGroupInput }>({
       query: ({ storeId, data }) => ({ url: `stores/${storeId}/option-groups`, method: "POST", body: data }),

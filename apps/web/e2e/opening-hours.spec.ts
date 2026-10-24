@@ -18,17 +18,22 @@ test("a store on a schedule opens and closes by itself; 'Fechar agora' pauses it
   const base = `${API_URL}/api/v1/stores/${store.id}`;
   const { slug } = (await (await page.request.get(base)).json()).data;
 
-  // The manager turns the schedule on: today, opening in two hours.
-  const start = new Date(Date.now() + 2 * 60 * 60 * 1000);
-  const end = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  // The manager turns the schedule on: opening in about two hours (the
+  // form offers half hours), for an hour.
+  const half = 30 * 60 * 1000;
+  const start = new Date(Math.ceil((Date.now() + 2 * 60 * 60 * 1000) / half) * half);
+  const end = new Date(start.getTime() + 60 * 60 * 1000);
   const day = DAYS[dayOf(start)];
   await page.context().clearCookies();
   await login(page);
   await page.goto(`/app/stores/${store.id}`, { timeout: 30_000 });
   await page.getByText("Abrir e fechar sozinha pelo horário").click();
-  await page.getByRole("switch", { name: `Abre ${day}` }).click();
-  await page.getByLabel(`Abre às (${day})`).fill(hhmm(start));
-  await page.getByLabel(`Fecha às (${day})`).fill(hhmm(end));
+  await page.getByRole("checkbox", { name: `Abre ${day}` }).click();
+  await page.getByRole("combobox", { name: `Abre às (${day})` }).click();
+  await page.getByRole("option", { name: hhmm(start), exact: true }).click();
+  await page.getByRole("combobox", { name: `Fecha às (${day})` }).click();
+  await page.getByRole("option", { name: hhmm(end), exact: true }).click();
+  await expect(page.getByRole("table", { name: "Horários da semana" })).toContainText("1h");
   await page.getByRole("button", { name: "Salvar horário" }).click();
   await expect(page.getByText("Horário de funcionamento salvo")).toBeVisible();
   await expect(page.getByRole("button", { name: /^Status da loja: Fechado · abre/ })).toBeVisible();
@@ -37,8 +42,11 @@ test("a store on a schedule opens and closes by itself; 'Fechar agora' pauses it
   await page.goto(`/${slug}`);
   await expect(page.getByText(`Fechado · abre às ${hhmm(start)}`)).toBeVisible();
   await expect(page.getByText(/e abrimos às/)).toBeVisible();
-  await page.getByText("Ver horários").click();
-  await expect(page.getByText(`${hhmm(start)} – ${hhmm(end)}`)).toBeVisible();
+  await page.getByRole("button", { name: "Horários" }).click();
+  const week = page.getByRole("dialog", { name: "Horário de funcionamento" });
+  await expect(week.getByText(`${hhmm(start)} – ${hhmm(end)}`)).toBeVisible();
+  await expect(week.getByText("Hoje")).toBeVisible();
+  await page.keyboard.press("Escape");
 
   // Open now (since an hour ago, for two hours): then "Fechar agora".
   const opened = new Date(Date.now() - 60 * 60 * 1000);

@@ -46,7 +46,7 @@ import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
 import MultiCombobox from "@/components/app/multi-combobox";
 import { useGetOptionGroupsQuery } from "@/redux/features/option-group/optionGroupApi";
-import { groupRule } from "../../option-groups/option-group-dialog";
+import { groupRule } from "../../option-groups/components/option-group-dialog";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -101,7 +101,8 @@ export function CreateItemDialog() {
   const busy = isSubmitting || isSaving;
 
   const [open, setOpen] = useState(false);
-  const { data: optionGroups = [] } = useGetOptionGroupsQuery(storeId, { skip: !open });
+  const { data: groupsRes } = useGetOptionGroupsQuery(storeListPrefetchArg(storeId), { skip: !open });
+  const optionGroups = groupsRes?.data ?? [];
 
   const handleOpenChange = () => {
     if (busy && open) return;
