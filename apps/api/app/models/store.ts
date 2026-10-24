@@ -7,6 +7,10 @@ import Category from './category.js'
 import Addon from './addon.js'
 import User from './user.js'
 import db from '@adonisjs/lucid/services/db'
+import { availability, type OpeningInterval } from '#helpers/opening_hours'
+
+/** Same as #services/order_service (a model can't import a service). */
+const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
 
 const encryptNullable = (value: string | null) => (value ? encryption.encrypt(value) : null)
 const decryptNullable = (value: string | null) =>
@@ -76,6 +80,38 @@ export default class Store extends BaseModel {
   /** Public key for the card form (Card Payment Brick); safe to expose. */
   @column()
   declare mercadoPagoPublicKey: string | null
+
+  /** Opens and closes by itself following `openingHours`. */
+  @column()
+  declare scheduleEnabled: boolean
+
+  /** A week of intervals ("HH:mm", business timezone); see #helpers/opening_hours. */
+  @column({ prepare: (value: OpeningInterval[]) => JSON.stringify(value ?? []) })
+  declare openingHours: OpeningInterval[]
+
+  /** "Close now" on a schedule: closed until this moment, then the schedule again. */
+  @column.dateTime()
+  declare closedUntil: DateTime | null
+
+  /** Open right now (status, schedule and "close now" together). */
+  availabilityAt(now: DateTime = DateTime.now()) {
+    return availability(this, now, BUSINESS_TIMEZONE)
+  }
+
+  @computed()
+  get isOpen() {
+    return this.availabilityAt().isOpen
+  }
+
+  @computed()
+  get closesAt() {
+    return this.availabilityAt().closesAt?.toISO() ?? null
+  }
+
+  @computed()
+  get opensAt() {
+    return this.availabilityAt().opensAt?.toISO() ?? null
+  }
 
   @computed()
   get mercadoPagoEnabled() {

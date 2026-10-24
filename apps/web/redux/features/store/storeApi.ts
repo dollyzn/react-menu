@@ -1,3 +1,4 @@
+import type { OpeningInterval } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
 import type {
   StoreOverview,
@@ -63,6 +64,16 @@ export const storeApi = baseApi.injectEndpoints({
       invalidatesTags: (_res, _err, { id }) => [storeTag(id)],
     }),
 
+    /** Weekly schedule; with scheduleEnabled the store opens and closes by itself. */
+    updateStoreHours: build.mutation<
+      Store,
+      { id: string; scheduleEnabled: boolean; openingHours: OpeningInterval[] }
+    >({
+      query: ({ id, ...body }) => ({ url: `stores/${id}/hours`, method: "PUT", body }),
+      extraOptions: { quiet: true },
+      invalidatesTags: (_res, _err, { id }) => [storeTag(id)],
+    }),
+
     /** Set or clear (null) the store's Mercado Pago credentials. */
     updatePaymentSettings: build.mutation<
       { mercadoPagoEnabled: boolean; mercadoPagoPublicKey: string | null; maxInstallments: number },
@@ -104,6 +115,7 @@ export const {
   useUpdateStoreMutation,
   useUpdateStoreImagesMutation,
   useUpdateStoreStatusMutation,
+  useUpdateStoreHoursMutation,
   useUpdatePaymentSettingsMutation,
   useGetStoreOverviewQuery,
   useGetStoreRecentItemsQuery,

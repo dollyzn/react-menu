@@ -33,6 +33,16 @@ export type Store = {
   mercadoPagoPublicKey: string | null;
   /** Card installments offered at checkout (1 = à vista). */
   maxInstallments: number;
+  /** Opens and closes by itself following `openingHours`. */
+  scheduleEnabled: boolean;
+  openingHours: OpeningInterval[];
+  /** "Close now" on a schedule: closed until this moment (ISO). */
+  closedUntil: string | null;
+  /** Open right now (status, schedule and "close now" together). */
+  isOpen: boolean;
+  /** On a schedule: when it closes (if open) / opens next (if closed), ISO. */
+  closesAt: string | null;
+  opensAt: string | null;
   createdAt: string;
   updatedAt: string;
   categories?: Category[];
@@ -132,6 +142,12 @@ export type BulkUpdateChange = {
   price?: number;
   isAvailable?: boolean;
 };
+
+/**
+ * One opening interval of the week: `day` 0 (Sunday) … 6 (Saturday), times
+ * "HH:mm" in the store's timezone; `closes` before `opens` crosses midnight.
+ */
+export type OpeningInterval = { day: number; opens: string; closes: string };
 
 /** Social sign-in providers (GET /auth/social/providers lists the configured ones). */
 export type SocialProvider = "google" | "twitter" | "facebook";

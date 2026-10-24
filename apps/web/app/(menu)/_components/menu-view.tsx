@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { formatWhen } from "@/lib/opening-hours";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { SearchX, Store as StoreIcon } from "lucide-react";
+import { SearchX, Store as StoreIcon, UtensilsCrossed } from "lucide-react";
 import type { PublicMenu, PublicMenuItem } from "@react-menu/contracts";
 import { normalizeSearch } from "@/utils/string";
 import { MenuTopBar } from "./menu-top-bar";
@@ -23,6 +25,17 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
   // read on the client; the invitation never renders during SSR/hydration.
   const [visits] = useState(() => (typeof window === "undefined" ? 0 : countVisit()));
   const hasOrdered = useAppSelector((state) => state.customer.recentOrders.length > 0);
+  const router = useRouter();
+  // On a schedule: refresh the menu when the store opens or closes, so the
+  // page never offers ordering after closing (or keeps saying "fechado").
+  const changeAt = menu.store.isOpen ? menu.store.closesAt : menu.store.opensAt;
+  useEffect(() => {
+    if (!changeAt) return;
+    const wait = new Date(changeAt).getTime() - Date.now() + 1000;
+    if (wait <= 0 || wait > 12 * 60 * 60 * 1000) return;
+    const timer = window.setTimeout(() => router.refresh(), wait);
+    return () => window.clearTimeout(timer);
+  }, [changeAt, router]);
   const stock = useMemo(
     () =>
       Object.fromEntries(
@@ -81,14 +94,25 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
         {!menu.store.isOpen && (
           <div className="mt-4 flex items-center gap-3 rounded-xl border border-dashed p-3 text-sm text-muted-foreground">
             <StoreIcon className="size-5 shrink-0" />
-            Estamos fechados agora. Você pode olhar o cardápio, e os pedidos voltam quando abrirmos.
+            <span suppressHydrationWarning>
+              Estamos fechados agora
+              {menu.store.opensAt ? ` e abrimos ${formatWhen(menu.store.opensAt)}` : ""}. Você pode olhar o
+              cardápio, e os pedidos voltam quando abrirmos.
+            </span>
           </div>
         )}
 
         {/* Direct child of <main>: a wrapper would stop it from sticking. */}
         <CategoryNav categories={categories} className="mt-4" />
 
-        {categories.length === 0 ? (
+        {categories.length === 0 && !query ? (
+          // A store still setting up its menu (no search involved).
+          <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
+            <UtensilsCrossed className="size-10" />
+            <p className="font-medium text-foreground">O cardápio está sendo preparado</p>
+            <p className="text-sm">Volte em breve para fazer seu pedido.</p>
+          </div>
+        ) : categories.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center text-muted-foreground">
             <SearchX className="size-10" />
             <p className="font-medium text-foreground">Nada encontrado para “{query}”</p>

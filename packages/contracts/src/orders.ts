@@ -1,3 +1,4 @@
+import type { OpeningInterval } from './entities.ts';
 export type OrderStatus =
   | 'pending_payment'
   | 'received'
@@ -254,6 +255,11 @@ export type PublicMenu = {
     slug: string;
     status: 'open' | 'closed' | 'maintenance';
     isOpen: boolean;
+    /** On a schedule: when it closes (if open) / opens next (if closed), ISO. */
+    closesAt: string | null;
+    opensAt: string | null;
+    /** The weekly schedule when the store follows one. */
+    openingHours: OpeningInterval[] | null;
     description: string | null;
     address: string | null;
     phone: string | null;

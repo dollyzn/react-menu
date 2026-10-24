@@ -6,6 +6,7 @@ import {
   storeValidator,
   updateImagesValidator,
   updateStatusValidator,
+  updateHoursValidator,
   updateValidator,
 } from '#validators/store'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
@@ -63,6 +64,15 @@ export default class StoresController {
     const store = await this.storeService.updateStatus(id, status, auth.getUserOrFail())
 
     return updated(store, 'Status da loja atualizado com sucesso')
+  }
+
+  async updateHours({ params, request }: HttpContext) {
+    const id = await uuidValidator.validate(params.storeId)
+    const data = await request.validateUsing(updateHoursValidator)
+
+    const store = await this.storeService.updateHours(id, data)
+
+    return updated(store, 'Horário de funcionamento salvo')
   }
 
   async destroy({ params, bouncer }: HttpContext) {

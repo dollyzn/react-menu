@@ -41,6 +41,7 @@ import { EditStoreDialog } from "./components/edit-store-dialog";
 import { CommentRatings } from "./components/rating";
 import { SortingTabs } from "./components/sorting-tabs";
 import { PaymentSettingsCard } from "./components/payment-settings-card";
+import { OpeningHoursCard } from "./components/opening-hours-card";
 import Image from "@/components/app/image";
 
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
@@ -142,10 +143,7 @@ export default function Store() {
                         <div className="h-auto font-bold text-xl">
                           {data.name}
                         </div>
-                        <StoreStatusDropdown
-                          storeId={data.id}
-                          status={data.status}
-                        />
+                        <StoreStatusDropdown store={data} />
                       </div>
                       <div className="text-sm h-auto flex items-center text-muted-foreground gap-1">
                         <MapPin className="h-4 w-4" />
@@ -302,6 +300,9 @@ export default function Store() {
             <SortingTabs />
           </CardContent>
         </Card>
+      </div>
+      <div className="md:col-span-2">
+        {data && <OpeningHoursCard key={data.updatedAt} store={data} />}
       </div>
       <div className="md:col-span-2">
         {data && <PaymentSettingsCard store={data} />}

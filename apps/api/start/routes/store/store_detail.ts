@@ -15,6 +15,7 @@ export default function registerStoreDetailRoutes() {
     .patch('/status', [StoresController, 'updateStatus'])
     .as('stores.updateStatus')
     .use(frontOfHouse)
+  router.put('/hours', [StoresController, 'updateHours']).as('stores.updateHours').use(managersOnly)
   router
     .put('/payment-settings', [PaymentsController, 'updateSettings'])
     .as('stores.paymentSettings')
