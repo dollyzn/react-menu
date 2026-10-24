@@ -4,7 +4,7 @@ import { AuthShell } from "../_components/auth-shell";
 
 export default function LoginPage() {
   return (
-    <AuthShell title="Menu App" description="Entre com suas credenciais para acessar o sistema">
+    <AuthShell title="React Menu" description="Entre para abrir o painel da sua loja.">
           <LoginForm />
 
           <p className="px-2 sm:px-8 text-center text-sm text-muted-foreground">

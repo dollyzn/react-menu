@@ -114,8 +114,8 @@ export function UpdateBannerDialog({ storeId }: UpdateBannerDialogProps) {
             size="sm"
             className="absolute bottom-4 right-4"
           >
-            <Camera className="mr-2 h-4 w-4" />
-            Alterar Banner
+            <Camera data-icon="inline-start" />
+            Alterar banner
           </Button>
         }
       />
