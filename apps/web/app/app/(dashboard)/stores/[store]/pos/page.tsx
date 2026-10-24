@@ -82,7 +82,7 @@ export default function PosPage() {
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const quickAdd = (item: PublicMenuItem) => {
-    if (item.addons.length > 0) return setPicking(item);
+    if (item.addons.length > 0 || item.optionGroups.length > 0) return setPicking(item);
     addToTicket({
       itemId: item.id,
       name: item.name,
@@ -402,7 +402,7 @@ function ProductCard({
               {hint}
             </span>
           )}
-          {item.addons.length > 0 && (
+          {(item.addons.length > 0 || item.optionGroups.length > 0) && (
             <SlidersHorizontal aria-hidden className="size-3.5 text-muted-foreground">
               <title>Tem adicionais</title>
             </SlidersHorizontal>

@@ -5,6 +5,7 @@ import Item from '#models/item'
 import { deleteEach } from '#helpers/bulk_delete'
 import { applyBulkChanges, type BulkChange } from '#helpers/bulk_update'
 import { applyOrder } from '#helpers/reorder'
+import OptionGroupService from '#services/option_group_service'
 import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
 import CategoryRepository from '#repositories/category_repository'
@@ -15,7 +16,8 @@ export default class ItemService {
   constructor(
     private repo: ItemRepository,
     private addonRepo: AddonRepository,
-    private categoryRepo: CategoryRepository
+    private categoryRepo: CategoryRepository,
+    private optionGroups: OptionGroupService
   ) {}
 
   async list(options?: ItemListOptions) {
@@ -39,9 +41,12 @@ export default class ItemService {
     return await this.repo.findByCategoryInStore(storeId, categoryId, options)
   }
 
-  async create(storeId: string, data: Partial<Item> & { addonIds?: string[] }) {
+  async create(
+    storeId: string,
+    data: Partial<Item> & { addonIds?: string[]; optionGroupIds?: string[] }
+  ) {
     return await db.transaction(async (trx) => {
-      const { addonIds, ...itemData } = data
+      const { addonIds, optionGroupIds, ...itemData } = data
       await this.categoryRepo.findByIdInStore(
         itemData.categoryId!,
         storeId,
@@ -59,16 +64,24 @@ export default class ItemService {
         }
       }
 
+      if (optionGroupIds !== undefined)
+        await this.syncOptionGroups(item, storeId, optionGroupIds, trx)
+
       await item.load('category')
       await item.load('addons')
+      await item.load('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
       return item
     })
   }
 
-  async update(storeId: string, id: string, data: Partial<Item> & { addonIds?: string[] }) {
+  async update(
+    storeId: string,
+    id: string,
+    data: Partial<Item> & { addonIds?: string[]; optionGroupIds?: string[] }
+  ) {
     return await db.transaction(async (trx) => {
       const current = await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
-      const { addonIds, ...itemData } = data
+      const { addonIds, optionGroupIds, ...itemData } = data
       if (itemData.categoryId !== undefined && itemData.categoryId !== current.categoryId) {
         await this.categoryRepo.findByIdInStore(
           itemData.categoryId,
@@ -88,8 +101,12 @@ export default class ItemService {
         await item.useTransaction(trx).related('addons').sync(validAddonIds)
       }
 
+      if (optionGroupIds !== undefined)
+        await this.syncOptionGroups(item, storeId, optionGroupIds, trx)
+
       await item.load('category')
       await item.load('addons')
+      await item.load('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
       return item
     })
   }
@@ -133,6 +150,20 @@ export default class ItemService {
       })
 
     return await deleteEach(items)
+  }
+
+  /** Attaches choice groups of this store to the item, in the given order. */
+  private async syncOptionGroups(
+    item: Item,
+    storeId: string,
+    ids: string[],
+    trx: TransactionClientContract
+  ) {
+    const valid = await this.optionGroups.validIds(storeId, ids, trx)
+    await item
+      .useTransaction(trx)
+      .related('optionGroups')
+      .sync(Object.fromEntries(valid.map((groupId, order) => [groupId, { order }])))
   }
 
   private async getValidAddonIds(

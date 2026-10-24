@@ -402,6 +402,7 @@ export default class OrderService {
       .whereHas('category', (category) => category.where('store_id', store.id))
       .preload('category')
       .preload('addons')
+      .preload('optionGroups', (groups) => groups.preload('options'))
     const unavailable = await this.inventory.unavailable(store, trx)
 
     return lines.map((line) => {
@@ -418,8 +419,30 @@ export default class OrderService {
         throw new AppException(`Quantidade inválida para ${item.name}.`, 422)
       }
 
-      const addons = [...new Set(line.addonIds ?? [])].map((addonId) => {
-        const addon = item.addons.find((candidate) => candidate.id === addonId)
+      const chosen = [...new Set(line.addonIds ?? [])]
+      // Choice groups: each one's minimum and maximum (options are add-ons).
+      for (const group of item.optionGroups) {
+        const picked = chosen.filter((id) =>
+          group.options.some((option) => option.id === id)
+        ).length
+        if (picked < group.minChoices || picked > group.maxChoices) {
+          const want =
+            group.minChoices === group.maxChoices
+              ? `${group.minChoices}`
+              : picked < group.minChoices
+                ? `pelo menos ${group.minChoices}`
+                : `até ${group.maxChoices}`
+          throw new AppException(
+            `${item.name}: escolha ${want} em "${group.name}".`,
+            422,
+            'E_CHOICE_REQUIRED'
+          )
+        }
+      }
+      const allowed = [...item.addons, ...item.optionGroups.flatMap((group) => group.options)]
+
+      const addons = chosen.map((addonId) => {
+        const addon = allowed.find((candidate) => candidate.id === addonId)
         if (!addon) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
         if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
           throw new AppException(

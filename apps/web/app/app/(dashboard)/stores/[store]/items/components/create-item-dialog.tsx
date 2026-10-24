@@ -45,6 +45,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
 import MultiCombobox from "@/components/app/multi-combobox";
+import { useGetOptionGroupsQuery } from "@/redux/features/option-group/optionGroupApi";
+import { groupRule } from "../../option-groups/option-group-dialog";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -67,6 +69,7 @@ const CreateItemSchema = z.object({
     .min(0.01, "O preço é obrigatório e deve ser maior que zero."),
   categoryId: z.string().min(1, "A categoria é obrigatória"),
   addonIds: z.array(z.string()).optional(),
+  optionGroupIds: z.array(z.string()).optional(),
 });
 
 export function CreateItemDialog() {
@@ -91,12 +94,14 @@ export function CreateItemDialog() {
       price: 0,
       categoryId: "",
       addonIds: [],
+      optionGroupIds: [],
     },
   });
   const { isSubmitting } = form.formState;
   const busy = isSubmitting || isSaving;
 
   const [open, setOpen] = useState(false);
+  const { data: optionGroups = [] } = useGetOptionGroupsQuery(storeId, { skip: !open });
 
   const handleOpenChange = () => {
     if (busy && open) return;
@@ -270,6 +275,32 @@ export function CreateItemDialog() {
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="optionGroupIds"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Grupos de escolha</FieldLabel>
+                    <MultiCombobox
+                      id={field.name}
+                      items={optionGroups}
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      getValue={(group) => group.id}
+                      getLabel={(group) => `${group.name} (${groupRule(group).toLowerCase()})`}
+                      disabled={busy}
+                      invalid={fieldState.invalid}
+                      placeholder="Selecione os grupos"
+                      emptyMessage="Nenhum grupo. Crie em Grupos de escolha."
+                    />
+                    <FieldDescription>
+                      Escolhas que o cliente faz ao pedir este item (ex.: o queijo).
+                    </FieldDescription>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
               />

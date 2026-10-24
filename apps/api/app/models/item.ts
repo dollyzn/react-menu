@@ -5,6 +5,7 @@ import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
 import Category from './category.js'
 import Addon from './addon.js'
 import Ingredient from './ingredient.js'
+import OptionGroup from './option_group.js'
 
 export default class Item extends BaseModel {
   @column({ isPrimary: true })
@@ -45,6 +46,10 @@ export default class Item extends BaseModel {
 
   @manyToMany(() => Addon)
   declare addons: ManyToMany<typeof Addon>
+
+  /** Choice groups the customer fills in (pivot `order`). */
+  @manyToMany(() => OptionGroup, { pivotTable: 'item_option_groups', pivotColumns: ['order'] })
+  declare optionGroups: ManyToMany<typeof OptionGroup>
 
   /** Recipe: ingredients consumed per unit (pivot `quantity`). */
   @manyToMany(() => Ingredient, { pivotTable: 'item_ingredients', pivotColumns: ['quantity'] })

@@ -1,7 +1,7 @@
 import type { SortSpec } from '#helpers/query_string_parser'
 import type Item from '#models/item'
 
-export type ItemPreloadKey = keyof Pick<Item, 'addons' | 'category'>
+export type ItemPreloadKey = keyof Pick<Item, 'addons' | 'category' | 'optionGroups'>
 
 export type ItemPreloadOption = true | false | ItemPreloadKey[]
 

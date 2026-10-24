@@ -47,6 +47,8 @@ import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
 
 import MultiCombobox from "@/components/app/multi-combobox";
+import { useGetOptionGroupsQuery } from "@/redux/features/option-group/optionGroupApi";
+import { groupRule } from "../../option-groups/option-group-dialog";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -69,6 +71,7 @@ const UpdateItemSchema = z.object({
     .min(0.01, "O preço é obrigatório e deve ser maior que zero."),
   categoryId: z.string().min(1, "A categoria é obrigatória"),
   addonIds: z.array(z.string()).optional(),
+  optionGroupIds: z.array(z.string()).optional(),
 });
 
 interface UpdateItemDialogProps {
@@ -93,6 +96,7 @@ export function UpdateItemDialog({
   );
   const categories = categoriesRes?.data ?? [];
   const addons = addonsRes?.data ?? [];
+  const { data: optionGroups = [] } = useGetOptionGroupsQuery(storeId, { skip: !open });
   const { data: itemAddons = [], isFetching: itemAddonsLoading } =
     useGetAddonsByItemIdQuery(
       { storeId, itemId: row.original.id },
@@ -109,6 +113,7 @@ export function UpdateItemDialog({
       price: row.getValue("price") as number,
       categoryId: (row.original.category?.id || "").toString(),
       addonIds: itemAddons.map((addon) => addon.id),
+      optionGroupIds: row.original.optionGroups?.map((group) => group.id) ?? [],
     },
   });
   const { isSubmitting } = form.formState;
@@ -121,6 +126,7 @@ export function UpdateItemDialog({
       price: row.getValue("price") as number,
       categoryId: (row.original.category?.id || "").toString(),
       addonIds: itemAddons.map((addon) => addon.id),
+      optionGroupIds: row.original.optionGroups?.map((group) => group.id) ?? [],
     };
   }, [row, itemAddons]);
 
@@ -308,6 +314,32 @@ export function UpdateItemDialog({
                     {fieldState.invalid && (
                       <FieldError errors={[fieldState.error]} />
                     )}
+                  </Field>
+                )}
+              />
+
+              <Controller
+                name="optionGroupIds"
+                control={form.control}
+                render={({ field, fieldState }) => (
+                  <Field data-invalid={fieldState.invalid}>
+                    <FieldLabel htmlFor={field.name}>Grupos de escolha</FieldLabel>
+                    <MultiCombobox
+                      id={field.name}
+                      items={optionGroups}
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      getValue={(group) => group.id}
+                      getLabel={(group) => `${group.name} (${groupRule(group).toLowerCase()})`}
+                      disabled={busy}
+                      invalid={fieldState.invalid}
+                      placeholder="Selecione os grupos"
+                      emptyMessage="Nenhum grupo. Crie em Grupos de escolha."
+                    />
+                    <FieldDescription>
+                      Escolhas que o cliente faz ao pedir este item (ex.: o queijo).
+                    </FieldDescription>
+                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
               />

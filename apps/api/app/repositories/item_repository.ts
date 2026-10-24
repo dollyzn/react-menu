@@ -12,13 +12,17 @@ import type {
 
 function resolveItemPreloadKeys(preload: ItemPreloadOption | undefined): ItemPreloadKey[] {
   if (preload === false) return []
-  if (preload === true || preload === undefined) return ['addons', 'category']
+  if (preload === true || preload === undefined) return ['addons', 'category', 'optionGroups']
   return preload
 }
 
 function applyItemPreloads(query: ModelQueryBuilderContract<typeof Item>, keys: ItemPreloadKey[]) {
   for (const key of keys) {
-    query.preload(key)
+    if (key === 'optionGroups') {
+      query.preload('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
+    } else {
+      query.preload(key)
+    }
   }
 }
 

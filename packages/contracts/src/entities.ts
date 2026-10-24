@@ -80,6 +80,8 @@ export type Item = {
   updatedAt: string;
   category?: Category;
   addons?: Addon[];
+  /** Choice groups, in display order. */
+  optionGroups?: OptionGroup[];
 };
 
 export type Addon = {
@@ -141,6 +143,22 @@ export type BulkUpdateChange = {
   updatedAt: string;
   price?: number;
   isAvailable?: boolean;
+};
+
+/**
+ * A choice group ("Escolha o queijo": 1; "Molhos": até 2). Its options are
+ * the store's add-ons, in display order.
+ */
+export type OptionGroup = {
+  id: string;
+  storeId: string;
+  name: string;
+  /** 0 = optional. */
+  minChoices: number;
+  maxChoices: number;
+  options?: Addon[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 /**
