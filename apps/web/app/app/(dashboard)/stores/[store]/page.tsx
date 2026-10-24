@@ -116,8 +116,9 @@ export default function Store() {
                 <UpdateBannerDialog storeId={data.id} />
               </div>
 
-              <div className="flex justify-between items-stretch">
-                <div className="flex items-center gap-6">
+              {/* Phones: the links and "Editar" go under the logo instead of past the card's edge. */}
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-stretch sm:justify-between">
+                <div className="flex min-w-0 items-center gap-6">
                   <div className="relative w-[90px] h-[90px] ">
                     {data.photoUrl ? (
                       <Image
@@ -162,7 +163,7 @@ export default function Store() {
                   </div>
                 </div>
 
-                <div className="flex flex-col items-end gap-3 justify-between">
+                <div className="flex flex-col items-start gap-3 justify-between sm:items-end">
                   <TooltipProvider>
                     <div className="text-xs text-muted-foreground space-y-1">
                       <Tooltip>

@@ -86,16 +86,23 @@ export default class DashboardService {
           OrderStatus.PREPARING,
           OrderStatus.READY,
         ])
-        .where('business_date', '>=', now.minus({ days: 1 }).toISODate()!)
+        // Same day as the orders board, so "Abrir pedidos" shows these numbers.
+        .where('business_date', today)
         .select('status')
         .count('* as orders')
         .groupBy('status'),
-      // From reaching the kitchen (paid or taken at the counter) to ready.
+      // From reaching the kitchen ("received": paid, or taken at the counter) to
+      // ready; an online order's wait for the payment doesn't count.
       sales(today)
         .whereNotNull('ready_at')
         .select(
           db.raw(
-            'avg(extract(epoch from ready_at - coalesce(stock_consumed_at, created_at))) / 60 as minutes'
+            `avg(extract(epoch from ready_at - coalesce(
+              (select min(h.created_at) from order_status_histories h
+                where h.order_id = orders.id and h.to_status = ?),
+              created_at
+            ))) / 60 as minutes`,
+            [OrderStatus.RECEIVED]
           )
         )
         .count('* as orders')

@@ -243,7 +243,12 @@ export default class PaymentService {
 
     if (!payment) {
       // Legacy Checkout Pro order (no Payment row): only approval matters.
-      if (result.status === PaymentAttemptStatus.APPROVED) {
+      // Anything else (e.g. a "payment" notice about an Orders API attempt)
+      // is settled by its own attempt, never straight on the order.
+      if (
+        order.paymentMethod === PaymentMethod.MERCADO_PAGO &&
+        result.status === PaymentAttemptStatus.APPROVED
+      ) {
         await this.orders.markPaid(order, { mercadoPagoPaymentId: result.gatewayPaymentId })
       }
       return
@@ -354,8 +359,13 @@ export default class PaymentService {
     payment.status = result.status
     payment.statusDetail = result.statusDetail
     // The challenge page only matters while the payer still has to confirm.
-    payment.challengeUrl =
+    const challengeUrl =
       result.status === PaymentAttemptStatus.PENDING ? (result.challengeUrl ?? null) : null
+    // A challenge that shows up later (webhook, sync) gets Mercado Pago's 40 minutes too.
+    if (challengeUrl && !payment.challengeUrl && !payment.expiresAt) {
+      payment.expiresAt = DateTime.now().plus({ minutes: CHALLENGE_TTL_MINUTES })
+    }
+    payment.challengeUrl = challengeUrl
     await payment.save()
   }
 
