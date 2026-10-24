@@ -24,6 +24,9 @@ categoryExistValidator.messagesProvider = new SimpleMessagesProvider({
   'database.exists': 'Categoria não encontrada',
 })
 
+/** Choice groups of the item, in display order. */
+const optionGroupIds = vine.array(vine.string().uuid()).maxLength(10).distinct().optional()
+
 const storeValidator = vine.create(
   vine.object({
     name,
@@ -31,6 +34,7 @@ const storeValidator = vine.create(
     price,
     photoUrl,
     addonIds,
+    optionGroupIds,
   })
 )
 
@@ -43,6 +47,7 @@ const updateValidator = vine.create(
     categoryId: categoryId.optional(),
     photoUrl,
     addonIds,
+    optionGroupIds,
     isAvailable: vine.boolean().optional(),
   })
 )

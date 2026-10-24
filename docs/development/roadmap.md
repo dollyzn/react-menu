@@ -8,8 +8,7 @@ they are picked up; done items leave this file (see the git history).
 Manual testing of the current build comes first; then these Product items,
 one PR at a time:
 
-1. Choice groups
-2. Reports
+1. Reports
 
 ## Standby (decided not to do for now)
 
@@ -28,8 +27,6 @@ one PR at a time:
   consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an
   intentional placeholder for a future review system (not backed by data).
-- **Choice groups** ("queijo à sua escolha", min/max add-ons) are not
-  modeled; today they are free add-ons or notes.
 - **Reports**: sales per day/item, best sellers, stock consumption, payment
   method mix (Pix vs card vs counter).
 - **Notification preferences** (per category, email digest).

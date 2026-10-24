@@ -45,7 +45,7 @@ export const itemApi = baseApi.injectEndpoints({
       {
         storeId: string;
         categoryId: number;
-        data: Partial<Item & { addonIds?: string[] }>;
+        data: Partial<Item & { addonIds?: string[]; optionGroupIds?: string[] }>;
       }
     >({
       query: ({ storeId, categoryId, data }) => ({
@@ -71,7 +71,7 @@ export const itemApi = baseApi.injectEndpoints({
       {
         storeId: string;
         itemId: string;
-        data: Partial<Item & { addonIds?: string[] }>;
+        data: Partial<Item & { addonIds?: string[]; optionGroupIds?: string[] }>;
       }
     >({
       query: ({ storeId, itemId, data }) => ({

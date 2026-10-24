@@ -85,10 +85,31 @@ export function ItemCustomizer({
   onAdd: (line: CustomizedLine) => void;
 }) {
   const [addonIds, setAddonIds] = useState<string[]>([]);
+  /** Choices per group (option ids). */
+  const [choices, setChoices] = useState<Record<string, string[]>>({});
   const [notes, setNotes] = useState("");
   const [quantity, setQuantity] = useState(1);
 
-  const selected = item.addons.filter((addon) => addonIds.includes(addon.id));
+  const groups = item.optionGroups ?? [];
+  const chosenOptions = groups.flatMap((group) =>
+    group.options.filter((option) => (choices[group.id] ?? []).includes(option.id))
+  );
+  const missing = groups.filter((group) => (choices[group.id] ?? []).length < group.minChoices);
+  const choose = (groupId: string, optionId: string, max: number) =>
+    setChoices((current) => {
+      const picked = current[groupId] ?? [];
+      if (max === 1) return { ...current, [groupId]: picked.includes(optionId) ? [] : [optionId] };
+      if (picked.includes(optionId)) return { ...current, [groupId]: picked.filter((id) => id !== optionId) };
+      return picked.length >= max ? current : { ...current, [groupId]: [...picked, optionId] };
+    });
+
+  // Group choices are add-ons too: price, stock and the order line.
+  const selected = [
+    ...chosenOptions,
+    ...item.addons.filter(
+      (addon) => addonIds.includes(addon.id) && !chosenOptions.some((option) => option.id === addon.id)
+    ),
+  ];
   // The stock caps the quantity (the API refuses more anyway): the item and
   // every chosen add-on with a recipe.
   const left = unitsLeft(item.stockLeft, alreadyChosen);
@@ -119,7 +140,10 @@ export function ItemCustomizer({
             ? `Com o que já está no pedido, dá para mais ${maxQuantity}`
             : `Só temos ${maxQuantity} ${maxQuantity === 1 ? "disponível" : "disponíveis"} agora`
         : null;
-  const hint = limitMessage ?? stockHint(left);
+  // Required choices first: until they're made the item can't be added.
+  const hint = missing.length
+    ? `Escolha: ${missing.map((group) => group.name).join(", ")}`
+    : (limitMessage ?? stockHint(left));
   const total = (item.price + selected.reduce((sum, addon) => sum + addon.price, 0)) * quantity;
 
   const toggle = (id: string) =>
@@ -159,6 +183,81 @@ export function ItemCustomizer({
           {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
           <p className="text-lg font-semibold text-primary">{formatCurrencyBRL(item.price)}</p>
         </div>
+
+        {groups.map((group) => {
+          const picked = choices[group.id] ?? [];
+          const single = group.maxChoices === 1;
+          const full = picked.length >= group.maxChoices;
+          const rule =
+            group.minChoices === group.maxChoices
+              ? `Escolha ${group.maxChoices}`
+              : group.minChoices > 0
+                ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
+                : `Escolha até ${group.maxChoices}`;
+          return (
+            <fieldset key={group.id} className="space-y-2">
+              <legend className="mb-2 flex w-full items-center justify-between gap-2 text-sm font-semibold">
+                <span>
+                  {group.name}
+                  <span className="block text-xs font-normal text-muted-foreground">{rule}</span>
+                </span>
+                <span
+                  className={cn(
+                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+                    group.minChoices > 0 && picked.length < group.minChoices
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {group.minChoices > 0 ? (picked.length >= group.minChoices ? "Pronto" : "Obrigatório") : "Opcional"}
+                </span>
+              </legend>
+              {group.options.map((option) => {
+                const checked = picked.includes(option.id);
+                const blocked = !option.isAvailable || (!single && full && !checked);
+                return (
+                  <label
+                    key={option.id}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                      checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                      blocked && "cursor-not-allowed opacity-50"
+                    )}
+                  >
+                    <input
+                      type={single ? "radio" : "checkbox"}
+                      name={`group-${group.id}`}
+                      className="sr-only"
+                      checked={checked}
+                      disabled={blocked}
+                      onChange={() => choose(group.id, option.id, group.maxChoices)}
+                      onClick={() => single && checked && choose(group.id, option.id, 1)}
+                    />
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex size-5 shrink-0 items-center justify-center border transition-colors",
+                        single ? "rounded-full" : "rounded-md",
+                        checked && "border-primary bg-primary text-primary-foreground"
+                      )}
+                    >
+                      {checked && (single ? <span className="size-2 rounded-full bg-current" /> : <Check className="size-3.5" />)}
+                    </span>
+                    <span className="flex-1">
+                      <span className="block text-sm font-medium">{option.name}</span>
+                      {option.description && (
+                        <span className="block text-xs text-muted-foreground">{option.description}</span>
+                      )}
+                    </span>
+                    <span className="text-sm text-muted-foreground tabular-nums">
+                      {!option.isAvailable ? "Esgotado" : option.price ? `+ ${formatCurrencyBRL(option.price)}` : "Incluso"}
+                    </span>
+                  </label>
+                );
+              })}
+            </fieldset>
+          );
+        })}
 
         {item.addons.length > 0 && (
           <fieldset className="space-y-2">
@@ -271,7 +370,7 @@ export function ItemCustomizer({
         <Button
           size="lg"
           className="h-11 flex-1 justify-between rounded-full px-5"
-          disabled={disabled || maxQuantity < 1 || quantity > maxQuantity}
+          disabled={disabled || missing.length > 0 || maxQuantity < 1 || quantity > maxQuantity}
           onClick={add}
         >
           {ctaLabel}

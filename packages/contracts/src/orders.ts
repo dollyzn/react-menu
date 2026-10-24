@@ -284,6 +284,15 @@ export type PublicMenuCategory = {
   items: PublicMenuItem[];
 };
 
+export type PublicOptionGroup = {
+  id: string;
+  name: string;
+  /** 0 = optional; the order needs at least this many. */
+  minChoices: number;
+  maxChoices: number;
+  options: PublicMenuAddon[];
+};
+
 export type PublicMenuItem = {
   id: string;
   name: string;
@@ -295,6 +304,8 @@ export type PublicMenuItem = {
   /** Units the stock still makes (stores that track stock, items with a recipe); null = no limit. */
   stockLeft: number | null;
   addons: PublicMenuAddon[];
+  /** Choice groups the customer fills in, in order (options are add-ons). */
+  optionGroups: PublicOptionGroup[];
 };
 
 export type PublicMenuAddon = {
