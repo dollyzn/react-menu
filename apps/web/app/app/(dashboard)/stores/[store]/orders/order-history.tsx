@@ -1,6 +1,6 @@
 "use client";
 
-import type { ColumnDef, HeaderContext, Row } from "@tanstack/react-table";
+import type { ColumnDef, HeaderContext, Row } from "@/components/app/data-table/features";
 import { format, parseISO } from "date-fns";
 import type { Order } from "@react-menu/contracts";
 import { ColumnsConfig, DataTable } from "@/components/data-table";
@@ -177,7 +177,7 @@ export function OrderHistory({ storeId, onOpen }: { storeId: string; onOpen: (or
   };
 
   return (
-    <DataTable<Order, unknown>
+    <DataTable<Order>
       tableId={`orders-history-${storeId}`}
       loading={table.loading && table.data.length === 0}
       data={table.data}

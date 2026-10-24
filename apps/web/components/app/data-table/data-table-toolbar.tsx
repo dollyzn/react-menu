@@ -1,4 +1,5 @@
-import { Table } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { DataTableInstance } from ".";
 import { Filter, FilterX, LayoutGrid, Table2, X } from "lucide-react";
 import { ColumnsConfig, DensityOption, ViewMode } from ".";
 
@@ -20,8 +21,8 @@ import { useHorizontalScrollEffects } from "@/hooks/use-horizontal-scroll-effect
 import { useLocalStorage } from "usehooks-ts";
 import { env } from "@/lib/env";
 
-interface DataTableToolbarProps<TData> {
-  table: Table<TData>;
+interface DataTableToolbarProps<TData extends RowData> {
+  table: DataTableInstance<TData>;
   columnsConfig?: ColumnsConfig[];
   setDensity: (density: DensityOption) => void;
   currentDensity: DensityOption;
@@ -30,7 +31,7 @@ interface DataTableToolbarProps<TData> {
   setViewMode: (mode: ViewMode) => void;
 }
 
-export function DataTableToolbar<TData>({
+export function DataTableToolbar<TData extends RowData>({
   table,
   columnsConfig,
   setDensity,
@@ -50,8 +51,8 @@ export function DataTableToolbar<TData>({
     true
   );
 
-  const isFiltered = table.getState().columnFilters.length > 0;
-  const filtersCount = table.getState().columnFilters.length;
+  const isFiltered = table.state.columnFilters.length > 0;
+  const filtersCount = table.state.columnFilters.length;
 
   // Not memoized: `table` keeps the same reference while its state changes,
   // so a memo keyed on it would freeze the filters' UI.
@@ -148,14 +149,14 @@ export function DataTableToolbar<TData>({
 
   const rightActions = (
     <>
-      <DataTableDensityToggle
-        currentDensity={currentDensity}
-        setDensity={setDensity}
-      />
       {viewMode === "cards" ? (
         <DataTableCardsSortSelector table={table} />
       ) : (
-        <DataTableViewOptions table={table} />
+        <>
+          {/* Row spacing means nothing for cards. */}
+          <DataTableDensityToggle currentDensity={currentDensity} setDensity={setDensity} />
+          <DataTableViewOptions table={table} />
+        </>
       )}
 
       {hasCardView && (

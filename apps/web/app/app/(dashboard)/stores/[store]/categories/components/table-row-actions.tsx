@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -15,11 +15,11 @@ import {
 import { UpdateCategoryDialog } from "./update-category-dialog";
 import { DeleteCategoryDialog } from "./delete-category-dialog";
 
-interface RowActionsProps<Category> {
+interface RowActionsProps {
   row: Row<Category>;
 }
 
-export function RowActions({ row }: RowActionsProps<Category>) {
+export function RowActions({ row }: RowActionsProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 

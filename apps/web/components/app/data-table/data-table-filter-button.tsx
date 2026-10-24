@@ -1,4 +1,5 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { Column } from "@/components/app/data-table/features";
 import { X, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent } from "@/components/ui/popover";
@@ -6,12 +7,12 @@ import { FilterTrigger } from "./data-table-filter-parts";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
 
-interface DataTableFilterButtonProps<TData, TValue> {
+interface DataTableFilterButtonProps<TData extends RowData, TValue> {
   column: Column<TData, TValue>;
   placeholder?: string;
 }
 
-export function DataTableFilterButton<TData, TValue>({
+export function DataTableFilterButton<TData extends RowData, TValue>({
   column,
   placeholder,
 }: DataTableFilterButtonProps<TData, TValue>) {

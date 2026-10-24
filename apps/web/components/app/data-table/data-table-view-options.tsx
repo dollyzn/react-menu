@@ -1,97 +1,84 @@
-import type { Table } from "@tanstack/react-table";
-import { useMemo } from "react";
-
+import type { RowData } from "@tanstack/react-table";
+import { Columns3, RotateCcw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
-  CommandItem,
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Check, ChevronsUpDown, Settings2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Popover, PopoverContent } from "@/components/ui/popover";
+import type { DataTableInstance } from ".";
+import { FilterOptionRow, SEARCH_THRESHOLD, ToolbarTrigger } from "./data-table-filter-parts";
 
-import { cn } from "@/lib/utils";
-
-interface DataTableViewOptionsProps<TData> {
-  table: Table<TData>;
+interface DataTableViewOptionsProps<TData extends RowData> {
+  table: DataTableInstance<TData>;
 }
 
-export default function DataTableViewOptions<TData>({
-  table,
-}: DataTableViewOptionsProps<TData>) {
-  const columns = useMemo(
-    () =>
-      table
-        .getAllColumns()
-        .filter(
-          (column) =>
-            typeof column.accessorFn !== "undefined" && column.getCanHide()
-        ),
-    [table]
-  );
-
-  const allVisible = columns.every((col) => col.getIsVisible());
-
-  const handleToggleAll = () => {
-    const newValue = !allVisible;
-    columns.forEach((col) => col.toggleVisibility(newValue));
-  };
+/** Which columns the table shows (kept per table in localStorage). */
+export default function DataTableViewOptions<TData extends RowData>({ table }: DataTableViewOptionsProps<TData>) {
+  const columns = table
+    .getAllColumns()
+    .filter((column) => typeof column.accessorFn !== "undefined" && column.getCanHide());
+  const visible = columns.filter((column) => column.getIsVisible()).length;
+  const hidden = columns.length - visible;
+  const showAll = () => columns.forEach((column) => column.toggleVisibility(true));
 
   return (
     <Popover modal>
-      <PopoverTrigger render={<Button variant="outline" size="sm" className="h-8" />}>
-        <Settings2 />
-        Visualização
-        <ChevronsUpDown className="ml-auto opacity-50" />
-      </PopoverTrigger>
-      <PopoverContent align="end" className="w-44 p-0">
+      <ToolbarTrigger
+        icon={Columns3}
+        label="Colunas"
+        summary={hidden > 0 ? (hidden === 1 ? "1 oculta" : `${hidden} ocultas`) : undefined}
+        active={hidden > 0}
+        ariaLabel={hidden > 0 ? `Colunas: ${hidden} ocultas` : "Colunas"}
+      />
+      <PopoverContent align="end" className="w-auto min-w-56 max-w-72 p-0" sideOffset={8}>
         <Command>
-          <CommandInput placeholder="Buscar colunas..." />
-
-          <CommandList>
+          {columns.length >= SEARCH_THRESHOLD && <CommandInput placeholder="Buscar colunas…" />}
+          <CommandList className="max-h-[min(28rem,60vh)]">
             <CommandEmpty>Nenhuma coluna encontrada.</CommandEmpty>
-
             <CommandGroup>
+              <FilterOptionRow
+                value="__all__"
+                option={{ label: "Mostrar todas" }}
+                multiple
+                selected={hidden === 0}
+                indeterminate={hidden > 0 && visible > 0}
+                // Only shows: hiding every column would leave an empty table.
+                onSelect={showAll}
+              />
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Mostrar na tabela">
               {columns.map((column) => {
+                const isVisible = column.getIsVisible();
                 return (
-                  <CommandItem
+                  <FilterOptionRow
                     key={column.id}
-                    onSelect={() =>
-                      column.toggleVisibility(!column.getIsVisible())
-                    }
-                  >
-                    <span className="truncate">
-                      {column.columnDef.meta?.name ?? column.id}
-                    </span>
-
-                    <Check
-                      className={cn(
-                        "ml-auto size-4 shrink-0",
-                        column.getIsVisible() ? "opacity-100" : "opacity-0"
-                      )}
-                    />
-                  </CommandItem>
+                    value={column.columnDef.meta?.name ?? column.id}
+                    option={{ label: column.columnDef.meta?.name ?? column.id }}
+                    multiple
+                    selected={isVisible}
+                    // Keep at least one column on screen.
+                    onSelect={() => (isVisible && visible === 1 ? undefined : column.toggleVisibility(!isVisible))}
+                  />
                 );
               })}
             </CommandGroup>
           </CommandList>
-          <CommandSeparator />
-          <CommandGroup>
-            <CommandItem
-              onSelect={handleToggleAll}
-              className="justify-center text-center text-sm cursor-pointer"
-            >
-              Selecionar tudo
-            </CommandItem>
-          </CommandGroup>
+          <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
+            <span className="tabular-nums">
+              {visible} de {columns.length} visíveis
+            </span>
+            {hidden > 0 && (
+              <Button variant="ghost" size="xs" onClick={showAll}>
+                <RotateCcw /> Restaurar
+              </Button>
+            )}
+          </div>
         </Command>
       </PopoverContent>
     </Popover>

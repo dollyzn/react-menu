@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { MoreHorizontal, Edit, Trash2 } from "lucide-react";
 import { Button, buttonVariants } from "@/components/ui/button";
 import {
@@ -15,12 +15,12 @@ import { UpdateAddonDialog } from "./update-addon-dialog";
 import { DeleteAddonDialog } from "./delete-addon-dialog";
 import { VariantProps } from "class-variance-authority";
 
-interface RowActionsProps<Addon> {
+interface RowActionsProps {
   row: Row<Addon>;
   size?: VariantProps<typeof buttonVariants>["size"];
 }
 
-export function RowActions({ row, size = "icon" }: RowActionsProps<Addon>) {
+export function RowActions({ row, size = "icon" }: RowActionsProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 

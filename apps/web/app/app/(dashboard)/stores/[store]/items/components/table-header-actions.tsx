@@ -1,16 +1,16 @@
 "use client";
 
-import { Table } from "@tanstack/react-table";
+import { Table } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
 import { BulkEditDialog } from "@/components/app/bulk-edit-dialog";
 import { useBulkUpdateItemsByStoreIdMutation } from "@/redux/features/item/itemApi";
 import { BulkDeleteItemDialog } from "./bulk-delete-item-dialog";
 
-interface HeaderActionsProps<Item> {
+interface HeaderActionsProps {
   table: Table<Item>;
 }
 
-export function HeaderActions({ table }: HeaderActionsProps<Item>) {
+export function HeaderActions({ table }: HeaderActionsProps) {
   const { store } = useParams();
   const [bulkUpdate] = useBulkUpdateItemsByStoreIdMutation();
   const rows = table.getSelectedRowModel().rows;

@@ -61,6 +61,43 @@ export function FilterTrigger({
 }
 
 /**
+ * A toolbar selector (density, columns, card sorting): the same button as a
+ * filter, but solid; tinted with a summary when it differs from the default.
+ */
+export function ToolbarTrigger({
+  icon: Icon,
+  label,
+  summary,
+  active = false,
+  ariaLabel,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  /** Shown next to the label (the current choice). */
+  summary?: React.ReactNode;
+  active?: boolean;
+  ariaLabel?: string;
+}) {
+  return (
+    <PopoverTrigger
+      render={
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("h-8 gap-1.5", active && "border-primary/40 bg-primary/5 hover:bg-primary/10")}
+          aria-label={ariaLabel}
+        />
+      }
+    >
+      <Icon className={cn(active && "text-primary")} />
+      <span>{label}</span>
+      {summary && <FilterSummary>{summary}</FilterSummary>}
+      <ChevronsUpDown className="opacity-50" />
+    </PopoverTrigger>
+  );
+}
+
+/**
  * One option: the check on the left (square for multiple choice, round for a
  * single choice), the label without wrapping and the count on the right.
  * The theme's own trailing check is hidden: it pushed everything around.
@@ -73,7 +110,10 @@ export function FilterOptionRow({
   value,
   onSelect,
 }: {
-  option: Pick<FilterOption, "label" | "icon" | "iconClassName" | "quantity">;
+  option: Pick<FilterOption, "label" | "icon" | "iconClassName" | "quantity"> & {
+    /** A second line under the label. */
+    description?: string;
+  };
   selected: boolean;
   multiple: boolean;
   indeterminate?: boolean;
@@ -104,7 +144,14 @@ export function FilterOptionRow({
         ) : null}
       </span>
       {option.icon && <option.icon className={cn("size-4 text-muted-foreground", option.iconClassName)} />}
-      <span className="flex-1 whitespace-nowrap">{option.label}</span>
+      {option.description ? (
+        <span className="grid flex-1 gap-0.5">
+          <span className="whitespace-nowrap">{option.label}</span>
+          <span className="text-xs text-muted-foreground">{option.description}</span>
+        </span>
+      ) : (
+        <span className="flex-1 whitespace-nowrap">{option.label}</span>
+      )}
       {option.quantity !== undefined && (
         <span className="text-xs text-muted-foreground tabular-nums">{option.quantity}</span>
       )}

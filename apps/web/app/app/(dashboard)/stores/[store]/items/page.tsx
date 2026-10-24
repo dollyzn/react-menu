@@ -72,7 +72,7 @@ export default function Items() {
       pageLabel="Itens"
       action={<CreateItemDialog />}
     >
-      <DataTable<Item, unknown>
+      <DataTable<Item>
         tableId={`items-${storeId}`}
         loading={table.loading && table.data.length === 0}
         data={table.data}

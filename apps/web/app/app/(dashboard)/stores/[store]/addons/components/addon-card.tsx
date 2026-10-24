@@ -6,7 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import { ImageOff, Clock } from "lucide-react";
 import { formatCurrencyBRL } from "@/utils/string";
 import { format } from "date-fns";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { RowActions } from "./table-row-actions";
 
 interface AddonCardProps {

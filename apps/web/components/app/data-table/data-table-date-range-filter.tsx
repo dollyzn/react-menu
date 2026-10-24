@@ -1,7 +1,8 @@
+import type { RowData } from "@tanstack/react-table";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CalendarIcon, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Column } from "@tanstack/react-table";
+import type { Column } from "@/components/app/data-table/features";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
@@ -38,13 +39,13 @@ import {
 } from "@/components/ui/select";
 import { FilterSummary, filterTriggerClassName } from "./data-table-filter-parts";
 
-interface DataTableDateRangeFilterProps<TData, TValue> {
+interface DataTableDateRangeFilterProps<TData extends RowData, TValue> {
   column?: Column<TData, TValue>;
   title?: string;
   presets?: DatePreset[];
 }
 
-export function DataTableDateRangeFilter<TData, TValue>({
+export function DataTableDateRangeFilter<TData extends RowData, TValue>({
   column,
   title,
   presets = defaultPresets,

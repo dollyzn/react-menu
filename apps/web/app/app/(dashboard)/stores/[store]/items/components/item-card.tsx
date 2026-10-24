@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Eye, Tag, ImageOff, Clock } from "lucide-react";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { formatCurrencyBRL } from "@/utils/string";
 import { format, parseISO } from "date-fns";
 import { RowActions } from "./table-row-actions";

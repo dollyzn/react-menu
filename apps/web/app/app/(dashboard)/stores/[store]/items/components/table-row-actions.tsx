@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { MoreHorizontal, Edit, Trash2, CookingPot, CircleSlash, CircleCheck } from "lucide-react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -21,12 +21,12 @@ import { DeleteItemDialog } from "./delete-item-dialog";
 import { RecipeDialog } from "./recipe-dialog";
 import { VariantProps } from "class-variance-authority";
 
-interface RowActionsProps<Item> {
+interface RowActionsProps {
   row: Row<Item>;
   size?: VariantProps<typeof buttonVariants>["size"];
 }
 
-export function RowActions({ row, size = "icon" }: RowActionsProps<Item>) {
+export function RowActions({ row, size = "icon" }: RowActionsProps) {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isRecipeOpen, setIsRecipeOpen] = useState(false);

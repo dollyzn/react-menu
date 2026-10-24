@@ -1,4 +1,5 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { Column } from "@/components/app/data-table/features";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { FilterGroup, FilterOption } from ".";
 import { FilterOptionRow, FilterTrigger, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
-interface DataTableFacetedFilterProps<TData, TValue> {
+interface DataTableFacetedFilterProps<TData extends RowData, TValue> {
   column?: Column<TData, TValue>;
   options?: FilterOption[] | FilterGroup[];
   title?: string;
@@ -23,7 +24,7 @@ interface DataTableFacetedFilterProps<TData, TValue> {
 }
 
 /** Multiple choice filter (checkboxes). The column filter is the source of truth. */
-export function DataTableFacetedFilter<TData, TValue>({
+export function DataTableFacetedFilter<TData extends RowData, TValue>({
   column,
   options,
   title,

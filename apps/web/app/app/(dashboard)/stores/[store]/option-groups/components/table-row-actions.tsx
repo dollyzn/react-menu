@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import { Edit, MoreHorizontal, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import type { OptionGroup } from "@react-menu/contracts";

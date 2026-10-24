@@ -1,6 +1,6 @@
 "use client";
 
-import { Row } from "@tanstack/react-table";
+import { Row } from "@/components/app/data-table/features";
 import type { OptionGroup } from "@react-menu/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";

@@ -27,9 +27,6 @@ updates:
       # Types follow the Node runtime in .nvmrc (24); bump them together.
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
-      # Table 9 is a rewrite (useTable, features registry); migrate on purpose.
-      - dependency-name: '@tanstack/react-table'
-        update-types: [version-update:semver-major]
   - package-ecosystem: github-actions
     directory: /
     schedule:

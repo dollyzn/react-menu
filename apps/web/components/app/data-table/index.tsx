@@ -1,21 +1,16 @@
 import { Fragment, useEffect, useState } from "react";
+import { flexRender, useTable, type ReactTable, type RowData } from "@tanstack/react-table";
 import {
+  dataTableFeatures,
   type ColumnDef,
+  type ColumnFiltersState,
+  type DataTableFeatures,
+  type PaginationState,
   type Row,
-  ColumnFiltersState,
-  PaginationState,
-  SortingState,
-  RowSelectionState,
-  VisibilityState,
-  flexRender,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+  type RowSelectionState,
+  type SortingState,
+  type VisibilityState,
+} from "./features";
 
 import {
   Table,
@@ -69,14 +64,18 @@ export type DensityOption =
 
 export type ViewMode = "table" | "cards";
 
+/** The table the DataTable builds: its `state` is reactive (Table v9). */
+export type DataTableInstance<TData extends RowData> = ReactTable<DataTableFeatures, TData>;
+
 interface DefaultVisibility {
   [breakpoint: number]: VisibilityState;
 }
 
-interface DataTableProps<TData, TValue> {
+interface DataTableProps<TData extends RowData> {
   tableId: string;
   data: TData[];
-  columns: ColumnDef<TData, TValue>[];
+  /** `ColumnDef<TData>`: v9 generics are invariant, so mixed value types are `unknown`. */
+  columns: ColumnDef<TData>[];
   columnsConfig?: ColumnsConfig[];
   loading?: boolean;
   getRowId?: (row: TData) => string;
@@ -107,7 +106,7 @@ interface DataTableProps<TData, TValue> {
   >;
 }
 
-export function DataTable<TData, TValue>({
+export function DataTable<TData extends RowData>({
   tableId,
   data,
   columns,
@@ -133,10 +132,10 @@ export function DataTable<TData, TValue>({
   onExternalColumnFiltersChange,
   onExternalPaginationChange,
   onExternalRowSelectionChange,
-}: DataTableProps<TData, TValue>) {
+}: DataTableProps<TData>) {
   const storageBaseName = env.NEXT_PUBLIC_STORAGE_BASE_NAME;
 
-  const [rowSelection, setRowSelection] = useState({});
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] =
     useLocalStorage<VisibilityState>(
       `${storageBaseName}:${tableId}:columnVisibility`,
@@ -199,7 +198,8 @@ export function DataTable<TData, TValue>({
     }
   }, [defaultCardsOnMobile, renderCard, setViewMode, viewMode]);
 
-  const table = useReactTable({
+  const table = useTable({
+    features: dataTableFeatures,
     data,
     columns,
     state: {
@@ -215,12 +215,6 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: onExternalColumnFiltersChange || setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: onExternalPaginationChange || setPagination,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
     getRowId,
     manualPagination: !!onExternalPaginationChange,
     manualSorting: !!onExternalSortingChange,
@@ -371,7 +365,7 @@ export function DataTable<TData, TValue>({
                       className="h-52 text-center"
                     >
                       <EmptyState
-                        filtered={table.getState().columnFilters.length > 0}
+                        filtered={table.state.columnFilters.length > 0}
                         onClear={() => table.resetColumnFilters()}
                       />
                     </TableCell>
@@ -425,7 +419,7 @@ export function DataTable<TData, TValue>({
               ) : (
                 <div className="col-span-full h-52 text-center flex items-center justify-center rounded-lg p-4">
                   <EmptyState
-                    filtered={table.getState().columnFilters.length > 0}
+                    filtered={table.state.columnFilters.length > 0}
                     onClear={() => table.resetColumnFilters()}
                   />
                 </div>

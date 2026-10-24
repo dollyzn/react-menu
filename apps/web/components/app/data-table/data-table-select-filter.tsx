@@ -1,4 +1,5 @@
-import type { Column } from "@tanstack/react-table";
+import type { RowData } from "@tanstack/react-table";
+import type { Column } from "@/components/app/data-table/features";
 import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { FilterGroup, FilterOption } from ".";
 import { FilterOptionRow, FilterTrigger, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
-interface DataTableSelectFilterProps<TData, TValue> {
+interface DataTableSelectFilterProps<TData extends RowData, TValue> {
   column?: Column<TData, TValue>;
   options?: FilterOption[] | FilterGroup[];
   title?: string;
@@ -16,7 +17,7 @@ interface DataTableSelectFilterProps<TData, TValue> {
 }
 
 /** Single choice filter (radio). Choosing the selected option again clears it. */
-export function DataTableSelectFilter<TData, TValue>({
+export function DataTableSelectFilter<TData extends RowData, TValue>({
   column,
   options,
   title,

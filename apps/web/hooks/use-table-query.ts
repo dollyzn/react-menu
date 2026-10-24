@@ -2,7 +2,7 @@ import type {
   ColumnFiltersState,
   PaginationState,
   SortingState,
-} from "@tanstack/react-table";
+} from "@/components/app/data-table/features";
 import { useTransformTableParams } from "@/hooks/use-transform-data-table-params";
 import { useUrlTableState } from "@/hooks/use-url-table-state";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";

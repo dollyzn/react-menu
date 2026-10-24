@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
-import type { ColumnFiltersState, PaginationState, SortingState } from "@tanstack/react-table";
+import type { ColumnFiltersState, PaginationState, SortingState } from "@/components/app/data-table/features";
 import { format, isValid, parse } from "date-fns";
 
 /**
