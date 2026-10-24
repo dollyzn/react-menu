@@ -10,7 +10,7 @@ import {
   Puzzle,
   ShoppingCart,
   Store,
-  Users, ListChecks } from "lucide-react";
+  Users, ListChecks, ChartNoAxesColumn } from "lucide-react";
 
 const ALL: StoreRole[] = ["manager", "attendant", "kitchen"];
 const FRONT: StoreRole[] = ["manager", "attendant"];
@@ -49,9 +49,10 @@ export function getManageMenuGroups(storeId: string, role: StoreRole | null): Si
       label: "Gestão",
       items: [
         { label: "Visão geral", url: `${base}/overview`, icon: LayoutDashboard, order: 0, roles: MANAGER },
-        { label: "Estoque", url: `${base}/inventory`, icon: Boxes, order: 1, roles: MANAGER },
-        { label: "Equipe", url: `${base}/members`, icon: Users, order: 2, roles: MANAGER },
-        { label: "Loja", url: base, icon: Store, order: 3, roles: MANAGER, exact: true },
+        { label: "Relatórios", url: `${base}/reports`, icon: ChartNoAxesColumn, order: 1, roles: MANAGER },
+        { label: "Estoque", url: `${base}/inventory`, icon: Boxes, order: 2, roles: MANAGER },
+        { label: "Equipe", url: `${base}/members`, icon: Users, order: 3, roles: MANAGER },
+        { label: "Loja", url: base, icon: Store, order: 4, roles: MANAGER, exact: true },
       ],
     },
   ];

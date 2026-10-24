@@ -1,9 +1,5 @@
 import type { OpeningInterval } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
-import type {
-  StoreOverview,
-  StoreOverviewChartPoint,
-} from "@/types/store-dashboard";
 
 const storeTag = (id: string) => ({ type: "Store" as const, id });
 
@@ -90,21 +86,6 @@ export const storeApi = baseApi.injectEndpoints({
       query: ({ id, data }) => ({ url: `stores/${id}/payment-settings`, method: "PUT", body: data }),
       invalidatesTags: (_res, _err, { id }) => [storeTag(id)],
     }),
-
-    getStoreOverview: build.query<StoreOverview, string>({
-      query: (storeId) => `stores/${storeId}/dashboard/overview`,
-      providesTags: (_res, _err, storeId) => [storeTag(storeId)],
-    }),
-
-    getStoreRecentItems: build.query<Item[], string>({
-      query: (storeId) => `stores/${storeId}/dashboard/recent-items`,
-      providesTags: (_res, _err, storeId) => [storeTag(storeId)],
-    }),
-
-    getStoreChart: build.query<StoreOverviewChartPoint[], string>({
-      query: (storeId) => `stores/${storeId}/dashboard/chart`,
-      providesTags: (_res, _err, storeId) => [storeTag(storeId)],
-    }),
   }),
 });
 
@@ -117,7 +98,4 @@ export const {
   useUpdateStoreStatusMutation,
   useUpdateStoreHoursMutation,
   useUpdatePaymentSettingsMutation,
-  useGetStoreOverviewQuery,
-  useGetStoreRecentItemsQuery,
-  useGetStoreChartQuery,
 } = storeApi;

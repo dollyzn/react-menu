@@ -367,12 +367,11 @@ test.group('Menu views', (group) => {
       ['desktop:2', 'mobile:1']
     )
 
-    const overview = await client
-      .get(`/api/v1/stores/${store.id}/dashboard/overview`)
+    const dashboard = await client
+      .get(`/api/v1/stores/${store.id}/dashboard/today`)
       .loginAs(manager)
-    const chart = await client.get(`/api/v1/stores/${store.id}/dashboard/chart`).loginAs(manager)
-    assert.equal(overview.body().data.accesses.total, 3)
-    const today = chart.body().data.at(-1)
-    assert.deepInclude(today, { desktop: 2, mobile: 1 })
+    const { visits } = dashboard.body().data
+    assert.equal(visits.today, 3)
+    assert.deepInclude(visits.daily.at(-1), { visits: 3 })
   })
 })

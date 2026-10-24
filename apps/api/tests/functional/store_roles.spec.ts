@@ -25,9 +25,7 @@ test.group('Store roles', (group) => {
         .put(`/api/v1/stores/${store.id}/categories/${category.id}`)
         .json({ name: 'Renomeada' })
         .loginAs(user)
-      const dashboard = await client
-        .get(`/api/v1/stores/${store.id}/dashboard/overview`)
-        .loginAs(user)
+      const dashboard = await client.get(`/api/v1/stores/${store.id}/dashboard/today`).loginAs(user)
 
       list.assertStatus(200)
       create.assertStatus(403)
