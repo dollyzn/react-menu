@@ -110,7 +110,7 @@ export default function PosPage() {
     const line = lines.find((candidate) => candidate.key === key);
     if (delta > 0 && line && leftFor(line.itemId) === 0) {
       const stock = inTicket.get(line.itemId) ?? 0;
-      toast.info(`Só tem ${stock} ${line.name} no estoque: a comanda já tem todas.`, { id: "stock-limit" });
+      toast.info(`Só tem ${stock} ${line.name} no estoque: a comanda já tem todas.`, { ...POS_TOAST, id: "stock-limit" });
       return;
     }
     setLines((current) =>
@@ -123,7 +123,7 @@ export default function PosPage() {
   const clearTicket = () => {
     const previous = lines;
     setLines([]);
-    toast("Comanda limpa", { action: { label: "Desfazer", onClick: () => setLines(previous) } });
+    toast("Comanda limpa", { ...POS_TOAST, action: { label: "Desfazer", onClick: () => setLines(previous) } });
   };
 
   // Enter in the search adds the product when only one matches.
@@ -153,7 +153,7 @@ export default function PosPage() {
         idempotencyKey: stableIdempotencyKey(keyScope, input),
       }).unwrap();
       releaseIdempotencyKey(keyScope);
-      toast.success(`Pedido #${order.number} enviado para a cozinha`);
+      toast.success(`Pedido #${order.number} enviado para a cozinha`, POS_TOAST);
       setLines([]);
       setCustomerName("");
       setCustomerPhone("");
@@ -162,7 +162,8 @@ export default function PosPage() {
       toast.error(
         isConnectionError(error)
           ? "Sem confirmação do servidor. Envie de novo: o pedido não será duplicado."
-          : getErrorMessage(error as { data?: { error?: string } }, "Não foi possível criar o pedido.")
+          : getErrorMessage(error as { data?: { error?: string } }, "Não foi possível criar o pedido."),
+        POS_TOAST
       );
     }
   };
@@ -337,6 +338,12 @@ export default function PosPage() {
     </div>
   );
 }
+
+/**
+ * POS toasts show at the top: the default corner (bottom right) is where the
+ * ticket's "Enviar para a cozinha" button sits.
+ */
+const POS_TOAST = { position: "top-center" } as const;
 
 /** Per-category color (identity, not status: raw palette on purpose): a dot on the section header and the cards' left edge. */
 const CATEGORY_ACCENTS = [
