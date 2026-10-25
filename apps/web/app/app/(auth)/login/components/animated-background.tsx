@@ -25,7 +25,7 @@ export default function AnimatedBackground() {
       <div aria-hidden className="absolute inset-x-0 top-0 z-10 h-28 bg-gradient-to-b from-primary to-transparent" />
       <div aria-hidden className="absolute inset-x-0 bottom-0 z-10 h-28 bg-gradient-to-t from-primary to-transparent" />
       <div className="relative z-20 flex justify-end items-center text-lg font-medium text-primary-foreground">
-        Menu App
+        React Menu
       </div>
       <div className="relative z-20 mt-auto text-primary-foreground text-sm flex items-center gap-1">
         Feito com <Heart className="size-4 fill-primary-foreground" /> por{" "}

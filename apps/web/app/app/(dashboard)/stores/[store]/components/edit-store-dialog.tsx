@@ -155,7 +155,7 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Editar Informações da Loja</DialogTitle>
+          <DialogTitle>Editar informações da loja</DialogTitle>
           <DialogDescription>
             Atualize as informações básicas da sua loja
           </DialogDescription>

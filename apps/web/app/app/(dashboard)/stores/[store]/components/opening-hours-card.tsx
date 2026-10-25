@@ -181,133 +181,140 @@ export function OpeningHoursCard({ store }: { store: Store }) {
           </Field>
           {errors.scheduleEnabled && <FieldError errors={[errors.scheduleEnabled]} />}
 
-          <div role="table" aria-label="Horários da semana" className="overflow-hidden rounded-xl border">
-            <div
-              role="row"
-              className="hidden grid-cols-[9rem_1fr_6rem] gap-3 border-b bg-muted/40 px-4 py-2.5 text-xs font-medium text-muted-foreground sm:grid"
-            >
-              <span role="columnheader">Dia</span>
-              <span role="columnheader">Disponibilidade</span>
-              <span role="columnheader" className="text-right">
-                Horas
-              </span>
-            </div>
-            {WEEK_ORDER.map((day) => {
-              const intervals = values.days[day]?.intervals ?? [];
-              const open = intervals.length > 0;
-              const allDay = intervals.length === 1 && isAllDay(intervals[0]);
-              const dayError = errors.days?.[day]?.intervals;
-              const dayName = DAY_NAMES[day].toLowerCase();
-              return (
-                <div
-                  key={day}
-                  role="row"
-                  className="grid gap-3 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[9rem_1fr_6rem] sm:items-start"
-                >
-                  <label role="cell" className="flex items-center gap-2.5 pt-1.5 text-sm font-medium">
-                    <Checkbox
-                      checked={open}
-                      aria-label={`Abre ${dayName}`}
-                      onCheckedChange={(checked) => setIntervals(day, checked ? [{ ...DEFAULT_INTERVAL }] : [])}
-                    />
-                    <span className={cn(!open && "text-muted-foreground")}>{DAY_NAMES[day]}</span>
-                  </label>
+          {/* The week only matters when the schedule runs the store; it stays in the form meanwhile. */}
+          {values.scheduleEnabled ? (
+            <div role="table" aria-label="Horários da semana" className="overflow-hidden rounded-xl border">
+              <div
+                role="row"
+                className="hidden grid-cols-[9rem_1fr_6rem] gap-3 border-b bg-muted/40 px-4 py-2.5 text-xs font-medium text-muted-foreground sm:grid"
+              >
+                <span role="columnheader">Dia</span>
+                <span role="columnheader">Disponibilidade</span>
+                <span role="columnheader" className="text-right">
+                  Horas
+                </span>
+              </div>
+              {WEEK_ORDER.map((day) => {
+                const intervals = values.days[day]?.intervals ?? [];
+                const open = intervals.length > 0;
+                const allDay = intervals.length === 1 && isAllDay(intervals[0]);
+                const dayError = errors.days?.[day]?.intervals;
+                const dayName = DAY_NAMES[day].toLowerCase();
+                return (
+                  <div
+                    key={day}
+                    role="row"
+                    className="grid gap-3 border-b px-4 py-3 last:border-b-0 sm:grid-cols-[9rem_1fr_6rem] sm:items-start"
+                  >
+                    <label role="cell" className="flex items-center gap-2.5 pt-1.5 text-sm font-medium">
+                      <Checkbox
+                        checked={open}
+                        aria-label={`Abre ${dayName}`}
+                        onCheckedChange={(checked) => setIntervals(day, checked ? [{ ...DEFAULT_INTERVAL }] : [])}
+                      />
+                      <span className={cn(!open && "text-muted-foreground")}>{DAY_NAMES[day]}</span>
+                    </label>
 
-                  <div role="cell" className="flex min-w-0 flex-col gap-2">
-                    {!open && <span className="pt-1.5 text-sm text-muted-foreground">Indisponível</span>}
-                    {open && (
-                      <label className="flex w-fit items-center gap-2 text-sm">
-                        <Checkbox
-                          checked={allDay}
-                          aria-label={`O dia todo (${dayName})`}
-                          onCheckedChange={(checked) =>
-                            setIntervals(day, checked ? [{ ...ALL_DAY }] : [{ ...DEFAULT_INTERVAL }])
-                          }
-                        />
-                        O dia todo
-                      </label>
-                    )}
-                    {open &&
-                      !allDay &&
-                      intervals.map((interval, index) => {
-                        const label = `${dayName}${intervals.length > 1 ? `, horário ${index + 1}` : ""}`;
-                        const invalid = Boolean(dayError?.[index]);
-                        const setTime = (key: "opens" | "closes", value: string) =>
-                          setIntervals(
-                            day,
-                            intervals.map((current, i) => (i === index ? { ...current, [key]: value } : current))
+                    <div role="cell" className="flex min-w-0 flex-col gap-2">
+                      {!open && <span className="pt-1.5 text-sm text-muted-foreground">Indisponível</span>}
+                      {open && (
+                        <label className="flex w-fit items-center gap-2 text-sm">
+                          <Checkbox
+                            checked={allDay}
+                            aria-label={`O dia todo (${dayName})`}
+                            onCheckedChange={(checked) =>
+                              setIntervals(day, checked ? [{ ...ALL_DAY }] : [{ ...DEFAULT_INTERVAL }])
+                            }
+                          />
+                          O dia todo
+                        </label>
+                      )}
+                      {open &&
+                        !allDay &&
+                        intervals.map((interval, index) => {
+                          const label = `${dayName}${intervals.length > 1 ? `, horário ${index + 1}` : ""}`;
+                          const invalid = Boolean(dayError?.[index]);
+                          const setTime = (key: "opens" | "closes", value: string) =>
+                            setIntervals(
+                              day,
+                              intervals.map((current, i) => (i === index ? { ...current, [key]: value } : current))
+                            );
+                          return (
+                            <div key={index} className="flex flex-wrap items-center gap-2">
+                              <TimeSelect
+                                value={interval.opens}
+                                label={`Abre às (${label})`}
+                                invalid={invalid}
+                                onChange={(value) => setTime("opens", value)}
+                              />
+                              <span aria-hidden className="text-muted-foreground">
+                                –
+                              </span>
+                              <TimeSelect
+                                value={interval.closes}
+                                label={`Fecha às (${label})`}
+                                invalid={invalid}
+                                onChange={(value) => setTime("closes", value)}
+                              />
+                              {crossesMidnight(interval) && <Badge variant="secondary">até o dia seguinte</Badge>}
+                              {intervals.length > 1 && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon-sm"
+                                  aria-label={`Remover horário (${label})`}
+                                  onClick={() => setIntervals(day, intervals.filter((_, i) => i !== index))}
+                                >
+                                  <X />
+                                </Button>
+                              )}
+                              {dayError?.[index]?.message && <FieldError errors={[dayError[index]]} />}
+                            </div>
                           );
-                        return (
-                          <div key={index} className="flex flex-wrap items-center gap-2">
-                            <TimeSelect
-                              value={interval.opens}
-                              label={`Abre às (${label})`}
-                              invalid={invalid}
-                              onChange={(value) => setTime("opens", value)}
-                            />
-                            <span aria-hidden className="text-muted-foreground">
-                              –
-                            </span>
-                            <TimeSelect
-                              value={interval.closes}
-                              label={`Fecha às (${label})`}
-                              invalid={invalid}
-                              onChange={(value) => setTime("closes", value)}
-                            />
-                            {crossesMidnight(interval) && <Badge variant="secondary">até o dia seguinte</Badge>}
-                            {intervals.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon-sm"
-                                aria-label={`Remover horário (${label})`}
-                                onClick={() => setIntervals(day, intervals.filter((_, i) => i !== index))}
-                              >
-                                <X />
-                              </Button>
-                            )}
-                            {dayError?.[index]?.message && <FieldError errors={[dayError[index]]} />}
-                          </div>
-                        );
-                      })}
-                    {dayError?.message && <FieldError errors={[dayError]} />}
-                    {open && !allDay && (
-                      <div className="flex gap-1">
-                        {intervals.length < MAX_PER_DAY && (
+                        })}
+                      {dayError?.message && <FieldError errors={[dayError]} />}
+                      {open && !allDay && (
+                        <div className="flex gap-1">
+                          {intervals.length < MAX_PER_DAY && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              aria-label={`Adicionar horário (${dayName})`}
+                              onClick={() => setIntervals(day, [...intervals, { opens: "11:00", closes: "14:00" }])}
+                            >
+                              <Plus /> horário
+                            </Button>
+                          )}
                           <Button
                             type="button"
                             variant="ghost"
                             size="xs"
-                            aria-label={`Adicionar horário (${dayName})`}
-                            onClick={() => setIntervals(day, [...intervals, { opens: "11:00", closes: "14:00" }])}
+                            aria-label={`Copiar o horário de ${dayName} para todos os dias`}
+                            onClick={() => copyToAll(day)}
                           >
-                            <Plus /> horário
+                            <Copy /> copiar para todos
                           </Button>
-                        )}
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="xs"
-                          aria-label={`Copiar o horário de ${dayName} para todos os dias`}
-                          onClick={() => copyToAll(day)}
-                        >
-                          <Copy /> copiar para todos
-                        </Button>
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
+                    </div>
 
-                  <div role="cell" className="flex sm:justify-end sm:pt-1.5">
-                    {open && (
-                      <Badge variant="secondary" className="bg-primary/10 font-semibold text-primary tabular-nums">
-                        {formatDuration(totalMinutes(intervals))}
-                      </Badge>
-                    )}
+                    <div role="cell" className="flex sm:justify-end sm:pt-1.5">
+                      {open && (
+                        <Badge variant="secondary" className="bg-primary/10 font-semibold text-primary tabular-nums">
+                          {formatDuration(totalMinutes(intervals))}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="rounded-xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+              Ligue acima para escolher os dias e horários em que a loja abre sozinha.
+            </p>
+          )}
 
           {errors.root?.message && (
             <Alert variant="destructive">

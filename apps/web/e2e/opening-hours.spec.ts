@@ -5,6 +5,11 @@ const ZONE = "America/Sao_Paulo";
 const DAYS = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
 const hhmm = (date: Date) =>
   new Intl.DateTimeFormat("en-GB", { timeZone: ZONE, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+const dateKey = (date: Date) =>
+  new Intl.DateTimeFormat("en-CA", { timeZone: ZONE, year: "numeric", month: "2-digit", day: "2-digit" }).format(date);
+/** How the app says when (formatWhen): "às 18:00" today, "amanhã às 01:00" past midnight. */
+const when = (date: Date) =>
+  `${dateKey(date) === dateKey(new Date()) ? "" : "amanhã "}às ${hhmm(date)}`;
 const dayOf = (date: Date) =>
   ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(
     new Intl.DateTimeFormat("en-US", { timeZone: ZONE, weekday: "short" }).format(date)
@@ -19,7 +24,7 @@ test("a store on a schedule opens and closes by itself; 'Fechar agora' pauses it
   const { slug } = (await (await page.request.get(base)).json()).data;
 
   // The manager turns the schedule on: opening in about two hours (the
-  // form offers half hours), for an hour.
+  // form offers half hours), for an hour. Late at night that is tomorrow.
   const half = 30 * 60 * 1000;
   const start = new Date(Math.ceil((Date.now() + 2 * 60 * 60 * 1000) / half) * half);
   const end = new Date(start.getTime() + 60 * 60 * 1000);
@@ -40,8 +45,8 @@ test("a store on a schedule opens and closes by itself; 'Fechar agora' pauses it
 
   // The menu says when it opens and lists the week.
   await page.goto(`/${slug}`);
-  await expect(page.getByText(`Fechado · abre às ${hhmm(start)}`)).toBeVisible();
-  await expect(page.getByText(/e abrimos às/)).toBeVisible();
+  await expect(page.getByText(`Fechado · abre ${when(start)}`)).toBeVisible();
+  await expect(page.getByText(/e abrimos (amanhã )?às/)).toBeVisible();
   await page.getByRole("button", { name: "Horários" }).click();
   const week = page.getByRole("dialog", { name: "Horário de funcionamento" });
   await expect(week.getByText(`${hhmm(start)} – ${hhmm(end)}`)).toBeVisible();
@@ -59,7 +64,7 @@ test("a store on a schedule opens and closes by itself; 'Fechar agora' pauses it
   });
   expect(set.ok()).toBeTruthy();
   await page.goto(`/${slug}`);
-  await expect(page.getByText(`Aberto agora · fecha às ${hhmm(closes)}`)).toBeVisible();
+  await expect(page.getByText(`Aberto agora · fecha ${when(closes)}`)).toBeVisible();
 
   await page.goto(`/app/stores/${store.id}`);
   await page.getByRole("button", { name: /^Status da loja: Aberto · até/ }).click();
