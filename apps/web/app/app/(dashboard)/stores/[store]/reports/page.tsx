@@ -138,7 +138,7 @@ function Section({
 
 function ReportSkeleton() {
   return (
-    <div className="space-y-4" aria-busy aria-label="Carregando relatório">
+    <div className="flex flex-col gap-4" aria-busy aria-label="Carregando relatório">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {Array.from({ length: 4 }, (_, index) => (
           <Skeleton key={index} className="h-32 rounded-xl" />
@@ -158,7 +158,7 @@ function Report({ report }: { report: SalesReport }) {
 
   if (summary.orders === 0) {
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <StatTiles report={report} />
         <Empty className="border">
           <EmptyHeader>
@@ -212,7 +212,7 @@ function Report({ report }: { report: SalesReport }) {
   }));
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col gap-4">
       <StatTiles report={report} />
 
       <div className="grid gap-4 lg:grid-cols-5">
@@ -275,7 +275,7 @@ export default function ReportsPage() {
   const stale = isFetching && !!data && (data.period.from !== period.from || data.period.to !== period.to);
 
   return (
-    <div className="space-y-4 p-4 md:p-6">
+    <div className="flex flex-col gap-4 p-4 md:p-6">
       <PageHeader
         title="Relatórios"
         description="Vendas, mais vendidos, pagamentos e consumo de estoque."

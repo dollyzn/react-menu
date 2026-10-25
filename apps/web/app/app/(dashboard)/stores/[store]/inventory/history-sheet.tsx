@@ -56,7 +56,7 @@ export function HistorySheet({
                   <span
                     className={cn(
                       "font-semibold tabular-nums",
-                      movement.quantity >= 0 ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"
+                      movement.quantity >= 0 ? "text-success" : "text-destructive"
                     )}
                   >
                     {movement.quantity >= 0 ? "+" : ""}

@@ -38,7 +38,7 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   }
 
   return (
-    <div className={cn("flex items-center space-x-2", className)}>
+    <div className={cn("flex items-center gap-2", className)}>
       <DropdownMenu>
         <div className="flex items-center gap-1">
           <DropdownMenuTrigger
@@ -73,16 +73,16 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
         </div>
         <DropdownMenuContent align="start" className="min-w-40">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-            <ArrowUp className="h-3.5 w-3.5 text-muted-foreground/70" />
+            <ArrowUp className="size-3.5 text-muted-foreground/70" />
             Menor para Maior
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-            <ArrowDown className="h-3.5 w-3.5 text-muted-foreground/70" />
+            <ArrowDown className="size-3.5 text-muted-foreground/70" />
             Maior para Menor
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-            <EyeOff className="h-3.5 w-3.5 text-muted-foreground/70" />
+            <EyeOff className="size-3.5 text-muted-foreground/70" />
             Esconder
           </DropdownMenuItem>
         </DropdownMenuContent>

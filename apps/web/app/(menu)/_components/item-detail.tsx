@@ -177,8 +177,8 @@ export function ItemCustomizer({
         </div>
       )}
 
-      <div className="space-y-5 p-4">
-        <div className="space-y-1">
+      <div className="flex flex-col gap-5 p-4">
+        <div className="flex flex-col gap-1">
           <h2 className={cn("text-xl font-bold text-balance", !item.photoUrl && "pr-10")}>{item.name}</h2>
           {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
           <p className="text-lg font-semibold text-primary">{formatCurrencyBRL(item.price)}</p>
@@ -195,7 +195,7 @@ export function ItemCustomizer({
                 ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
                 : `Escolha até ${group.maxChoices}`;
           return (
-            <fieldset key={group.id} className="space-y-2">
+            <fieldset key={group.id} className="flex flex-col gap-2">
               <legend className="mb-2 flex w-full items-center justify-between gap-2 text-sm font-semibold">
                 <span>
                   {group.name}
@@ -260,7 +260,7 @@ export function ItemCustomizer({
         })}
 
         {item.addons.length > 0 && (
-          <fieldset className="space-y-2">
+          <fieldset className="flex flex-col gap-2">
             <legend className="mb-2 flex w-full items-center justify-between text-sm font-semibold">
               Adicionais
               <span className="text-xs font-normal text-muted-foreground">Opcional</span>
@@ -307,7 +307,7 @@ export function ItemCustomizer({
           </fieldset>
         )}
 
-        <div className="space-y-2">
+        <div className="flex flex-col gap-2">
           <label htmlFor="item-notes" className="flex items-center justify-between text-sm font-semibold">
             Alguma observação?
             <span className="text-xs font-normal text-muted-foreground tabular-nums">
@@ -333,7 +333,7 @@ export function ItemCustomizer({
           role="status"
           animate={nudge ? { x: [0, -6, 6, -4, 4, 0] } : undefined}
           transition={{ duration: 0.35 }}
-          className="flex items-start gap-1.5 px-4 pt-3 text-sm font-medium text-amber-700 dark:text-amber-400"
+          className="flex items-start gap-1.5 px-4 pt-3 text-sm font-medium text-warning"
         >
           <TriangleAlert className="mt-0.5 size-4 shrink-0" />
           <span className="min-w-0 break-words">{hint}</span>

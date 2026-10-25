@@ -35,23 +35,23 @@ export function StoreHours({ store }: { store: PublicMenu["store"] }) {
         <CalendarClock className="size-3.5 text-primary" /> Horários
       </button>
       <ResponsiveModal open={open} onOpenChange={setOpen} title="Horário de funcionamento" className="sm:max-w-sm">
-        <div className="space-y-4 p-4 pt-0 sm:pt-4">
+        <div className="flex flex-col gap-4 p-4 pt-0 sm:pt-4">
           <div
             className={cn(
               "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium",
               store.isOpen
-                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                ? "bg-success/10 text-success"
                 : "bg-muted text-muted-foreground"
             )}
           >
-            <span className={cn("size-2 rounded-full", store.isOpen ? "bg-emerald-500" : "bg-muted-foreground")} />
+            <span className={cn("size-2 rounded-full", store.isOpen ? "bg-success" : "bg-muted-foreground")} />
             <span suppressHydrationWarning>
               {store.isOpen
                 ? `Aberto agora${store.closesAt ? ` · fecha ${formatWhen(store.closesAt)}` : ""}`
                 : `Fechado agora${store.opensAt ? ` · abre ${formatWhen(store.opensAt)}` : ""}`}
             </span>
           </div>
-          <ul aria-label="Horários da semana" className="space-y-1">
+          <ul aria-label="Horários da semana" className="flex flex-col gap-1">
             {WEEK_ORDER.map((day) => {
               const intervals = hours
                 .filter((interval) => interval.day === day)

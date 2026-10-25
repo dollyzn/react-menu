@@ -58,5 +58,13 @@ export function useThemeTransition() {
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   };
 
-  return { choice: (theme ?? "system") as ThemeChoice, resolvedTheme, change, originOf };
+  /** Same origin from a change event (a RadioGroup's click or arrow key): the radio it came from. */
+  const originOfEvent = (event: Event | undefined) => {
+    const radio = event?.target instanceof Element ? event.target.closest('[role="radio"]') : null;
+    if (!radio) return undefined;
+    const rect = radio.getBoundingClientRect();
+    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  };
+
+  return { choice: (theme ?? "system") as ThemeChoice, resolvedTheme, change, originOf, originOfEvent };
 }

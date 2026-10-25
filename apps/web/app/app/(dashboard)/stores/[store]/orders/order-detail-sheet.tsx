@@ -53,7 +53,7 @@ export function OrderDetailSheet({
     <Sheet open={Boolean(orderId)} onOpenChange={(open) => !open && onClose()}>
       <SheetContent className="w-full gap-0 sm:max-w-md">
         {!show ? (
-          <div className="space-y-3 p-4" aria-busy={isFetching}>
+          <div className="flex flex-col gap-3 p-4" aria-busy={isFetching}>
             <SheetHeader className="p-0">
               <SheetTitle>Carregando pedido…</SheetTitle>
               <SheetDescription className="sr-only">Detalhes do pedido</SheetDescription>
@@ -75,7 +75,7 @@ export function OrderDetailSheet({
               </SheetDescription>
             </SheetHeader>
 
-            <div className="flex-1 space-y-5 overflow-y-auto p-4">
+            <div className="flex-1 flex flex-col gap-5 overflow-y-auto p-4">
               <section aria-label="Cliente" className="rounded-xl border p-3">
                 <p className="font-semibold">{show.customerName}</p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -86,8 +86,8 @@ export function OrderDetailSheet({
                         <channel.icon className="size-3.5" /> {channel.label} · {PAYMENT[show.paymentMethod]} ·{" "}
                         <span
                           className={cn(
-                            show.paymentStatus === "paid" && "text-emerald-600 dark:text-emerald-400",
-                            show.paymentStatus === "refunded" && "text-sky-600 dark:text-sky-400"
+                            show.paymentStatus === "paid" && "text-success",
+                            show.paymentStatus === "refunded" && "text-muted-foreground"
                           )}
                         >
                           {show.paymentStatus === "paid"
@@ -129,7 +129,7 @@ export function OrderDetailSheet({
                           <p className="text-xs text-muted-foreground">+ {line.addons.map((a) => a.name).join(", ")}</p>
                         )}
                         {line.notes && (
-                          <p className="text-xs font-medium text-amber-700 dark:text-amber-300">“{line.notes}”</p>
+                          <p className="text-xs font-medium text-warning">“{line.notes}”</p>
                         )}
                         {line.requiresPreparation && show.status === "preparing" && (
                           <p className="text-xs text-muted-foreground tabular-nums">
@@ -149,13 +149,13 @@ export function OrderDetailSheet({
               </section>
 
               {(show.refundPending || (show.payments && show.payments.length > 0)) && (
-                <section aria-labelledby="order-payments" className="space-y-2">
+                <section aria-labelledby="order-payments" className="flex flex-col gap-2">
                   <h3 id="order-payments" className="text-sm font-semibold">
                     Pagamento online
                   </h3>
                   {show.refundPending && (
-                    <div className="space-y-2 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
-                      <p className="flex items-start gap-2 font-medium text-amber-800 dark:text-amber-200">
+                    <div className="flex flex-col gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-sm">
+                      <p className="flex items-start gap-2 font-medium text-warning">
                         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
                         Reembolso pendente: o pedido foi cancelado, mas o valor ainda não voltou para o cliente.
                       </p>
@@ -208,10 +208,10 @@ export function OrderDetailSheet({
                   <h3 id="order-timeline" className="mb-2 text-sm font-semibold">
                     Linha do tempo
                   </h3>
-                  <ol className="relative space-y-3 border-l pl-4">
+                  <ol className="relative flex flex-col gap-3 border-l pl-4">
                     {show.history.map((entry, index) => (
                       <li key={index} className="relative text-sm">
-                        <span className="absolute top-1.5 -left-[21px] size-2.5 rounded-full bg-primary ring-4 ring-background" />
+                        <span className="absolute top-1.5 -left-5.25 size-2.5 rounded-full bg-primary ring-4 ring-background" />
                         <p className="font-medium">{STATUS[entry.toStatus].label}</p>
                         <p className="text-xs text-muted-foreground">
                           {format(parseISO(entry.createdAt), "HH:mm")} ·{" "}

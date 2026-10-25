@@ -41,9 +41,9 @@ export function ResetPasswordForm() {
 
   if (done) {
     return (
-      <div className="space-y-4" role="status">
+      <div className="flex flex-col gap-4" role="status">
         <div className="flex items-start gap-3 rounded-xl border bg-muted/40 p-4 text-sm">
-          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-success" />
           <p>
             <span className="font-medium">{invite ? "Senha criada." : "Senha redefinida."}</span>{" "}
             <span className="text-muted-foreground">
@@ -60,7 +60,7 @@ export function ResetPasswordForm() {
 
   if (linkInvalid) {
     return (
-      <div className="space-y-4">
+      <div className="flex flex-col gap-4">
         <Alert variant="destructive">
           <AlertTriangle />
           <AlertDescription>
@@ -76,7 +76,7 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4" noValidate>
+    <form onSubmit={submit} className="flex flex-col gap-4" noValidate>
       <Field data-invalid={Boolean(problem)}>
         <FieldLabel htmlFor="new-password">Nova senha</FieldLabel>
         <div className="relative">

@@ -73,7 +73,7 @@ export function SwipeCard({
       <div aria-hidden className="absolute inset-0 overflow-hidden rounded-3xl">
         <motion.div
           style={{ opacity: rightOpacity }}
-          className="absolute inset-0 flex items-center justify-start bg-emerald-500 pl-8 text-white"
+          className="absolute inset-0 flex items-center justify-start bg-success pl-8 text-success-foreground"
         >
           <motion.span style={{ scale: rightScale }} className="flex flex-col items-center gap-2 text-2xl font-bold">
             <CheckCheck className="size-14" /> {rightLabel}
@@ -81,7 +81,7 @@ export function SwipeCard({
         </motion.div>
         <motion.div
           style={{ opacity: leftOpacity }}
-          className="absolute inset-0 flex items-center justify-end bg-amber-500 pr-8 text-white"
+          className="absolute inset-0 flex items-center justify-end bg-warning pr-8 text-warning-foreground"
         >
           <motion.span style={{ scale: leftScale }} className="flex flex-col items-center gap-2 text-2xl font-bold">
             <Check className="size-14" /> {leftLabel}

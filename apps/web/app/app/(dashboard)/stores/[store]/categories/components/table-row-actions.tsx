@@ -30,21 +30,21 @@ export function RowActions({ row }: RowActionsProps) {
           render={
             <Button
               variant="ghost"
-              className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+              className="flex size-8 p-0 data-[state=open]:bg-muted"
             />
           }
         >
           <MoreHorizontal />
           <span className="sr-only">Abrir menu</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
+        <DropdownMenuContent align="end" className="w-40">
           <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
-            <Edit className="mr-2 h-4 w-4 text-blue-500" />
+            <Edit />
             Editar
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={() => setIsDeleteModalOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4 text-red-500" />
+          <DropdownMenuItem variant="destructive" onClick={() => setIsDeleteModalOpen(true)}>
+            <Trash2 />
             Excluir
           </DropdownMenuItem>
         </DropdownMenuContent>

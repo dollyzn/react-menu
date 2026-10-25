@@ -20,8 +20,8 @@ export function AuthShell({
       <AnimatedBackground />
 
       <div className="mx-4 lg:mx-0 lg:p-8">
-        <div className="mx-auto flex w-full flex-col justify-center space-y-6 rounded-xl border px-6 py-8 shadow-lg sm:w-[400px] lg:w-[350px] lg:border-0 lg:p-0 lg:shadow-none">
-          <div className="flex flex-col space-y-2">
+        <div className="mx-auto flex w-full flex-col justify-center gap-6 rounded-xl border px-6 py-8 shadow-lg sm:w-100 lg:w-87.5 lg:border-0 lg:p-0 lg:shadow-none">
+          <div className="flex flex-col gap-2">
             <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
             <p className="text-sm text-muted-foreground">{description}</p>
           </div>

@@ -149,7 +149,7 @@ export default function SortableList<T extends SortableEntry>({
         strategy={verticalListSortingStrategy}
         disabled={disabled}
       >
-        <ul className="space-y-2">
+        <ul className="flex flex-col gap-2">
           {localItems.map((item) => (
             <SortableRow
               key={item.id}

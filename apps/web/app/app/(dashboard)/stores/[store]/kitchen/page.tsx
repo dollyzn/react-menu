@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import type { ProductionBatch } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
+import { Toggle } from "@/components/ui/toggle";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useGetKitchenQueueQuery,
@@ -110,15 +111,10 @@ export default function KitchenPage() {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={soundOn ? "Desligar som de novos pedidos" : "Ligar som de novos pedidos"}
-            aria-pressed={soundOn}
-            onClick={() => setSoundOn((on) => !on)}
-          >
+          {/* A fixed name; "pressed" says whether it is on. */}
+          <Toggle variant="outline" aria-label="Som de novos pedidos" pressed={soundOn} onPressedChange={setSoundOn}>
             {soundOn ? <Bell /> : <BellOff />}
-          </Button>
+          </Toggle>
           <Button
             variant="outline"
             size="icon"
@@ -187,7 +183,7 @@ export default function KitchenPage() {
               )}
 
               {current.notes && (
-                <p className="mt-4 flex items-start gap-2 rounded-2xl bg-amber-400/20 p-4 text-xl font-semibold text-amber-900 dark:text-amber-200">
+                <p className="mt-4 flex items-start gap-2 rounded-2xl bg-warning/20 p-4 text-xl font-semibold text-warning">
                   <MessageSquareWarning className="mt-0.5 size-6 shrink-0" /> {current.notes}
                 </p>
               )}
@@ -287,7 +283,7 @@ export default function KitchenPage() {
                     {(batch.addons.length > 0 || batch.notes) && (
                       <p className="mt-1 text-sm text-muted-foreground">
                         {batch.addons.map((a) => `+ ${a}`).join(" ")}
-                        {batch.notes && <span className="font-medium text-amber-700 dark:text-amber-300"> “{batch.notes}”</span>}
+                        {batch.notes && <span className="font-medium text-warning"> “{batch.notes}”</span>}
                       </p>
                     )}
                     <p className="mt-1 text-sm text-muted-foreground tabular-nums">

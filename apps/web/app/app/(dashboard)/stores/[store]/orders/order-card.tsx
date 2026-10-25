@@ -61,7 +61,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       aria-label={`Pedido ${order.number} de ${order.customerName}`}
       className={cn(
         "rounded-2xl border bg-card p-4 shadow-xs",
-        order.status === "ready" && "border-emerald-500/50 bg-emerald-500/5"
+        order.status === "ready" && "border-success/50 bg-success/5"
       )}
     >
       <header className="flex items-start justify-between gap-2">
@@ -90,21 +90,21 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         </div>
       </header>
 
-      <ul className="mt-3 space-y-1 text-sm">
+      <ul className="mt-3 flex flex-col gap-1 text-sm">
         {order.items.map((line) => (
           <li key={line.id}>
             <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.name}
             {line.addons.length > 0 && (
               <span className="text-muted-foreground"> + {line.addons.map((a) => a.name).join(", ")}</span>
             )}
-            {line.notes && <span className="block text-xs font-medium text-amber-700 dark:text-amber-300">“{line.notes}”</span>}
+            {line.notes && <span className="block text-xs font-medium text-warning">“{line.notes}”</span>}
           </li>
         ))}
       </ul>
       {order.notes && <p className="mt-2 rounded-lg bg-muted px-2 py-1 text-xs">{order.notes}</p>}
 
       {order.status === "preparing" && totalUnits > 0 && (
-        <div className="mt-3 space-y-1">
+        <div className="mt-3 flex flex-col gap-1">
           <Progress value={(doneUnits / totalUnits) * 100} aria-label="Progresso na cozinha" />
           <p className="text-xs text-muted-foreground tabular-nums">
             {doneUnits} de {totalUnits} prontos
@@ -115,7 +115,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       <footer className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
         <div className="text-sm">
           <p className="font-semibold tabular-nums">{formatCurrencyBRL(order.total)}</p>
-          <p className={cn("text-xs", paid ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+          <p className={cn("text-xs", paid ? "text-success" : "text-muted-foreground")}>
             {paid ? "Pago" : order.paymentMethod === "counter" ? "Pagar na retirada" : "Aguardando pagamento"}
           </p>
         </div>

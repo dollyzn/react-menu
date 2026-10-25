@@ -4,9 +4,11 @@ import { Bell, BellOff, Check, LogOut, Monitor, Moon, Palette, Sun, UserRound } 
 import { useRouter } from "next/navigation";
 import type { StoreRole } from "@react-menu/contracts";
 import { PageHeader } from "@/components/app/layout/page-header";
+import { Radio } from "@base-ui/react/radio";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { useSession } from "@/contexts/session-provider";
 import { useNotification } from "@/contexts/notification-provider";
@@ -27,13 +29,13 @@ const ROLE_LABEL: Record<StoreRole, string> = { manager: "Gerente", attendant: "
 /** A tiny panel drawn in light or dark colors (fixed, not following the theme). */
 function MiniPanel({ dark }: { dark: boolean }) {
   return (
-    <div className={cn("flex h-full w-full gap-1.5 p-2", dark ? "bg-neutral-900" : "bg-white")}>
-      <div className={cn("w-1/4 space-y-1 rounded-sm p-1", dark ? "bg-neutral-800" : "bg-neutral-100")}>
+    <div className={cn("flex size-full gap-1.5 p-2", dark ? "bg-neutral-900" : "bg-white")}>
+      <div className={cn("w-1/4 flex flex-col gap-1 rounded-sm p-1", dark ? "bg-neutral-800" : "bg-neutral-100")}>
         <div className="h-1.5 w-3/4 rounded-full bg-[#c46014]" />
         <div className={cn("h-1.5 rounded-full", dark ? "bg-neutral-700" : "bg-neutral-300")} />
         <div className={cn("h-1.5 w-2/3 rounded-full", dark ? "bg-neutral-700" : "bg-neutral-300")} />
       </div>
-      <div className="flex-1 space-y-1.5">
+      <div className="flex-1 flex flex-col gap-1.5">
         <div className={cn("h-2 w-1/2 rounded-full", dark ? "bg-neutral-600" : "bg-neutral-300")} />
         <div className={cn("h-6 rounded-sm", dark ? "bg-neutral-800" : "bg-neutral-100")} />
         <div className="flex gap-1">
@@ -49,11 +51,11 @@ export default function SettingsPage() {
   const router = useRouter();
   const hydrated = useHydrated();
   const { user } = useSession();
-  const { choice, change, originOf } = useThemeTransition();
+  const { choice, change, originOfEvent } = useThemeTransition();
   const push = useNotification();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 p-4 md:p-6">
+    <div className="mx-auto max-w-3xl flex flex-col gap-6 p-4 md:p-6">
       <PageHeader title="Configurações" description="Sua conta e as preferências deste aparelho." />
 
       <Card>
@@ -64,16 +66,18 @@ export default function SettingsPage() {
           <CardDescription>O tema vale para este aparelho.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div role="radiogroup" aria-label="Tema" className="grid grid-cols-3 gap-3">
+          <RadioGroup
+            aria-label="Tema"
+            value={hydrated ? choice : null}
+            onValueChange={(value, details) => change(value as ThemeChoice, originOfEvent(details.event))}
+            className="grid-cols-3 gap-3"
+          >
             {THEMES.map((theme) => {
               const selected = hydrated && choice === theme.value;
               return (
-                <button
+                <Radio.Root
                   key={theme.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  onClick={(event) => change(theme.value, originOf(event))}
+                  value={theme.value}
                   className={cn(
                     "group overflow-hidden rounded-xl border-2 text-left transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
                     selected ? "border-primary" : "border-border hover:border-primary/40"
@@ -101,10 +105,10 @@ export default function SettingsPage() {
                       <p className="truncate text-xs text-muted-foreground max-sm:hidden">{theme.hint}</p>
                     </div>
                   </div>
-                </button>
+                </Radio.Root>
               );
             })}
-          </div>
+          </RadioGroup>
         </CardContent>
       </Card>
 
@@ -141,7 +145,7 @@ export default function SettingsPage() {
               <UserRound className="size-4 text-primary" /> Conta
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <Avatar className="size-12 border">
                 <AvatarImage src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user.name ?? user.email}`} alt="" />

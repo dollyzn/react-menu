@@ -56,7 +56,7 @@ export function ItemCard({ row }: ItemCardProps) {
       </div>
 
       {/* Corpo */}
-      <div className="p-4 space-y-3">
+      <div className="p-4 flex flex-col gap-3">
         {/* Nome + menu */}
         <div className="flex items-start justify-between gap-2">
           <h3 className="font-semibold text-base leading-tight text-foreground text-balance">

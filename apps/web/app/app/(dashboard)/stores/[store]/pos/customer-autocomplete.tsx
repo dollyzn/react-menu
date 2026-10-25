@@ -102,7 +102,7 @@ export function CustomerAutocomplete({
     <>
       <div className="relative">
         {isPicked ? (
-          <UserCheck className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-emerald-600 dark:text-emerald-400" />
+          <UserCheck className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-success" />
         ) : (
           <User className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
         )}

@@ -168,7 +168,7 @@ export function OpeningHoursCard({ store }: { store: Store }) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form noValidate onSubmit={form.handleSubmit(submit)} className="space-y-4">
+        <form noValidate onSubmit={form.handleSubmit(submit)} className="flex flex-col gap-4">
           <Field orientation="horizontal" data-invalid={Boolean(errors.scheduleEnabled)}>
             <Switch
               id="schedule-enabled"

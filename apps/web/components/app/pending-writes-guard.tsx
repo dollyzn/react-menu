@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -85,7 +85,7 @@ export function PendingWritesGuard() {
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle className="flex items-center gap-2">
-            <Loader2 className="size-5 animate-spin text-primary" /> Salvando suas alterações…
+            <Spinner className="size-5 text-primary" aria-hidden /> Salvando suas alterações…
           </AlertDialogTitle>
           <AlertDialogDescription>
             Assim que terminar, seguimos para a página que você abriu. Sair agora pode deixar a última

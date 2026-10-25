@@ -64,7 +64,7 @@ const columns: ColumnDef<Order>[] = [
     enableSorting: false,
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <span className="block max-w-[280px] truncate text-muted-foreground">{itemsSummary(row.original)}</span>
+        <span className="block max-w-70 truncate text-muted-foreground">{itemsSummary(row.original)}</span>
       </DataTableColumnCell>
     ),
     meta: { name: "Itens" },
@@ -94,7 +94,7 @@ const columns: ColumnDef<Order>[] = [
     cell: ({ row }) => (
       <DataTableColumnCell>
         <span className="block text-sm">{PAYMENT[row.original.paymentMethod]}</span>
-        <span className={cn("block text-xs", row.original.paymentStatus === "paid" ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>
+        <span className={cn("block text-xs", row.original.paymentStatus === "paid" ? "text-success" : "text-muted-foreground")}>
           {row.original.paymentStatus === "paid" ? "Pago" : "Não pago"}
         </span>
       </DataTableColumnCell>

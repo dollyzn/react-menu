@@ -169,7 +169,7 @@ function ItemsOrder({ storeId, category }: { storeId: string; category: Category
 
 function ListSkeleton() {
   return (
-    <div className="space-y-2" aria-busy>
+    <div className="flex flex-col gap-2" aria-busy>
       {Array.from({ length: 5 }).map((_, i) => (
         <Skeleton key={i} className="h-13 w-full" />
       ))}

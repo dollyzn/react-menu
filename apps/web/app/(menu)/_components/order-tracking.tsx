@@ -102,7 +102,7 @@ export function OrderTracking({ token }: { token: string }) {
   if (isLoading || !order) {
     return (
       <CustomerShell>
-        <div className="space-y-4 py-8" aria-busy>
+        <div className="flex flex-col gap-4 py-8" aria-busy>
           <Skeleton className="h-40 w-full rounded-2xl" />
           <Skeleton className="h-56 w-full rounded-2xl" />
         </div>
@@ -131,7 +131,7 @@ export function OrderTracking({ token }: { token: string }) {
         animate={{ opacity: 1, y: 0 }}
         className={cn(
           "relative overflow-hidden rounded-3xl border bg-card p-6 text-center shadow-sm",
-          isReady && "border-emerald-500/40 bg-emerald-500/5"
+          isReady && "border-success/40 bg-success/5"
         )}
       >
         {isReady && <BorderBeam size={120} duration={6} colorFrom="#10b981" colorTo="#f59e0b" />}
@@ -143,7 +143,7 @@ export function OrderTracking({ token }: { token: string }) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
-            className="mt-3 space-y-1"
+            className="mt-3 flex flex-col gap-1"
             aria-live="polite"
           >
             <h1 className="text-xl font-bold">{headline.title}</h1>
@@ -160,7 +160,7 @@ export function OrderTracking({ token }: { token: string }) {
         {readyAlert.supported && (order.status === "received" || order.status === "preparing") && (
           <div className="mt-4">
             {readyAlert.armed ? (
-              <p className="inline-flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+              <p className="inline-flex items-center gap-1.5 text-sm text-success">
                 <BellRing className="size-4" /> Vamos te avisar quando ficar pronto
               </p>
             ) : (
@@ -176,7 +176,7 @@ export function OrderTracking({ token }: { token: string }) {
       {order.status === "pending_payment" && <PaymentPanel order={order} />}
 
       {order.status !== "cancelled" && order.status !== "pending_payment" && (
-        <ol className="mt-6 space-y-0" aria-label="Andamento do pedido">
+        <ol className="mt-6" aria-label="Andamento do pedido">
           {STEPS.map((step, index) => {
             const done = index < currentStep || order.status === "completed";
             const active = index === currentStep && order.status !== "completed";

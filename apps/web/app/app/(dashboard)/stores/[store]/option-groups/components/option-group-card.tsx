@@ -16,7 +16,7 @@ export function OptionGroupCard({ row }: { row: Row<OptionGroup> }) {
   return (
     <Card className="gap-2 border-border bg-card p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 space-y-1">
+        <div className="min-w-0 flex flex-col gap-1">
           <h3 className="leading-tight font-semibold text-balance">{group.name}</h3>
           <Badge variant={group.minChoices > 0 ? "default" : "secondary"}>{groupRule(group)}</Badge>
         </div>

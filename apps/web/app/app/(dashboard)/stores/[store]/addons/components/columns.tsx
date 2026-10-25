@@ -22,7 +22,7 @@ export const columns: ColumnDef<Addon>[] = [
         indeterminate={table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()}
         onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Selecionar todos"
-        className="translate-y-[2px]"
+        className="translate-y-0.5"
       />
     ),
     cell: ({ row }) => (
@@ -31,7 +31,7 @@ export const columns: ColumnDef<Addon>[] = [
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Selecionar linha"
-          className="translate-y-[2px]"
+          className="translate-y-0.5"
         />
       </DataTableColumnCell>
     ),
@@ -51,7 +51,7 @@ export const columns: ColumnDef<Addon>[] = [
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <span className="min-w-[150px] font-medium block">
+        <span className="min-w-37.5 font-medium block">
           {row.getValue("name")}
         </span>
       </DataTableColumnCell>
@@ -72,7 +72,7 @@ export const columns: ColumnDef<Addon>[] = [
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <span className="min-w-[250px] max-w-[400px] truncate font-medium block">
+        <span className="min-w-62.5 max-w-100 truncate font-medium block">
           {row.getValue("description")}
         </span>
       </DataTableColumnCell>
@@ -112,8 +112,8 @@ export const columns: ColumnDef<Addon>[] = [
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <div className="flex items-center min-w-[165px]">
-          {<Calendar className="mr-2 h-4 w-4 text-muted-foreground" />}{" "}
+        <div className="flex items-center min-w-41.25">
+          {<Calendar className="mr-2 size-4 text-muted-foreground" />}{" "}
           {dayjs(row.getValue("createdAt")).format("DD/MM/YYYY HH:mm")}{" "}
         </div>
       </DataTableColumnCell>
@@ -134,8 +134,8 @@ export const columns: ColumnDef<Addon>[] = [
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <div className="flex items-center min-w-[165px]">
-          {<History className="mr-2 h-4 w-4 text-muted-foreground" />}
+        <div className="flex items-center min-w-41.25">
+          {<History className="mr-2 size-4 text-muted-foreground" />}
           {dayjs(row.getValue("updatedAt")).format("DD/MM/YYYY HH:mm")}
         </div>
       </DataTableColumnCell>

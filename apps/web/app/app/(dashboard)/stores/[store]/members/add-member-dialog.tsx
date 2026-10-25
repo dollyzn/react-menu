@@ -15,9 +15,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from "@/components/ui/field";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { useAddMemberMutation } from "@/redux/features/store/membersApi";
 import { ROLES } from "./roles";
 
@@ -108,37 +118,26 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
                 />
                 <FieldDescription>Usado no convite de quem ainda não tem conta.</FieldDescription>
               </Field>
-              <fieldset className="space-y-2">
-                <legend className="mb-2 text-sm font-medium">Função</legend>
-                <div className="grid gap-2" role="radiogroup">
+              <FieldSet>
+                <FieldLegend variant="label">Função</FieldLegend>
+                <RadioGroup name="member-role" value={role} onValueChange={(value) => setRole(value as StoreRole)}>
                   {(Object.keys(ROLES) as StoreRole[]).map((value) => {
                     const { label, description, icon: Icon } = ROLES[value];
                     return (
-                      <label
-                        key={value}
-                        className={cn(
-                          "flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
-                          role === value ? "border-primary bg-primary/5" : "hover:bg-muted/50"
-                        )}
-                      >
-                        <input
-                          type="radio"
-                          className="sr-only"
-                          name="member-role"
-                          value={value}
-                          checked={role === value}
-                          onChange={() => setRole(value)}
-                        />
-                        <Icon className="mt-0.5 size-4 text-primary" />
-                        <span>
-                          <span className="block text-sm font-medium">{label}</span>
-                          <span className="block text-xs text-muted-foreground">{description}</span>
-                        </span>
-                      </label>
+                      <FieldLabel key={value} htmlFor={`member-role-${value}`}>
+                        <Field orientation="horizontal">
+                          <Icon className="size-4 shrink-0 self-start text-primary" />
+                          <FieldContent>
+                            <FieldTitle>{label}</FieldTitle>
+                            <FieldDescription>{description}</FieldDescription>
+                          </FieldContent>
+                          <RadioGroupItem value={value} id={`member-role-${value}`} />
+                        </Field>
+                      </FieldLabel>
                     );
                   })}
-                </div>
-              </fieldset>
+                </RadioGroup>
+              </FieldSet>
             </FieldGroup>
           </DialogBody>
           <DialogFooter>

@@ -1,18 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { Spinner } from "@/components/ui/spinner";
 import dynamic from "next/dynamic";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, Copy, FlaskConical, Loader2, Lock, QrCode } from "lucide-react";
+import { AlertTriangle, Copy, FlaskConical, Lock, QrCode } from "lucide-react";
 import type { OnlinePaymentMethod, PublicOrder, PublicPaymentRequest } from "@react-menu/contracts";
+import { Radio } from "@base-ui/react/radio";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { RadioGroup } from "@/components/ui/radio-group";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNow } from "@/hooks/use-now";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
-import { cn } from "@/lib/utils";
 import { usePayOrderMutation, useSimulatePaymentMutation } from "@/redux/features/public/publicApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { rememberEmail } from "@/redux/slices/customer";
@@ -57,27 +59,26 @@ export function PaymentPanel({ order }: { order: PublicOrder }) {
       </div>
 
       {checkout.methods.length > 1 && (
-        <div role="radiogroup" aria-label="Forma de pagamento" className="mt-3 grid grid-cols-2 gap-2">
+        <RadioGroup
+          aria-label="Forma de pagamento"
+          value={method}
+          onValueChange={(value) => setChosen(value as OnlinePaymentMethod)}
+          className="mt-3 grid-cols-2"
+        >
           {checkout.methods.map((value) => {
             const { label, icon: Icon } = CHECKOUT_METHODS[value];
-            const selected = value === method;
             return (
-              <button
+              // A segment, not a dot: same radio semantics (arrow keys) as the shadcn RadioGroupItem.
+              <Radio.Root
                 key={value}
-                type="button"
-                role="radio"
-                aria-checked={selected}
-                onClick={() => setChosen(value)}
-                className={cn(
-                  "flex items-center justify-center gap-2 rounded-xl border p-2.5 text-sm font-medium transition-colors outline-none focus-visible:ring-3 focus-visible:ring-ring/50",
-                  selected ? "border-primary bg-primary/5 text-primary" : "hover:bg-muted/50"
-                )}
+                value={value}
+                className="flex items-center justify-center gap-2 rounded-xl border p-2.5 text-sm font-medium transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary/5 data-checked:text-primary"
               >
                 <Icon className="size-4" /> {label}
-              </button>
+              </Radio.Root>
             );
           })}
-        </div>
+        </RadioGroup>
       )}
 
       <div className="mt-4">
@@ -159,7 +160,7 @@ function PixPayment({ order }: { order: PublicOrder }) {
           </Button>
         </div>
         <p className="flex items-center gap-2 text-sm font-medium" aria-live="polite">
-          <Loader2 className="size-4 animate-spin text-primary" />
+          <Spinner className="text-primary" aria-hidden />
           Aguardando o pagamento… a confirmação aparece aqui sozinha.
         </p>
         {secondsLeft !== null && (
@@ -183,7 +184,7 @@ function PixPayment({ order }: { order: PublicOrder }) {
   }
 
   return (
-    <form onSubmit={generate} className="space-y-3">
+    <form onSubmit={generate} className="flex flex-col gap-3">
       {expired && (
         <Alert>
           <AlertTriangle />
@@ -240,7 +241,7 @@ function CardPayment({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="flex flex-col gap-3">
       {payment?.status === "rejected" && (
         <Alert variant="destructive">
           <AlertTriangle />
@@ -252,7 +253,7 @@ function CardPayment({
       )}
       {payment?.status === "pending" && !payment.challenge && (
         <p className="flex items-center gap-2 text-sm font-medium" aria-live="polite">
-          <Loader2 className="size-4 animate-spin text-primary" /> Pagamento em análise. Avisamos aqui assim que
+          <Spinner className="text-primary" aria-hidden /> Pagamento em análise. Avisamos aqui assim que
           for aprovado.
         </p>
       )}

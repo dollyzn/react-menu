@@ -32,7 +32,7 @@ export default function LogoutPage() {
   );
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center text-center p-6 space-y-2 bg-background text-foreground">
+    <main className="min-h-screen flex flex-col items-center justify-center text-center p-6 gap-2 bg-background text-foreground">
       <div className="relative">
         <div className="absolute inset-0 bg-primary rounded-full blur-xl animate-pulse" />
         <Icons.logo className="size-8 fill-primary" />

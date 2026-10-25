@@ -92,6 +92,18 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `create-category-dialog.tsx`); the API validation is authoritative.
   Small whole numbers use `components/app/number-stepper.tsx` (outline −/+
   around a regular `Input`), not a bare `type="number"`.
+- shadcn conventions (the `.agents/skills/shadcn` rules): `flex flex-col gap-*`
+  instead of `space-y-*` (prose like the legal pages is the exception);
+  status colors are tokens (`text-success`, `bg-warning/10`, `text-destructive`;
+  `--success`/`--warning` in `styles/globals.css`, >= 4.5:1 as text), never
+  raw palette classes or `dark:` overrides (identity colors such as the POS
+  category accents are the exception); `Spinner` for loading, `Kbd` for keys,
+  `Toggle`/`ToggleGroup` for pressed state, `RadioGroup` for one-of choices
+  (choice cards: `FieldLabel` > `Field` + `RadioGroupItem`; custom-looking
+  options: Base UI `Radio.Root` inside `RadioGroup`), destructive menu items
+  with `variant="destructive"`; icons inside components get no size classes.
+  Components come from the CLI (`pnpm dlx shadcn@latest add …`, never
+  `--overwrite`: `button.tsx` has the app's `loading`).
 - User-facing text is pt-BR, including `aria-label`s.
 - Theme changes go through `useThemeTransition` (circular reveal from the
   click); `ThemeSegmented` is the compact switch. Inside a view transition,

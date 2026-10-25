@@ -373,7 +373,7 @@ function NotificationSettings({ onBack }: { onBack: () => void }) {
 
       <div className="flex flex-col gap-4 p-4">
         <div className="flex items-center justify-between gap-4">
-          <div className="space-y-0.5">
+          <div className="flex flex-col gap-0.5">
             <Label htmlFor="push-notifications">Notificações push</Label>
             <p className="text-xs text-muted-foreground">
               Receba notificações neste dispositivo mesmo com o sistema fechado.
