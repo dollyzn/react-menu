@@ -779,4 +779,29 @@ test.group('Payments (in-app checkout)', (group) => {
       },
     })
   })
+
+  test('a "payment" notice without an attempt only pays legacy Checkout Pro orders', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id)
+    const order = await Order.findByOrFail('publicToken', token)
+    // Mercado Pago may also announce the payment behind an Orders API order.
+    fake.legacyPayments.set('555', {
+      id: 555,
+      status: 'approved',
+      status_detail: 'accredited',
+      external_reference: order.id,
+    })
+
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('555', 'req-555'))
+      .header('x-request-id', 'req-555')
+      .json({ type: 'payment', data: { id: '555' } })
+
+    await order.refresh()
+    assert.equal(order.status, 'pending_payment', 'its own attempt settles it, not this notice')
+  })
 })

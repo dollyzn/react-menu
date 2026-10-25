@@ -1,5 +1,7 @@
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
+import db from '@adonisjs/lucid/services/db'
+import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
 import Ingredient from '#models/ingredient'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
@@ -39,6 +41,22 @@ test.group('Dashboard today', (group) => {
     await order([{ itemId: carne.id, quantity: 2 }])
     await order([{ itemId: carne.id, quantity: 1 }])
 
+    // One order ready 12 minutes after reaching the kitchen.
+    const received = await db
+      .from('order_status_histories')
+      .join('orders', 'orders.id', 'order_status_histories.order_id')
+      .where('orders.store_id', store.id)
+      .where('to_status', 'received')
+      .select('orders.id', 'order_status_histories.created_at')
+      .first()
+    await db
+      .from('orders')
+      .where('id', received.id)
+      .update({
+        status: 'ready',
+        ready_at: DateTime.fromJSDate(received.created_at).plus({ minutes: 12 }).toJSDate(),
+      })
+
     const url = `/api/v1/stores/${store.id}/dashboard/today`
     const response = await client.get(url).loginAs(manager)
     const byAttendant = await client.get(url).loginAs(attendant)
@@ -49,7 +67,8 @@ test.group('Dashboard today', (group) => {
     byOtherStore.assertStatus(403)
     const data = response.body().data
     assert.deepInclude(data.sales, { orders: 2, revenue: 45, averageTicket: 22.5 })
-    assert.deepEqual(data.queue, { pendingPayment: 0, received: 2, preparing: 0, ready: 0 })
+    assert.deepEqual(data.queue, { pendingPayment: 0, received: 1, preparing: 0, ready: 1 })
+    assert.deepEqual(data.kitchen, { averageMinutes: 12, orders: 1 })
     assert.deepEqual(data.topItems, [{ name: 'Pastel de Carne', quantity: 3 }])
     assert.lengthOf(data.pace, 24)
     assert.equal(data.visits.onlineOrders, 2)

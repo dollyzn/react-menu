@@ -2,9 +2,13 @@ type Cell = string | number | null | undefined;
 
 const decimal = new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3, useGrouping: false });
 
+/** Text that a spreadsheet would run as a formula (CSV injection). */
+const FORMULA = /^[=+\-@\t\r]/;
+
 const cell = (value: Cell) => {
   if (value === null || value === undefined) return "";
-  const text = typeof value === "number" ? decimal.format(value) : value;
+  // A name typed as "=HYPERLINK(…)" stays text: Excel shows the leading ' as nothing.
+  const text = typeof value === "number" ? decimal.format(value) : FORMULA.test(value) ? `'${value}` : value;
   return /[";\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 

@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { orderThrottle, throttle } from '#start/limiter'
+import { orderThrottle, paymentSyncThrottle, throttle } from '#start/limiter'
 
 const PublicMenuController = () => import('#controllers/public_menu_controller')
 
@@ -32,6 +32,7 @@ export default function publicRoutes() {
         .post('/orders/:token/payments/sync', [PublicMenuController, 'syncPayment'])
         .as('public.orders.pay.sync')
         .where('token', router.matchers.uuid())
+        .use(paymentSyncThrottle)
       // Development fake gateway only (404 otherwise).
       router
         .post('/orders/:token/payments/simulate', [PublicMenuController, 'simulatePayment'])

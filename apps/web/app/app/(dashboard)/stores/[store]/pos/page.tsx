@@ -245,7 +245,7 @@ export default function PosPage() {
             </div>
           ) : (
             <div className="space-y-6">
-              {groups.map((group) => (
+              {groups.map((group, groupIndex) => (
                 <section key={group.id} aria-labelledby={`pos-category-${group.id}`}>
                   {/* One category selected: its name is already on the chip. */}
                   {(categoryId === "all" || query) && (
@@ -260,10 +260,12 @@ export default function PosPage() {
                     </h3>
                   )}
                   <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                    {group.items.map((item) => (
+                    {group.items.map((item, index) => (
                       <ProductCard
                         key={item.id}
                         item={item}
+                        // The first row is on screen at once (and often the LCP): no lazy loading.
+                        eager={groupIndex === 0 && index < 6}
                         accent={group.accent.border}
                         quantity={inTicket.get(item.id) ?? 0}
                         left={leftFor(item.id)}
@@ -346,6 +348,7 @@ function ProductCard({
   left,
   accent,
   onAdd,
+  eager,
 }: {
   item: PublicMenuItem;
   quantity: number;
@@ -354,6 +357,8 @@ function ProductCard({
   /** Category color for the left edge. */
   accent: string;
   onAdd: () => void;
+  /** Above the fold: load the photo right away. */
+  eager?: boolean;
 }) {
   const price = item.isAvailable ? formatCurrencyBRL(item.price) : "Esgotado";
   const canAdd = item.isAvailable && left !== 0;
@@ -375,7 +380,14 @@ function ProductCard({
     >
       <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
         {item.photoUrl ? (
-          <Image src={item.photoUrl} alt="" fill sizes="56px" className="object-cover" />
+          <Image
+            src={item.photoUrl}
+            alt=""
+            fill
+            sizes="56px"
+            loading={eager ? "eager" : undefined}
+            className="object-cover"
+          />
         ) : (
           <UtensilsCrossed className="absolute top-1/2 left-1/2 size-5 -translate-1/2 text-muted-foreground/50" />
         )}

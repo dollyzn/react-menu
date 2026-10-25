@@ -44,3 +44,12 @@ export const orderThrottle = limiter.define('public_orders', (ctx) => {
     .every('10 minutes')
     .usingKey(`orders_${ctx.request.ip()}`)
 })
+
+/**
+ * Re-reading a payment from the gateway (after a 3-D Secure challenge): each
+ * call is a request to Mercado Pago with the store's token. The page syncs a
+ * few times per challenge, so this stays well above that.
+ */
+export const paymentSyncThrottle = limiter.define('public_payment_sync', (ctx) => {
+  return limiter.allowRequests(30).every('10 minutes').usingKey(`payment_sync_${ctx.request.ip()}`)
+})
