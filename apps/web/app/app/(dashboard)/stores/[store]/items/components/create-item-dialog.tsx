@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useGetCategoriesByStoreIdQuery } from "@/redux/features/category/categoryApi";
 import { useGetAddonsByStoreIdQuery } from "@/redux/features/addon/addonApi";
 import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
@@ -33,7 +33,10 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldTitle,
 } from "@/components/ui/field";
+import { KEEP_PHOTO, PhotoField, type PhotoChange } from "@/components/app/photo-field";
+import { useSaveItemPhoto } from "./use-save-item-photo";
 import {
   InputGroup,
   InputGroupAddon,
@@ -97,8 +100,12 @@ export function CreateItemDialog() {
       optionGroupIds: [],
     },
   });
+  const [photo, setPhoto] = useState<PhotoChange>(KEEP_PHOTO);
+  const photoSaver = useSaveItemPhoto();
+  // For the photo's menu preview.
+  const [previewName, previewPrice] = useWatch({ control: form.control, name: ["name", "price"] });
   const { isSubmitting } = form.formState;
-  const busy = isSubmitting || isSaving;
+  const busy = isSubmitting || isSaving || photoSaver.saving;
 
   const [open, setOpen] = useState(false);
   const { data: groupsRes } = useGetOptionGroupsQuery(storeListPrefetchArg(storeId), { skip: !open });
@@ -106,6 +113,7 @@ export function CreateItemDialog() {
 
   const handleOpenChange = () => {
     if (busy && open) return;
+    if (open) setPhoto(KEEP_PHOTO);
     setOpen(!open);
   };
 
@@ -113,11 +121,17 @@ export function CreateItemDialog() {
     const { categoryId, ...formData } = data;
 
     try {
-      await createItem({
+      const item = await createItem({
         storeId,
         categoryId: Number(categoryId),
         data: formData,
       }).unwrap();
+      // The photo needs the item's id; the item stays created if it fails.
+      const photoError = await photoSaver.save(photo, storeId, item.id);
+      if (photoError) {
+        toast.error(`Item criado, mas a foto não foi enviada: ${photoError} Abra o item para tentar de novo.`);
+      }
+      form.reset();
       handleOpenChange();
     } catch (err: unknown) {
       toast.error(
@@ -155,6 +169,20 @@ export function CreateItemDialog() {
         >
           <DialogBody>
             <FieldGroup>
+              <Field>
+                <FieldTitle>
+                  Foto <span className="font-normal text-muted-foreground">(opcional)</span>
+                </FieldTitle>
+                <PhotoField
+                  currentUrl={null}
+                  value={photo}
+                  onChange={setPhoto}
+                  disabled={busy}
+                  name={previewName}
+                  price={previewPrice}
+                />
+              </Field>
+
               <Controller
                 name="name"
                 control={form.control}
@@ -334,8 +362,11 @@ export function CreateItemDialog() {
             <Button
               type="reset"
               variant="outline"
-              disabled={busy}
-              onClick={() => form.reset()}
+              disabled={busy || (!form.formState.isDirty && photo.kind === "keep")}
+              onClick={() => {
+                form.reset();
+                setPhoto(KEEP_PHOTO);
+              }}
             >
               Limpar
             </Button>

@@ -5,6 +5,7 @@ import ItemService from '#services/item_service'
 import { numberValidator, storeExistValidator, uuidValidator } from '#validators/common'
 import {
   bulkDeleteValidator,
+  itemPhotoValidator,
   categoryExistValidator,
   storeValidator,
   reorderValidator,
@@ -119,6 +120,25 @@ export default class ItemsController {
       success: 'Itens excluídos com sucesso',
       partial: 'Alguns itens não puderam ser excluídos',
     })
+  }
+
+  async updatePhoto({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const itemId = await uuidValidator.validate(params.itemId)
+    const { photo } = await request.validateUsing(itemPhotoValidator)
+
+    const item = await this.itemService.setPhoto(storeId, itemId, photo)
+
+    return updated(item, 'Foto do item atualizada')
+  }
+
+  async destroyPhoto({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const itemId = await uuidValidator.validate(params.itemId)
+
+    const item = await this.itemService.removePhoto(storeId, itemId)
+
+    return updated(item, 'Foto do item removida')
   }
 
   async destroy({ params }: HttpContext) {

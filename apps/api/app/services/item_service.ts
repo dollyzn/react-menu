@@ -1,8 +1,12 @@
+import { randomUUID } from 'node:crypto'
 import { inject } from '@adonisjs/core'
+import type { MultipartFile } from '@adonisjs/core/bodyparser'
+import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Item from '#models/item'
 import { deleteEach } from '#helpers/bulk_delete'
+import { deleteUpload } from '#helpers/uploads'
 import { applyBulkChanges, type BulkChange } from '#helpers/bulk_update'
 import { applyOrder } from '#helpers/reorder'
 import OptionGroupService from '#services/option_group_service'
@@ -10,6 +14,9 @@ import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
 import CategoryRepository from '#repositories/category_repository'
 import type { ItemFindOptions, ItemListOptions } from '#types/item_query'
+
+/** Item photos live under this drive prefix (only these are ever deleted). */
+const PHOTO_PREFIX = 'items'
 
 @inject()
 export default class ItemService {
@@ -119,10 +126,47 @@ export default class ItemService {
   }
 
   async removeInStore(storeId: string, id: string) {
-    return await db.transaction(async (trx) => {
-      await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
+    const photoUrl = await db.transaction(async (trx) => {
+      const item = await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       await this.repo.delete(id, trx)
+      return item.photoUrl
     })
+    await deleteUpload(photoUrl, PHOTO_PREFIX)
+  }
+
+  /**
+   * Replaces the item's photo. The new file is stored and saved first; the
+   * old one is deleted after, so a failure leaves an orphan file at worst,
+   * never an item pointing at a missing photo.
+   */
+  async setPhoto(storeId: string, id: string, photo: MultipartFile) {
+    const item = await this.repo.findByIdInStore(id, storeId, { preload: false })
+    const previous = item.photoUrl
+    const key = `${PHOTO_PREFIX}/${item.id}_${randomUUID()}.${photo.extname}`
+    await photo.moveToDisk(key)
+    item.photoUrl = await drive.use().getUrl(key)
+    await item.save()
+    await deleteUpload(previous, PHOTO_PREFIX)
+    return await this.withRelations(item)
+  }
+
+  /** Back to no photo (the menu shows a placeholder). Repeating it is harmless. */
+  async removePhoto(storeId: string, id: string) {
+    const item = await this.repo.findByIdInStore(id, storeId, { preload: false })
+    const previous = item.photoUrl
+    if (previous) {
+      item.photoUrl = null
+      await item.save()
+      await deleteUpload(previous, PHOTO_PREFIX)
+    }
+    return await this.withRelations(item)
+  }
+
+  private async withRelations(item: Item) {
+    await item.load('category')
+    await item.load('addons')
+    await item.load('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
+    return item
   }
 
   /** Prices/availability of many items at once, all or nothing (see applyBulkChanges). */
@@ -149,7 +193,9 @@ export default class ItemService {
         q.where('store_id', storeId)
       })
 
-    return await deleteEach(items)
+    const result = await deleteEach(items)
+    for (const item of result.deleted) await deleteUpload(item.photoUrl, PHOTO_PREFIX)
+    return result
   }
 
   /** Attaches choice groups of this store to the item, in the given order. */

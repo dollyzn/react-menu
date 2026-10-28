@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Row } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { useGetCategoriesByStoreIdQuery } from "@/redux/features/category/categoryApi";
 import { useGetAddonsByStoreIdQuery } from "@/redux/features/addon/addonApi";
 import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
@@ -35,7 +35,10 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldTitle,
 } from "@/components/ui/field";
+import { KEEP_PHOTO, PhotoField, type PhotoChange } from "@/components/app/photo-field";
+import { useSaveItemPhoto } from "./use-save-item-photo";
 import {
   InputGroup,
   InputGroupAddon,
@@ -117,8 +120,12 @@ export function UpdateItemDialog({
       optionGroupIds: row.original.optionGroups?.map((group) => group.id) ?? [],
     },
   });
+  const [photo, setPhoto] = React.useState<PhotoChange>(KEEP_PHOTO);
+  const photoSaver = useSaveItemPhoto();
+  // For the photo's menu preview.
+  const [previewName, previewPrice] = useWatch({ control: form.control, name: ["name", "price"] });
   const { isSubmitting } = form.formState;
-  const busy = isSubmitting || isSaving;
+  const busy = isSubmitting || isSaving || photoSaver.saving;
 
   const snapshotValues = React.useCallback(() => {
     return {
@@ -136,6 +143,7 @@ export function UpdateItemDialog({
     onOpenChange(nextOpen);
     if (!nextOpen) {
       form.reset(snapshotValues());
+      setPhoto(KEEP_PHOTO);
     }
   };
 
@@ -149,6 +157,12 @@ export function UpdateItemDialog({
           categoryId: Number(data.categoryId),
         },
       }).unwrap();
+      const photoError = await photoSaver.save(photo, storeId, row.original.id);
+      if (photoError) {
+        // The rest was saved: stay open so the photo can be tried again.
+        toast.error(`Item salvo, mas a foto não: ${photoError}`);
+        return;
+      }
       handleDialogOpenChange(false);
     } catch (err: unknown) {
       toast.error(
@@ -187,6 +201,18 @@ export function UpdateItemDialog({
               </div>
             )}
             <FieldGroup>
+              <Field>
+                <FieldTitle>Foto</FieldTitle>
+                <PhotoField
+                  currentUrl={row.original.photoUrl ?? null}
+                  value={photo}
+                  onChange={setPhoto}
+                  disabled={busy}
+                  name={previewName}
+                  price={previewPrice}
+                />
+              </Field>
+
               <Controller
                 name="name"
                 control={form.control}
@@ -373,8 +399,11 @@ export function UpdateItemDialog({
             <Button
               type="reset"
               variant="outline"
-              disabled={busy || itemAddonsLoading}
-              onClick={() => form.reset(snapshotValues())}
+              disabled={busy || itemAddonsLoading || (!form.formState.isDirty && photo.kind === "keep")}
+              onClick={() => {
+                form.reset(snapshotValues());
+                setPhoto(KEEP_PHOTO);
+              }}
             >
               Desfazer alterações
             </Button>

@@ -386,7 +386,7 @@ export function EditStoreDialog({ data, open, toggle }: EditStoreDialogProps) {
             <Button
               type="reset"
               variant="outline"
-              disabled={busy}
+              disabled={busy || !form.formState.isDirty}
               onClick={() => form.reset()}
             >
               Limpar
