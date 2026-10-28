@@ -193,7 +193,7 @@ importers:
         version: 3.0.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))
       '@adonisjs/drive':
         specifier: ^4.0.0
-        version: 4.0.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(@aws-sdk/client-s3@3.1155.0)(@aws-sdk/s3-request-presigner@3.1155.0)
+        version: 4.0.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(@aws-sdk/client-s3@3.1156.0)(@aws-sdk/s3-request-presigner@3.1156.0)
       '@adonisjs/limiter':
         specifier: ^3.0.1
         version: 3.0.1(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(@adonisjs/lucid@22.4.2(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(@vinejs/vine@4.4.0)(luxon@3.7.2)(pg@8.23.1)(supports-color@10.2.2))(@adonisjs/redis@11.0.0(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(supports-color@10.2.2))
@@ -216,11 +216,11 @@ importers:
         specifier: ^3.0.2
         version: 3.0.2(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(ioredis@5.11.1(supports-color@10.2.2))
       '@aws-sdk/client-s3':
-        specifier: ^3.1155.0
-        version: 3.1155.0
+        specifier: ^3.1156.0
+        version: 3.1156.0
       '@aws-sdk/s3-request-presigner':
-        specifier: ^3.1155.0
-        version: 3.1155.0
+        specifier: ^3.1156.0
+        version: 3.1156.0
       '@react-menu/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -317,7 +317,7 @@ importers:
         version: 3.2.2(react@19.3.1)
       '@hookform/resolvers':
         specifier: ^6.0.0
-        version: 6.0.0(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(@vinejs/vine@4.4.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
+        version: 6.0.0(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(@vinejs/vine@4.4.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
       '@mercadopago/sdk-react':
         specifier: 1.0.7
         version: 1.0.7(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -370,14 +370,14 @@ importers:
         specifier: ^13.1.0
         version: 13.1.0
       geist:
-        specifier: ^1.7.0
-        version: 1.8.1(next@16.4.2(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
+        specifier: ^1.8.2
+        version: 1.8.2(next@16.4.2(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       lucide-react:
         specifier: ^1.61.0
         version: 1.61.0(@types/react@19.3.0)(react@19.3.1)
       motion:
-        specifier: ^14.5.0
-        version: 14.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        specifier: ^14.6.0
+        version: 14.6.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       next:
         specifier: 16.4.2
         version: 16.4.2(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
@@ -397,8 +397,8 @@ importers:
         specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
       react-hook-form:
-        specifier: ^7.75.0
-        version: 7.90.0(@types/react@19.3.0)(react@19.3.1)
+        specifier: ^7.91.0
+        version: 7.91.0(@types/react@19.3.0)(react@19.3.1)
       react-is:
         specifier: ^19.2.5
         version: 19.3.1
@@ -912,8 +912,8 @@ packages:
     resolution: {integrity: sha512-6erto9nK2OZO/woEgmFIaPh5gChgdNd7nL6jgAf8TAXz3/QHC8Pan2TFe9GYp3IxOIKCCGWPylSjtOHKfNzQlw==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/client-s3@3.1155.0':
-    resolution: {integrity: sha512-l3uMeIlzWVgj/RTJTh5sKYKtQz1la3cvWLUPn1cwFH4UZpcqTH66SgJHCeB2FOE9bEAjOdbmCyPKt9aw867Fng==}
+  '@aws-sdk/client-s3@3.1156.0':
+    resolution: {integrity: sha512-Z2PqQqKMDVX56tNZ6ggmjoI5o/8+4+8ArmjLwE5ktYsEzs1BrvklBT1ZzI+s0Vcf3wfPguoEMD7EkMswmEta/A==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/core@3.978.5':
@@ -960,8 +960,8 @@ packages:
     resolution: {integrity: sha512-nKb8qu4QsnpZTq/6JIXc72mzuzfh7BK4sUQkpQznPec2z4W7Ob2xYkcM4i5e1yGTBnbJVeFv/0sf3jcz85hclA==}
     engines: {node: '>=20.0.0'}
 
-  '@aws-sdk/s3-request-presigner@3.1155.0':
-    resolution: {integrity: sha512-t0AlTvpL6bqCGlN2avesGtNNZ/qssSJgIZgIMEoQan0dH8k64k8iK5jDWOGFAjTs4G+ALvXjjkNl5ITxhYGpxw==}
+  '@aws-sdk/s3-request-presigner@3.1156.0':
+    resolution: {integrity: sha512-M4yj4HmAPydhIMxKK90eTcnHr5FHBl000d2oFMAWpt+XPX86c2kmNJpiYbKrPLIe8jyK9sweRt5CDdWrhq/QTg==}
     engines: {node: '>=20.0.0'}
 
   '@aws-sdk/signature-v4-multi-region@3.996.49':
@@ -2410,10 +2410,6 @@ packages:
   '@sindresorhus/merge-streams@4.0.0':
     resolution: {integrity: sha512-tlqY9xq5ukxTUZBmoOp+m61cqwQD5pHJtFY3Mn8CA8ps6yghLH/Hw8UPdqg4OLmFW3IFlcXnQNmo/dh8HzXYIQ==}
     engines: {node: '>=18'}
-
-  '@smithy/core@3.36.0':
-    resolution: {integrity: sha512-3hJiwG1F5t1SoXqp/yOCmYXziyx7ZVqF63S5W6YU201e/qwVaHPex+E/3vvyY9a3ORq/b+BydeNZpP2saQ9X2g==}
-    engines: {node: '>=18.0.0'}
 
   '@smithy/core@3.36.2':
     resolution: {integrity: sha512-oRw0rB9QSUiCZfEs23G5F4Af+b2rQt1lItIICWu5IejFNd+uPM8SWqiKLMpQ6bX1Q7slsLbjuoE2niErFtkVPQ==}
@@ -4143,8 +4139,8 @@ packages:
     resolution: {integrity: sha512-buRG0fpBtRHSTCOASe6hD258tEubFoRLb4ZNA6NxMVHNw2gOcwHo9wyablzMzOA5z9xA9L1KNjk/Nt6MT9aYow==}
     engines: {node: '>= 0.6'}
 
-  framer-motion@14.5.0:
-    resolution: {integrity: sha512-pXIj1m9JX//3XExUgQIpS0f5iWcjenO14ekdg9S++Rr0VzfnAaveoNzonigRarD/+AM3umTGS3K/RANGQJitCQ==}
+  framer-motion@14.6.0:
+    resolution: {integrity: sha512-MzBgZxGgoHPfSLEXmo4o5XlZvb+nVRFdHtGjVhm6LMIEJKTt/8hNO023euL5mYyzc8llV/hQTfjnN68tNRHalw==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -4202,8 +4198,8 @@ packages:
     resolution: {integrity: sha512-5/LvxarRKbGCA5LJ+ha2aV1iVm7/aALIW4PzeXnQR5dyXiNMWbeA4UOBnqERInLfH/xSFp0ZREcxodUzxhEw2Q==}
     engines: {node: '>=22'}
 
-  geist@1.8.1:
-    resolution: {integrity: sha512-oSBhuzTvwZqGAZVC4swTRo61G/JHojtEVNR3DCToU+4nUBkG48ndKNvj4Ma7zZ+OlJkYDLT66HS+hrFszkovTg==}
+  geist@1.8.2:
+    resolution: {integrity: sha512-fRF4sbJ9qcCxPb35cVtKBAwYlTt1IbU9nkbPi0a+xyZqPIjCJ2BY8ekGhx6/SGSZKrR7/UuL57r/eeDQ1Xy11g==}
     peerDependencies:
       next: '>=13.2.0'
 
@@ -5132,14 +5128,14 @@ packages:
     resolution: {integrity: sha512-tEBHqDnIoM/1rXME1zgka9g6Q2lcoCkxHLuc7ODJ5BxbP5d4c2Z5cGgtXAku59200Cx7diuHTOYfSBD8n6mm8A==}
     engines: {node: '>=16 || 14 >=14.17'}
 
-  motion-dom@14.5.0:
-    resolution: {integrity: sha512-GAdnk1AgdtyrD3I09ZxEpV+Nt5QgwUsxN55qQV8mfk082dFQpcoT07wXkQAHRZjvZWUEBYhBVNeoXvtkYdL8jA==}
+  motion-dom@14.6.0:
+    resolution: {integrity: sha512-lIojTl9aYSPIkeOOSzBliy1nNvpdO3JtVzW2WgTXQlOP4ZMuJhtWO3fP7OD4TVFwlRucdvxlDSMkL+fEQnQ52A==}
 
-  motion-utils@14.1.1:
-    resolution: {integrity: sha512-3VvN5Uvf8B6qG+OfOui6Nht5EWp+vLuU3IqcAj7ItZGKqtmTjCebl5sGZF7/08gEHRnEl1AP/fIwbcEyVrcQGQ==}
+  motion-utils@14.6.0:
+    resolution: {integrity: sha512-bZJo2AmQ2aOFkaato6VXrTbkPG0XhMzivWUWSaI59pxyllj8QMQUFZ84MYRQnPkK+7dr4KldyJwF2+RM0sdq/w==}
 
-  motion@14.5.0:
-    resolution: {integrity: sha512-A0MinYYhYU12CHELw4+9jKPVreI43yDOprC4kAATHhF1rLfMFMhfpBR0GvdRR/IWEuKsHDnVn4fT+R2gQRyulw==}
+  motion@14.6.0:
+    resolution: {integrity: sha512-qqaZbyubgk7x3zxjPgP1l3Br/KQXol/IIV1uqb358SoN4ApcqNuV7+wyDPg/XLErmuyQL5lL8JVI/fOmDsmBKQ==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -5625,8 +5621,8 @@ packages:
     peerDependencies:
       react: ^19.3.1
 
-  react-hook-form@7.90.0:
-    resolution: {integrity: sha512-+NdG0FLzCPhFOp2NNxaUYLF9fyZhNjx9FTBBSYWF71/l6BBlmIc/j6xlp3DbaHWLJbIG7Zd8oznA19xJClU97w==}
+  react-hook-form@7.91.0:
+    resolution: {integrity: sha512-5BEBUnCBwa28AFXYTYmOaB/+CSpJ/+CWVASHEvIGUzFdHyUiPHeRhG7r5hOZ8nZi0yP7pbHdFNXO/p31EKTJFQ==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       '@types/react': 19.3.0
@@ -6703,14 +6699,14 @@ snapshots:
     optionalDependencies:
       '@adonisjs/assembler': 8.6.0(typescript@5.9.3)
 
-  '@adonisjs/drive@4.0.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(@aws-sdk/client-s3@3.1155.0)(@aws-sdk/s3-request-presigner@3.1155.0)':
+  '@adonisjs/drive@4.0.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@adonisjs/core@7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1))(@aws-sdk/client-s3@3.1156.0)(@aws-sdk/s3-request-presigner@3.1156.0)':
     dependencies:
       '@adonisjs/core': 7.6.0(@adonisjs/assembler@8.6.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.2.0)(supports-color@10.2.2)(youch@4.1.1)
-      flydrive: 2.2.0(@aws-sdk/client-s3@3.1155.0)(@aws-sdk/s3-request-presigner@3.1155.0)
+      flydrive: 2.2.0(@aws-sdk/client-s3@3.1156.0)(@aws-sdk/s3-request-presigner@3.1156.0)
     optionalDependencies:
       '@adonisjs/assembler': 8.6.0(typescript@5.9.3)
-      '@aws-sdk/client-s3': 3.1155.0
-      '@aws-sdk/s3-request-presigner': 3.1155.0
+      '@aws-sdk/client-s3': 3.1156.0
+      '@aws-sdk/s3-request-presigner': 3.1156.0
 
   '@adonisjs/env@7.1.0':
     dependencies:
@@ -6997,7 +6993,7 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/client-s3@3.1155.0':
+  '@aws-sdk/client-s3@3.1156.0':
     dependencies:
       '@aws-sdk/checksums': 3.1001.5
       '@aws-sdk/core': 3.978.5
@@ -7126,7 +7122,7 @@ snapshots:
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
-  '@aws-sdk/s3-request-presigner@3.1155.0':
+  '@aws-sdk/s3-request-presigner@3.1156.0':
     dependencies:
       '@aws-sdk/core': 3.978.5
       '@aws-sdk/signature-v4-multi-region': 3.996.49
@@ -7989,10 +7985,10 @@ snapshots:
     dependencies:
       hono: 4.13.13
 
-  '@hookform/resolvers@6.0.0(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(@vinejs/vine@4.4.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)':
+  '@hookform/resolvers@6.0.0(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(@vinejs/vine@4.4.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)':
     dependencies:
       '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.90.0(@types/react@19.3.0)(react@19.3.1)
+      react-hook-form: 7.91.0(@types/react@19.3.0)(react@19.3.1)
     optionalDependencies:
       '@sinclair/typebox': 0.34.52
       '@standard-schema/spec': 1.1.0
@@ -8672,11 +8668,6 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@smithy/core@3.36.0':
-    dependencies:
-      '@smithy/types': 4.19.0
-      tslib: 2.8.1
-
   '@smithy/core@3.36.2':
     dependencies:
       '@smithy/types': 4.19.0
@@ -8684,25 +8675,25 @@ snapshots:
 
   '@smithy/credential-provider-imds@4.5.2':
     dependencies:
-      '@smithy/core': 3.36.0
+      '@smithy/core': 3.36.2
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
   '@smithy/fetch-http-handler@5.8.0':
     dependencies:
-      '@smithy/core': 3.36.0
+      '@smithy/core': 3.36.2
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
   '@smithy/node-http-handler@4.12.1':
     dependencies:
-      '@smithy/core': 3.36.0
+      '@smithy/core': 3.36.2
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
   '@smithy/signature-v4@5.7.4':
     dependencies:
-      '@smithy/core': 3.36.0
+      '@smithy/core': 3.36.2
       '@smithy/types': 4.19.0
       tslib: 2.8.1
 
@@ -10565,15 +10556,15 @@ snapshots:
 
   flattie@1.1.1: {}
 
-  flydrive@2.2.0(@aws-sdk/client-s3@3.1155.0)(@aws-sdk/s3-request-presigner@3.1155.0):
+  flydrive@2.2.0(@aws-sdk/client-s3@3.1156.0)(@aws-sdk/s3-request-presigner@3.1156.0):
     dependencies:
       '@humanwhocodes/retry': 0.4.3
       '@poppinss/utils': 7.1.2
       etag: 1.8.1
       mime-types: 3.0.2
     optionalDependencies:
-      '@aws-sdk/client-s3': 3.1155.0
-      '@aws-sdk/s3-request-presigner': 3.1155.0
+      '@aws-sdk/client-s3': 3.1156.0
+      '@aws-sdk/s3-request-presigner': 3.1156.0
 
   for-each@0.3.5:
     dependencies:
@@ -10605,10 +10596,10 @@ snapshots:
 
   forwarded@0.2.0: {}
 
-  framer-motion@14.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  framer-motion@14.6.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
-      motion-dom: 14.5.0
-      motion-utils: 14.1.1
+      motion-dom: 14.6.0
+      motion-utils: 14.6.0
       tslib: 2.8.1
     optionalDependencies:
       react: 19.3.1
@@ -10689,7 +10680,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  geist@1.8.1(next@16.4.2(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)):
+  geist@1.8.2(next@16.4.2(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)):
     dependencies:
       next: 16.4.2(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
 
@@ -11546,15 +11537,15 @@ snapshots:
   minipass@7.1.3:
     optional: true
 
-  motion-dom@14.5.0:
+  motion-dom@14.6.0:
     dependencies:
-      motion-utils: 14.1.1
+      motion-utils: 14.6.0
 
-  motion-utils@14.1.1: {}
+  motion-utils@14.6.0: {}
 
-  motion@14.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
+  motion@14.6.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1):
     dependencies:
-      framer-motion: 14.5.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      framer-motion: 14.6.0(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       tslib: 2.8.1
     optionalDependencies:
       react: 19.3.1
@@ -12054,7 +12045,7 @@ snapshots:
       react: 19.3.1
       scheduler: 0.28.0
 
-  react-hook-form@7.90.0(@types/react@19.3.0)(react@19.3.1):
+  react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1):
     dependencies:
       react: 19.3.1
     optionalDependencies:
