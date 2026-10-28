@@ -2,6 +2,9 @@ import { test, expect, login, createStoreViaApi, storeApi } from "./fixtures";
 
 /** Every visible interactive element must have an accessible name. */
 test("admin screens have no unnamed controls", async ({ page }) => {
+  // Six panel pages, and usually the run's first test: the dev server compiles
+  // each one on the way (~18s locally, close to the default 30s on CI runners).
+  test.setTimeout(90_000);
   const store = await createStoreViaApi(page, "A11y");
   const api = storeApi(page, store.id);
   const category = await api.post("/categories", { name: "Pastéis" });
