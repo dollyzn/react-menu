@@ -11,3 +11,8 @@ export const managersOnly = middleware.storeRole({ roles: [StoreRole.MANAGER] })
 export const frontOfHouse = middleware.storeRole({
   roles: [StoreRole.MANAGER, StoreRole.ATTENDANT],
 })
+
+/** The kitchen display (attendants work the counter, not the line). */
+export const kitchenStaff = middleware.storeRole({
+  roles: [StoreRole.MANAGER, StoreRole.KITCHEN],
+})

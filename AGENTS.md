@@ -11,7 +11,7 @@ React Menu: digital menus and ordering for restaurants (pickup at the
 counter). Customers order from the public menu (`/`, `/[slug]`) identified
 only by name + phone and track the order live (`/pedido/[token]`). Staff
 work by store role: managers run catalog, inventory and settings;
-attendants use the POS, the orders board and the kitchen display; cooks use the kitchen
+attendants use the POS and the orders board; cooks use the kitchen
 display, which batches identical pastries from nearby orders.
 
 ## Layout
@@ -75,7 +75,7 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
    updating `status` directly. Kitchen grouping lives in the pure
    `app/kitchen/production_queue.ts` (unit-tested).
 7. **Store roles** (`manager | attendant | kitchen`, pivot `store_user.role`):
-   guard routes with `managersOnly` / `frontOfHouse` from
+   guard routes with `managersOnly` / `frontOfHouse` / `kitchenStaff` from
    `start/routes/store/shared.ts` after `storeAccess`.
 8. **Payments** go through `PaymentService` and a `PaymentGateway`
    (ADR 0015): Mercado Pago per store (credentials encrypted), or the

@@ -10,7 +10,7 @@ export const ROLES: Record<StoreRole, { label: string; description: string; icon
   },
   attendant: {
     label: "Atendente",
-    description: "PDV, quadro de pedidos, tela da cozinha e entrega no balcão.",
+    description: "PDV, quadro de pedidos e entrega no balcão.",
     icon: ShoppingCart,
   },
   kitchen: {
