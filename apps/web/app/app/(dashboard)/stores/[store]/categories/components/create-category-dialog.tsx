@@ -172,7 +172,7 @@ export function CreateCategoryDialog({ storeId }: CreateCategoryDialogProps) {
             <Button
               type="reset"
               variant="outline"
-              disabled={busy}
+              disabled={busy || !form.formState.isDirty}
               onClick={() => form.reset()}
             >
               Limpar

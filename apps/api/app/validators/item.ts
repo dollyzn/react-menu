@@ -6,7 +6,6 @@ const price = vine.number().positive()
 const categoryId = vine.number().exists(async (db, value) => {
   return await db.from('categories').select('id').where('id', value).first()
 })
-const photoUrl = vine.string().optional()
 const addonIds = vine
   .array(
     vine
@@ -32,7 +31,6 @@ const storeValidator = vine.create(
     name,
     description,
     price,
-    photoUrl,
     addonIds,
     optionGroupIds,
   })
@@ -45,7 +43,6 @@ const updateValidator = vine.create(
     price: price.optional(),
     // Optional: partial updates (e.g. "Marcar esgotado") send only what changes.
     categoryId: categoryId.optional(),
-    photoUrl,
     addonIds,
     optionGroupIds,
     isAvailable: vine.boolean().optional(),
@@ -64,8 +61,19 @@ const bulkDeleteValidator = vine.create(
   })
 )
 
+/**
+ * The item's photo (`PUT …/items/:id/photo`). The panel sends it already
+ * resized to WebP; JPEG/PNG straight from a phone also work.
+ */
+const itemPhotoValidator = vine.create(
+  vine.object({
+    photo: vine.file({ size: '5mb', extnames: ['jpg', 'jpeg', 'png', 'webp'] }),
+  })
+)
+
 export {
   bulkDeleteValidator,
+  itemPhotoValidator,
   categoryExistValidator,
   storeValidator,
   updateValidator,

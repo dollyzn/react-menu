@@ -175,7 +175,7 @@ export function UpdateCategoryDialog({
             <Button
               type="reset"
               variant="outline"
-              disabled={busy}
+              disabled={busy || !form.formState.isDirty}
               onClick={() => form.reset()}
             >
               Limpar

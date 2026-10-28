@@ -20,5 +20,13 @@ export default function registerStoreItemRoutes() {
     .delete('/items/:itemId', [ItemsController, 'destroy'])
     .as('items.destroy')
     .use(managersOnly)
+  router
+    .put('/items/:itemId/photo', [ItemsController, 'updatePhoto'])
+    .as('items.photo.update')
+    .use(managersOnly)
+  router
+    .delete('/items/:itemId/photo', [ItemsController, 'destroyPhoto'])
+    .as('items.photo.destroy')
+    .use(managersOnly)
   router.get('/items/:itemId/addons', [AddonsController, 'indexByItem']).as('addons.indexByItem')
 }

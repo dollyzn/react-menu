@@ -10,11 +10,32 @@ import { errors as limiterErrors } from '@adonisjs/limiter'
 import { errors as allyErrors } from '@adonisjs/ally'
 import AppException from '#exceptions/app_exception'
 
+/**
+ * A file that isn't there: Drive wraps it as E_CANNOT_SERVE_FILE caused by
+ * E_CANNOT_GET_METADATA caused by the filesystem's ENOENT (walk the causes).
+ */
+function isMissingFile(error: unknown) {
+  let current = error as { code?: string; cause?: unknown } | null | undefined
+  for (let depth = 0; current && depth < 5; depth++) {
+    if (current.code === 'ENOENT' || current.code === 'E_CANNOT_GET_METADATA') return true
+    current = current.cause as typeof current
+  }
+  return false
+}
+
 export default class HttpExceptionHandler extends ExceptionHandler {
   protected debug = !app.inProduction
 
   async handle(error: unknown, ctx: HttpContext) {
     const response = ctx.response
+
+    // A deleted or never-uploaded file under /uploads: Drive's file server
+    // reads it before its own try/catch, so the filesystem error escapes.
+    if (ctx.request.url().startsWith('/uploads/') && isMissingFile(error)) {
+      return response
+        .status(404)
+        .send({ error: 'Arquivo não encontrado', code: 'E_FILE_NOT_FOUND' })
+    }
 
     // VALIDATION ERROR
     if (error instanceof vineErrors.E_VALIDATION_ERROR) {
