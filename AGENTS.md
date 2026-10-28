@@ -75,7 +75,7 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
    updating `status` directly. Kitchen grouping lives in the pure
    `app/kitchen/production_queue.ts` (unit-tested).
 7. **Store roles** (`manager | attendant | kitchen`, pivot `store_user.role`):
-   guard routes with `managersOnly` / `frontOfHouse` from
+   guard routes with `managersOnly` / `frontOfHouse` / `kitchenStaff` from
    `start/routes/store/shared.ts` after `storeAccess`.
 8. **Payments** go through `PaymentService` and a `PaymentGateway`
    (ADR 0015): Mercado Pago per store (credentials encrypted), or the

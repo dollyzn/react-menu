@@ -54,6 +54,29 @@ test.group('Store roles', (group) => {
     byCook.assertStatus(403)
   })
 
+  test('the kitchen display is for kitchen staff, not attendants', async ({ client }) => {
+    const store = await createStore()
+    const attendant = await createUser()
+    const cook = await createUser()
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    await linkUser(store, cook, StoreRole.KITCHEN)
+    const queue = (user: typeof cook) =>
+      client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(user)
+    const prepare = (user: typeof cook) =>
+      client
+        .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
+        .json({ units: [{ lineId: 1, quantity: 1 }] })
+        .loginAs(user)
+
+    const attendantQueue = await queue(attendant)
+    const attendantPrepare = await prepare(attendant)
+    const cookQueue = await queue(cook)
+
+    attendantQueue.assertStatus(403)
+    attendantPrepare.assertStatus(403)
+    cookQueue.assertStatus(200)
+  })
+
   test('managers keep full access', async ({ client }) => {
     const store = await createStore()
     const manager = await createUser()

@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { frontOfHouse, managersOnly } from '#routes/store/shared'
+import { frontOfHouse, kitchenStaff, managersOnly } from '#routes/store/shared'
 
 const OrdersController = () => import('#controllers/orders_controller')
 const KitchenController = () => import('#controllers/kitchen_controller')
@@ -30,6 +30,9 @@ export default function registerStoreOrderRoutes() {
   // POS autocomplete (names and phones: front of house only).
   router.get('/customers', [CustomersController, 'index']).as('customers.index').use(frontOfHouse)
 
-  router.get('/kitchen/queue', [KitchenController, 'queue']).as('kitchen.queue')
-  router.post('/kitchen/prepare', [KitchenController, 'prepare']).as('kitchen.prepare')
+  router.get('/kitchen/queue', [KitchenController, 'queue']).as('kitchen.queue').use(kitchenStaff)
+  router
+    .post('/kitchen/prepare', [KitchenController, 'prepare'])
+    .as('kitchen.prepare')
+    .use(kitchenStaff)
 }

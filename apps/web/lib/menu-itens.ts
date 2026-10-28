@@ -12,8 +12,8 @@ import {
   Store,
   Users, ListChecks, ChartNoAxesColumn } from "lucide-react";
 
-const ALL: StoreRole[] = ["manager", "attendant", "kitchen"];
 const FRONT: StoreRole[] = ["manager", "attendant"];
+const KITCHEN: StoreRole[] = ["manager", "kitchen"];
 const MANAGER: StoreRole[] = ["manager"];
 
 export interface SidebarNavGroup {
@@ -33,7 +33,7 @@ export function getManageMenuGroups(storeId: string, role: StoreRole | null): Si
       items: [
         { label: "Pedidos", url: `${base}/orders`, icon: ClipboardList, order: 0, roles: FRONT },
         { label: "Novo pedido (PDV)", url: `${base}/pos`, icon: ShoppingCart, order: 1, roles: FRONT },
-        { label: "Cozinha", url: `${base}/kitchen`, icon: ChefHat, order: 2, roles: ALL },
+        { label: "Cozinha", url: `${base}/kitchen`, icon: ChefHat, order: 2, roles: KITCHEN },
       ],
     },
     {
