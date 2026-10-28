@@ -108,7 +108,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   | on localhost:1025.
   |----------------------------------------------------------
   */
-  MAIL_MAILER: Env.schema.enum.optional(['smtp'] as const),
+  MAIL_MAILER: Env.schema.enum.optional(['smtp', 'resend'] as const),
   MAIL_FROM_NAME: Env.schema.string.optional(),
   MAIL_FROM_ADDRESS: Env.schema.string.optional({ format: 'email' }),
   SMTP_HOST: Env.schema.string.optional({ format: 'host' }),
@@ -116,4 +116,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_SECURE: Env.schema.boolean.optional(),
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.string.optional(),
+  /** Resend (MAIL_MAILER=resend): an API key with "Sending access". */
+  RESEND_API_KEY: Env.schema.string.optional(),
 })
