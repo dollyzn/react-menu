@@ -11,7 +11,7 @@ React Menu: digital menus and ordering for restaurants (pickup at the
 counter). Customers order from the public menu (`/`, `/[slug]`) identified
 only by name + phone and track the order live (`/pedido/[token]`). Staff
 work by store role: managers run catalog, inventory and settings;
-attendants use the POS and the orders board; cooks use the kitchen
+attendants use the POS, the orders board and the kitchen display; cooks use the kitchen
 display, which batches identical pastries from nearby orders.
 
 ## Layout
