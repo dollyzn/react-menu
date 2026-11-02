@@ -6,8 +6,7 @@ import { motion } from "motion/react";
 import type { SocialProvider } from "@react-menu/contracts";
 import { useSession } from "@/contexts/session-provider";
 import { Icons } from "@/components/app/icons";
-import { useAppDispatch } from "@/redux/hooks";
-import { authApi } from "@/redux/features/auth/authApi";
+import { getApiBaseUrl } from "@/lib/api-base-url";
 import { SOCIAL_AUTH_CHANNEL, SOCIAL_AUTH_MODE_KEY, type SocialAuthMessage } from "@/lib/social-auth";
 
 /** useSearchParams needs a Suspense boundary for static prerendering. */
@@ -29,7 +28,7 @@ function readMode() {
 
 /**
  * Both ends of the social login. Opened with `?provider=` it sends the
- * browser to the provider; the API's callback brings it back here (with
+ * browser to the provider through the API; the API's callback brings it back here (with
  * `?error=` when it failed). In a popup the result goes to the login page
  * over a BroadcastChannel (the provider's pages may drop `window.opener`)
  * and the popup closes; as a full page (popup blocked, installed app) it
@@ -41,7 +40,6 @@ function AuthSocial() {
   const provider = searchParams.get("provider") as SocialProvider | null;
   const error = searchParams.get("error");
   const { verify } = useSession();
-  const dispatch = useAppDispatch();
   const started = useRef(false);
 
   useEffect(() => {
@@ -60,18 +58,15 @@ function AuthSocial() {
       else router.replace(`/app/login?erro=${encodeURIComponent(message.error)}`);
     };
 
-    async function start(provider: SocialProvider) {
+    function start(provider: SocialProvider) {
       try {
         sessionStorage.setItem(SOCIAL_AUTH_MODE_KEY, window.opener ? "popup" : "page");
       } catch {
         // Without storage the page mode still works.
       }
-      const result = await dispatch(authApi.endpoints.socialRedirect.initiate(provider, { subscribe: false }));
-      if (!result.data?.url) {
-        finish({ type: "error", error: "O login com o Google está indisponível agora." });
-        return;
-      }
-      window.location.href = result.data.url;
+      // The API sends the browser on to the provider and keeps the CSRF state
+      // in a cookie for its callback (a fetched URL would leave that out).
+      window.location.replace(new URL(`auth/social/${provider}/redirect`, getApiBaseUrl()));
     }
 
     async function complete() {
@@ -83,9 +78,9 @@ function AuthSocial() {
       finish(user ? { type: "success" } : { type: "error", error: "Não foi possível entrar. Tente de novo." });
     }
 
-    if (provider) void start(provider);
+    if (provider) start(provider);
     else void complete();
-  }, [provider, error, verify, router, dispatch]);
+  }, [provider, error, verify, router]);
 
   return (
     <motion.main

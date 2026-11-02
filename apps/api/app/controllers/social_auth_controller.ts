@@ -28,20 +28,22 @@ export default class SocialAuthController {
     return ok({ providers: enabledSocialProviders() })
   }
 
-  async redirect({ params, ally }: HttpContext) {
-    const provider = this.provider(params.provider)
-    const url = await ally.use(provider).redirectUrl()
-
-    return ok({ provider, url })
+  /**
+   * The popup navigates here and is sent on to the provider. Only Ally's
+   * `redirect()` stores the CSRF state cookie the callback checks
+   * (`redirectUrl()` builds a URL without it), so this answers with a real
+   * redirect instead of returning the URL.
+   */
+  async redirect({ params, ally, response }: HttpContext) {
+    if (!isEnabledSocialProvider(params.provider)) {
+      return this.backToApp(response, 'Este login está indisponível agora.')
+    }
+    await ally.use(params.provider).redirect()
   }
 
   async callback({ params, auth, response, ally }: HttpContext) {
     const provider = this.provider(params.provider)
-
-    function redirect(message?: string) {
-      const query = message ? `?error=${encodeURIComponent(message)}` : ''
-      return response.redirect(`${env.get('FRONTEND_URL')}/app/social${query}`)
-    }
+    const redirect = (message?: string) => this.backToApp(response, message)
 
     try {
       const driver = ally.use(provider)
@@ -78,6 +80,12 @@ export default class SocialAuthController {
       logger.error({ err: error, provider }, 'social login failed')
       return redirect('Não foi possível entrar agora. Tente de novo.')
     }
+  }
+
+  /** Back to the web's /app/social, which reports to the login page (`?error=` when it failed). */
+  private backToApp(response: HttpContext['response'], message?: string) {
+    const query = message ? `?error=${encodeURIComponent(message)}` : ''
+    return response.redirect(`${env.get('FRONTEND_URL')}/app/social${query}`)
   }
 
   private provider(value: string) {

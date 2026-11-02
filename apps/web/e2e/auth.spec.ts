@@ -1,4 +1,4 @@
-import { request as playwrightRequest } from "@playwright/test";
+import { request as playwrightRequest, type BrowserContext } from "@playwright/test";
 import { test, expect, login, createStoreViaApi } from "./fixtures";
 import { API_URL } from "../playwright.config";
 
@@ -64,6 +64,81 @@ test("Google sign-in: the button shows and a refused login comes back as a messa
   await page.goto(`/app/social?error=${encodeURIComponent("Você cancelou o login.")}`);
   await expect(page).toHaveURL(/\/app\/login\?erro=/);
   await expect(page.getByRole("alert").filter({ hasText: "Google" })).toContainText("Você cancelou o login.");
+});
+
+/**
+ * Keeps Google's real page out of the test: the API's redirect runs for real
+ * (it stores the state cookie), and instead of following it to Google the
+ * popup gets a stand-in. Playwright doesn't route the hops of a redirect, so
+ * this is done on the API's answer. Returns the URL that went to Google.
+ */
+async function stubGoogle(context: BrowserContext) {
+  const sent: { url?: URL } = {};
+  await context.route(/\/auth\/social\/google\/redirect/, async (route) => {
+    const response = await route.fetch({ maxRedirects: 0 });
+    sent.url = new URL(response.headers()["location"]);
+    const headers = { ...response.headers() };
+    delete headers["location"];
+    await route.fulfill({ status: 200, headers, contentType: "text/html", body: "<title>Google</title>" });
+  });
+  return sent;
+}
+
+test("Google sign-in in a popup: locks the e-mail form until it ends, and can be cancelled", async ({ page, context }) => {
+  await stubGoogle(context);
+  await page.goto("/app/login");
+  const google = page.getByRole("button", { name: "Entrar com Google" });
+  const email = page.getByLabel("E-mail");
+  const waiting = page.getByRole("status").filter({ hasText: "Conclua o login na janela do Google." });
+
+  const popup = page.waitForEvent("popup");
+  await google.click();
+  const first = await popup;
+  await expect(waiting).toBeVisible();
+  await expect(google).toBeDisabled();
+  await expect(email).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeDisabled();
+  const size = await first.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  expect(size.width).toBeGreaterThanOrEqual(500);
+
+  // Closed the popup: "Cancelar" frees the form, and a new attempt waits again.
+  await first.close();
+  await waiting.getByRole("button", { name: "Cancelar" }).click();
+  await expect(email).toBeEnabled();
+  const again = page.waitForEvent("popup");
+  await google.click();
+  await (await again).close();
+  await expect(waiting).toBeVisible();
+  await expect(email).toBeDisabled();
+
+  // The popup reports a refusal: the message shows and the form is free.
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("social-auth");
+    channel.postMessage({ type: "error", error: "Você cancelou o login." });
+    channel.close();
+  });
+  await expect(page.getByRole("alert").filter({ hasText: "Google" })).toContainText("Você cancelou o login.");
+  await expect(waiting).toBeHidden();
+  await expect(email).toBeEnabled();
+});
+
+test("Google sign-in: the callback finds the state the redirect stored", async ({ page, context }) => {
+  const google = await stubGoogle(context);
+  await page.goto("/app/login");
+  const popupEvent = page.waitForEvent("popup");
+  await page.getByRole("button", { name: "Entrar com Google" }).click();
+  const popup = await popupEvent;
+  await expect.poll(() => google.url?.searchParams.get("state"), { timeout: 15_000 }).toBeTruthy();
+
+  // Google sends the browser back with the same state. The fake code fails
+  // the token exchange, but past the CSRF check ("O login expirou" before).
+  const callback = new URL(`${API_URL}/api/v1/auth/social/google/callback`);
+  callback.searchParams.set("state", google.url!.searchParams.get("state")!);
+  callback.searchParams.set("code", "e2e-fake-code");
+  await popup.goto(callback.toString()).catch(() => undefined); // the popup closes itself
+  const alert = page.getByRole("alert").filter({ hasText: "Google" });
+  await expect(alert).toContainText("Não foi possível entrar agora.", { timeout: 15_000 });
+  await expect(alert).not.toContainText("expirou");
 });
 
 test("privacy policy and terms are linked from the login and the menu", async ({ page }) => {
