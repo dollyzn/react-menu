@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import * as z from "zod";
-import { SocialLogin } from "./social-login";
+import { SocialLogin, type SocialLoginStatus } from "./social-login";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -39,6 +39,7 @@ export function LoginForm() {
 
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
+  const [socialStatus, setSocialStatus] = useState<SocialLoginStatus>("idle");
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -68,6 +69,9 @@ export function LoginForm() {
     },
   });
   const { isSubmitting } = form.formState;
+  // One sign-in at a time: the Google popup is open (or finishing). It never
+  // locks for good: "Cancelar" and a timeout free the form.
+  const locked = isSubmitting || socialStatus !== "idle";
 
   async function onSubmit(data: LoginValues) {
     const { email, password } = data;
@@ -114,7 +118,7 @@ export function LoginForm() {
                     className="pl-10"
                     aria-invalid={fieldState.invalid}
                     {...field}
-                    disabled={isSubmitting}
+                    disabled={locked}
                   />
                 </div>
                 {fieldState.invalid && (
@@ -151,11 +155,12 @@ export function LoginForm() {
                     autoComplete="off"
                     aria-invalid={fieldState.invalid}
                     {...field}
-                    disabled={isSubmitting}
+                    disabled={locked}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    disabled={locked}
                     className="absolute right-3 top-1/2 -translate-y-1/2 transform text-muted-foreground"
                   >
                     {showPassword ? (
@@ -197,12 +202,13 @@ export function LoginForm() {
           size="lg"
           className="w-full cursor-pointer"
           loading={isSubmitting}
+          disabled={socialStatus !== "idle"}
         >
           Entrar
         </Button>
       </form>
 
-      <SocialLogin />
+      <SocialLogin disabled={isSubmitting} onStatusChange={setSocialStatus} />
     </div>
   );
 }

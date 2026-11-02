@@ -66,6 +66,47 @@ test("Google sign-in: the button shows and a refused login comes back as a messa
   await expect(page.getByRole("alert").filter({ hasText: "Google" })).toContainText("Você cancelou o login.");
 });
 
+test("Google sign-in in a popup: locks the e-mail form until it ends, and can be cancelled", async ({ page, context }) => {
+  // Google's page itself is out of the test: the popup stops on a stand-in.
+  await context.route(/accounts\.google\.com/, (route) =>
+    route.fulfill({ contentType: "text/html", body: "<title>Google</title>" })
+  );
+  await page.goto("/app/login");
+  const google = page.getByRole("button", { name: "Entrar com Google" });
+  const email = page.getByLabel("E-mail");
+  const waiting = page.getByRole("status").filter({ hasText: "Conclua o login na janela do Google." });
+
+  const popup = page.waitForEvent("popup");
+  await google.click();
+  const first = await popup;
+  await expect(waiting).toBeVisible();
+  await expect(google).toBeDisabled();
+  await expect(email).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeDisabled();
+  const size = await first.evaluate(() => ({ width: window.innerWidth, height: window.innerHeight }));
+  expect(size.width).toBeGreaterThanOrEqual(500);
+
+  // Closed the popup: "Cancelar" frees the form, and a new attempt waits again.
+  await first.close();
+  await waiting.getByRole("button", { name: "Cancelar" }).click();
+  await expect(email).toBeEnabled();
+  const again = page.waitForEvent("popup");
+  await google.click();
+  await (await again).close();
+  await expect(waiting).toBeVisible();
+  await expect(email).toBeDisabled();
+
+  // The popup reports a refusal: the message shows and the form is free.
+  await page.evaluate(() => {
+    const channel = new BroadcastChannel("social-auth");
+    channel.postMessage({ type: "error", error: "Você cancelou o login." });
+    channel.close();
+  });
+  await expect(page.getByRole("alert").filter({ hasText: "Google" })).toContainText("Você cancelou o login.");
+  await expect(waiting).toBeHidden();
+  await expect(email).toBeEnabled();
+});
+
 test("privacy policy and terms are linked from the login and the menu", async ({ page }) => {
   await page.goto("/app/login");
   await page.getByRole("link", { name: "Política de Privacidade" }).click();
