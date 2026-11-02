@@ -7,6 +7,10 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 
 const customer = { name: 'Ana', phone: '11987654321' }
 
+/** A group's options at the add-ons' own prices (or the given one for all). */
+const options = (addons: Addon[], price: number | null = null) =>
+  addons.map((addon) => ({ addonId: addon.id, price }))
+
 /** A store whose meat pastry needs a cheese (choose 1: mussarela included, cheddar +R$ 2). */
 async function storeWithCheeseChoice() {
   const menu = await createMenuStore()
@@ -33,7 +37,7 @@ test.group('Choice groups', (group) => {
       name: 'Queijo',
       minChoices: 1,
       maxChoices: 1,
-      addonIds: [mussarela.id, cheddar.id],
+      options: options([mussarela, cheddar]),
     }
 
     const created = await client.post(url).json(cheese).loginAs(manager)
@@ -47,7 +51,7 @@ test.group('Choice groups', (group) => {
       .loginAs(manager)
     const foreignAddon = await client
       .post(url)
-      .json({ ...cheese, addonIds: [other.cheddar.id] })
+      .json({ ...cheese, options: options([other.cheddar]) })
       .loginAs(manager)
     const byAttendant = await client.post(url).json(cheese).loginAs(attendant)
     const byOtherStore = await client.get(url).loginAs(other.manager)
@@ -90,7 +94,12 @@ test.group('Choice groups', (group) => {
     const { store, manager, carne, catupiry, mussarela, cheddar } = await storeWithCheeseChoice()
     const groupResponse = await client
       .post(`/api/v1/stores/${store.id}/option-groups`)
-      .json({ name: 'Queijo', minChoices: 1, maxChoices: 1, addonIds: [mussarela.id, cheddar.id] })
+      .json({
+        name: 'Queijo',
+        minChoices: 1,
+        maxChoices: 1,
+        options: options([mussarela, cheddar]),
+      })
       .loginAs(manager)
     const groupId = groupResponse.body().data.id
     await client
@@ -139,7 +148,12 @@ test.group('Choice groups', (group) => {
     const { store, manager, carne, mussarela, cheddar } = await storeWithCheeseChoice()
     const groupResponse = await client
       .post(`/api/v1/stores/${store.id}/option-groups`)
-      .json({ name: 'Queijo', minChoices: 1, maxChoices: 1, addonIds: [mussarela.id, cheddar.id] })
+      .json({
+        name: 'Queijo',
+        minChoices: 1,
+        maxChoices: 1,
+        options: options([mussarela, cheddar]),
+      })
       .loginAs(manager)
     await client
       .put(`/api/v1/stores/${store.id}/items/${carne.id}`)
@@ -167,5 +181,139 @@ test.group('Choice groups', (group) => {
     }
     const soldOut = await find()
     assert.isFalse(soldOut.isAvailable)
+  })
+
+  test('a group prices its options, and the order remembers the group of each pick', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, mussarela, cheddar } = await storeWithCheeseChoice()
+    const groups = `/api/v1/stores/${store.id}/option-groups`
+    // Cheddar is +R$ 2 on its own; as an extra filling it costs R$ 4, and the
+    // same add-on is the free choice in "Queijo".
+    const queijo = await client
+      .post(groups)
+      .json({
+        name: 'Queijo',
+        minChoices: 1,
+        maxChoices: 1,
+        options: options([mussarela, cheddar], 0),
+      })
+      .loginAs(manager)
+    const extra = await client
+      .post(groups)
+      .json({
+        name: 'Recheio extra',
+        minChoices: 0,
+        maxChoices: 1,
+        options: [
+          { addonId: cheddar.id, price: 4 },
+          { addonId: mussarela.id, price: null },
+        ],
+      })
+      .loginAs(manager)
+    extra.assertStatus(200)
+    extra.assertBodyContains({
+      data: {
+        options: [
+          { id: cheddar.id, price: 2, groupPrice: 4 },
+          { id: mussarela.id, groupPrice: null },
+        ],
+      },
+    })
+    const queijoId = queijo.body().data.id
+    const extraId = extra.body().data.id
+    await client
+      .put(`/api/v1/stores/${store.id}/items/${carne.id}`)
+      .json({ optionGroupIds: [queijoId, extraId] })
+      .loginAs(manager)
+
+    // The menu shows each group's price.
+    const menu = await client.get(`/api/v1/public/menu/${store.slug}`)
+    const listed = menu
+      .body()
+      .data.categories.flatMap((category: { items: object[] }) => category.items)
+      .find((item: { id: string }) => item.id === carne.id)
+    assert.deepEqual(
+      listed.optionGroups.map((listedGroup: { options: { price: number }[] }) =>
+        listedGroup.options.map((option) => option.price)
+      ),
+      [
+        [0, 0],
+        [4, 0],
+      ]
+    )
+
+    // Cheddar free in "Queijo" and again as the extra filling (R$ 4).
+    const ok = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [
+        {
+          itemId: carne.id,
+          quantity: 2,
+          choices: [
+            { groupId: queijoId, addonId: cheddar.id },
+            { groupId: extraId, addonId: cheddar.id },
+          ],
+        },
+      ],
+    })
+    ok.assertStatus(200)
+    const placed = await Order.query()
+      .where('publicToken', ok.body().data.publicToken)
+      .preload('items', (items) => items.preload('addons'))
+      .firstOrFail()
+    assert.equal(placed.total, 2 * (carne.price + 0 + 4))
+    assert.sameDeepMembers(
+      placed.items[0].addons.map(({ name, groupName, unitPrice }) => ({
+        name,
+        groupName,
+        unitPrice,
+      })),
+      [
+        { name: 'Cheddar', groupName: 'Queijo', unitPrice: 0 },
+        { name: 'Cheddar', groupName: 'Recheio extra', unitPrice: 4 },
+      ]
+    )
+    const kitchen = await client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(manager)
+    assert.sameMembers(kitchen.body().data[0].addons, ['Queijo: Cheddar', 'Recheio extra: Cheddar'])
+
+    // A pick in a group the item doesn't have is refused.
+    const wrongGroup = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [
+        { itemId: carne.id, quantity: 1, choices: [{ groupId: extraId, addonId: carne.id }] },
+      ],
+    })
+    wrongGroup.assertStatus(422)
+
+    // Bags saved before choices send ids only: the first group offering it.
+    const legacy = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [{ itemId: carne.id, quantity: 1, addonIds: [mussarela.id] }],
+    })
+    legacy.assertStatus(200)
+
+    // Changing the price on the group keeps the same options.
+    const repriced = await client
+      .put(`${groups}/${extraId}`)
+      .json({
+        name: 'Recheio extra',
+        minChoices: 0,
+        maxChoices: 1,
+        options: options([cheddar, mussarela], 5),
+      })
+      .loginAs(manager)
+    repriced.assertBodyContains({
+      data: {
+        options: [
+          { id: cheddar.id, groupPrice: 5 },
+          { id: mussarela.id, groupPrice: 5 },
+        ],
+      },
+    })
   })
 })

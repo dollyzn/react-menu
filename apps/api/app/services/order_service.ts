@@ -10,11 +10,13 @@ import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
 import { broadcastOrderTracking, broadcastStoreEvent } from '#helpers/realtime'
+import type Addon from '#models/addon'
 import Customer from '#models/customer'
 import Item from '#models/item'
 import Order from '#models/order'
 import OrderItem from '#models/order_item'
 import OrderItemAddon from '#models/order_item_addon'
+import { optionPrice, type default as OptionGroup } from '#models/option_group'
 import OrderStatusHistory from '#models/order_status_history'
 import Store from '#models/store'
 import type User from '#models/user'
@@ -147,6 +149,7 @@ export default class OrderService {
             orderItemId: orderItem.id,
             addonId: addon.id,
             name: addon.name,
+            groupName: addon.groupName,
             unitPrice: addon.price,
           })),
           { client: trx }
@@ -419,12 +422,36 @@ export default class OrderService {
         throw new AppException(`Quantidade inválida para ${item.name}.`, 422)
       }
 
-      const chosen = [...new Set(line.addonIds ?? [])]
-      // Choice groups: each one's minimum and maximum (options are add-ons).
+      // Each pick knows its group: the group sets the price and the label
+      // ("Recheio extra: Carne"), and the same add-on may sit in two groups.
+      const picks = new Map<string, { addon: Addon; group: OptionGroup | null }>()
+      const pick = (addon: Addon, group: OptionGroup | null) =>
+        picks.set(`${group?.id ?? ''}:${addon.id}`, { addon, group })
+      for (const choice of line.choices ?? []) {
+        const group = item.optionGroups.find((candidate) => candidate.id === choice.groupId)
+        const addon = group?.options.find((option) => option.id === choice.addonId)
+        if (!group || !addon) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
+        pick(addon, group)
+      }
+      for (const addonId of new Set(line.addonIds ?? [])) {
+        const free = item.addons.find((candidate) => candidate.id === addonId)
+        if (free) {
+          pick(free, null)
+          continue
+        }
+        // Bags saved before choices existed send group options here: the
+        // first group that offers it.
+        const group = item.optionGroups.find((candidate) =>
+          candidate.options.some((option) => option.id === addonId)
+        )
+        const addon = group?.options.find((option) => option.id === addonId)
+        if (!group || !addon) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
+        pick(addon, group)
+      }
+
+      // Choice groups: each one's minimum and maximum.
       for (const group of item.optionGroups) {
-        const picked = chosen.filter((id) =>
-          group.options.some((option) => option.id === id)
-        ).length
+        const picked = [...picks.values()].filter((entry) => entry.group?.id === group.id).length
         if (picked < group.minChoices || picked > group.maxChoices) {
           const want =
             group.minChoices === group.maxChoices
@@ -439,11 +466,8 @@ export default class OrderService {
           )
         }
       }
-      const allowed = [...item.addons, ...item.optionGroups.flatMap((group) => group.options)]
 
-      const addons = chosen.map((addonId) => {
-        const addon = allowed.find((candidate) => candidate.id === addonId)
-        if (!addon) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
+      const addons = [...picks.values()].map(({ addon, group }) => {
         if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
           throw new AppException(
             `${addon.name} está indisponível no momento.`,
@@ -451,7 +475,12 @@ export default class OrderService {
             'E_UNAVAILABLE'
           )
         }
-        return addon
+        return {
+          id: addon.id,
+          name: addon.name,
+          price: group ? optionPrice(addon) : addon.price,
+          groupName: group?.name ?? null,
+        }
       })
 
       const unitTotal = item.price + addons.reduce((sum, addon) => sum + addon.price, 0)

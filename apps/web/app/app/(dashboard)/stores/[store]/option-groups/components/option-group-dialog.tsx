@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
+import { Undo2 } from "lucide-react";
 import type { OptionGroup } from "@react-menu/contracts";
 import MultiCombobox from "@/components/app/multi-combobox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -19,6 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import MoneyInput from "@/components/ui/money-input";
 import { NumberStepper } from "@/components/app/number-stepper";
 import { useGetAddonsByStoreIdQuery } from "@/redux/features/addon/addonApi";
 import { storeListPrefetchArg } from "@/redux/api/listQueryParams";
@@ -34,17 +37,21 @@ const Schema = z
     name: z.string().trim().min(1, "Dê um nome ao grupo, ex.: Escolha o queijo.").max(120),
     minChoices: z.number({ message: "Informe um número." }).int().min(0, "No mínimo 0.").max(20),
     maxChoices: z.number({ message: "Informe um número." }).int().min(1, "Pelo menos 1.").max(20),
-    addonIds: z.array(z.string()).min(1, "Escolha as opções do grupo."),
+    /** In display order; price null = the add-on's own price. */
+    options: z
+      .array(z.object({ addonId: z.string(), price: z.number().min(0).nullable() }))
+      .min(1, "Escolha as opções do grupo."),
   })
   .superRefine((values, ctx) => {
     if (values.minChoices > values.maxChoices) {
       ctx.addIssue({ code: "custom", path: ["minChoices"], message: "O mínimo não pode passar do máximo." });
     }
-    if (values.addonIds.length > 0 && values.maxChoices > values.addonIds.length) {
+    const count = values.options.length;
+    if (count > 0 && values.maxChoices > count) {
       ctx.addIssue({
         code: "custom",
         path: ["maxChoices"],
-        message: `O grupo tem ${values.addonIds.length} ${values.addonIds.length === 1 ? "opção" : "opções"}.`,
+        message: `O grupo tem ${count} ${count === 1 ? "opção" : "opções"}.`,
       });
     }
   });
@@ -83,10 +90,12 @@ export function OptionGroupDialog({
       name: group?.name ?? "",
       minChoices: group?.minChoices ?? 1,
       maxChoices: group?.maxChoices ?? 1,
-      addonIds: group?.options?.map((option) => option.id) ?? [],
+      options: group?.options?.map((option) => ({ addonId: option.id, price: option.groupPrice })) ?? [],
     },
   });
   const values = useWatch({ control: form.control }) as Values;
+  const [samePrice, setSamePrice] = useState<number | undefined>(undefined);
+  const addonById = new Map(addons.map((addon) => [addon.id, addon]));
 
   const close = (next: boolean) => {
     if (busy) return;
@@ -135,7 +144,7 @@ export function OptionGroupDialog({
                 )}
               />
               <Controller
-                name="addonIds"
+                name="options"
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
@@ -143,19 +152,94 @@ export function OptionGroupDialog({
                     <MultiCombobox
                       id="group-options"
                       items={addons}
-                      value={field.value}
-                      onChange={field.onChange}
+                      value={field.value.map((option) => option.addonId)}
+                      // Options kept keep their price; new ones start at the add-on's.
+                      onChange={(ids: string[]) =>
+                        field.onChange(
+                          ids.map(
+                            (addonId) =>
+                              field.value.find((option) => option.addonId === addonId) ?? { addonId, price: null }
+                          )
+                        )
+                      }
                       getValue={(addon) => addon.id}
-                      getLabel={(addon) => `${addon.name} (${addon.price ? `+ ${formatCurrencyBRL(addon.price)}` : "incluso"})`}
+                      getLabel={(addon) => addon.name}
                       disabled={busy}
                       invalid={fieldState.invalid}
                       placeholder="Selecione os adicionais que viram opções"
                       emptyMessage="Nenhum adicional encontrado"
                     />
                     <FieldDescription>
-                      As opções são adicionais da loja (com preço, receita e estoque). Para algo incluso no preço,
-                      crie o adicional com R$ 0,00.
+                      As opções são adicionais da loja (com receita e estoque). O preço pode ser outro neste grupo: o
+                      mesmo &quot;Carne&quot; sai a R$ 0 em &quot;Troque o recheio&quot; e a R$ 4 em &quot;Recheio
+                      extra&quot;. Vazio, vale o preço do adicional.
                     </FieldDescription>
+                    {field.value.length > 0 && (
+                      <div className="flex flex-col rounded-lg border">
+                        <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 p-2">
+                          <span className="flex-1 text-xs font-medium text-muted-foreground">Mesmo preço para todas</span>
+                          <MoneyInput
+                            className="h-8 w-28"
+                            aria-label="Preço para todas as opções"
+                            placeholder="R$ 0,00"
+                            value={samePrice}
+                            onChange={setSamePrice}
+                            disabled={busy}
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy || samePrice === undefined}
+                            onClick={() =>
+                              field.onChange(field.value.map((option) => ({ ...option, price: samePrice ?? null })))
+                            }
+                          >
+                            Aplicar
+                          </Button>
+                        </div>
+                        <ul className="divide-y">
+                          {field.value.map((option, index) => {
+                            const addon = addonById.get(option.addonId);
+                            const name = addon?.name ?? group?.options?.find((o) => o.id === option.addonId)?.name ?? "";
+                            const ownPrice = addon?.price ?? 0;
+                            const setPrice = (price: number | null) =>
+                              field.onChange(field.value.map((o, i) => (i === index ? { ...o, price } : o)));
+                            return (
+                              <li key={option.addonId} className="flex items-center gap-2 p-2">
+                                <span className="min-w-0 flex-1">
+                                  <span className="block truncate text-sm font-medium">{name}</span>
+                                  <span className="block text-xs text-muted-foreground">
+                                    {option.price === null
+                                      ? "Preço do adicional"
+                                      : `No adicional: ${formatCurrencyBRL(ownPrice)}`}
+                                  </span>
+                                </span>
+                                <MoneyInput
+                                  className="h-8 w-28"
+                                  aria-label={`Preço de ${name} neste grupo`}
+                                  placeholder={formatCurrencyBRL(ownPrice)}
+                                  value={option.price ?? undefined}
+                                  onChange={setPrice}
+                                  disabled={busy}
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon-sm"
+                                  variant="ghost"
+                                  aria-label={`Usar o preço do adicional em ${name}`}
+                                  className={option.price === null ? "invisible" : undefined}
+                                  disabled={busy || option.price === null}
+                                  onClick={() => setPrice(null)}
+                                >
+                                  <Undo2 />
+                                </Button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}

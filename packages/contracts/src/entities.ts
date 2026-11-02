@@ -156,7 +156,8 @@ export type OptionGroup = {
   /** 0 = optional. */
   minChoices: number;
   maxChoices: number;
-  options?: Addon[];
+  /** In display order; `groupPrice` is the price in this group (null = the add-on's). */
+  options?: (Addon & { groupPrice: number | null })[];
   /** How many items use the group (in the list). */
   itemsCount?: number;
   createdAt: string;

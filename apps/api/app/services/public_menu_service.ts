@@ -1,3 +1,4 @@
+import { optionPrice } from '#models/option_group'
 import { inject } from '@adonisjs/core'
 import { UAParser } from 'ua-parser-js'
 import AppException from '#exceptions/app_exception'
@@ -105,7 +106,11 @@ export default class PublicMenuService {
               name: group.name,
               minChoices: group.minChoices,
               maxChoices: group.maxChoices,
-              options: group.options.map(addon),
+              // The group's price for each option (null there = the add-on's own).
+              options: group.options.map((option) => ({
+                ...addon(option),
+                price: optionPrice(option),
+              })),
             }))
             // A required group without enough options left makes the item unorderable.
             const groupsOk = optionGroups.every(

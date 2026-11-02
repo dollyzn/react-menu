@@ -43,4 +43,10 @@ export default class Addon extends BaseModel {
   /** Recipe: ingredients consumed per unit (pivot `quantity`). */
   @manyToMany(() => Ingredient, { pivotTable: 'addon_ingredients', pivotColumns: ['quantity'] })
   declare ingredients: ManyToMany<typeof Ingredient>
+
+  /** As an option of a choice group: its price there (null = this add-on's price). */
+  serializeExtras() {
+    const price = this.$extras.pivot_price
+    return price === undefined ? {} : { groupPrice: price === null ? null : Number(price) }
+  }
 }

@@ -75,6 +75,7 @@ export function publicOrder(order: Order, store: Store, checkout?: CheckoutState
       addons: line.addons.map((addon) => ({
         addonId: addon.addonId,
         name: addon.name,
+        groupName: addon.groupName,
         unitPrice: addon.unitPrice,
       })),
     })),

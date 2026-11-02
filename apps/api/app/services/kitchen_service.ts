@@ -1,3 +1,4 @@
+import { addonLabel } from '#models/order_item_addon'
 import db from '@adonisjs/lucid/services/db'
 import type { ProductionBatch } from '@react-menu/contracts'
 import OrderStatus from '#enums/order_status'
@@ -37,7 +38,7 @@ export default class KitchenService {
         lineId: line.id,
         itemId: line.itemId,
         name: line.name,
-        addons: line.addons.map((addon) => addon.name),
+        addons: line.addons.map(addonLabel),
         addonIds: line.addons.flatMap((addon) => (addon.addonId ? [addon.addonId] : [])),
         notes: line.notes,
         remaining: line.quantity - line.preparedQuantity,

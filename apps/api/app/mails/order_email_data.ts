@@ -1,3 +1,4 @@
+import { addonLabel } from '#models/order_item_addon'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import type Order from '#models/order'
@@ -35,7 +36,7 @@ export function orderEmailData(order: Order, at: DateTime = DateTime.now()): Ord
       quantity: line.quantity,
       name: line.name,
       details: [
-        ...line.addons.map((addon) => `+ ${addon.name}`),
+        ...line.addons.map((addon) => `+ ${addonLabel(addon)}`),
         ...(line.notes ? [`Obs.: ${line.notes}`] : []),
       ],
       amount: formatMoney(line.total),

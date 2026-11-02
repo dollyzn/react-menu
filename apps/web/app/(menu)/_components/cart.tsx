@@ -37,7 +37,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { clearCart, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
+import { addonLabel, clearCart, lineAddonsInput, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
 import { addRecentOrder, linkStore, rememberCustomer } from "@/redux/slices/customer";
 import { usePlaceOrderMutation } from "@/redux/features/public/publicApi";
 import { isConnectionError } from "@/utils/get-error-message";
@@ -253,7 +253,7 @@ function BagStep({
                 <p className="font-medium leading-snug">{line.name}</p>
                 {line.addons.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    + {line.addons.map((addon) => addon.name).join(", ")}
+                    + {line.addons.map(addonLabel).join(", ")}
                   </p>
                 )}
                 {line.notes && <p className="text-xs text-muted-foreground italic">“{line.notes}”</p>}
@@ -363,7 +363,7 @@ function CheckoutFlow({
       lines: lines.map((line) => ({
         itemId: line.itemId,
         quantity: line.quantity,
-        addonIds: line.addons.map((addon) => addon.id),
+        ...lineAddonsInput(line.addons),
         notes: line.notes || undefined,
       })),
     };
@@ -476,7 +476,7 @@ function CheckoutFlow({
                     <span className="font-medium tabular-nums">{line.quantity}×</span> {line.name}
                     {line.addons.length > 0 && (
                       <span className="block truncate text-xs text-muted-foreground">
-                        + {line.addons.map((addon) => addon.name).join(", ")}
+                        + {line.addons.map(addonLabel).join(", ")}
                       </span>
                     )}
                   </span>

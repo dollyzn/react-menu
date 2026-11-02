@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { motion } from "motion/react";
+import { useId, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "@/components/app/image";
-import { Check, Minus, Plus, TriangleAlert } from "lucide-react";
+import { Check, ChevronDown, Minus, Plus, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
-import type { PublicMenuItem } from "@react-menu/contracts";
+import type { PublicMenuItem, PublicOptionGroup } from "@react-menu/contracts";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { Button } from "@/components/ui/button";
@@ -91,8 +91,11 @@ export function ItemCustomizer({
   const [quantity, setQuantity] = useState(1);
 
   const groups = item.optionGroups ?? [];
+  // A pick carries its group: the price there and "Recheio extra: Carne".
   const chosenOptions = groups.flatMap((group) =>
-    group.options.filter((option) => (choices[group.id] ?? []).includes(option.id))
+    group.options
+      .filter((option) => (choices[group.id] ?? []).includes(option.id))
+      .map((option) => ({ ...option, groupId: group.id, groupName: group.name }))
   );
   const missing = groups.filter((group) => (choices[group.id] ?? []).length < group.minChoices);
   const choose = (groupId: string, optionId: string, max: number) =>
@@ -106,9 +109,9 @@ export function ItemCustomizer({
   // Group choices are add-ons too: price, stock and the order line.
   const selected = [
     ...chosenOptions,
-    ...item.addons.filter(
-      (addon) => addonIds.includes(addon.id) && !chosenOptions.some((option) => option.id === addon.id)
-    ),
+    ...item.addons
+      .filter((addon) => addonIds.includes(addon.id))
+      .map((addon) => ({ ...addon, groupId: undefined, groupName: null })),
   ];
   // The stock caps the quantity (the API refuses more anyway): the item and
   // every chosen add-on with a recipe.
@@ -157,7 +160,9 @@ export function ItemCustomizer({
       name: item.name,
       photoUrl: item.photoUrl,
       unitPrice: item.price,
-      addons: selected.map(({ id, name, price }) => ({ id, name, price })),
+      addons: selected.map(({ id, name, price, groupId, groupName }) =>
+        groupId ? { id, name, price, groupId, groupName } : { id, name, price }
+      ),
       notes: notes.trim(),
       quantity,
     });
@@ -184,80 +189,14 @@ export function ItemCustomizer({
           <p className="text-lg font-semibold text-primary">{formatCurrencyBRL(item.price)}</p>
         </div>
 
-        {groups.map((group) => {
-          const picked = choices[group.id] ?? [];
-          const single = group.maxChoices === 1;
-          const full = picked.length >= group.maxChoices;
-          const rule =
-            group.minChoices === group.maxChoices
-              ? `Escolha ${group.maxChoices}`
-              : group.minChoices > 0
-                ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
-                : `Escolha até ${group.maxChoices}`;
-          return (
-            <fieldset key={group.id} className="flex flex-col gap-2">
-              <legend className="mb-2 flex w-full items-center justify-between gap-2 text-sm font-semibold">
-                <span>
-                  {group.name}
-                  <span className="block text-xs font-normal text-muted-foreground">{rule}</span>
-                </span>
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
-                    group.minChoices > 0 && picked.length < group.minChoices
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  )}
-                >
-                  {group.minChoices > 0 ? (picked.length >= group.minChoices ? "Pronto" : "Obrigatório") : "Opcional"}
-                </span>
-              </legend>
-              {group.options.map((option) => {
-                const checked = picked.includes(option.id);
-                const blocked = !option.isAvailable || (!single && full && !checked);
-                return (
-                  <label
-                    key={option.id}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
-                      checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
-                      blocked && "cursor-not-allowed opacity-50"
-                    )}
-                  >
-                    <input
-                      type={single ? "radio" : "checkbox"}
-                      name={`group-${group.id}`}
-                      className="sr-only"
-                      checked={checked}
-                      disabled={blocked}
-                      onChange={() => choose(group.id, option.id, group.maxChoices)}
-                      onClick={() => single && checked && choose(group.id, option.id, 1)}
-                    />
-                    <span
-                      aria-hidden
-                      className={cn(
-                        "flex size-5 shrink-0 items-center justify-center border transition-colors",
-                        single ? "rounded-full" : "rounded-md",
-                        checked && "border-primary bg-primary text-primary-foreground"
-                      )}
-                    >
-                      {checked && (single ? <span className="size-2 rounded-full bg-current" /> : <Check className="size-3.5" />)}
-                    </span>
-                    <span className="flex-1">
-                      <span className="block text-sm font-medium">{option.name}</span>
-                      {option.description && (
-                        <span className="block text-xs text-muted-foreground">{option.description}</span>
-                      )}
-                    </span>
-                    <span className="text-sm text-muted-foreground tabular-nums">
-                      {!option.isAvailable ? "Esgotado" : option.price ? `+ ${formatCurrencyBRL(option.price)}` : "Incluso"}
-                    </span>
-                  </label>
-                );
-              })}
-            </fieldset>
-          );
-        })}
+        {groups.map((group) => (
+          <ChoiceGroup
+            key={group.id}
+            group={group}
+            picked={choices[group.id] ?? []}
+            onChoose={(optionId) => choose(group.id, optionId, group.maxChoices)}
+          />
+        ))}
 
         {item.addons.length > 0 && (
           <fieldset className="flex flex-col gap-2">
@@ -379,5 +318,155 @@ export function ItemCustomizer({
       </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * One choice group. Required groups stay open; optional ones ("Recheio
+ * extra") start closed with what was picked in the header, so a long list
+ * of options doesn't push the rest of the item down.
+ */
+function ChoiceGroup({
+  group,
+  picked,
+  onChoose,
+}: {
+  group: PublicOptionGroup;
+  picked: string[];
+  onChoose: (optionId: string) => void;
+}) {
+  const required = group.minChoices > 0;
+  const [open, setOpen] = useState(required);
+  const panelId = useId();
+  const reduceMotion = useReducedMotion();
+  const single = group.maxChoices === 1;
+  const full = picked.length >= group.maxChoices;
+  const rule =
+    group.minChoices === group.maxChoices
+      ? `Escolha ${group.maxChoices}`
+      : required
+        ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
+        : `Escolha até ${group.maxChoices}`;
+  const pickedOptions = group.options.filter((option) => picked.includes(option.id));
+  const summary = pickedOptions.length
+    ? pickedOptions
+        .map((option) => (option.price ? `${option.name} + ${formatCurrencyBRL(option.price)}` : option.name))
+        .join(", ")
+    : null;
+
+  const badge = (
+    <span
+      className={cn(
+        "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium",
+        required && picked.length < group.minChoices
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted text-muted-foreground"
+      )}
+    >
+      {required ? (picked.length >= group.minChoices ? "Pronto" : "Obrigatório") : "Opcional"}
+    </span>
+  );
+
+  const options = (
+    <div className="flex flex-col gap-2">
+      {group.options.map((option) => {
+        const checked = picked.includes(option.id);
+        const blocked = !option.isAvailable || (!single && full && !checked);
+        return (
+          <label
+            key={option.id}
+            className={cn(
+              "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+              checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+              blocked && "cursor-not-allowed opacity-50"
+            )}
+          >
+            <input
+              type={single ? "radio" : "checkbox"}
+              name={`group-${group.id}`}
+              className="sr-only"
+              checked={checked}
+              disabled={blocked}
+              onChange={() => onChoose(option.id)}
+              onClick={() => single && checked && onChoose(option.id)}
+            />
+            <span
+              aria-hidden
+              className={cn(
+                "flex size-5 shrink-0 items-center justify-center border transition-colors",
+                single ? "rounded-full" : "rounded-md",
+                checked && "border-primary bg-primary text-primary-foreground"
+              )}
+            >
+              {checked && (single ? <span className="size-2 rounded-full bg-current" /> : <Check className="size-3.5" />)}
+            </span>
+            <span className="flex-1">
+              <span className="block text-sm font-medium">{option.name}</span>
+              {option.description && (
+                <span className="block text-xs text-muted-foreground">{option.description}</span>
+              )}
+            </span>
+            <span className="text-sm text-muted-foreground tabular-nums">
+              {!option.isAvailable ? "Esgotado" : option.price ? `+ ${formatCurrencyBRL(option.price)}` : "Incluso"}
+            </span>
+          </label>
+        );
+      })}
+    </div>
+  );
+
+  if (required) {
+    return (
+      <fieldset className="flex flex-col gap-2">
+        <legend className="mb-2 flex w-full items-center justify-between gap-2 text-sm font-semibold">
+          <span>
+            {group.name}
+            <span className="block text-xs font-normal text-muted-foreground">{rule}</span>
+          </span>
+          {badge}
+        </legend>
+        {options}
+      </fieldset>
+    );
+  }
+
+  return (
+    <fieldset className="flex flex-col rounded-xl border">
+      <legend className="sr-only">{group.name}</legend>
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((value) => !value)}
+        className="flex w-full items-center gap-2 rounded-xl p-3 text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">{group.name}</span>
+          <span className={cn("block truncate text-xs", summary ? "font-medium text-primary" : "text-muted-foreground")}>
+            {summary ?? rule}
+          </span>
+        </span>
+        {badge}
+        <ChevronDown
+          aria-hidden
+          className={cn("size-4 shrink-0 text-muted-foreground transition-transform duration-200", open && "rotate-180")}
+        />
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div
+            id={panelId}
+            key="options"
+            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            animate={reduceMotion ? { opacity: 1 } : { height: "auto", opacity: 1 }}
+            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="overflow-hidden"
+          >
+            <div className="px-3 pb-3">{options}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </fieldset>
   );
 }

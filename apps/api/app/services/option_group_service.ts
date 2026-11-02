@@ -9,8 +9,8 @@ export type OptionGroupInput = {
   name: string
   minChoices: number
   maxChoices: number
-  /** The options, in display order (the store's add-ons). */
-  addonIds: string[]
+  /** The options, in display order (the store's add-ons), with their price here. */
+  options: { addonId: string; price: number | null }[]
 }
 
 /** Choice groups of a store (see OptionGroup). */
@@ -47,7 +47,7 @@ export default class OptionGroupService {
         { storeId, name: input.name, minChoices: input.minChoices, maxChoices: input.maxChoices },
         { client: trx }
       )
-      await this.syncOptions(group, input.addonIds, trx)
+      await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, group.id, trx)
     })
   }
@@ -58,7 +58,7 @@ export default class OptionGroupService {
       await this.assertValid(storeId, input, trx)
       group.merge({ name: input.name, minChoices: input.minChoices, maxChoices: input.maxChoices })
       await group.useTransaction(trx).save()
-      await this.syncOptions(group, input.addonIds, trx)
+      await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, id, trx)
     })
   }
@@ -99,7 +99,7 @@ export default class OptionGroupService {
     input: OptionGroupInput,
     trx: TransactionClientContract
   ) {
-    const options = new Set(input.addonIds)
+    const options = new Set(input.options.map((option) => option.addonId))
     const count = await Addon.query({ client: trx })
       .where('storeId', storeId)
       .whereIn('id', [...options])
@@ -122,13 +122,16 @@ export default class OptionGroupService {
 
   private async syncOptions(
     group: OptionGroup,
-    addonIds: string[],
+    options: OptionGroupInput['options'],
     trx: TransactionClientContract
   ) {
-    const unique = [...new Set(addonIds)]
     await group
       .useTransaction(trx)
       .related('options')
-      .sync(Object.fromEntries(unique.map((id, order) => [id, { order }])))
+      .sync(
+        Object.fromEntries(
+          options.map((option, order) => [option.addonId, { order, price: option.price }])
+        )
+      )
   }
 }
