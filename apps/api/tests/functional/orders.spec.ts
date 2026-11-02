@@ -143,7 +143,7 @@ test.group('Placing orders', (group) => {
     const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
       customer,
       paymentMethod: 'counter',
-      lines: [{ itemId: queijo.id, quantity: 1 }],
+      lines: [{ itemId: queijo.id, quantity: 3 }],
     })
     const tracking = await client.get(`/api/v1/public/orders/${placed.body().data.publicToken}`)
 
@@ -152,6 +152,7 @@ test.group('Placing orders', (group) => {
     const notifications = await Notification.query().where('userId', manager.id)
     assert.lengthOf(notifications, 1)
     assert.equal(notifications[0].title, 'Novo pedido #1')
+    assert.equal(notifications[0].body, `${customer.name} · 3 itens`)
   })
 })
 

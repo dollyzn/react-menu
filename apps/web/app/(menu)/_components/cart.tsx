@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import Image from "@/components/app/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   ArrowLeft,
+  CircleCheck,
   MapPin,
   User,
   Minus,
@@ -22,6 +23,7 @@ import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Field,
@@ -59,25 +61,35 @@ export function Cart({ store, stock }: { store: Store; stock: StockMap }) {
   const rehydrated = useRehydrated();
   const cart = useAppSelector((state) => state.cart);
   const [open, setOpen] = useState(false);
+  /** The order just placed: the bag shows it while the tracking page loads. */
+  const [placed, setPlaced] = useState<{ number: number } | null>(null);
+  // Coming back to the menu later starts with the bag closed.
+  useEffect(
+    () => () => {
+      setOpen(false);
+      setPlaced(null);
+    },
+    []
+  );
 
   const lines = cart.storeSlug === store.slug ? cart.lines : [];
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
   const total = lines.reduce((sum, line) => sum + lineTotal(line), 0);
 
   // "Pedir de novo" lands here with ?sacola=1: the bag opens once restored.
+  // Read reactively: right after the navigation window.location still has the
+  // old URL, and the bag would only pop up on a later render (over the item
+  // the customer opened next).
+  const wantsBag = useSearchParams().get("sacola") === "1";
   const [autoOpenHandled, setAutoOpenHandled] = useState(false);
-  const autoOpen =
-    rehydrated &&
-    !autoOpenHandled &&
-    count > 0 &&
-    new URLSearchParams(window.location.search).get("sacola") === "1";
+  const autoOpen = rehydrated && !autoOpenHandled && count > 0 && wantsBag;
   const changeOpen = (next: boolean) => {
     setOpen(next);
     if (!next && autoOpen) {
       setAutoOpenHandled(true);
       const url = new URL(window.location.href);
       url.searchParams.delete("sacola");
-      window.history.replaceState(window.history.state, "", url);
+      window.history.replaceState(null, "", url);
     }
   };
 
@@ -118,7 +130,11 @@ export function Cart({ store, stock }: { store: Store; stock: StockMap }) {
       </AnimatePresence>
 
       <ResponsiveModal open={open || autoOpen} onOpenChange={changeOpen} title="Sua sacola" className="sm:max-w-md">
-        <CartContent store={store} stock={stock} lines={lines} total={total} onDone={() => changeOpen(false)} />
+        {placed ? (
+          <OrderPlaced number={placed.number} />
+        ) : (
+          <CartContent store={store} stock={stock} lines={lines} total={total} onPlaced={setPlaced} />
+        )}
       </ResponsiveModal>
     </>
   );
@@ -136,13 +152,13 @@ function CartContent({
   stock,
   lines,
   total,
-  onDone,
+  onPlaced,
 }: {
   store: Store;
   stock: StockMap;
   lines: CartLine[];
   total: number;
-  onDone: () => void;
+  onPlaced: (order: { number: number }) => void;
 }) {
   const remembered = useAppSelector((state) => Boolean(state.customer.name && state.customer.phone));
   const [step, setStep] = useState<Step>("bag");
@@ -170,10 +186,39 @@ function CartContent({
           total={total}
           step={step}
           onStep={setStep}
-          onDone={onDone}
+          onPlaced={onPlaced}
         />
       )}
     </div>
+  );
+}
+
+/**
+ * Shown from the order's confirmation until the tracking page opens: the bag
+ * stays up instead of closing on an empty bag while a slow connection loads
+ * the next page.
+ */
+function OrderPlaced({ number }: { number: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center gap-3 px-4 py-12 text-center"
+      role="status"
+    >
+      <motion.span
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ type: "spring", stiffness: 420, damping: 18, delay: 0.05 }}
+        className="flex size-14 items-center justify-center rounded-full bg-success/10 text-success"
+      >
+        <CircleCheck className="size-8" />
+      </motion.span>
+      <p className="text-lg font-semibold">Pedido #{number} enviado!</p>
+      <p className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Spinner aria-hidden /> Abrindo o acompanhamento…
+      </p>
+    </motion.div>
   );
 }
 
@@ -322,14 +367,14 @@ function CheckoutFlow({
   total,
   step,
   onStep,
-  onDone,
+  onPlaced,
 }: {
   store: Store;
   lines: CartLine[];
   total: number;
   step: "details" | "review";
   onStep: (step: Step) => void;
-  onDone: () => void;
+  onPlaced: (order: { number: number }) => void;
 }) {
   const router = useRouter();
   const dispatch = useAppDispatch();
@@ -392,9 +437,10 @@ function CheckoutFlow({
           createdAt: order.createdAt,
         })
       );
+      // The bag shows the confirmation (not an empty bag) until the tracking
+      // page replaces the menu.
+      onPlaced({ number: order.number });
       dispatch(clearCart());
-      onDone();
-
       router.push(`/pedido/${order.publicToken}`);
     } catch (err) {
       setError(

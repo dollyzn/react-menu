@@ -28,7 +28,7 @@ const GROUPS = [
     // Replaces the old "Recheio Extra" add-on, whose filling went in the notes.
     name: 'Recheio extra',
     minChoices: 0,
-    maxChoices: 1,
+    maxChoices: 3,
     price: 3,
     options: ['Carne', 'Frango', 'Mussarela', 'Catupiry', 'Calabresa', 'Presunto', 'Palmito'],
     categories: ['Pastéis Simples', 'Pastéis Especiais', 'Pastéis Selecionados', 'Pastéis Premium'],
@@ -52,7 +52,7 @@ const LEGACY_EXTRA = 'Recheio Extra'
 
 /**
  * Demo choice groups for JJ Pastéis (development only): an optional extra
- * filling on the savory pastries and a cheese of choice on the premium ones.
+ * filling (up to 3) on the savory pastries and a cheese of choice on the premium ones.
  * Runs after the inventory seeder so the new options get recipes. Skipped
  * when the store already has the groups.
  */

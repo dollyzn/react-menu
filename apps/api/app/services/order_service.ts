@@ -585,15 +585,18 @@ export default class OrderService {
     // Staff are notified once an online order actually needs work (POS
     // orders were entered by the staff themselves).
     if (options.notifyStaff && order.channel === OrderChannel.ONLINE) {
-      const items = await OrderItem.query()
-        .where('orderId', order.id)
+      // A plain query: on a model query the sum's alias never reached $extras
+      // (every notification said "0 itens").
+      const items = await db
+        .from('order_items')
+        .where('order_id', order.id)
         .sum('quantity as total')
         .first()
       await this.notifications.notifyStoreMembers(order.storeId, 'order.received', {
         storeId: order.storeId,
         orderNumber: order.number,
         customerName: order.customerName,
-        itemsCount: Number(items?.$extras.total ?? 0),
+        itemsCount: Number(items?.total ?? 0),
       })
     }
   }

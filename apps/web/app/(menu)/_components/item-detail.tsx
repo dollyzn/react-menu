@@ -209,7 +209,7 @@ export function ItemCustomizer({
         ))}
 
         {item.addons.length > 0 && (
-          <fieldset className="flex flex-col gap-2">
+          <fieldset className="flex min-w-0 flex-col gap-2">
             <legend className="mb-2 flex w-full items-center justify-between text-sm font-semibold">
               Adicionais
               <span className="text-xs font-normal text-muted-foreground">Opcional</span>
@@ -358,10 +358,10 @@ function ChoiceGroup({
         ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
         : `Escolha até ${group.maxChoices}`;
   const pickedOptions = group.options.filter((option) => picked.includes(option.id));
+  const pickedPrice = pickedOptions.reduce((sum, option) => sum + option.price, 0);
+  // "Frango, Mussarela · + R$ 6,00": names once, the group's total at the end.
   const summary = pickedOptions.length
-    ? pickedOptions
-        .map((option) => (option.price ? `${option.name} + ${formatCurrencyBRL(option.price)}` : option.name))
-        .join(", ")
+    ? `${pickedOptions.map((option) => option.name).join(", ")}${pickedPrice ? ` · + ${formatCurrencyBRL(pickedPrice)}` : ""}`
     : null;
 
   const badge = (
@@ -427,7 +427,7 @@ function ChoiceGroup({
 
   if (required) {
     return (
-      <fieldset className="flex flex-col gap-2">
+      <fieldset className="flex min-w-0 flex-col gap-2">
         <legend className="mb-2 flex w-full items-center justify-between gap-2 text-sm font-semibold">
           <span>
             {group.name}
@@ -441,7 +441,9 @@ function ChoiceGroup({
   }
 
   return (
-    <fieldset className="flex flex-col rounded-xl border">
+    // min-w-0: a fieldset is at least as wide as its content, and a long
+    // summary pushed the whole group past the dialog.
+    <fieldset className="flex min-w-0 flex-col rounded-xl border">
       <legend className="sr-only">{group.name}</legend>
       <button
         type="button"
@@ -452,7 +454,7 @@ function ChoiceGroup({
       >
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{group.name}</span>
-          <span className={cn("block truncate text-xs", summary ? "font-medium text-primary" : "text-muted-foreground")}>
+          <span className={cn("block text-xs text-pretty", summary ? "font-medium text-primary" : "text-muted-foreground")}>
             {summary ?? rule}
           </span>
         </span>

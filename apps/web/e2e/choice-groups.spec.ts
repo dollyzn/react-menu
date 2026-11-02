@@ -97,7 +97,7 @@ test("an optional extra filling: priced in the group, closed on the menu, named 
   await expect(item.getByText("Frango", { exact: true })).toBeHidden();
   await toggle.click();
   await item.getByText("Frango", { exact: true }).click();
-  await expect(toggle).toContainText("Frango + R$ 4,00");
+  await expect(toggle).toContainText("Frango · + R$ 4,00");
   const add = item.getByRole("button", { name: /^Adicionar/ });
   await expect(add).toContainText("R$ 16,00");
   await add.click();
@@ -109,7 +109,15 @@ test("an optional extra filling: priced in the group, closed on the menu, named 
   await page.getByLabel("Celular (WhatsApp)").fill("11987654321");
   await page.getByRole("button", { name: "Continuar" }).click();
   await page.getByText("Pagar na retirada", { exact: true }).click();
+  // A slow connection: while the tracking page loads, the bag shows the
+  // confirmation instead of closing on an empty bag.
+  await page.route(/\/pedido\/[0-9a-f-]{36}/, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await route.continue();
+  });
   await page.getByRole("button", { name: /Fazer pedido/ }).click();
+  await expect(page.getByRole("dialog").getByText(/Pedido #\d+ enviado!/)).toBeVisible();
+  await expect(page.getByText("Sua sacola está vazia")).toHaveCount(0);
 
   // The API priced it with the group's R$ 4 and kept the group's name.
   await expect(page).toHaveURL(/\/pedido\/[0-9a-f-]{36}$/);
@@ -121,9 +129,14 @@ test("an optional extra filling: priced in the group, closed on the menu, named 
   await page.request.post(`${base}/orders/${orders[0].id}/cancel`, { data: {} });
   await page.reload();
   await page.getByRole("button", { name: "Pedir de novo" }).click();
-  const bagButton = page.getByRole("button", { name: /Ver sacola/ });
-  await expect(bagButton).toContainText("R$ 16,00");
+  // The bag opens by itself, alone (it used to pop up later, over the next item opened).
   const bag = page.getByRole("dialog");
-  if (!(await bag.isVisible())) await bagButton.click();
+  await expect(bag).toHaveCount(1);
   await expect(bag.getByText("+ Recheio extra: Frango")).toBeVisible();
+  await expect(bag.getByText("R$ 16,00").first()).toBeVisible();
+  await bag.getByRole("button", { name: "Fechar" }).click();
+  await expect(bag).toHaveCount(0);
+  await page.getByRole("button", { name: /^Pastel de queijo/ }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(page.getByRole("dialog").getByRole("button", { name: /^Adicionar/ })).toBeVisible();
 });
