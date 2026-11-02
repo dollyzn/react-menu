@@ -22,7 +22,7 @@ import {
 } from "@/redux/features/order/orderApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
-import { addonLabel } from "@/redux/slices/cart";
+import { addonLabel } from "@/lib/addon-label";
 
 interface OrderCardProps {
   order: Order;

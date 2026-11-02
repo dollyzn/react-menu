@@ -20,7 +20,7 @@ import { useStoreRole } from "@/hooks/use-store-role";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { ATTEMPT, CHANNEL, PAYMENT, STATUS } from "./order-labels";
-import { addonLabel } from "@/redux/slices/cart";
+import { addonLabel } from "@/lib/addon-label";
 
 const ACTIVE = new Set(["pending_payment", "received", "preparing", "ready"]);
 

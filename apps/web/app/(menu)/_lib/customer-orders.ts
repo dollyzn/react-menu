@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { Ban, ChefHat, CreditCard, PartyPopper, ReceiptText, ShoppingBag, type LucideIcon } from "lucide-react";
 import type { OrderStatus } from "@react-menu/contracts";
 import { useAppDispatch } from "@/redux/hooks";
-import { addLine } from "@/redux/slices/cart";
+import { addLine, type CartAddon } from "@/redux/slices/cart";
 import { publicApi } from "@/redux/features/public/publicApi";
 
 /** How each status reads for the customer. */
@@ -52,10 +52,30 @@ export function useReorder() {
           skipped += line.quantity;
           continue;
         }
-        const addons = line.addons.flatMap((addon) => {
+        // Group picks come back to their group (by name: the order keeps the
+        // group's name); older orders without one go to the first group
+        // offering the add-on, like the API does, else to the free add-ons.
+        const addons: CartAddon[] = line.addons.flatMap((addon) => {
+          const groups = item.optionGroups.filter((group) =>
+            addon.groupName ? group.name === addon.groupName : true
+          );
+          for (const group of groups) {
+            const option = group.options.find((o) => o.id === addon.addonId && o.isAvailable);
+            if (option) return [{ id: option.id, name: option.name, price: option.price, groupId: group.id, groupName: group.name }];
+          }
+          if (addon.groupName) return [];
           const current = item.addons.find((a) => a.id === addon.addonId && a.isAvailable);
           return current ? [{ id: current.id, name: current.name, price: current.price }] : [];
         });
+        // A required choice that can't be rebuilt (option gone, group changed)
+        // would only fail at checkout: leave the item out.
+        const unfilled = item.optionGroups.some(
+          (group) => addons.filter((addon) => addon.groupId === group.id).length < group.minChoices
+        );
+        if (unfilled) {
+          skipped += line.quantity;
+          continue;
+        }
         dispatch(
           addLine({
             storeSlug,

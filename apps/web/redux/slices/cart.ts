@@ -76,10 +76,6 @@ export const lineAddonsInput = (
   choices: addons.flatMap((addon) => (addon.groupId ? [{ groupId: addon.groupId, addonId: addon.id }] : [])),
 });
 
-/** How an add-on reads on a line: "Recheio extra: Carne". */
-export const addonLabel = (addon: { name: string; groupName?: string | null }) =>
-  addon.groupName ? `${addon.groupName}: ${addon.name}` : addon.name;
-
 export const lineUnitTotal = (line: CartLine) =>
   line.unitPrice + line.addons.reduce((sum, addon) => sum + addon.price, 0);
 export const lineTotal = (line: CartLine) => lineUnitTotal(line) * line.quantity;

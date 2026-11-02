@@ -37,7 +37,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { addonLabel, clearCart, lineAddonsInput, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
+import { addonLabel } from "@/lib/addon-label";
+import { clearCart, lineAddonsInput, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
 import { addRecentOrder, linkStore, rememberCustomer } from "@/redux/slices/customer";
 import { usePlaceOrderMutation } from "@/redux/features/public/publicApi";
 import { isConnectionError } from "@/utils/get-error-message";

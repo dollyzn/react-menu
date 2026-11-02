@@ -316,4 +316,59 @@ test.group('Choice groups', (group) => {
       },
     })
   })
+
+  test('older bags (ids only): a group option counts for its group, in the item order', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, catupiry, mussarela, cheddar } = await storeWithCheeseChoice()
+    const groups = `/api/v1/stores/${store.id}/option-groups`
+    // Catupiry is a free add-on of the item and also an option of both groups.
+    const troca = await client
+      .post(groups)
+      .json({
+        name: 'Queijo',
+        minChoices: 1,
+        maxChoices: 1,
+        options: options([catupiry, mussarela], 0),
+      })
+      .loginAs(manager)
+    const extra = await client
+      .post(groups)
+      .json({
+        name: 'Recheio extra',
+        minChoices: 0,
+        maxChoices: 1,
+        options: options([catupiry, cheddar], 4),
+      })
+      .loginAs(manager)
+    await client
+      .put(`/api/v1/stores/${store.id}/items/${carne.id}`)
+      .json({ optionGroupIds: [troca.body().data.id, extra.body().data.id] })
+      .loginAs(manager)
+
+    const ok = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [{ itemId: carne.id, quantity: 1, addonIds: [cheddar.id, catupiry.id] }],
+    })
+    ok.assertStatus(200)
+    const placed = await Order.query()
+      .where('publicToken', ok.body().data.publicToken)
+      .preload('items', (items) => items.preload('addons', (addons) => addons.orderBy('id')))
+      .firstOrFail()
+    // Catupiry fills the required "Queijo" (free), Cheddar the extra (R$ 4),
+    // saved in the item's group order whatever order the ids came in.
+    assert.deepEqual(
+      placed.items[0].addons.map(({ name, groupName, unitPrice }) => ({
+        name,
+        groupName,
+        unitPrice,
+      })),
+      [
+        { name: 'Catupiry', groupName: 'Queijo', unitPrice: 0 },
+        { name: 'Cheddar', groupName: 'Recheio extra', unitPrice: 4 },
+      ]
+    )
+  })
 })

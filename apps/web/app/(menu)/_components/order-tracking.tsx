@@ -35,7 +35,7 @@ import { PaymentPanel } from "./payment-panel";
 import { RecentOrdersButton } from "./recent-orders";
 import { useReorder } from "../_lib/customer-orders";
 import { useReadyAlert } from "../_lib/use-ready-alert";
-import { addonLabel } from "@/redux/slices/cart";
+import { addonLabel } from "@/lib/addon-label";
 
 const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: "received", label: "Pedido recebido", icon: ReceiptText },

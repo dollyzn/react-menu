@@ -25,7 +25,8 @@ import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
 import { CustomerAutocomplete } from "./customer-autocomplete";
-import { addonLabel, lineAddonsInput } from "@/redux/slices/cart";
+import { addonLabel } from "@/lib/addon-label";
+import { lineAddonsInput } from "@/redux/slices/cart";
 
 type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>

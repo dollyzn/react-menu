@@ -70,7 +70,9 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
    `NotificationService.notify()` / `notifyStoreMembers()`.
 6. **Orders are priced by the API.** Clients send item ids, quantities,
    add-on ids and notes only; `OrderService` computes prices from the
-   current menu and snapshots names/prices. Status changes go through
+   current menu and snapshots names/prices. Choice group picks go as
+   `choices: [{ groupId, addonId }]`: the group sets the option's price and
+   is snapshotted by name ("Recheio extra: Carne"). Status changes go through
    `OrderService` (state machine in `app/orders/order_state.ts`), never by
    updating `status` directly. Kitchen grouping lives in the pure
    `app/kitchen/production_queue.ts` (unit-tested).

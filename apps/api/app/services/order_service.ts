@@ -405,7 +405,13 @@ export default class OrderService {
       .whereHas('category', (category) => category.where('store_id', store.id))
       .preload('category')
       .preload('addons')
-      .preload('optionGroups', (groups) => groups.preload('options'))
+      // In the item's order, like the menu: the legacy fallback picks the first
+      // group, and the add-ons are saved (and printed) in this order.
+      .preload('optionGroups', (groups) =>
+        groups
+          .orderBy('item_option_groups.order', 'asc')
+          .preload('options', (options) => options.orderBy('option_group_addons.order', 'asc'))
+      )
     const unavailable = await this.inventory.unavailable(store, trx)
 
     return lines.map((line) => {
@@ -433,25 +439,33 @@ export default class OrderService {
         if (!group || !addon) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
         pick(addon, group)
       }
+      const pickedIn = (group: OptionGroup) =>
+        [...picks.values()].filter((entry) => entry.group?.id === group.id).length
       for (const addonId of new Set(line.addonIds ?? [])) {
-        const free = item.addons.find((candidate) => candidate.id === addonId)
-        if (free) {
-          pick(free, null)
-          continue
-        }
-        // Bags saved before choices existed send group options here: the
-        // first group that offers it.
-        const group = item.optionGroups.find((candidate) =>
+        // Bags saved before `choices` send group options here too, as the
+        // groups counted them then: the first group (in the item's order)
+        // that offers it and still has room, else a free add-on.
+        const offering = item.optionGroups.filter((candidate) =>
           candidate.options.some((option) => option.id === addonId)
         )
-        const addon = group?.options.find((option) => option.id === addonId)
-        if (!group || !addon) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
-        pick(addon, group)
+        const group =
+          offering.find((candidate) => pickedIn(candidate) < candidate.maxChoices) ??
+          (item.addons.some((candidate) => candidate.id === addonId) ? undefined : offering[0])
+        if (group) {
+          pick(
+            group.options.find((option) => option.id === addonId)!,
+            group
+          )
+          continue
+        }
+        const free = item.addons.find((candidate) => candidate.id === addonId)
+        if (!free) throw new AppException(`Adicional inválido para ${item.name}.`, 422)
+        pick(free, null)
       }
 
       // Choice groups: each one's minimum and maximum.
       for (const group of item.optionGroups) {
-        const picked = [...picks.values()].filter((entry) => entry.group?.id === group.id).length
+        const picked = pickedIn(group)
         if (picked < group.minChoices || picked > group.maxChoices) {
           const want =
             group.minChoices === group.maxChoices
@@ -467,21 +481,29 @@ export default class OrderService {
         }
       }
 
-      const addons = [...picks.values()].map(({ addon, group }) => {
-        if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
-          throw new AppException(
-            `${addon.name} está indisponível no momento.`,
-            422,
-            'E_UNAVAILABLE'
-          )
-        }
-        return {
-          id: addon.id,
-          name: addon.name,
-          price: group ? optionPrice(addon) : addon.price,
-          groupName: group?.name ?? null,
-        }
-      })
+      // Saved (and printed) like the menu shows them: groups in the item's
+      // order, each one's options in order, then the free add-ons.
+      const rank = ({ addon, group }: { addon: Addon; group: OptionGroup | null }) =>
+        group
+          ? item.optionGroups.indexOf(group) * 100 + group.options.indexOf(addon)
+          : Number.MAX_SAFE_INTEGER
+      const addons = [...picks.values()]
+        .sort((a, b) => rank(a) - rank(b))
+        .map(({ addon, group }) => {
+          if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
+            throw new AppException(
+              `${addon.name} está indisponível no momento.`,
+              422,
+              'E_UNAVAILABLE'
+            )
+          }
+          return {
+            id: addon.id,
+            name: addon.name,
+            price: group ? optionPrice(addon) : addon.price,
+            groupName: group?.name ?? null,
+          }
+        })
 
       const unitTotal = item.price + addons.reduce((sum, addon) => sum + addon.price, 0)
       return {

@@ -116,9 +116,19 @@ export function ItemCustomizer({
   // The stock caps the quantity (the API refuses more anyway): the item and
   // every chosen add-on with a recipe.
   const left = unitsLeft(item.stockLeft, alreadyChosen);
+  // The same add-on may be picked twice (in two groups): each unit uses both.
+  const perUnit = new Map<string, { name: string; stockLeft: number | null; count: number }>();
+  for (const addon of selected) {
+    const entry = perUnit.get(addon.id);
+    if (entry) entry.count += 1;
+    else perUnit.set(addon.id, { name: addon.name, stockLeft: addon.stockLeft, count: 1 });
+  }
   const limits = [
     { name: null as string | null, units: left },
-    ...selected.map((addon) => ({ name: addon.name, units: addon.stockLeft })),
+    ...[...perUnit.values()].map((use) => ({
+      name: use.name,
+      units: use.stockLeft === null ? null : Math.floor(use.stockLeft / use.count),
+    })),
   ].filter((limit): limit is { name: string | null; units: number } => limit.units !== null);
   const binding = limits.reduce<(typeof limits)[number] | null>(
     (lowest, limit) => (lowest === null || limit.units < lowest.units ? limit : lowest),

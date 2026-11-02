@@ -115,4 +115,15 @@ test("an optional extra filling: priced in the group, closed on the menu, named 
   await expect(page).toHaveURL(/\/pedido\/[0-9a-f-]{36}$/);
   await expect(page.getByText("+ Recheio extra: Frango")).toBeVisible();
   await expect(page.getByText("R$ 16,00").first()).toBeVisible();
+
+  // "Pedir de novo" puts the extra filling back in its group.
+  const orders = (await (await page.request.get(`${base}/orders`)).json()).data as { id: string }[];
+  await page.request.post(`${base}/orders/${orders[0].id}/cancel`, { data: {} });
+  await page.reload();
+  await page.getByRole("button", { name: "Pedir de novo" }).click();
+  const bagButton = page.getByRole("button", { name: /Ver sacola/ });
+  await expect(bagButton).toContainText("R$ 16,00");
+  const bag = page.getByRole("dialog");
+  if (!(await bag.isVisible())) await bagButton.click();
+  await expect(bag.getByText("+ Recheio extra: Frango")).toBeVisible();
 });

@@ -200,8 +200,11 @@ export function OptionGroupDialog({
                         </div>
                         <ul className="divide-y">
                           {field.value.map((option, index) => {
-                            const addon = addonById.get(option.addonId);
-                            const name = addon?.name ?? group?.options?.find((o) => o.id === option.addonId)?.name ?? "";
+                            // The group's own copy covers the add-ons list still loading.
+                            const addon =
+                              addonById.get(option.addonId) ??
+                              group?.options?.find((saved) => saved.id === option.addonId);
+                            const name = addon?.name ?? "";
                             const ownPrice = addon?.price ?? 0;
                             const setPrice = (price: number | null) =>
                               field.onChange(field.value.map((o, i) => (i === index ? { ...o, price } : o)));
