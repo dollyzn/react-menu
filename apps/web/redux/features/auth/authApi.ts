@@ -25,10 +25,6 @@ export const authApi = baseApi.injectEndpoints({
       extraOptions: { quiet: true, session: true },
     }),
     /** Where to send the browser to sign in with a social provider. */
-    socialRedirect: build.query<{ url: string }, SocialProvider>({
-      query: (provider) => `auth/social/${provider}/redirect`,
-      extraOptions: { quiet: true, session: true },
-    }),
     forgotPassword: build.mutation<void, { email: string }>({
       query: (body) => ({ url: "auth/forgot-password", method: "POST", body }),
     }),
