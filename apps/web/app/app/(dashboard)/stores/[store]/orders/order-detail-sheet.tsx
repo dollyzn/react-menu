@@ -20,6 +20,7 @@ import { useStoreRole } from "@/hooks/use-store-role";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { ATTEMPT, CHANNEL, PAYMENT, STATUS } from "./order-labels";
+import { addonLabel } from "@/lib/addon-label";
 
 const ACTIVE = new Set(["pending_payment", "received", "preparing", "ready"]);
 
@@ -126,7 +127,7 @@ export function OrderDetailSheet({
                           <span className="tabular-nums">{line.quantity}×</span> {line.name}
                         </p>
                         {line.addons.length > 0 && (
-                          <p className="text-xs text-muted-foreground">+ {line.addons.map((a) => a.name).join(", ")}</p>
+                          <p className="text-xs text-muted-foreground">+ {line.addons.map(addonLabel).join(", ")}</p>
                         )}
                         {line.notes && (
                           <p className="text-xs font-medium text-warning">“{line.notes}”</p>

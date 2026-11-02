@@ -23,6 +23,8 @@ export type OrderItemAddon = {
   orderItemId: number;
   addonId: string | null;
   name: string;
+  /** The choice group it was picked in ("Recheio extra"); null for a plain add-on. */
+  groupName: string | null;
   unitPrice: number;
 };
 
@@ -118,7 +120,7 @@ export type PublicOrder = Pick<
   /** Status changes, oldest first. */
   timeline: { status: OrderStatus; at: string }[];
   items: (Pick<OrderItem, 'itemId' | 'name' | 'unitPrice' | 'quantity' | 'notes' | 'total'> & {
-    addons: Pick<OrderItemAddon, 'addonId' | 'name' | 'unitPrice'>[];
+    addons: Pick<OrderItemAddon, 'addonId' | 'name' | 'groupName' | 'unitPrice'>[];
   })[];
   /** Latest payment attempt (Pix or card), if any. */
   payment: PublicPayment | null;
@@ -190,7 +192,10 @@ export type CustomerOrders = {
 export type OrderLineInput = {
   itemId: string;
   quantity: number;
+  /** Add-ons outside choice groups. */
   addonIds?: string[];
+  /** What was picked in each choice group (the group sets the price). */
+  choices?: { groupId: string; addonId: string }[];
   notes?: string;
 };
 

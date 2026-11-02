@@ -26,7 +26,7 @@ export function OptionChips({ group, max }: { group: OptionGroup; max?: number }
         <li key={option.id} className="rounded-full bg-muted px-2 py-0.5 text-xs whitespace-nowrap">
           {option.name}{" "}
           <span className="text-muted-foreground">
-            {option.price ? `+ ${formatCurrencyBRL(option.price)}` : "incluso"}
+            {(option.groupPrice ?? option.price) ? `+ ${formatCurrencyBRL(option.groupPrice ?? option.price)}` : "incluso"}
           </span>
         </li>
       ))}

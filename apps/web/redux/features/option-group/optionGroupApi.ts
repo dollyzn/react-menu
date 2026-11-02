@@ -7,8 +7,8 @@ export type OptionGroupInput = {
   name: string;
   minChoices: number;
   maxChoices: number;
-  /** The options (store add-ons), in display order. */
-  addonIds: string[];
+  /** The options (store add-ons), in display order; price null = the add-on's own. */
+  options: { addonId: string; price: number | null }[];
 };
 
 const tag = (storeId: string) => ({ type: "OptionGroup" as const, id: storeId });

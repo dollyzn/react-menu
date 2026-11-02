@@ -35,6 +35,7 @@ import { PaymentPanel } from "./payment-panel";
 import { RecentOrdersButton } from "./recent-orders";
 import { useReorder } from "../_lib/customer-orders";
 import { useReadyAlert } from "../_lib/use-ready-alert";
+import { addonLabel } from "@/lib/addon-label";
 
 const STEPS: { status: OrderStatus; label: string; icon: typeof Check }[] = [
   { status: "received", label: "Pedido recebido", icon: ReceiptText },
@@ -230,7 +231,7 @@ export function OrderTracking({ token }: { token: string }) {
                   {line.quantity}× {line.name}
                 </p>
                 {line.addons.length > 0 && (
-                  <p className="text-xs text-muted-foreground">+ {line.addons.map((a) => a.name).join(", ")}</p>
+                  <p className="text-xs text-muted-foreground">+ {line.addons.map(addonLabel).join(", ")}</p>
                 )}
                 {line.notes && <p className="text-xs text-muted-foreground italic">“{line.notes}”</p>}
               </div>

@@ -8,7 +8,13 @@ const lines = vine
     vine.object({
       itemId: vine.string().uuid(),
       quantity: vine.number().withoutDecimals().min(1).max(50),
+      /** Add-ons outside choice groups (older bags send group options here too). */
       addonIds: vine.array(vine.string().uuid()).maxLength(20).optional(),
+      /** Choice group picks: the group decides the price and the label. */
+      choices: vine
+        .array(vine.object({ groupId: vine.string().uuid(), addonId: vine.string().uuid() }))
+        .maxLength(40)
+        .optional(),
       notes: vine.string().trim().maxLength(200).optional(),
     })
   )
