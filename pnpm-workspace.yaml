@@ -12,3 +12,13 @@ allowBuilds:
 overrides:
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0
+
+permissions:
+  '@tanstack/react-table':
+    skills: true
+
+# Agent skills shipped by packages (approved above) are linked here, where
+# Claude Code picks them up. Generated on install: not committed.
+skills:
+  dirs:
+    - .claude/skills
