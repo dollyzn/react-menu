@@ -75,11 +75,19 @@ test("Google sign-in: the button shows and a refused login comes back as a messa
 async function stubGoogle(context: BrowserContext) {
   const sent: { url?: URL } = {};
   await context.route(/\/auth\/social\/google\/redirect/, async (route) => {
-    const response = await route.fetch({ maxRedirects: 0 });
-    sent.url = new URL(response.headers()["location"]);
-    const headers = { ...response.headers() };
-    delete headers["location"];
-    await route.fulfill({ status: 200, headers, contentType: "text/html", body: "<title>Google</title>" });
+    try {
+      const response = await route.fetch({ maxRedirects: 0 });
+      const headers = { ...response.headers() };
+      const location = new URL(headers["location"]);
+      delete headers["location"];
+      await route.fulfill({ status: 200, headers, contentType: "text/html", body: "<title>Google</title>" });
+      // Only once the popup has the page: a test that moves on as soon as it
+      // sees the URL would abort this answer half-way.
+      sent.url = location;
+    } catch (error) {
+      // The test closed the popup while its answer was on the way.
+      if (!route.request().frame().page().isClosed()) throw error;
+    }
   });
   return sent;
 }
@@ -129,6 +137,7 @@ test("Google sign-in: the callback finds the state the redirect stored", async (
   await page.getByRole("button", { name: "Entrar com Google" }).click();
   const popup = await popupEvent;
   await expect.poll(() => google.url?.searchParams.get("state"), { timeout: 15_000 }).toBeTruthy();
+  await expect(popup).toHaveTitle("Google");
 
   // Google sends the browser back with the same state. The fake code fails
   // the token exchange, but past the CSRF check ("O login expirou" before).
