@@ -175,22 +175,30 @@ export default class OrderService {
     return await this.find(storeId, result.order.id)
   }
 
-  /** Idempotent: webhooks may deliver the same payment more than once. */
+  /**
+   * Idempotent: Mercado Pago notifies the same approval more than once, often
+   * at the same time (topics `order` and `payment`, plus the tracking page's
+   * sync). The row lock makes the second call wait and find it paid, so the
+   * stock is consumed and the staff notified once.
+   */
   async markPaid(order: Order, meta: { mercadoPagoPaymentId?: string } = {}, actor?: User) {
     if (order.paymentStatus === PaymentStatus.PAID) return order
-    const wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
+    let wasAwaitingPayment = false
 
-    await db.transaction(async (trx) => {
-      order.useTransaction(trx)
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      if (order.paymentStatus === PaymentStatus.PAID) return false
+      wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
       order.paymentStatus = PaymentStatus.PAID
       if (meta.mercadoPagoPaymentId) order.mercadoPagoPaymentId = meta.mercadoPagoPaymentId
       if (order.status === OrderStatus.PENDING_PAYMENT) {
         await this.enterKitchen(order, trx, actor)
       }
       await order.save()
+      return true
     })
 
-    await this.afterChange(order, { notifyStaff: wasAwaitingPayment })
+    if (changed) await this.afterChange(order, { notifyStaff: wasAwaitingPayment })
     return order
   }
 
@@ -198,17 +206,29 @@ export default class OrderService {
   async markPaymentPending(order: Order) {
     if (order.paymentStatus === PaymentStatus.PENDING) return order
     if (order.paymentStatus === PaymentStatus.PAID) return order
-    order.paymentStatus = PaymentStatus.PENDING
-    await order.save()
-    await this.afterChange(order)
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      // An approval that landed meanwhile wins.
+      if (order.paymentStatus === PaymentStatus.PENDING) return false
+      if (order.paymentStatus === PaymentStatus.PAID) return false
+      order.paymentStatus = PaymentStatus.PENDING
+      await order.save()
+      return true
+    })
+    if (changed) await this.afterChange(order)
     return order
   }
 
   async markPaymentFailed(order: Order) {
     if (order.paymentStatus !== PaymentStatus.PENDING) return order
-    order.paymentStatus = PaymentStatus.FAILED
-    await order.save()
-    await this.afterChange(order)
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      if (order.paymentStatus !== PaymentStatus.PENDING) return false
+      order.paymentStatus = PaymentStatus.FAILED
+      await order.save()
+      return true
+    })
+    if (changed) await this.afterChange(order)
     return order
   }
 
@@ -257,27 +277,34 @@ export default class OrderService {
     const order = await this.find(storeId, orderId)
     // Idempotent: a retried "Entregar" after a lost response is a success.
     if (order.status === OrderStatus.COMPLETED) return order
-    await db.transaction(async (trx) => {
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      if (order.status === OrderStatus.COMPLETED) return false
       await this.transition(order, OrderStatus.COMPLETED, trx, actor)
       if (order.paymentMethod === PaymentMethod.COUNTER) {
         order.paymentStatus = PaymentStatus.PAID
       }
       await order.save()
+      return true
     })
-    await this.afterChange(order)
+    if (changed) await this.afterChange(order)
     return order
   }
 
   async cancel(storeId: string, orderId: string, actor?: User) {
     const order = await this.find(storeId, orderId)
-    // Idempotent: cancelling twice must not reverse the stock twice.
+    // Idempotent: cancelling twice (a double tap, the expiry job meanwhile)
+    // must not reverse the stock twice.
     if (order.status === OrderStatus.CANCELLED) return order
-    await db.transaction(async (trx) => {
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      if (order.status === OrderStatus.CANCELLED) return false
       await this.transition(order, OrderStatus.CANCELLED, trx, actor)
       await this.inventory.reverseForOrder(order, trx)
       await order.save()
+      return true
     })
-    await this.afterChange(order)
+    if (changed) await this.afterChange(order)
     return order
   }
 
@@ -537,6 +564,16 @@ export default class OrderService {
       await this.transition(order, target, trx, actor)
       await order.useTransaction(trx).save()
     }
+  }
+
+  /**
+   * Locks the order's row for this transaction and reloads it, so changes to
+   * the same order from different places wait for each other and the checks
+   * after this run on the latest state (preloaded relations are kept).
+   */
+  private async lock(order: Order, trx: TransactionClientContract) {
+    await trx.from('orders').where('id', order.id).forUpdate().select('id').first()
+    await order.useTransaction(trx).refresh()
   }
 
   private async transition(
