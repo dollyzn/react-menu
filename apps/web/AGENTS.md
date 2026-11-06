@@ -38,6 +38,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Design system (shadcn base-nova on Base UI) | `components/ui` (generated; change via shadcn CLI) |
 | App components (data table, layout, dialogs) | `components/app` |
 | Types | aliases of `@react-menu/contracts` in `@types/*.d.ts` and `types/*` |
+| Observability | `instrumentation.ts` (`@vercel/otel`, service `react-menu-web`, on only with `OTEL_EXPORTER_OTLP_ENDPOINT`; propagates `traceparent` only to the API's origin, so SSR and the API are one trace; a span processor masks order tracking tokens and OAuth codes in URLs; sampling from `OTEL_TRACES_SAMPLER(_ARG)`); see `docs/development/observability.md` |
 | Env schema | `lib/env.ts` (+ `.env.example`) |
 
 ## Rules

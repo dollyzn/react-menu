@@ -10,6 +10,7 @@
 
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
+import { otelRunning } from '#helpers/otel'
 
 /**
  * The error handler is used to convert an exception
@@ -37,6 +38,8 @@ server.use([
 router.use([
   () => import('@adonisjs/core/bodyparser_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
+  // Only when OpenTelemetry runs (production with an endpoint; #helpers/otel).
+  ...(otelRunning() ? [() => import('@adonisjs/otel/otel_middleware')] : []),
   () => import('#middleware/initialize_bouncer_middleware'),
   // Before named middleware (auth, throttle): a replayed retry costs nothing.
   () => import('#middleware/idempotency_middleware'),

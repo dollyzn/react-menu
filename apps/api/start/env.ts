@@ -132,4 +132,18 @@ export default await Env.create(new URL('../', import.meta.url), {
    */
   TWO_FACTOR_START_LIMIT: Env.schema.number.optional(),
   TWO_FACTOR_FAILURE_LIMIT: Env.schema.number.optional(),
+
+  /**
+   * OpenTelemetry (config/otel.ts). On only with an endpoint; the standard
+   * OTEL_EXPORTER_OTLP_* variables (headers, protocol) are read by the SDK.
+   */
+  // Empty in compose when unused: no URL format check.
+  OTEL_EXPORTER_OTLP_ENDPOINT: Env.schema.string.optional(),
+  OTEL_SERVICE_NAME: Env.schema.string.optional(),
+  /** Share of traces kept, 0–1 (default 1: everything). */
+  OTEL_TRACES_SAMPLE_RATIO: Env.schema.number.optional(),
+  /** Shown on every trace and log: the deployed version and environment. */
+  APP_NAME: Env.schema.string.optional(),
+  APP_VERSION: Env.schema.string.optional(),
+  APP_ENV: Env.schema.string.optional(),
 })

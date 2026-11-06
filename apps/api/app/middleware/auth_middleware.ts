@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
+import { setUser } from '@adonisjs/otel/helpers'
 import { UserStatusEnum } from '#enums/user_status'
 
 /**
@@ -35,6 +36,9 @@ export default class AuthMiddleware {
         code: 'E_USER_INACTIVE',
       })
     }
+
+    // On the request's trace (a no-op without OpenTelemetry): by id, no e-mail.
+    setUser({ id: user.id })
 
     return next()
   }

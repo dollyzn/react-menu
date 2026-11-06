@@ -44,7 +44,8 @@ USER node
 WORKDIR /repo/apps/api
 EXPOSE 3333
 ENTRYPOINT ["api-entrypoint"]
-CMD ["node", "bin/server.js"]
+# otel.js preloads OpenTelemetry (on only with OTEL_EXPORTER_OTLP_ENDPOINT).
+CMD ["node", "--import", "./otel.js", "bin/server.js"]
 
 # ---- Web ----
 FROM deps AS build-web

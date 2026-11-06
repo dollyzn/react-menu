@@ -38,6 +38,14 @@ services:
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:3333/api/v1
+      # OpenTelemetry (instrumentation.ts; off when the endpoint is empty).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      # The same share as the API: the web starts most traces (SSR), and the
+      # API follows its decision.
+      OTEL_TRACES_SAMPLER: parentbased_traceidratio
+      OTEL_TRACES_SAMPLER_ARG: ${OTEL_TRACES_SAMPLE_RATIO:-1}
+      APP_ENV: ${APP_ENV:-production}
     depends_on: [api]
 
   api:
@@ -83,6 +91,13 @@ services:
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+      # OpenTelemetry to Grafana Cloud (off when the endpoint is empty), loaded
+      # by `--import ./otel.js` in the commands.
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_TRACES_SAMPLE_RATIO: ${OTEL_TRACES_SAMPLE_RATIO:-1}
+      APP_VERSION: ${BUILD_VERSION:-docker}
+      APP_ENV: ${APP_ENV:-production}
     volumes:
       - uploads:/repo/apps/api/storage
     depends_on:
@@ -94,10 +109,11 @@ services:
   worker:
     build: { context: ., target: api }
     restart: unless-stopped
-    command: ["node", "ace", "queue:work"]
+    command: ["node", "--import", "./otel.js", "ace", "queue:work"]
     environment:
       <<: *api-env
       RUN_MIGRATIONS: "false"
+      OTEL_SERVICE_NAME: react-menu-worker
     # Lets a running job finish on deploys (SIGTERM, then SIGKILL).
     stop_grace_period: 60s
     depends_on:

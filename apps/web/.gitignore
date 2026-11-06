@@ -41,6 +41,8 @@ next-env.d.ts
 
 # Playwright
 /.next-e2e/
+# Any other alternate build folder (NEXT_DIST_DIR), e.g. a second dev server.
+/.next-*/
 /test-results/
 /playwright-report/
 /blob-report/
