@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { RowActions } from "./table-row-actions";
 import { ItemsColumnDialog } from "./items-column-dialog";
+import { NoPrepBadge } from "./requires-preparation-field";
 
 export function CategoryCard({ row }: { row: Row<Category> }) {
   const category = row.original;
@@ -18,7 +19,10 @@ export function CategoryCard({ row }: { row: Row<Category> }) {
           <FolderOpen className="size-5" />
         </span>
         <div className="min-w-0 flex-1 flex flex-col gap-1">
-          <h3 className="font-semibold leading-tight text-balance">{category.name}</h3>
+          <h3 className="flex flex-wrap items-center gap-2 font-semibold leading-tight text-balance">
+            {category.name}
+            {!category.requiresPreparation && <NoPrepBadge />}
+          </h3>
           <p className="line-clamp-2 text-sm text-muted-foreground">
             {category.description || "Sem descrição"}
           </p>

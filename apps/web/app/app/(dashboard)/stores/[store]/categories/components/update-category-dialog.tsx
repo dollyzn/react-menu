@@ -26,6 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { getErrorMessage } from "@/utils/get-error-message";
+import { RequiresPreparationField } from "./requires-preparation-field";
 import { z } from "zod";
 import {
   InputGroup,
@@ -46,6 +47,7 @@ const UpdateCategorySchema = z.object({
     .string()
     .max(DESC_MAX, `No máximo ${DESC_MAX} caracteres.`)
     .optional(),
+  requiresPreparation: z.boolean(),
 });
 
 interface UpdateCategoryDialogProps {
@@ -68,6 +70,7 @@ export function UpdateCategoryDialog({
     values: {
       name: row.getValue("name"),
       description: row.getValue("description") ?? "",
+      requiresPreparation: row.original.requiresPreparation,
     },
   });
   const { isSubmitting } = form.formState;
@@ -166,6 +169,17 @@ export function UpdateCategoryDialog({
                       <FieldError errors={[fieldState.error]} />
                     )}
                   </Field>
+                )}
+              />
+              <Controller
+                name="requiresPreparation"
+                control={form.control}
+                render={({ field }) => (
+                  <RequiresPreparationField
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={busy}
+                  />
                 )}
               />
             </FieldGroup>
