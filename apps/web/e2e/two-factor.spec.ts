@@ -54,6 +54,12 @@ test("two-step sign-in: e-mail code, trusted device, then the authenticator app"
   await expect(card.getByText("Em uso")).toBeVisible();
   await card.getByRole("button", { name: "Configurar" }).click();
   const dialog = page.getByRole("dialog", { name: "App autenticador" });
+  // The password first: a session alone can't tie the account to a phone.
+  await dialog.getByLabel("Sua senha").fill("wrong-password");
+  await dialog.getByRole("button", { name: "Continuar" }).click();
+  await expect(dialog.getByText("A senha não confere.")).toBeVisible();
+  await dialog.getByLabel("Sua senha").fill(staff.password);
+  await dialog.getByRole("button", { name: "Continuar" }).click();
   await expect(dialog.locator("svg title", { hasText: "QR code do app autenticador" })).toBeAttached();
   await dialog.getByRole("button", { name: "Não consegue escanear? Digite a chave" }).click();
   await expect(dialog.getByLabel("Chave do app autenticador")).toBeVisible();
@@ -68,6 +74,10 @@ test("two-step sign-in: e-mail code, trusted device, then the authenticator app"
   await page.screenshot({ path: "test-results/two-factor-codes.png", caret: "initial" });
   const done = dialog.getByRole("button", { name: "Concluir" });
   await expect(done).toBeDisabled();
+  // Shown only here: Esc doesn't close it before "Guardei".
+  await page.keyboard.press("Escape");
+  await expect(page.getByText("Guarde os códigos de recuperação antes de fechar.")).toBeVisible();
+  await expect(codes).toHaveCount(10);
   await dialog.getByText("Guardei meus códigos de recuperação").click();
   await done.click();
   await expect(dialog).toBeHidden();
@@ -106,4 +116,11 @@ test("two-step sign-in: e-mail code, trusted device, then the authenticator app"
   ).toBeVisible();
   // `login` (fixture) still works for accounts with e-mail codes.
   expect(login).toBeTruthy();
+});
+
+test("back from Google without a pending second step: the login page says so", async ({ page }) => {
+  await page.goto("/app/login?etapa=codigo");
+  const alert = page.getByRole("alert").filter({ hasText: "Login com o Google não concluído" });
+  await expect(alert).toContainText("Este acesso expirou");
+  await expect(page.getByLabel("E-mail")).toBeEnabled();
 });

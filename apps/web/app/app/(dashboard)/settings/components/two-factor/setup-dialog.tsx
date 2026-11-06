@@ -9,7 +9,8 @@ import { CodeInput } from "@/components/app/auth/code-input";
 import { Button } from "@/components/ui/button";
 import { Confetti, type ConfettiRef } from "@/components/ui/confetti";
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FieldError } from "@/components/ui/field";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/contexts/session-provider";
@@ -157,22 +158,36 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
   const [showKey, setShowKey] = useState(false);
   const [copied, setCopied] = useState(false);
   const [codes, setCodes] = useState<string[]>([]);
+  const [kept, setKept] = useState(false);
+  const [password, setPassword] = useState("");
   const [setup, setupResult] = useSetupTwoFactorMutation();
   const [enable, enabling] = useEnableTwoFactorMutation();
   const secret = setupResult.data;
   const periodLeft = usePeriodLeft(open && step === "verify");
   const index = STEPS.findIndex((item) => item.id === step);
 
-  // A new secret each time it opens. (Run twice in development's strict mode,
-  // the last secret is the one shown and the one the API waits for.)
-  useEffect(() => {
-    if (open) void setup();
-  }, [open, setup]);
-
   const changeOpen = (next: boolean) => {
-    // The recovery codes show once: closing means "done".
-    if (!next && step === "codes") void verify();
+    if (!next && step === "codes") {
+      // The recovery codes show only here: Esc, the overlay or ✕ wait for
+      // "Guardei" (closing then means "done").
+      if (!kept) {
+        toast.warning("Guarde os códigos de recuperação antes de fechar.");
+        return;
+      }
+      void verify();
+    }
     onOpenChange(next);
+  };
+
+  /** The password first; then a new secret to scan. */
+  const start = async (event: React.FormEvent) => {
+    event.preventDefault();
+    try {
+      await setup({ password }).unwrap();
+      setPassword("");
+    } catch {
+      // Shown under the field (setupResult.error).
+    }
   };
 
   const confirm = async (value: string) => {
@@ -220,6 +235,8 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
         setShowKey(false);
         setCopied(false);
         setCodes([]);
+        setKept(false);
+        setPassword("");
         setupResult.reset();
       }}
     >
@@ -242,7 +259,34 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
               never overflow on DialogContent). */}
           <div className="-mx-3 overflow-x-clip px-3">
           <AnimatePresence mode="wait" initial={false}>
-            {step === "scan" && (
+            {step === "scan" && !secret && (
+              <motion.form key="password" {...slide} onSubmit={start} className="flex flex-col gap-4">
+                <p className="text-sm text-muted-foreground">
+                  Por segurança, confirme a sua senha para ligar o app autenticador nesta conta.
+                </p>
+                <Field data-invalid={setupResult.isError || undefined}>
+                  <FieldLabel htmlFor="setup-2fa-password">Sua senha</FieldLabel>
+                  <Input
+                    id="setup-2fa-password"
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Digite a sua senha"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    aria-invalid={setupResult.isError || undefined}
+                    autoFocus
+                  />
+                  {setupResult.isError && (
+                    <FieldError errors={[{ message: getErrorMessage(setupResult.error, "Não foi possível começar.") }]} />
+                  )}
+                </Field>
+                <Button type="submit" size="lg" loading={setupResult.isLoading} disabled={!password}>
+                  Continuar <ArrowRight data-icon="inline-end" />
+                </Button>
+              </motion.form>
+            )}
+
+            {step === "scan" && secret && (
               <motion.div key="scan" {...slide} className="flex flex-col gap-5">
                 <div className="grid items-center gap-5 sm:grid-cols-[auto_1fr]">
                   <QrFrame uri={secret?.uri ?? null} />
@@ -303,10 +347,7 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
                   </AnimatePresence>
                 </div>
 
-                {setupResult.isError && (
-                  <FieldError errors={[{ message: getErrorMessage(setupResult.error, "Não foi possível começar.") }]} />
-                )}
-                <Button type="button" size="lg" onClick={() => setStep("verify")} disabled={!secret}>
+                <Button type="button" size="lg" onClick={() => setStep("verify")}>
                   Já adicionei no app <ArrowRight data-icon="inline-end" />
                 </Button>
               </motion.div>
@@ -352,7 +393,7 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 420, damping: 16, delay: 0.1 }}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success text-white"
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground"
                   >
                     <Check aria-hidden />
                   </motion.span>
@@ -361,7 +402,7 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
                     <p className="text-xs text-muted-foreground">Nos próximos logins, use o código do app.</p>
                   </div>
                 </div>
-                <RecoveryCodes codes={codes} onDone={() => changeOpen(false)} />
+                <RecoveryCodes codes={codes} kept={kept} onKeptChange={setKept} onDone={() => changeOpen(false)} />
               </motion.div>
             )}
           </AnimatePresence>

@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import AccountService from '#services/account_service'
 import AuthService from '#services/auth_service'
 import TwoFactorService from '#services/two_factor_service'
-import { messageOnly, ok, updated } from '#helpers/api_response'
+import { messageOnly, noStore, ok, updated } from '#helpers/api_response'
 import {
   avatarValidator,
   changePasswordValidator,
@@ -85,12 +85,15 @@ export default class AccountController {
     })
   }
 
-  async setupTwoFactor({ auth }: HttpContext) {
-    return ok(await this.twoFactor.setup(auth.getUserOrFail()))
+  async setupTwoFactor({ auth, request, response }: HttpContext) {
+    const { password } = await request.validateUsing(passwordConfirmValidator)
+    noStore(response)
+    return ok(await this.twoFactor.setup(auth.getUserOrFail(), password))
   }
 
-  async enableTwoFactor({ auth, request }: HttpContext) {
+  async enableTwoFactor({ auth, request, response }: HttpContext) {
     const { code } = await request.validateUsing(totpCodeValidator)
+    noStore(response)
     const recoveryCodes = await this.twoFactor.enable(auth.getUserOrFail(), code)
     return ok({ recoveryCodes })
   }
@@ -101,8 +104,9 @@ export default class AccountController {
     return messageOnly('App autenticador desativado. Os acessos voltam a usar o código por e-mail.')
   }
 
-  async regenerateRecoveryCodes({ auth, request }: HttpContext) {
+  async regenerateRecoveryCodes({ auth, request, response }: HttpContext) {
     const { code } = await request.validateUsing(totpCodeValidator)
+    noStore(response)
     const recoveryCodes = await this.twoFactor.regenerateRecoveryCodes(auth.getUserOrFail(), code)
     return ok({ recoveryCodes })
   }

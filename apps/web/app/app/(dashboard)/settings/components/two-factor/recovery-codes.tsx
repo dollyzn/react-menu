@@ -11,8 +11,18 @@ import { Checkbox } from "@/components/ui/checkbox";
  * The recovery codes, shown once: copy or download them, and confirm they
  * are kept before going on.
  */
-export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
-  const [kept, setKept] = useState(false);
+export function RecoveryCodes({
+  codes,
+  kept,
+  onKeptChange,
+  onDone,
+}: {
+  codes: string[];
+  /** "Guardei": the dialog holding the codes doesn't close before it. */
+  kept: boolean;
+  onKeptChange: (kept: boolean) => void;
+  onDone: () => void;
+}) {
   const [copied, setCopied] = useState(false);
   const text = `React Menu: códigos de recuperação\nCada código entra uma vez, no lugar do app autenticador.\n\n${codes.join("\n")}\n`;
 
@@ -69,7 +79,7 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
         </Button>
       </div>
       <label className="flex items-center gap-2 text-sm">
-        <Checkbox checked={kept} onCheckedChange={(checked) => setKept(Boolean(checked))} />
+        <Checkbox checked={kept} onCheckedChange={(checked) => onKeptChange(Boolean(checked))} />
         Guardei meus códigos de recuperação
       </label>
       <Button type="button" onClick={onDone} disabled={!kept}>

@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowBigUpDash, Eye, EyeOff, Lock, User } from "lucide-react";
+import { ArrowBigUpDash, Eye, EyeOff, Lock, ShieldAlert, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -28,6 +28,8 @@ import type { TwoFactorChallenge } from "@react-menu/contracts";
 import { useLazyTwoFactorChallengeQuery, useTwoFactorChallengeQuery } from "@/redux/features/auth/authApi";
 import { SocialLogin, type SocialLoginStatus } from "./social-login";
 import { TwoFactorStep } from "./two-factor-step";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { useLoggingOut } from "@/lib/logout-state";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -50,10 +52,16 @@ export function LoginForm() {
   const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
   const [loadChallenge] = useLazyTwoFactorChallengeQuery();
 
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const googleCodeFailed = "Não foi possível continuar o login com o Google. Tente de novo.";
+
   // After Google: the API set the challenge cookie; ask what it is.
   const continueWithCode = async () => {
+    setCodeError(null);
     const result = await loadChallenge();
     if (result.data) setChallenge(result.data.twoFactor);
+    // Expired, cookie blocked, too many tries: say so instead of doing nothing.
+    else setCodeError(getErrorMessage(result.error, googleCodeFailed));
   };
 
   // Google without a popup comes back here with ?etapa=codigo (read once;
@@ -64,6 +72,8 @@ export function LoginForm() {
   const arrival = useTwoFactorChallengeQuery(undefined, { skip: !cameFromGoogle });
   const [arrivalDone, setArrivalDone] = useState(false);
   const current = challenge ?? (arrivalDone ? null : (arrival.data?.twoFactor ?? null));
+  const shownCodeError =
+    codeError ?? (cameFromGoogle && !arrivalDone && arrival.isError ? getErrorMessage(arrival.error, googleCodeFailed) : null);
   useEffect(() => {
     if (cameFromGoogle) window.history.replaceState(null, "", "/app/login");
   }, [cameFromGoogle]);
@@ -159,6 +169,13 @@ export function LoginForm() {
           exit={{ opacity: 0, x: -24 }}
           transition={{ duration: 0.2 }}
         >
+      {shownCodeError && (
+        <Alert variant="destructive">
+          <ShieldAlert />
+          <AlertTitle>Login com o Google não concluído</AlertTitle>
+          <AlertDescription>{shownCodeError}</AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <FieldGroup className="pb-6">
           <Controller

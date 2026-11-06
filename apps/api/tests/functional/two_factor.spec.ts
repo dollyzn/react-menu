@@ -212,7 +212,9 @@ test.group('Two-factor sign-in', (group) => {
       return body ? request.json(body) : request
     }
 
-    const setup = await account('post', '/setup')
+    const noPassword = await account('post', '/setup', { password: 'wrong-one' })
+    noPassword.assertStatus(422)
+    const setup = await account('post', '/setup', { password: PASSWORD })
     setup.assertStatus(200)
     const { secret, uri } = setup.body().data
     assert.match(uri, /^otpauth:\/\/totp\/React%20Menu:/)
@@ -297,5 +299,101 @@ test.group('Two-factor sign-in', (group) => {
       .get('/api/v1/__e2e/two-factor-code')
       .qs({ email: 'x@example.com' })
     response.assertStatus(404)
+  })
+
+  test('a right password can only open so many challenges; wrong codes add up across them', async ({
+    client,
+    assert,
+  }) => {
+    const user = await createUser({ password: PASSWORD })
+    mail.fake()
+    const login = () =>
+      client.post('/api/v1/auth/login').json({ email: user.email, password: PASSWORD })
+
+    // Wrong codes on different challenges count together (10 per hour).
+    for (let round = 0; round < 2; round++) {
+      const first = await login()
+      const challenge = first.cookie(CHALLENGE_COOKIE)!.value
+      for (let attempt = 0; attempt < 5; attempt++) {
+        await client
+          .post('/api/v1/auth/two-factor')
+          .withCookie(CHALLENGE_COOKIE, challenge)
+          .json({ code: '000000' })
+      }
+      // The fifth wrong code locks this one, and "Reenviar" doesn't unlock it.
+      const resend = await client
+        .post('/api/v1/auth/two-factor/resend')
+        .withCookie(CHALLENGE_COOKIE, challenge)
+      resend.assertStatus(429)
+    }
+    const third = await login()
+    const blocked = await client
+      .post('/api/v1/auth/two-factor')
+      .withCookie(CHALLENGE_COOKIE, third.cookie(CHALLENGE_COOKIE)!.value)
+      .json({ code: '000000' })
+    blocked.assertStatus(429)
+    blocked.assertBodyContains({ code: 'E_TWO_FACTOR_LOCKED' })
+
+    // Opening challenges is limited too (10 in 15 minutes): no inbox flood.
+    for (let i = 3; i < 10; i++) {
+      const allowed = await login()
+      allowed.assertStatus(200)
+    }
+    const tooMany = await login()
+    tooMany.assertStatus(429)
+    tooMany.assertBodyContains({ code: 'E_TWO_FACTOR_TOO_MANY' })
+    const challenges = await db.from('login_challenges').where('user_id', user.id)
+    assert.lengthOf(challenges, 10)
+  })
+
+  test('secrets and sign-in cookies are never kept for an idempotent replay', async ({
+    client,
+    assert,
+  }) => {
+    const user = await createUser({ password: PASSWORD })
+    const { session } = await signIn(client, { email: user.email, password: PASSWORD })
+    const key = 'two-factor-setup-key-1'
+    const setup = () =>
+      client
+        .post('/api/v1/account/two-factor/setup')
+        .withCookie(SESSION_COOKIE, session)
+        .header('idempotency-key', key)
+        .json({ password: PASSWORD })
+
+    const first = await setup()
+    first.assertStatus(200)
+    assert.equal(first.header('cache-control'), 'no-store')
+    const second = await setup()
+    second.assertStatus(200)
+    assert.isUndefined(second.header('idempotent-replayed'), 'ran again, not replayed')
+    assert.notEqual(second.body().data.secret, first.body().data.secret)
+
+    const login = await client
+      .post('/api/v1/auth/login')
+      .header('idempotency-key', 'login-key-123456')
+      .json({ email: user.email, password: PASSWORD })
+    assert.equal(login.header('cache-control'), 'no-store')
+  })
+
+  test('a session renewed past its 30-day trust is no longer marked trusted', async ({
+    client,
+    assert,
+  }) => {
+    const user = await createUser({ password: PASSWORD })
+    const { session } = await signIn(
+      client,
+      { email: user.email, password: PASSWORD },
+      { remember: true }
+    )
+    const list = () => client.get('/api/v1/account/sessions').withCookie(SESSION_COOKIE, session)
+    const fresh = await list()
+    assert.isTrue(fresh.body().data[0].trusted)
+
+    await db
+      .from('trusted_devices')
+      .where('user_id', user.id)
+      .update({ expires_at: DateTime.now().minus({ days: 1 }).toJSDate() })
+    const expired = await list()
+    assert.isFalse(expired.body().data[0].trusted)
   })
 })

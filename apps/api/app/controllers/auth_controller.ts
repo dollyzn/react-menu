@@ -9,7 +9,7 @@ import {
 import TwoFactorService from '#services/two_factor_service'
 import AuthService from '#services/auth_service'
 import PasswordResetService from '#services/password_reset_service'
-import { messageOnly, ok } from '#helpers/api_response'
+import { messageOnly, noStore, ok } from '#helpers/api_response'
 
 @inject()
 export default class AuthController {
@@ -21,6 +21,8 @@ export default class AuthController {
 
   async login({ request, response, auth }: HttpContext) {
     const data = await request.validateUsing(loginValidator)
+    // Sets cookies (challenge or session): a replay of the body alone would lose them.
+    noStore(response)
 
     const result = await this.authService.login(data, { request, response, auth })
 
@@ -34,6 +36,7 @@ export default class AuthController {
 
   async verifyTwoFactor({ request, response, auth }: HttpContext) {
     const data = await request.validateUsing(twoFactorValidator)
+    noStore(response)
     return ok(await this.authService.completeTwoFactor(data, { request, response, auth }))
   }
 

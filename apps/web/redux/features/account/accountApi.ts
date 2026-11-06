@@ -59,8 +59,9 @@ export const accountApi = baseApi.injectEndpoints({
       providesTags: ["TwoFactor"],
     }),
     /** A new secret to scan; nothing changes until `enableTwoFactor` gets a code from it. */
-    setupTwoFactor: build.mutation<{ secret: string; uri: string }, void>({
-      query: () => ({ url: "account/two-factor/setup", method: "POST" }),
+    /** Needs the password: a session alone can't tie the account to another phone. */
+    setupTwoFactor: build.mutation<{ secret: string; uri: string }, { password: string }>({
+      query: (body) => ({ url: "account/two-factor/setup", method: "POST", body }),
       extraOptions: { quiet: true },
     }),
     /** Returns the recovery codes (shown once). */

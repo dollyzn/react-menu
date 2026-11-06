@@ -197,8 +197,18 @@ function NewCodesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   const [regenerate, regenerating] = useRegenerateRecoveryCodesMutation();
   const [code, setCode] = useState("");
   const [codes, setCodes] = useState<string[] | null>(null);
+  const [kept, setKept] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shake, setShake] = useState(0);
+
+  // The new codes show only here: closing waits for "Guardei".
+  const changeOpen = (next: boolean) => {
+    if (!next && codes && !kept) {
+      toast.warning("Guarde os códigos de recuperação antes de fechar.");
+      return;
+    }
+    onOpenChange(next);
+  };
 
   const submit = async (value: string) => {
     try {
@@ -214,11 +224,12 @@ function NewCodesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
   return (
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={changeOpen}
       onOpenChangeComplete={(next) => {
         if (next) return;
         setCode("");
         setCodes(null);
+        setKept(false);
         setError(null);
       }}
     >
@@ -231,7 +242,7 @@ function NewCodesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
         </DialogHeader>
         <DialogBody>
           {codes ? (
-            <RecoveryCodes codes={codes} onDone={() => onOpenChange(false)} />
+            <RecoveryCodes codes={codes} kept={kept} onKeptChange={setKept} onDone={() => changeOpen(false)} />
           ) : (
             <div className="flex flex-col gap-3 pb-2">
               <CodeInput

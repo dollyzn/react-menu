@@ -82,7 +82,9 @@ export default class IdempotencyMiddleware {
     }
 
     const status = ctx.response.getStatus()
-    if (status >= 200 && status < 300) {
+    // Secrets or cookies in the answer (see noStore): never kept for a replay.
+    const noStore = String(ctx.response.getHeader('cache-control') ?? '').includes('no-store')
+    if (status >= 200 && status < 300 && !noStore) {
       const done: Entry = { state: 'done', fingerprint, status, body: ctx.response.getBody() }
       await redis.set(storageKey, JSON.stringify(done), 'EX', REPLAY_TTL_SECONDS)
     } else {

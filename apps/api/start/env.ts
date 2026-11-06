@@ -125,4 +125,11 @@ export default await Env.create(new URL('../', import.meta.url), {
    * production.
    */
   E2E_TEST_HOOKS: Env.schema.boolean.optional(),
+  /**
+   * Per user: sign-ins that reach the second step in 15 minutes, and wrong
+   * codes in an hour (defaults 10 and 10). The e2e run raises them: every
+   * test signs in as the same admin.
+   */
+  TWO_FACTOR_START_LIMIT: Env.schema.number.optional(),
+  TWO_FACTOR_FAILURE_LIMIT: Env.schema.number.optional(),
 })

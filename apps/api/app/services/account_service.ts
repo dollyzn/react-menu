@@ -1,13 +1,12 @@
 import { randomUUID } from 'node:crypto'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
-import hash from '@adonisjs/core/services/hash'
-import limiter from '@adonisjs/limiter/services/main'
 import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { UAParser } from 'ua-parser-js'
 import AppException from '#exceptions/app_exception'
 import { deleteUpload } from '#helpers/uploads'
+import { assertOwnPassword } from '#helpers/own_password'
 import type User from '#models/user'
 
 const AVATAR_PREFIX = 'avatars'
@@ -60,6 +59,14 @@ export default class AccountService {
         'trusted_device_id'
       )
 
+    // Trust lasts 30 days; a session renewed past that is no longer trusted.
+    const devices: { id: string }[] = await db
+      .from('trusted_devices')
+      .where('user_id', user.id)
+      .where('expires_at', '>', new Date())
+      .select('id')
+    const trusted = new Set(devices.map((device) => device.id))
+
     return rows
       .map((row) => ({
         id: Number(row.id),
@@ -69,8 +76,8 @@ export default class AccountService {
         signedInAt: new Date(row.signed_in_at ?? row.created_at).toISOString(),
         lastActiveAt: new Date(row.last_used_at ?? row.created_at).toISOString(),
         expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : null,
-        /** Signed in with "Confiar neste dispositivo": no second step there. */
-        trusted: Boolean(row.trusted_device_id),
+        /** Signed in with "Confiar neste dispositivo", still within its 30 days. */
+        trusted: Boolean(row.trusted_device_id && trusted.has(row.trusted_device_id)),
       }))
       .sort((a, b) =>
         a.current !== b.current
@@ -175,16 +182,7 @@ export default class AccountService {
     data: { currentPassword: string; password: string },
     currentId: string | number | undefined
   ) {
-    const guard = limiter.use({ requests: 5, duration: '15 min', blockDuration: '15 min' })
-    const key = `change_password_${user.id}`
-    const [error] = await guard.penalize(key, async () => {
-      if (!(await hash.verify(user.password, data.currentPassword))) {
-        throw new AppException('A senha atual não confere.', 422, 'E_WRONG_PASSWORD')
-      }
-    })
-    if (error) {
-      throw new AppException('Muitas tentativas. Tente de novo em alguns minutos.', 429)
-    }
+    await assertOwnPassword(user, data.currentPassword, 'A senha atual não confere.')
 
     await db.transaction(async (trx) => {
       user.useTransaction(trx)

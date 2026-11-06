@@ -1,7 +1,6 @@
 import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
 import type { HttpContext } from '@adonisjs/core/http'
 import app from '@adonisjs/core/services/app'
-import hash from '@adonisjs/core/services/hash'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import mail from '@adonisjs/mail/services/main'
@@ -9,6 +8,8 @@ import { DateTime } from 'luxon'
 import * as OTPAuth from 'otpauth'
 import env from '#start/env'
 import AppException from '#exceptions/app_exception'
+import { assertOwnPassword } from '#helpers/own_password'
+import limiter from '@adonisjs/limiter/services/main'
 import SignInCodeNotification from '#mails/sign_in_code_notification'
 import User from '#models/user'
 import { describeDevice } from '#services/account_service'
@@ -23,6 +24,10 @@ const MAX_ATTEMPTS = 5
 const MAX_SENDS = 5
 const RESEND_SECONDS = 60
 const RECOVERY_CODES = 10
+/** Per user, whatever the browser or IP: sign-ins that reach the second step… */
+const STARTS_PER_15_MIN = () => env.get('TWO_FACTOR_START_LIMIT', 10)
+/** …and wrong codes across all of their challenges. */
+const FAILURES_PER_HOUR = () => env.get('TWO_FACTOR_FAILURE_LIMIT', 10)
 const ISSUER = 'React Menu'
 
 export type TwoFactorMethod = 'email' | 'totp'
@@ -109,6 +114,21 @@ export default class TwoFactorService {
     const trusted = await this.trustedDevice(user, ctx)
     if (trusted) return { trustedDeviceId: trusted }
 
+    // A right password opens a challenge (and e-mails a code): without this,
+    // whoever has the password could loop it for fresh attempts and flood
+    // the inbox.
+    try {
+      await limiter
+        .use({ requests: STARTS_PER_15_MIN(), duration: '15 min' })
+        .consume(`two_factor_start_${user.id}`)
+    } catch {
+      throw new AppException(
+        'Muitas tentativas de login. Tente de novo em alguns minutos.',
+        429,
+        'E_TWO_FACTOR_TOO_MANY'
+      )
+    }
+
     const token = randomBytes(32).toString('base64url')
     const method: TwoFactorMethod = user.twoFactorEnabled ? 'totp' : 'email'
     const expiresAt = DateTime.now().plus({ minutes: CHALLENGE_MINUTES })
@@ -129,7 +149,7 @@ export default class TwoFactorService {
       secure: app.inProduction,
       maxAge: CHALLENGE_MINUTES * 60,
     })
-    if (method === 'email') await this.sendCode(user, row.id, ctx)
+    if (method === 'email') await this.mailCode(user, await this.issueCode(row.id), ctx)
     return { challenge: await this.describe(row.id) }
   }
 
@@ -145,8 +165,24 @@ export default class TwoFactorService {
    * with `remember`, a new trusted device for this browser.
    */
   async verify(ctx: Ctx, input: { code: string; recovery?: boolean; remember?: boolean }) {
+    const failures = limiter.use({
+      requests: FAILURES_PER_HOUR(),
+      duration: '1 hour',
+      blockDuration: '1 hour',
+    })
     const result = await db.transaction(async (trx) => {
       const row = await this.findChallenge(ctx, trx)
+      const failuresKey = `two_factor_fail_${row.user_id}`
+      if (
+        (await failures.isBlocked(failuresKey)) ||
+        (await failures.remaining(failuresKey)) === 0
+      ) {
+        throw new AppException(
+          'Muitos códigos errados nesta conta. Tente de novo mais tarde.',
+          429,
+          'E_TWO_FACTOR_LOCKED'
+        )
+      }
       if (row.attempts >= MAX_ATTEMPTS) {
         throw new AppException(
           'Muitas tentativas com este código. Entre de novo para receber outro.',
@@ -165,6 +201,7 @@ export default class TwoFactorService {
       if (!ok) {
         // Counted in the committed transaction; the error comes after it.
         await trx.from('login_challenges').where('id', row.id).increment('attempts', 1)
+        await failures.consume(failuresKey).catch(() => undefined)
         return { ok: false as const, left: MAX_ATTEMPTS - row.attempts - 1 }
       }
 
@@ -186,37 +223,58 @@ export default class TwoFactorService {
     return { user: result.user, trustedDeviceId: result.trustedDeviceId }
   }
 
-  /** A new e-mail code for the pending challenge (once a minute, a few times). */
+  /**
+   * A new e-mail code for the pending challenge (once a minute, a few times).
+   * The row is locked, so parallel requests can't all pass the limits, and a
+   * challenge locked by wrong codes stays locked (attempts are not reset).
+   */
   async resend(ctx: Ctx) {
-    const row = await this.findChallenge(ctx)
-    if (row.method !== 'email') {
-      throw new AppException('Use o código do seu app autenticador.', 422)
-    }
-    if (row.sends >= MAX_SENDS) {
-      throw new AppException('Limite de reenvios. Entre de novo para receber outro código.', 429)
-    }
-    if (
-      row.last_sent_at &&
-      DateTime.fromJSDate(row.last_sent_at).plus({ seconds: RESEND_SECONDS }) > DateTime.now()
-    ) {
-      throw new AppException('Aguarde um pouco para pedir outro código.', 429)
-    }
-    const user = await User.findOrFail(row.user_id)
-    await this.sendCode(user, row.id, ctx)
-    return this.describe(row.id)
+    const { user, challengeId, code } = await db.transaction(async (trx) => {
+      const row = await this.findChallenge(ctx, trx)
+      if (row.method !== 'email') {
+        throw new AppException('Use o código do seu app autenticador.', 422)
+      }
+      if (row.attempts >= MAX_ATTEMPTS) {
+        throw new AppException(
+          'Muitas tentativas com este código. Entre de novo para receber outro.',
+          429,
+          'E_TWO_FACTOR_LOCKED'
+        )
+      }
+      if (row.sends >= MAX_SENDS) {
+        throw new AppException('Limite de reenvios. Entre de novo para receber outro código.', 429)
+      }
+      if (
+        row.last_sent_at &&
+        DateTime.fromJSDate(row.last_sent_at).plus({ seconds: RESEND_SECONDS }) > DateTime.now()
+      ) {
+        throw new AppException('Aguarde um pouco para pedir outro código.', 429)
+      }
+      return {
+        user: await User.findOrFail(row.user_id, { client: trx }),
+        challengeId: row.id,
+        code: await this.issueCode(row.id, trx),
+      }
+    })
+    await this.mailCode(user, code, ctx)
+    return this.describe(challengeId)
   }
 
-  private async sendCode(user: User, challengeId: string, ctx: Ctx) {
+  /** A new code for the challenge (the previous one stops working). */
+  private async issueCode(challengeId: string, trx?: TransactionClientContract) {
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
-    await db
+    await (trx ?? db)
       .from('login_challenges')
       .where('id', challengeId)
       .update({
         code_hash: codeHash(challengeId, code),
         last_sent_at: new Date(),
-        attempts: 0,
         sends: db.raw('sends + 1'),
       })
+    return code
+  }
+
+  private async mailCode(user: User, code: string, ctx: Ctx) {
     if (env.get('E2E_TEST_HOOKS')) e2eCodes.set(user.email.toLowerCase(), code)
     await mail.sendLater(
       new SignInCodeNotification({ email: user.email, name: user.name }, code, {
@@ -313,7 +371,10 @@ export default class TwoFactorService {
   // ---- Authenticator app (TOTP) ------------------------------------------
 
   /** A new secret to scan; it only takes effect once `enable` gets a code from it. */
-  async setup(user: User) {
+  async setup(user: User, password: string) {
+    // A session left open must not be enough to tie the account to someone
+    // else's phone (and lock the owner out).
+    await assertOwnPassword(user, password)
     if (user.twoFactorEnabled) {
       throw new AppException('O app autenticador já está configurado.', 409)
     }
@@ -350,9 +411,7 @@ export default class TwoFactorService {
 
   /** Back to e-mail codes. Needs the password; trusted devices are forgotten. */
   async disable(user: User, password: string) {
-    if (!(await hash.verify(user.password, password))) {
-      throw new AppException('A senha não confere.', 422, 'E_WRONG_PASSWORD')
-    }
+    await assertOwnPassword(user, password)
     await db.transaction(async (trx) => {
       user.useTransaction(trx)
       user.merge({
@@ -419,10 +478,16 @@ export default class TwoFactorService {
   private async checkTotp(user: User, code: string, trx: TransactionClientContract) {
     if (!user.twoFactorSecret) return false
     const step = this.matchStep(user.twoFactorSecret, user.email, code)
-    if (step === null || (user.twoFactorLastStep !== null && step <= user.twoFactorLastStep)) {
-      return false
-    }
-    await trx.from('users').where('id', user.id).update({ two_factor_last_step: step })
+    if (step === null) return false
+    // Atomic: two sign-ins racing with the same code can't both win.
+    const updated = await trx
+      .from('users')
+      .where('id', user.id)
+      .where((query) =>
+        query.whereNull('two_factor_last_step').orWhere('two_factor_last_step', '<', step)
+      )
+      .update({ two_factor_last_step: step })
+    if (Number(Array.isArray(updated) ? updated[0] : updated) === 0) return false
     user.twoFactorLastStep = step
     return true
   }
