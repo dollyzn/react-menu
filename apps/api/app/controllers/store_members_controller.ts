@@ -3,7 +3,11 @@ import { inject } from '@adonisjs/core'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
 import StoreMemberService from '#services/store_member_service'
 import { storeExistValidator, uuidValidator } from '#validators/common'
-import { addMemberValidator, updateMemberValidator } from '#validators/store_member'
+import {
+  addMemberValidator,
+  memberAccessValidator,
+  updateMemberValidator,
+} from '#validators/store_member'
 
 /** The store's team (managers only, see routes). */
 @inject()
@@ -44,6 +48,30 @@ export default class StoreMembersController {
     const { role } = await request.validateUsing(updateMemberValidator)
 
     return updated(await this.members.changeRole(storeId, userId, role), 'Função atualizada')
+  }
+
+  async access({ params, request, auth }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const userId = await uuidValidator.validate(params.userId)
+    const { enabled } = await request.validateUsing(memberAccessValidator)
+
+    const member = await this.members.setAccess(storeId, userId, enabled, auth.getUserOrFail())
+
+    return updated(member, enabled ? 'Acesso reativado' : 'Acesso desativado e sessões encerradas')
+  }
+
+  async revokeSessions({ params, auth }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const userId = await uuidValidator.validate(params.userId)
+
+    const ended = await this.members.revokeSessions(storeId, userId, auth.getUserOrFail())
+
+    return updated(
+      { ended },
+      ended === 0
+        ? 'Nenhuma sessão aberta.'
+        : `${ended} ${ended === 1 ? 'sessão encerrada' : 'sessões encerradas'}`
+    )
   }
 
   async destroy({ params }: HttpContext) {

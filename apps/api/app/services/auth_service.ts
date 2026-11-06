@@ -10,6 +10,7 @@ import { inject } from '@adonisjs/core'
 import TwoFactorService from '#services/two_factor_service'
 import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
+import { UserStatusEnum } from '#enums/user_status'
 
 type LoginPayload = {
   email: string
@@ -101,6 +102,8 @@ export default class AuthService {
    * gets the second step (`twoFactor`: an e-mail code or the authenticator).
    */
   async afterFirstFactor(user: User, ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>) {
+    // Before the second step: no code is sent to someone who can't get in.
+    await this.assertCanSignIn(user)
     const next = await this.twoFactor.start(user, ctx)
     if ('challenge' in next) return { twoFactor: next.challenge }
     const serializedToken = await this.createSession(user, ctx, {
@@ -115,8 +118,34 @@ export default class AuthService {
     ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>
   ) {
     const { user, trustedDeviceId } = await this.twoFactor.verify(ctx, input)
+    // Access may have changed while the code was on its way.
+    await this.assertCanSignIn(user)
     const serializedToken = await this.createSession(user, ctx, { trustedDeviceId })
     return { user: await this.sessionUser(user, serializedToken.expiresAt) }
+  }
+
+  /**
+   * Why this account can't open a session, or null. Staff need an active
+   * account and at least one store they can access (super users see all).
+   */
+  async signInBlocker(user: User): Promise<string | null> {
+    if (user.status !== UserStatusEnum.ACTIVE) {
+      return 'Sua conta está inativa. Entre em contato com o administrador.'
+    }
+    if (user.superUser) return null
+    const store = await db
+      .from('store_user')
+      .where('user_id', user.id)
+      .whereNull('disabled_at')
+      .first()
+    return store
+      ? null
+      : 'Você não tem acesso a nenhuma loja no momento. Fale com a gerência da loja.'
+  }
+
+  private async assertCanSignIn(user: User) {
+    const blocker = await this.signInBlocker(user)
+    if (blocker) throw new AppException(blocker, 403, 'E_NO_STORE_ACCESS')
   }
 
   async logout(response: HttpContext['response'], auth: HttpContext['auth']) {
@@ -136,6 +165,13 @@ export default class AuthService {
     ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>
   ) {
     const current = user.currentAccessToken
+    // Lost every store (or the account was switched off) while signed in:
+    // the session ends here, and the panel shows the login.
+    if (await this.signInBlocker(user)) {
+      if (current) await User.accessTokens.delete(user, current.identifier)
+      this.clearAuthCookie(ctx.response)
+      throw new AppException('Sessão encerrada.', 401, 'E_UNAUTHORIZED_ACCESS')
+    }
     const expiresAt = current?.expiresAt
     if (this.sendCookie && current && expiresAt && this.shouldRenew(expiresAt)) {
       const row = await db
@@ -160,7 +196,10 @@ export default class AuthService {
   /** SessionUser contract: the user, its permissions, and each store with its role. */
   private async sessionUser(user: User, tokenExpiresAt: Date | null | undefined) {
     await user.load((loader) =>
-      loader.preload('stores').preload('role', (query) => query.preload('permissions'))
+      loader
+        // A store whose managers switched them off disappears from the panel.
+        .preload('stores', (query) => query.whereNullPivot('disabled_at'))
+        .preload('role', (query) => query.preload('permissions'))
     )
 
     return {

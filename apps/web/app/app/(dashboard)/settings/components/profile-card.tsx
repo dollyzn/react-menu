@@ -149,7 +149,7 @@ export function ProfileCard({ user }: { user: User }) {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="profile-name">Nome</FieldLabel>
-                  <Input {...field} id="profile-name" autoComplete="name" aria-invalid={fieldState.invalid} disabled={saving.isLoading} />
+                  <Input {...field} id="profile-name" autoComplete="name" placeholder="Como você aparece no painel" aria-invalid={fieldState.invalid} disabled={saving.isLoading} />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}
@@ -162,7 +162,14 @@ export function ProfileCard({ user }: { user: User }) {
                   <Lock aria-hidden />
                 </InputGroupAddon>
               </InputGroup>
-              <FieldDescription>É o seu login. Para trocar, fale com um administrador.</FieldDescription>
+              <FieldDescription>
+                É o seu login. Para trocar, fale com um administrador.{" "}
+                {user.emailVerifiedAt
+                  ? "Endereço verificado."
+                  : user.twoFactorEnabled
+                    ? "Ainda não verificado: um link de \"Esqueci minha senha\" confirma o endereço."
+                    : "Ainda não verificado: o código do próximo login confirma o endereço."}
+              </FieldDescription>
             </Field>
           </FieldGroup>
 

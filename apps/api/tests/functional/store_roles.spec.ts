@@ -89,6 +89,30 @@ test.group('Store roles', (group) => {
 
     create.assertStatus(200)
   })
+
+  test('managers choose whether a category goes to the kitchen', async ({ client }) => {
+    const store = await createStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    const drinks = await client
+      .post(`/api/v1/stores/${store.id}/categories`)
+      .json({ name: 'Bebidas', requiresPreparation: false })
+      .loginAs(manager)
+    const pastries = await client
+      .post(`/api/v1/stores/${store.id}/categories`)
+      .json({ name: 'Pastéis' })
+      .loginAs(manager)
+    const changed = await client
+      .put(`/api/v1/stores/${store.id}/categories/${pastries.body().data.id}`)
+      .json({ requiresPreparation: false })
+      .loginAs(manager)
+
+    drinks.assertBodyContains({ data: { requiresPreparation: false } })
+    // Default: prepared in the kitchen.
+    pastries.assertBodyContains({ data: { requiresPreparation: true } })
+    changed.assertBodyContains({ data: { name: 'Pastéis', requiresPreparation: false } })
+  })
 })
 
 test.group('Store settings', (group) => {

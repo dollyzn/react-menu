@@ -121,6 +121,8 @@ export type User = {
   superUser: boolean;
   /** An authenticator app is set up (otherwise sign-ins get an e-mail code). */
   twoFactorEnabled: boolean;
+  /** When they proved the address (invite/reset link, e-mail code, Google). */
+  emailVerifiedAt: string | null;
   createdAt: string;
   updatedAt: string;
   role?: Role | null;
@@ -233,4 +235,16 @@ export type StoreMember = {
   since: string;
   /** Invited and hasn't set a password or signed in yet (the invite can be resent). */
   invitePending: boolean;
+  /** When the pending invite's link stops working (null when none is pending). */
+  inviteExpiresAt: string | null;
+  /** Proved the address (accepted the invite, an e-mail code, Google). */
+  emailVerified: boolean;
+  avatarUrl: string | null;
+  /** Active in the panel in the last couple of minutes. */
+  online: boolean;
+  lastSeenAt: string | null;
+  /** Access to this store switched off by a manager (null: active). */
+  disabledAt: string | null;
+  /** Platform admin: always has access, can't be switched off here. */
+  superUser: boolean;
 };

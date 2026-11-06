@@ -12,6 +12,7 @@ import { assertOwnPassword } from '#helpers/own_password'
 import limiter from '@adonisjs/limiter/services/main'
 import SignInCodeNotification from '#mails/sign_in_code_notification'
 import User from '#models/user'
+import { markEmailVerified } from '#helpers/user_activity'
 import { describeDevice } from '#services/account_service'
 
 /** Cookie with the token of a sign-in waiting for its second step. */
@@ -206,6 +207,8 @@ export default class TwoFactorService {
       }
 
       await trx.from('login_challenges').where('id', row.id).update({ consumed_at: new Date() })
+      // A code read from the inbox proves the address.
+      if (row.method === 'email' && !input.recovery) await markEmailVerified(found.id, trx)
       const trust = input.remember ? await this.trust(found, ctx, trx) : null
       return { ok: true as const, user: found, trustedDeviceId: trust }
     })

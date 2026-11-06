@@ -1,71 +1,157 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { MailPlus, UserMinus, Users } from "lucide-react";
+import { LogOut, ShieldOff, Users } from "lucide-react";
 import type { StoreMember, StoreRole } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 import { useAppSelector } from "@/redux/hooks";
 import {
   useGetMembersQuery,
   useRemoveMemberMutation,
   useResendInviteMutation,
+  useRevokeMemberSessionsMutation,
+  useSetMemberAccessMutation,
   useUpdateMemberRoleMutation,
 } from "@/redux/features/store/membersApi";
 import { ManagementPageShell } from "../components/management-page-shell";
 import { AddMemberDialog } from "./add-member-dialog";
-import { ROLE_ITEMS, ROLES } from "./roles";
+import { MemberRow, memberName, type MemberActions } from "./member-row";
+import { ROLES } from "./roles";
 import { useLastValue } from "@/hooks/use-last-value";
 
-const initials = (member: StoreMember) =>
-  (member.name ?? member.email)
-    .split(/[\s@.]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]!.toUpperCase())
-    .join("");
+type Confirm = { kind: "remove" | "disable" | "sessions"; member: StoreMember };
+
+/** Online status comes from the panel's heartbeat; refresh it while the page is open. */
+const REFRESH_MS = 30_000;
+
+/** A clock for "visto há…" (client only: the list loads after hydration). */
+function useNow(every = 60_000) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), every);
+    return () => window.clearInterval(timer);
+  }, [every]);
+  return now;
+}
 
 export default function MembersPage() {
   const { store: storeId } = useParams<{ store: string }>();
   const me = useAppSelector((state) => state.auth.user?.id);
-  const { data: members = [], isLoading } = useGetMembersQuery(storeId);
+  const { data: members = [], isLoading, fulfilledTimeStamp } = useGetMembersQuery(storeId, {
+    pollingInterval: REFRESH_MS,
+  });
+  const clock = useNow();
+  // A fresh list also moves the clock (online/last seen are relative to it).
+  const now = Math.max(clock, fulfilledTimeStamp ?? 0);
   const [updateRole] = useUpdateMemberRoleMutation();
-  const [remove, { isLoading: removing }] = useRemoveMemberMutation();
+  const [remove, removing] = useRemoveMemberMutation();
   const [resendInvite, resending] = useResendInviteMutation();
-  const [toRemove, setRemoving] = useState<StoreMember | null>(null);
-  const removeShown = useLastValue(toRemove);
+  const [setAccess, settingAccess] = useSetMemberAccessMutation();
+  const [revokeSessions, revoking] = useRevokeMemberSessionsMutation();
+  const [confirm, setConfirm] = useState<Confirm | null>(null);
+  const shown = useLastValue(confirm);
+  const online = members.filter((member) => member.online).length;
 
-  const changeRole = async (member: StoreMember, role: StoreRole) => {
-    if (role === member.role) return;
+  const actions: MemberActions = {
+    changeRole: async (member, role: StoreRole) => {
+      if (role === member.role) return;
+      try {
+        await updateRole({ storeId, userId: member.id, role }).unwrap();
+        toast.success(`${memberName(member)} agora é ${ROLES[role].label.toLowerCase()}`);
+      } catch {
+        // baseApi shows the reason (e.g. the last manager).
+      }
+    },
+    resendInvite: async (member) => {
+      try {
+        await resendInvite({ storeId, userId: member.id }).unwrap();
+        toast.success(`Convite reenviado para ${member.email}`);
+      } catch {
+        // baseApi shows the reason.
+      }
+    },
+    enable: async (member) => {
+      try {
+        await setAccess({ storeId, userId: member.id, enabled: true }).unwrap();
+        toast.success(`${memberName(member)} pode acessar a loja de novo`);
+      } catch {
+        // baseApi shows the reason.
+      }
+    },
+    disable: (member) => setConfirm({ kind: "disable", member }),
+    endSessions: (member) => setConfirm({ kind: "sessions", member }),
+    remove: (member) => setConfirm({ kind: "remove", member }),
+  };
+
+  const runConfirmed = async () => {
+    if (!confirm) return;
+    const { kind, member } = confirm;
     try {
-      await updateRole({ storeId, userId: member.id, role }).unwrap();
-      toast.success(`${member.name ?? member.email} agora é ${ROLES[role].label.toLowerCase()}`);
+      if (kind === "remove") {
+        await remove({ storeId, userId: member.id }).unwrap();
+        toast.success("Removido da equipe");
+      } else if (kind === "disable") {
+        await setAccess({ storeId, userId: member.id, enabled: false }).unwrap();
+        toast.success(`Acesso de ${memberName(member)} desativado`);
+      } else {
+        const { ended } = await revokeSessions({ storeId, userId: member.id }).unwrap();
+        toast.success(
+          ended === 0 ? "Nenhuma sessão aberta" : `${ended} ${ended === 1 ? "sessão encerrada" : "sessões encerradas"}`,
+        );
+      }
     } catch {
       // baseApi shows the reason (e.g. the last manager).
     }
+    setConfirm(null);
   };
 
-  const resend = async (member: StoreMember) => {
-    try {
-      await resendInvite({ storeId, userId: member.id }).unwrap();
-      toast.success(`Convite reenviado para ${member.email}`);
-    } catch {
-      // baseApi shows the reason.
-    }
-  };
+  const shownName = shown ? memberName(shown.member) : "";
+  const dialog = !shown
+    ? null
+    : shown.kind === "remove"
+      ? {
+          title: shown.member.id === me ? "Sair da equipe desta loja?" : `Remover ${shownName} da equipe?`,
+          description:
+            shown.member.id === me
+              ? "Você perde o acesso a esta loja na hora."
+              : "A pessoa perde o acesso a esta loja na hora. A conta continua existindo.",
+          confirmLabel: shown.member.id === me ? "Sair" : "Remover",
+          icon: undefined,
+        }
+      : shown.kind === "disable"
+        ? {
+            title: `Desativar o acesso de ${shownName}?`,
+            description:
+              "A pessoa sai do painel desta loja na hora e as sessões abertas dela são encerradas. Ela continua na equipe com a mesma função, e você pode reativar quando quiser.",
+            confirmLabel: "Desativar",
+            icon: <ShieldOff />,
+          }
+        : {
+            title: `Encerrar as sessões de ${shownName}?`,
+            description:
+              "Todos os aparelhos conectados saem do painel. O acesso continua: a pessoa pode entrar de novo com a senha e o código.",
+            confirmLabel: "Encerrar sessões",
+            icon: <LogOut />,
+          };
 
   return (
     <ManagementPageShell
       storeId={storeId}
       pageLabel="Equipe"
-      description="Quem acessa o painel desta loja e o que cada pessoa pode fazer."
+      description="Quem acessa o painel desta loja, o que cada pessoa pode fazer e quem está online."
       action={<AddMemberDialog storeId={storeId} />}
     >
+      {!isLoading && members.length > 0 && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
+          <span aria-hidden className={cn("size-2 rounded-full", online ? "bg-success" : "bg-muted-foreground/40")} />
+          {members.length} {members.length === 1 ? "pessoa" : "pessoas"} ·{" "}
+          {online === 0 ? "ninguém online agora" : `${online} online agora`}
+        </p>
+      )}
       <ul className="divide-y rounded-2xl border bg-card" aria-label="Membros da equipe" aria-busy={isLoading}>
         {isLoading &&
           Array.from({ length: 3 }).map((_, index) => (
@@ -79,64 +165,16 @@ export default function MembersPage() {
             Ninguém na equipe ainda.
           </li>
         )}
-        {members.map((member) => {
-          const isMe = member.id === me;
-          const Icon = ROLES[member.role].icon;
-          return (
-            <li key={member.id} className="flex flex-wrap items-center gap-3 p-4" aria-label={member.name ?? member.email}>
-              <span
-                aria-hidden
-                className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary"
-              >
-                {initials(member)}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-2 truncate font-medium">
-                  {member.name ?? member.email}
-                  {isMe && <Badge variant="secondary">Você</Badge>}
-                  {member.invitePending && <Badge variant="outline">Convite pendente</Badge>}
-                </p>
-                <p className="truncate text-sm text-muted-foreground">{member.email}</p>
-              </div>
-              <Select
-                items={ROLE_ITEMS}
-                value={member.role}
-                onValueChange={(value) => void changeRole(member, value as StoreRole)}
-              >
-                <SelectTrigger className="w-40" aria-label={`Função de ${member.name ?? member.email}`}>
-                  <Icon className="text-muted-foreground" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {ROLE_ITEMS.map((item) => (
-                    <SelectItem key={item.value} value={item.value}>
-                      {item.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {member.invitePending && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={resending.isLoading && resending.originalArgs?.userId === member.id}
-                  onClick={() => void resend(member)}
-                >
-                  <MailPlus /> Reenviar convite
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground hover:text-destructive"
-                aria-label={`Remover ${member.name ?? member.email} da equipe`}
-                onClick={() => setRemoving(member)}
-              >
-                <UserMinus />
-              </Button>
-            </li>
-          );
-        })}
+        {members.map((member) => (
+          <MemberRow
+            key={member.id}
+            member={member}
+            isMe={member.id === me}
+            now={now}
+            actions={actions}
+            resending={resending.isLoading && resending.originalArgs?.userId === member.id}
+          />
+        ))}
       </ul>
 
       <dl className="grid gap-3 text-sm sm:grid-cols-3">
@@ -154,26 +192,14 @@ export default function MembersPage() {
       </dl>
 
       <AlertDialogDestructive
-        open={Boolean(toRemove)}
-        onOpenChange={(open) => !open && setRemoving(null)}
-        loading={removing}
-        title={`Remover ${removeShown?.name ?? removeShown?.email} da equipe?`}
-        description={
-          removeShown?.id === me
-            ? "Você perde o acesso a esta loja na hora."
-            : "A pessoa perde o acesso a esta loja na hora. A conta continua existindo."
-        }
-        confirmLabel="Remover"
-        onConfirm={async () => {
-          if (!toRemove) return;
-          try {
-            await remove({ storeId, userId: toRemove.id }).unwrap();
-            toast.success("Removido da equipe");
-          } catch {
-            // baseApi shows the reason (e.g. the last manager).
-          }
-          setRemoving(null);
-        }}
+        open={Boolean(confirm)}
+        onOpenChange={(open) => !open && setConfirm(null)}
+        loading={removing.isLoading || settingAccess.isLoading || revoking.isLoading}
+        title={dialog?.title ?? ""}
+        description={dialog?.description ?? ""}
+        confirmLabel={dialog?.confirmLabel}
+        icon={dialog?.icon}
+        onConfirm={() => void runConfirmed()}
       />
     </ManagementPageShell>
   );

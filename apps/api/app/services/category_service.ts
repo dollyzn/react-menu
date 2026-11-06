@@ -32,7 +32,11 @@ export default class CategoryService {
       const maxOrder = await this.repo.getMaxOrderByStore(storeId)
       const nextOrder = maxOrder + 1
 
-      return await this.repo.create({ ...data, order: nextOrder }, trx)
+      // Explicit, so the answer carries it (the column default isn't read back).
+      return await this.repo.create(
+        { ...data, requiresPreparation: data.requiresPreparation ?? true, order: nextOrder },
+        trx
+      )
     })
   }
 

@@ -3,6 +3,7 @@ import AppHeader from "@/components/app/layout/app-header";
 import AppSidebar from "@/components/app/layout/app-sidebar";
 import RequireAuth from "@/components/app/auth/require-auth";
 import SessionExpiredModal from "@/components/app/session-expired-modal";
+import { PresenceHeartbeat } from "@/components/app/presence-heartbeat";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 interface AppLayoutProps {
@@ -23,6 +24,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         </SidebarInset>
       </SidebarProvider>
       <SessionExpiredModal />
+      <PresenceHeartbeat />
     </RequireAuth>
   );
 }

@@ -89,6 +89,14 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare invitePending: boolean
 
+  /** Proved they read this inbox (invite/reset link, e-mail code, Google). */
+  @column.dateTime()
+  declare emailVerifiedAt: DateTime | null
+
+  /** Last authenticated activity (the panel pings while open); see presence.ts. */
+  @column.dateTime({ serializeAs: null })
+  declare lastSeenAt: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -104,7 +112,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @hasMany(() => UserSocialAccount)
   declare socialAccounts: HasMany<typeof UserSocialAccount>
 
-  /** Pivot `role`: StoreRole of the user in each store. */
+  /**
+   * Pivot `role`: StoreRole of the user in each store. `disabled_at` set by
+   * the store's managers switches that store off for them (see `activeStores`).
+   */
   @manyToMany(() => Store, { pivotColumns: ['role'] })
   declare stores: ManyToMany<typeof Store>
 
@@ -127,6 +138,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
       .related('stores')
       .query()
       .where('stores.id', storeId)
+      .whereNullPivot('disabled_at')
       .select('stores.id')
       .first()
 
@@ -141,6 +153,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
       .related('stores')
       .query()
       .where('stores.id', storeId)
+      .whereNullPivot('disabled_at')
       .select('stores.id')
       .first()
 

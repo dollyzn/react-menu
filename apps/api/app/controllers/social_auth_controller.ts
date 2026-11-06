@@ -9,6 +9,7 @@ import AppException from '#exceptions/app_exception'
 import { ok } from '#helpers/api_response'
 import { enabledSocialProviders, isEnabledSocialProvider } from '#helpers/social_providers'
 import { UserStatusEnum } from '#enums/user_status'
+import { markEmailVerified } from '#helpers/user_activity'
 import { DateTime } from 'luxon'
 import { GoogleDriver } from '@adonisjs/ally/drivers/google'
 import { TwitterDriver } from '@adonisjs/ally/drivers/twitter'
@@ -71,8 +72,12 @@ export default class SocialAuthController {
       if (user.status !== UserStatusEnum.ACTIVE) {
         return redirect('Esta conta está desativada. Fale com a gerência da loja.')
       }
+      const blocker = await this.authService.signInBlocker(user)
+      if (blocker) return redirect(blocker)
 
       await this.saveOrUpdateSocialAccount(provider, socialUser, user.id)
+      // The provider vouches for the address.
+      if (socialUser.emailVerificationState === 'verified') await markEmailVerified(user.id)
       // Google is the first factor only: the second step (cookie set here)
       // continues on the login page, unless this device is trusted.
       const result = await this.authService.afterFirstFactor(user, { request, response, auth })
