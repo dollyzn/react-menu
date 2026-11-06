@@ -6,7 +6,7 @@ import User from '#models/user'
 import Notification from '#models/notification'
 import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
-import { createStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { createStaff, createStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { SESSION_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 async function storeWithManager() {
@@ -150,7 +150,7 @@ test.group('Store members', (group) => {
   })
 
   test('signing in also settles a pending invite', async ({ client, assert }) => {
-    const user = await createUser({ password: 'secret123' })
+    const user = await createStaff({ password: 'secret123' })
     user.invitePending = true
     await user.save()
 
@@ -211,7 +211,7 @@ test.group('Store members', (group) => {
   })
 
   test('the e-mail sign-in code verifies the address', async ({ client, assert }) => {
-    const user = await createUser({ password: 'secret123' })
+    const user = await createStaff({ password: 'secret123' })
     assert.notExists(user.emailVerifiedAt)
 
     await signIn(client, { email: user.email, password: 'secret123' })
@@ -347,5 +347,69 @@ test.group('Store members', (group) => {
     const stillMember = await client.get(`/api/v1/stores/${store.id}/orders`).loginAs(attendant)
     oldSession.assertStatus(401)
     stillMember.assertStatus(200)
+  })
+
+  test('without a store to access, the account cannot sign in', async ({ client, assert }) => {
+    const fake = mail.fake()
+    const loose = await createUser({ password: 'secret123' })
+    const admin = await createUser({ password: 'secret123', superUser: true })
+    const { store, manager } = await storeWithManager()
+    const disabled = await createUser({ password: 'secret123' })
+    await linkUser(store, disabled, StoreRole.ATTENDANT)
+    await client
+      .put(`/api/v1/stores/${store.id}/members/${disabled.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+
+    const noStore = await client
+      .post('/api/v1/auth/login')
+      .json({ email: loose.email, password: 'secret123' })
+    const onlyDisabled = await client
+      .post('/api/v1/auth/login')
+      .json({ email: disabled.email, password: 'secret123' })
+    const wrongPassword = await client
+      .post('/api/v1/auth/login')
+      .json({ email: loose.email, password: 'wrong-password' })
+
+    noStore.assertStatus(403)
+    noStore.assertBodyContains({ code: 'E_NO_STORE_ACCESS' })
+    onlyDisabled.assertStatus(403)
+    // Only after the right password: it doesn't tell who has an account.
+    wrongPassword.assertStatus(400)
+    // No code is sent to someone who can't get in.
+    assert.lengthOf(fake.mails.queued(), 0)
+    mail.restore()
+    // Super users see every store.
+    const { response } = await signIn(client, { email: admin.email, password: 'secret123' })
+    response.assertStatus(200)
+  })
+
+  test('losing the last store ends the open session', async ({ client }) => {
+    const { store, manager } = await storeWithManager()
+    const other = await storeWithManager()
+    const attendant = await createUser({ password: 'secret123' })
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    await linkUser(other.store, attendant, StoreRole.ATTENDANT)
+    const { session } = await signIn(client, { email: attendant.email, password: 'secret123' })
+
+    // Removed from one store: the other keeps the session going.
+    await client.delete(`/api/v1/stores/${store.id}/members/${attendant.id}`).loginAs(manager)
+    const stillIn = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
+    // Removed from the last one: signed out.
+    await client
+      .delete(`/api/v1/stores/${other.store.id}/members/${attendant.id}`)
+      .loginAs(other.manager)
+    const out = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
+
+    stillIn.assertStatus(200)
+    out.assertStatus(401)
+  })
+
+  test('a session left without stores ends on its next check', async ({ client }) => {
+    const user = await createUser()
+    // e.g. opened before this rule, or the membership deleted elsewhere.
+    const me = await client.get('/api/v1/auth/me').loginAs(user)
+
+    me.assertStatus(401)
   })
 })

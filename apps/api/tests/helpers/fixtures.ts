@@ -17,6 +17,17 @@ export async function createUser(overrides: Partial<User> = {}) {
   })
 }
 
+/**
+ * A staff account that can sign in: sessions need at least one store the
+ * person can access (AuthService.signInBlocker).
+ */
+export async function createStaff(overrides: Partial<User> = {}) {
+  const user = await createUser(overrides)
+  const store = await createStore()
+  await store.related('users').attach({ [user.id]: { role: 'attendant' } })
+  return user
+}
+
 export async function createUserWithPermissions(permissions: string[]) {
   const role = await Role.create({ name: `role-${randomUUID()}` })
   const records = await Permission.updateOrCreateMany(

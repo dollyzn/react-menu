@@ -242,7 +242,20 @@ export default class StoreMemberService {
         await this.assertAnotherManager(trx, storeId, userId)
       }
       await trx.from('store_user').where({ store_id: storeId, user_id: userId }).delete()
+      // Without any store left, there's nothing to do signed in.
+      if (!(await this.hasActiveStore(trx, userId))) await this.endSessions(trx, userId)
     })
+  }
+
+  private async hasActiveStore(trx: TransactionClientContract, userId: string) {
+    const user = await trx.from('users').where('id', userId).select('super_user').first()
+    if (user?.super_user) return true
+    const store = await trx
+      .from('store_user')
+      .where('user_id', userId)
+      .whereNull('disabled_at')
+      .first()
+    return Boolean(store)
   }
 
   /**

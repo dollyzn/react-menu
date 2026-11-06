@@ -72,6 +72,8 @@ export default class SocialAuthController {
       if (user.status !== UserStatusEnum.ACTIVE) {
         return redirect('Esta conta está desativada. Fale com a gerência da loja.')
       }
+      const blocker = await this.authService.signInBlocker(user)
+      if (blocker) return redirect(blocker)
 
       await this.saveOrUpdateSocialAccount(provider, socialUser, user.id)
       // The provider vouches for the address.

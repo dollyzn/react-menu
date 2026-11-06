@@ -5,7 +5,7 @@ import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { uploadKey } from '#helpers/uploads'
-import { createUser } from '#tests/helpers/fixtures'
+import { createStaff } from '#tests/helpers/fixtures'
 import { signIn } from '#tests/helpers/sign_in'
 
 const COOKIE = env.get('AUTH_COOKIE_NAME')
@@ -30,8 +30,8 @@ test.group('Account', (group) => {
   }
 
   test('lists the sessions with their device, and ends the others', async ({ client, assert }) => {
-    const user = await createUser({ password: 'secret123' })
-    const other = await createUser({ password: 'secret123' })
+    const user = await createStaff({ password: 'secret123' })
+    const other = await createStaff({ password: 'secret123' })
     const laptop = await signInFrom(client, user.email, 'secret123', CHROME_WINDOWS)
     const phone = await signInFrom(client, user.email, 'secret123', SAFARI_IPHONE)
     const stranger = await signInFrom(client, other.email, 'secret123', CHROME_WINDOWS)
@@ -80,7 +80,7 @@ test.group('Account', (group) => {
 
   test('edits the name and the profile photo', async ({ client, assert }) => {
     drive.fake()
-    const user = await createUser()
+    const user = await createStaff()
 
     const renamed = await client
       .put('/api/v1/account/profile')
@@ -125,7 +125,7 @@ test.group('Account', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: 'secret123' })
+    const user = await createStaff({ password: 'secret123' })
     const here = await signInFrom(client, user.email, 'secret123', CHROME_WINDOWS)
     const elsewhere = await signInFrom(client, user.email, 'secret123', SAFARI_IPHONE)
     const change = (body: object) =>

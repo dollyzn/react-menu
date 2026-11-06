@@ -37,7 +37,7 @@ test.describe("Authentication and session", () => {
   });
 });
 
-test("a user without stores sees an empty state instead of being redirected", async ({ page }) => {
+test("a user without any store can't sign in, and is told why", async ({ page }) => {
   // Logs in as the seeded admin to create a staff account with no store.
   await createStoreViaApi(page, "Onboarding");
   const staff = { name: "Carla", email: `carla-${Date.now()}@example.com`, password: "carla12345" };
@@ -45,10 +45,14 @@ test("a user without stores sees an empty state instead of being redirected", as
   expect(created.ok()).toBeTruthy();
   await page.context().clearCookies();
 
-  await login(page, staff, { landing: /\/app\/stores$/ });
-  await expect(page.getByText("Nenhuma loja por aqui")).toBeVisible();
-  await expect(page.getByText(/Peça a um administrador/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "Criar loja" })).toHaveCount(0);
+  await page.goto("/app/login");
+  await page.getByLabel("E-mail").fill(staff.email);
+  await page.getByLabel("Senha", { exact: true }).fill(staff.password);
+  await page.getByRole("button", { name: "Entrar", exact: true }).click();
+  // Refused after the password, before any code is sent.
+  await expect(page.getByText(/Você não tem acesso a nenhuma loja/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Confirme que é você" })).toHaveCount(0);
+  await expect(page).toHaveURL(/\/app\/login$/);
 });
 
 test("Google sign-in: the button shows and a refused login comes back as a message", async ({ page }) => {
