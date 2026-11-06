@@ -141,10 +141,13 @@ export function UpdateItemDialog({
   const handleDialogOpenChange = (nextOpen: boolean) => {
     if (busy && open && !nextOpen) return;
     onOpenChange(nextOpen);
-    if (!nextOpen) {
-      form.reset(snapshotValues());
-      setPhoto(KEEP_PHOTO);
-    }
+  };
+
+  // Back to the saved values once closed (not while it fades out).
+  const handleOpenChangeComplete = (nextOpen: boolean) => {
+    if (nextOpen) return;
+    form.reset(snapshotValues());
+    setPhoto(KEEP_PHOTO);
   };
 
   const handleUpdateItem = async (data: z.infer<typeof UpdateItemSchema>) => {
@@ -181,7 +184,7 @@ export function UpdateItemDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleDialogOpenChange}>
+    <Dialog open={open} onOpenChange={handleDialogOpenChange} onOpenChangeComplete={handleOpenChangeComplete}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar item</DialogTitle>

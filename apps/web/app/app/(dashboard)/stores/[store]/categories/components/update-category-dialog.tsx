@@ -76,7 +76,6 @@ export function UpdateCategoryDialog({
   const handleOpenChange = () => {
     if (busy && open) return;
     onOpenChange(!open);
-    form.reset();
   };
 
   const handleUpdateCategory = async (
@@ -106,7 +105,7 @@ export function UpdateCategoryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar categoria</DialogTitle>

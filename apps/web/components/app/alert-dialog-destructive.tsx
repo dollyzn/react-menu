@@ -20,6 +20,8 @@ interface AlertDialogDestructiveProps {
   description: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
+  /** After the open/close animation: where to clear the state the dialog shows. */
+  onOpenChangeComplete?: (open: boolean) => void;
   loading?: boolean;
   onConfirm: () => void;
   /** Action button text (default "Excluir"). */
@@ -33,11 +35,12 @@ export function AlertDialogDestructive({
   description,
   open,
   onOpenChange,
+  onOpenChangeComplete,
   loading,
   onConfirm,
 }: AlertDialogDestructiveProps) {
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
       {React.isValidElement(children) ? (
         <AlertDialogTrigger render={children} />
       ) : null}

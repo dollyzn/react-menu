@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useRecordStockMovementMutation } from "@/redux/features/inventory/inventoryApi";
 import { formatQuantity } from "@/utils/units";
 import { cn } from "@/lib/utils";
+import { useLastValue } from "@/hooks/use-last-value";
 
 export type MovementKind = "purchase" | "waste" | "adjustment";
 
@@ -58,7 +59,9 @@ interface MovementDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function MovementDialog({ storeId, ingredient, kind, onOpenChange }: MovementDialogProps) {
+export function MovementDialog({ storeId, ingredient: current, kind, onOpenChange }: MovementDialogProps) {
+  // Keeps the ingredient on screen while the dialog animates closed.
+  const ingredient = useLastValue(current);
   const [record, { isLoading }] = useRecordStockMovementMutation();
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
@@ -75,12 +78,12 @@ export function MovementDialog({ storeId, ingredient, kind, onOpenChange }: Move
   const step = (delta: number) =>
     setQuantity((current) => String(Math.max(0, (Number(current.replace(",", ".")) || 0) + delta)));
 
-  const close = (open: boolean) => {
-    if (!open) {
-      setQuantity("");
-      setNote("");
-    }
-    onOpenChange(open);
+  const close = (open: boolean) => onOpenChange(open);
+  // Cleared once it's gone, not while it fades out.
+  const clear = (open: boolean) => {
+    if (open) return;
+    setQuantity("");
+    setNote("");
   };
 
   const submit = async (event: React.FormEvent) => {
@@ -96,7 +99,7 @@ export function MovementDialog({ storeId, ingredient, kind, onOpenChange }: Move
   };
 
   return (
-    <Dialog open={Boolean(ingredient)} onOpenChange={close}>
+    <Dialog open={Boolean(current)} onOpenChange={close} onOpenChangeComplete={clear}>
       <DialogContent>
         <form onSubmit={submit}>
           <DialogHeader>

@@ -41,7 +41,7 @@ export default class SocialAuthController {
     await ally.use(params.provider).redirect()
   }
 
-  async callback({ params, auth, response, ally }: HttpContext) {
+  async callback({ params, auth, request, response, ally }: HttpContext) {
     const provider = this.provider(params.provider)
     const redirect = (message?: string) => this.backToApp(response, message)
 
@@ -73,7 +73,7 @@ export default class SocialAuthController {
       }
 
       await this.saveOrUpdateSocialAccount(provider, socialUser, user.id)
-      await this.authService.createSession(user, { response, auth })
+      await this.authService.createSession(user, { request, response, auth })
 
       return redirect()
     } catch (error) {

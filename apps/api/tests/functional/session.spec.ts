@@ -26,21 +26,32 @@ test.group('Session', (group) => {
     fresh.assertStatus(200)
     assert.isUndefined(fresh.cookie(COOKIE))
 
-    // Two days left of seven: a new token replaces the old one.
+    // Still more than half of the 14 days left: kept.
+    const signedInAt = DateTime.now().minus({ days: 9 }).startOf('second').toJSDate()
     await db
       .from('auth_access_tokens')
       .where('tokenable_id', user.id)
-      .update({ expires_at: DateTime.now().plus({ days: 2 }).toJSDate() })
+      .update({ expires_at: DateTime.now().plus({ days: 8 }).toJSDate(), signed_in_at: signedInAt })
+    const kept = await client.get('/api/v1/auth/me').withCookie(COOKIE, token)
+    assert.isUndefined(kept.cookie(COOKIE))
+
+    // Six days left: a new token replaces the old one.
+    await db
+      .from('auth_access_tokens')
+      .where('tokenable_id', user.id)
+      .update({ expires_at: DateTime.now().plus({ days: 6 }).toJSDate() })
     const renewed = await client.get('/api/v1/auth/me').withCookie(COOKIE, token)
     renewed.assertStatus(200)
     const newToken = renewed.cookie(COOKIE)?.value
     assert.exists(newToken)
     assert.notEqual(newToken, token)
     const expiresAt = DateTime.fromISO(renewed.body().data.user.tokenExpiresAt)
-    assert.isAbove(expiresAt.diffNow('days').days, 6)
+    assert.isAbove(expiresAt.diffNow('days').days, 13)
 
     const tokens = await db.from('auth_access_tokens').where('tokenable_id', user.id)
     assert.lengthOf(tokens, 1)
+    // "Sessões ativas" still says since when this sign-in lasts.
+    assert.equal(new Date(tokens[0].signed_in_at).getTime(), signedInAt.getTime())
     const withOld = await client.get('/api/v1/auth/me').withCookie(COOKIE, token)
     const withNew = await client.get('/api/v1/auth/me').withCookie(COOKIE, newToken!)
     withOld.assertStatus(401)

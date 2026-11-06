@@ -145,7 +145,6 @@ function PaymentSettingsDialog({
 
   const close = (next: boolean) => {
     if (busy) return;
-    if (!next) form.reset(defaults);
     onOpenChange(next);
   };
 
@@ -161,7 +160,6 @@ function PaymentSettingsDialog({
         },
       }).unwrap();
       toast.success(configured ? "Pagamentos online atualizados" : "Pagamentos online configurados");
-      form.reset({ ...values, accessToken: "", webhookSecret: "" });
       onOpenChange(false);
     } catch {
       // baseApi shows the API's answer (e.g. a credential it refused).
@@ -178,7 +176,8 @@ function PaymentSettingsDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={close}>
+    // Back to the saved settings (secrets blank) once closed, not while it fades out.
+    <Dialog open={open} onOpenChange={close} onOpenChangeComplete={(next) => !next && form.reset(defaults)}>
       <DialogContent className="sm:max-w-lg">
         <form onSubmit={form.handleSubmit(submit)} noValidate>
           <DialogHeader>

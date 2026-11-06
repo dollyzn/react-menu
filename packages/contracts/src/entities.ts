@@ -133,6 +133,23 @@ export type SessionUser = Omit<User, 'role' | 'stores'> & {
   tokenExpiresAt: string | null;
 };
 
+/** GET /account/sessions: one signed-in browser of the user. */
+export type AccountSession = {
+  id: number;
+  /** The session this request came from ("Este dispositivo"). */
+  current: boolean;
+  /** "Chrome 141", from the user agent (null when unknown). */
+  browser: string | null;
+  /** "Windows 10", "iOS 18.1". */
+  os: string | null;
+  device: "desktop" | "mobile" | "tablet";
+  ipAddress: string | null;
+  /** The sign-in this session comes from (kept across renewals). */
+  signedInAt: string;
+  lastActiveAt: string;
+  expiresAt: string | null;
+};
+
 /**
  * One row of a bulk edit (POST /stores/:id/items|addons/bulk-update): the
  * final values plus the `updatedAt` the client saw. A 409 `E_STALE_ROWS`

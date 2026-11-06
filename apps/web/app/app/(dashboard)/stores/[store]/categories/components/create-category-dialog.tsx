@@ -94,7 +94,7 @@ export function CreateCategoryDialog({ storeId }: CreateCategoryDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
       <DialogTrigger
         render={
           <Button variant="outline">

@@ -13,6 +13,7 @@ import { middleware } from '#start/kernel'
 
 import healthRoutes from '#routes/health'
 import authRoutes from '#routes/auth'
+import accountRoutes from '#routes/account'
 import usersRoutes from '#routes/user'
 import notificationsRoutes from '#routes/notifications'
 import publicRoutes from '#routes/public'
@@ -41,6 +42,7 @@ router
     router
       .group(() => {
         authRoutes()
+        accountRoutes()
         usersRoutes()
         notificationsRoutes()
 

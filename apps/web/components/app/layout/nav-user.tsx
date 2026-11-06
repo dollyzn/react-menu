@@ -24,6 +24,7 @@ import { InstallAppMenuGroup, useInstallFlow } from "@/components/app/pwa/instal
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import { redirectToLogout } from "@/utils/navigation";
+import { avatarUrl } from "@/lib/avatar";
 
 /** The only account menu: settings, public menu, theme, install, sign out. */
 export function NavUser() {
@@ -116,7 +117,7 @@ function UserInfo({ user }: { user: User }) {
     <>
       <Avatar className="size-8 rounded-full border">
         <AvatarImage
-          src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user.name ?? user.email}`}
+          src={avatarUrl(user)}
           alt={user.name ?? user.email}
         />
         <AvatarFallback className="rounded-full">

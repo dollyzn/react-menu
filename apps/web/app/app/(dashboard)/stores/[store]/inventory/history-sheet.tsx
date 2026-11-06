@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useGetStockMovementsQuery } from "@/redux/features/inventory/inventoryApi";
 import { formatQuantity } from "@/utils/units";
 import { cn } from "@/lib/utils";
+import { useLastValue } from "@/hooks/use-last-value";
 
 const TYPE_LABELS: Record<StockMovementType, string> = {
   purchase: "Entrada",
@@ -25,16 +26,18 @@ export function HistorySheet({
   ingredient: Ingredient | null;
   onOpenChange: (open: boolean) => void;
 }) {
+  // The last ingredient stays on screen while the sheet slides out.
+  const shown = useLastValue(ingredient);
   const { data: movements = [], isLoading } = useGetStockMovementsQuery(
-    { storeId, id: ingredient?.id ?? 0 },
-    { skip: !ingredient }
+    { storeId, id: shown?.id ?? 0 },
+    { skip: !shown }
   );
 
   return (
     <Sheet open={Boolean(ingredient)} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-md">
         <SheetHeader>
-          <SheetTitle>Histórico · {ingredient?.name}</SheetTitle>
+          <SheetTitle>Histórico · {shown?.name}</SheetTitle>
           <SheetDescription>Últimas 50 movimentações</SheetDescription>
         </SheetHeader>
         <div className="flex-1 overflow-y-auto px-4 pb-4">

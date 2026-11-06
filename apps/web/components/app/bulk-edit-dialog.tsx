@@ -140,10 +140,13 @@ export function BulkEditDialog({ rows, noun, onApply, onDone }: BulkEditDialogPr
   const handleOpenChange = (next: boolean) => {
     if (busy) return;
     setOpen(next);
-    if (!next) {
-      form.reset(DEFAULTS);
-      setConflict([]);
-    }
+  };
+
+  // Fresh options once closed (not while it fades out).
+  const handleOpenChangeComplete = (next: boolean) => {
+    if (next) return;
+    form.reset(DEFAULTS);
+    setConflict([]);
   };
 
   const submit = async () => {
@@ -175,7 +178,7 @@ export function BulkEditDialog({ rows, noun, onApply, onDone }: BulkEditDialogPr
   const conflictNames = rows.filter((row) => conflict.includes(row.id)).map((row) => row.name);
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={handleOpenChangeComplete}>
       <DialogTrigger
         render={
           <Button

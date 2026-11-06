@@ -20,6 +20,7 @@ import {
 import { ManagementPageShell } from "../components/management-page-shell";
 import { AddMemberDialog } from "./add-member-dialog";
 import { ROLE_ITEMS, ROLES } from "./roles";
+import { useLastValue } from "@/hooks/use-last-value";
 
 const initials = (member: StoreMember) =>
   (member.name ?? member.email)
@@ -37,6 +38,7 @@ export default function MembersPage() {
   const [remove, { isLoading: removing }] = useRemoveMemberMutation();
   const [resendInvite, resending] = useResendInviteMutation();
   const [toRemove, setRemoving] = useState<StoreMember | null>(null);
+  const removeShown = useLastValue(toRemove);
 
   const changeRole = async (member: StoreMember, role: StoreRole) => {
     if (role === member.role) return;
@@ -155,9 +157,9 @@ export default function MembersPage() {
         open={Boolean(toRemove)}
         onOpenChange={(open) => !open && setRemoving(null)}
         loading={removing}
-        title={`Remover ${toRemove?.name ?? toRemove?.email} da equipe?`}
+        title={`Remover ${removeShown?.name ?? removeShown?.email} da equipe?`}
         description={
-          toRemove?.id === me
+          removeShown?.id === me
             ? "Você perde o acesso a esta loja na hora."
             : "A pessoa perde o acesso a esta loja na hora. A conta continua existindo."
         }
