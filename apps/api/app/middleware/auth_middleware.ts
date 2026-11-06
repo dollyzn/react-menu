@@ -3,7 +3,6 @@ import type { NextFn } from '@adonisjs/core/types/http'
 import type { Authenticators } from '@adonisjs/auth/types'
 import { setUser } from '@adonisjs/otel/helpers'
 import { UserStatusEnum } from '#enums/user_status'
-import { touchLastSeen } from '#helpers/user_activity'
 
 /**
  * Auth middleware is used authenticate HTTP requests and deny
@@ -40,8 +39,6 @@ export default class AuthMiddleware {
 
     // On the request's trace (a no-op without OpenTelemetry): by id, no e-mail.
     setUser({ id: user.id })
-    // "Online" on the team page (throttled to a write a minute).
-    await touchLastSeen(user.id)
 
     return next()
   }

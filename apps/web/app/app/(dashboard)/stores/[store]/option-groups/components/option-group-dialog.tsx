@@ -107,8 +107,7 @@ export function OptionGroupDialog({
   const values = useWatch({ control: form.control }) as Values;
   const [samePrice, setSamePrice] = useState<number | undefined>(undefined);
   const addonById = new Map(addons.map((addon) => [addon.id, addon]));
-  // Pick pricing only means something when more than one pick is allowed.
-  const byPick = Boolean(values.pickPrices) && values.maxChoices > 1;
+  const byPick = Boolean(values.pickPrices);
 
   const close = (next: boolean) => {
     if (busy) return;
@@ -119,7 +118,7 @@ export function OptionGroupDialog({
     // One price per pick up to the maximum (the API repeats the last one).
     const data = {
       ...values,
-      pickPrices: values.pickPrices && values.maxChoices > 1 ? tiers(values.pickPrices, values.maxChoices) : null,
+      pickPrices: values.pickPrices ? tiers(values.pickPrices, values.maxChoices) : null,
     };
     try {
       if (group) await update({ storeId, id: group.id, data }).unwrap();
@@ -322,7 +321,7 @@ export function OptionGroupDialog({
                   )}
                 />
               </div>
-              {values.maxChoices > 1 && (
+              {values.maxChoices >= 1 && (
                 <Controller
                   name="pickPrices"
                   control={form.control}

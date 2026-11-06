@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 /** The panel pings every minute while visible; a missed ping or two still reads as online. */
@@ -9,18 +10,30 @@ const TOUCH_EVERY_MS = 60_000
 const lastTouch = new Map<string, number>()
 
 /**
- * Records authenticated activity ("online" on the team page). Throttled in
- * memory, so a burst of requests costs one UPDATE a minute.
+ * Records that the panel is open ("online" on the team page): the panel's
+ * heartbeat (GET /auth/presence, only while the tab is visible) and /auth/me.
+ * Not every request: pages poll in background tabs. Throttled in memory, so
+ * a burst costs one UPDATE a minute.
  */
 export async function touchLastSeen(userId: string) {
   const now = Date.now()
   if (now - (lastTouch.get(userId) ?? 0) < TOUCH_EVERY_MS) return
-  lastTouch.set(userId, now)
-  if (lastTouch.size > 10_000) lastTouch.clear()
-  await db
-    .from('users')
-    .where('id', userId)
-    .update({ last_seen_at: new Date(now) })
+  try {
+    await db
+      .from('users')
+      .where('id', userId)
+      .update({ last_seen_at: new Date(now) })
+    if (lastTouch.size > 10_000) lastTouch.clear()
+    lastTouch.set(userId, now)
+  } catch (error) {
+    // Best effort: "online" is never worth failing the request.
+    logger.warn({ err: error }, 'could not record last_seen_at')
+  }
+}
+
+/** The sessions ended: the next sign-in records activity right away. */
+export function forgetLastSeen(userId: string) {
+  lastTouch.delete(userId)
 }
 
 /** The person proved they read this inbox; the first proof is kept. */

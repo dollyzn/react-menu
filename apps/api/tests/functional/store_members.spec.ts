@@ -3,10 +3,17 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import mail from '@adonisjs/mail/services/main'
 import StoreRole from '#enums/store_role'
 import User from '#models/user'
+import db from '@adonisjs/lucid/services/db'
 import Notification from '#models/notification'
 import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
-import { createStaff, createStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import {
+  createStaff,
+  createStore,
+  createUser,
+  createUserWithPermissions,
+  linkUser,
+} from '#tests/helpers/fixtures'
 import { SESSION_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 async function storeWithManager() {
@@ -275,12 +282,15 @@ test.group('Store members', (group) => {
     assert.isNotNull(disabled.body().data.disabledAt)
     assert.isFalse(disabled.body().data.online)
 
-    // The open session ended; signed in again, only the other store works.
-    const oldSession = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
-    const here = await client.get(`/api/v1/stores/${store.id}/orders`).loginAs(attendant)
-    const there = await client.get(`/api/v1/stores/${other.store.id}/orders`).loginAs(attendant)
-    const me = await client.get('/api/v1/auth/me').loginAs(attendant)
-    oldSession.assertStatus(401)
+    // Another store is left: the open session goes on there, not here
+    // (sessions aren't per store, and a manager here can't end them there).
+    const here = await client
+      .get(`/api/v1/stores/${store.id}/orders`)
+      .withCookie(SESSION_COOKIE, session)
+    const there = await client
+      .get(`/api/v1/stores/${other.store.id}/orders`)
+      .withCookie(SESSION_COOKIE, session)
+    const me = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
     here.assertStatus(403)
     there.assertStatus(200)
     assert.deepEqual(
@@ -411,5 +421,87 @@ test.group('Store members', (group) => {
     const me = await client.get('/api/v1/auth/me').loginAs(user)
 
     me.assertStatus(401)
+  })
+
+  test('switching off the only store ends the sessions and the trusted devices', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager } = await storeWithManager()
+    const attendant = await createUser({ password: 'secret123' })
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    const { session, trust } = await signIn(
+      client,
+      { email: attendant.email, password: 'secret123' },
+      { remember: true }
+    )
+    assert.exists(trust)
+
+    await client
+      .put(`/api/v1/stores/${store.id}/members/${attendant.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+
+    const oldSession = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
+    oldSession.assertStatus(401)
+    const devices = await db.from('trusted_devices').where('user_id', attendant.id)
+    assert.lengthOf(devices, 0)
+  })
+
+  test('ending sessions needs every store of the person, and never another store', async ({
+    client,
+  }) => {
+    const { store, manager } = await storeWithManager()
+    const other = await storeWithManager()
+    const both = await createUser()
+    await linkUser(store, both, StoreRole.ATTENDANT)
+    await linkUser(other.store, both, StoreRole.MANAGER)
+    const onlyHere = await createUser()
+    await linkUser(store, onlyHere, StoreRole.KITCHEN)
+
+    const fromOtherStore = await client
+      .delete(`/api/v1/stores/${store.id}/members/${onlyHere.id}/sessions`)
+      .loginAs(other.manager)
+    const worksElsewhere = await client
+      .delete(`/api/v1/stores/${store.id}/members/${both.id}/sessions`)
+      .loginAs(manager)
+    const onlyThisStore = await client
+      .delete(`/api/v1/stores/${store.id}/members/${onlyHere.id}/sessions`)
+      .loginAs(manager)
+
+    fromOtherStore.assertStatus(403)
+    worksElsewhere.assertStatus(409)
+    worksElsewhere.assertBodyContains({ code: 'E_OTHER_STORES' })
+    onlyThisStore.assertStatus(200)
+  })
+
+  test('a switched-off member gets no invite', async ({ client }) => {
+    const { store, manager } = await storeWithManager()
+    await client
+      .post(`/api/v1/stores/${store.id}/members`)
+      .json({ email: 'desligado@example.com', role: 'attendant' })
+      .loginAs(manager)
+    const invited = await User.findByOrFail('email', 'desligado@example.com')
+    await client
+      .put(`/api/v1/stores/${store.id}/members/${invited.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+
+    const resent = await client
+      .post(`/api/v1/stores/${store.id}/members/${invited.id}/invite`)
+      .loginAs(manager)
+
+    resent.assertStatus(409)
+    resent.assertBodyContains({ code: 'E_ACCESS_DISABLED' })
+  })
+
+  test('someone allowed to create stores signs in before having one', async ({ client }) => {
+    const founder = await createUserWithPermissions(['create_store'])
+    founder.password = 'secret123'
+    await founder.save()
+
+    const { response } = await signIn(client, { email: founder.email, password: 'secret123' })
+
+    response.assertStatus(200)
   })
 })

@@ -13,21 +13,30 @@ import { formatCurrencyBRL } from "@/utils/string";
 import { groupRule } from "./option-group-dialog";
 import { RowActions } from "./table-row-actions";
 import { OptionGroupCard } from "./option-group-card";
+import { pickPricesLabel } from "@/lib/choice-pricing";
 
 const headerClass = "text-xs uppercase tracking-wider text-muted-foreground";
 
-/** "Mussarela · incluso", "Cheddar · + R$ 2,00" as chips (shared with the card). */
+/**
+ * "Mussarela · incluso", "Cheddar · + R$ 2,00" as chips (shared with the
+ * card). A group priced by pick order shows its rule once, then the names.
+ */
 export function OptionChips({ group, max }: { group: OptionGroup; max?: number }) {
   const options = group.options ?? [];
   const shown = max ? options.slice(0, max) : options;
+  const byPick = group.pickPrices?.length ? pickPricesLabel(group.pickPrices, group.maxChoices) : null;
   return (
     <ul aria-label={`Opções de ${group.name}`} className="flex flex-wrap gap-1">
+      {byPick && <li className="rounded-full border px-2 py-0.5 text-xs whitespace-nowrap">{byPick}</li>}
       {shown.map((option) => (
         <li key={option.id} className="rounded-full bg-muted px-2 py-0.5 text-xs whitespace-nowrap">
-          {option.name}{" "}
-          <span className="text-muted-foreground">
-            {(option.groupPrice ?? option.price) ? `+ ${formatCurrencyBRL(option.groupPrice ?? option.price)}` : "incluso"}
-          </span>
+          {option.name}
+          {!byPick && (
+            <span className="text-muted-foreground">
+              {" "}
+              {(option.groupPrice ?? option.price) ? `+ ${formatCurrencyBRL(option.groupPrice ?? option.price)}` : "incluso"}
+            </span>
+          )}
         </li>
       ))}
       {options.length > shown.length && (
