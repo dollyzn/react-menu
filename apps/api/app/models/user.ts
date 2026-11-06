@@ -14,9 +14,10 @@ import UserSocialAccount from '#models/user_social_account'
 import Store from './store.js'
 
 /**
- * Lifetime of an access token and of the auth cookie that carries it.
+ * Lifetime of an access token and of the auth cookie that carries it. Used
+ * again after half of it (7 days), the session renews for another 14.
  */
-export const SESSION_TTL = '7 days'
+export const SESSION_TTL = '14 days'
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],

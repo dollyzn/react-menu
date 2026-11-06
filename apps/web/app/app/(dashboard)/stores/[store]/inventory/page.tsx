@@ -24,6 +24,7 @@ import { IngredientActionsContext, type IngredientActions } from "./components/i
 import { IngredientDialog } from "./ingredient-dialog";
 import { HistorySheet } from "./history-sheet";
 import { MovementDialog, type MovementKind } from "./movement-dialog";
+import { useLastValue } from "@/hooks/use-last-value";
 
 export default function InventoryPage() {
   const { store: storeId } = useParams<{ store: string }>();
@@ -53,6 +54,9 @@ export default function InventoryPage() {
   const [movement, setMovement] = useState<{ ingredient: Ingredient; kind: MovementKind } | null>(null);
   const [history, setHistory] = useState<Ingredient | null>(null);
   const [deleting, setDeleting] = useState<Ingredient | null>(null);
+  // What the dialogs show while they animate closed.
+  const movementShown = useLastValue(movement);
+  const deletingShown = useLastValue(deleting);
 
   const actions = useMemo<IngredientActions>(
     () => ({
@@ -130,7 +134,7 @@ export default function InventoryPage() {
       <MovementDialog
         storeId={storeId}
         ingredient={movement?.ingredient ?? null}
-        kind={movement?.kind ?? "purchase"}
+        kind={movementShown?.kind ?? "purchase"}
         onOpenChange={(open) => !open && setMovement(null)}
       />
       <HistorySheet storeId={storeId} ingredient={history} onOpenChange={(open) => !open && setHistory(null)} />
@@ -138,7 +142,7 @@ export default function InventoryPage() {
         open={Boolean(deleting)}
         onOpenChange={(open) => !open && setDeleting(null)}
         loading={removing}
-        title={`Excluir ${deleting?.name}?`}
+        title={`Excluir ${deletingShown?.name}?`}
         description="O ingrediente sai de todas as receitas e o histórico dele é apagado."
         onConfirm={async () => {
           if (!deleting) return;

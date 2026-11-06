@@ -114,6 +114,6 @@ test.group('Auth', (group) => {
 
     response.assertStatus(200)
     assert.isNotNull(response.body().data.user.tokenExpiresAt)
-    assert.match(response.header('set-cookie')?.[0] ?? '', /Max-Age=604800/)
+    assert.match(response.header('set-cookie')?.[0] ?? '', /Max-Age=1209600/)
   })
 })

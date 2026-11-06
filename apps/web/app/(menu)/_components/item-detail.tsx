@@ -15,6 +15,7 @@ import { addLine, type CartLine } from "@/redux/slices/cart";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { stockHint, unitsLeft } from "@/lib/stock";
+import { useLastValue } from "@/hooks/use-last-value";
 
 /** The API accepts up to 50 units per line. */
 const MAX_QUANTITY = 50;
@@ -28,8 +29,10 @@ interface ItemDetailProps {
   onClose: () => void;
 }
 
-export function ItemDetail({ item, storeSlug, storeOpen, onClose }: ItemDetailProps) {
+export function ItemDetail({ item: current, storeSlug, storeOpen, onClose }: ItemDetailProps) {
   const dispatch = useAppDispatch();
+  // The item stays on screen while the dialog animates closed.
+  const item = useLastValue(current);
   const inBag = useAppSelector((state) =>
     state.cart.storeSlug === storeSlug
       ? state.cart.lines.filter((line) => line.itemId === item?.id).reduce((sum, line) => sum + line.quantity, 0)
@@ -38,7 +41,7 @@ export function ItemDetail({ item, storeSlug, storeOpen, onClose }: ItemDetailPr
 
   return (
     <ResponsiveModal
-      open={Boolean(item)}
+      open={Boolean(current)}
       onOpenChange={(open) => !open && onClose()}
       title={item?.name ?? ""}
       description={item?.description ?? undefined}

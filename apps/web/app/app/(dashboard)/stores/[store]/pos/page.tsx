@@ -27,6 +27,7 @@ import { cn } from "@/lib/utils";
 import { CustomerAutocomplete } from "./customer-autocomplete";
 import { addonLabel } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
+import { useLastValue } from "@/hooks/use-last-value";
 
 type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>
@@ -46,6 +47,8 @@ export default function PosPage() {
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<number | "all">("all");
   const [picking, setPicking] = useState<PublicMenuItem | null>(null);
+  // The customizer stays on screen while its dialog animates closed.
+  const pickingShown = useLastValue(picking);
   const [lines, setLines] = useState<TicketLine[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -320,16 +323,16 @@ export default function PosPage() {
       <ResponsiveModal
         open={Boolean(picking)}
         onOpenChange={(open) => !open && setPicking(null)}
-        title={picking?.name ?? ""}
+        title={pickingShown?.name ?? ""}
         hideHeader
         className="sm:max-w-md"
       >
-        {picking && (
+        {pickingShown && (
           <ItemCustomizer
-            key={picking.id}
-            item={picking}
+            key={pickingShown.id}
+            item={pickingShown}
             ctaLabel="Adicionar"
-            alreadyChosen={inTicket.get(picking.id) ?? 0}
+            alreadyChosen={inTicket.get(pickingShown.id) ?? 0}
             onAdd={(line) => {
               addToTicket(line);
               setPicking(null);

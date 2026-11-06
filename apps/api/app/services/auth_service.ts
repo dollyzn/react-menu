@@ -5,6 +5,7 @@ import limiter from '@adonisjs/limiter/services/main'
 import string from '@adonisjs/core/helpers/string'
 import User, { SESSION_TTL } from '#models/user'
 import env from '#start/env'
+import db from '@adonisjs/lucid/services/db'
 import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
 
@@ -21,13 +22,27 @@ export default class AuthService {
    * Issues an access token for the user and, when enabled, stores it in an
    * httpOnly cookie that expires together with the token.
    */
-  async createSession(user: User, ctx: Pick<HttpContext, 'response' | 'auth'>) {
+  async createSession(
+    user: User,
+    ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>,
+    options: { signedInAt?: Date | null } = {}
+  ) {
     if (user.invitePending) {
       user.invitePending = false
       await user.save()
     }
     const accessToken = await ctx.auth.use('api').createToken(user)
     const serializedToken = accessToken.toJSON()
+    // For "Sessões ativas": where it came from, and since when (a renewal
+    // keeps the original sign-in time).
+    await db
+      .from('auth_access_tokens')
+      .where('id', String(accessToken.identifier))
+      .update({
+        user_agent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
+        ip_address: ctx.request.ip(),
+        signed_in_at: options.signedInAt ?? new Date(),
+      })
 
     if (this.sendCookie && serializedToken.token) {
       ctx.response.cookie(this.cookieName, serializedToken.token, {
@@ -90,12 +105,17 @@ export default class AuthService {
    */
   async me(
     user: User & { currentAccessToken?: AccessToken },
-    ctx: Pick<HttpContext, 'response' | 'auth'>
+    ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>
   ) {
     const current = user.currentAccessToken
     const expiresAt = current?.expiresAt
     if (this.sendCookie && current && expiresAt && this.shouldRenew(expiresAt)) {
-      const renewed = await this.createSession(user, ctx)
+      const row = await db
+        .from('auth_access_tokens')
+        .where('id', String(current.identifier))
+        .select('signed_in_at')
+        .first()
+      const renewed = await this.createSession(user, ctx, { signedInAt: row?.signed_in_at })
       await User.accessTokens.delete(user, current.identifier)
       return await this.sessionUser(user, renewed.expiresAt)
     }

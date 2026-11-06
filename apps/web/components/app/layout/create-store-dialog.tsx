@@ -64,7 +64,6 @@ export function CreateStoreDialog({ open, onOpenChange }: CreateStoreDialogProps
 
   const handleOpenChange = (next: boolean) => {
     if (busy) return;
-    if (!next) form.reset();
     onOpenChange(next);
   };
 
@@ -73,7 +72,6 @@ export function CreateStoreDialog({ open, onOpenChange }: CreateStoreDialogProps
       const store = await createStore(data).unwrap();
       // The new store only shows up in the switcher after the session reloads.
       await verify();
-      form.reset();
       onOpenChange(false);
       router.push(`/app/stores/${store.id}`);
     } catch (err: unknown) {
@@ -88,7 +86,7 @@ export function CreateStoreDialog({ open, onOpenChange }: CreateStoreDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Criar loja</DialogTitle>

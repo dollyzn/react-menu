@@ -21,6 +21,7 @@ import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { ATTEMPT, CHANNEL, PAYMENT, STATUS } from "./order-labels";
 import { addonLabel } from "@/lib/addon-label";
+import { useLastValue } from "@/hooks/use-last-value";
 
 const ACTIVE = new Set(["pending_payment", "received", "preparing", "ready"]);
 
@@ -36,9 +37,11 @@ export function OrderDetailSheet({
   canOperate: boolean;
   onClose: () => void;
 }) {
+  // While the sheet slides out it keeps showing the order it had.
+  const shownId = useLastValue(orderId);
   const { data: order, isFetching } = useGetOrderQuery(
-    { storeId, orderId: orderId ?? "" },
-    { skip: !orderId }
+    { storeId, orderId: shownId ?? "" },
+    { skip: !shownId }
   );
   const [complete, { isLoading: completing }] = useCompleteOrderMutation();
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
@@ -47,7 +50,7 @@ export function OrderDetailSheet({
   const isManager = useStoreRole(storeId) === "manager";
   const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const show = order && order.id === orderId ? order : null;
+  const show = order && order.id === shownId ? order : null;
   const phone = show?.customerPhone?.replace(/^55/, "");
 
   return (

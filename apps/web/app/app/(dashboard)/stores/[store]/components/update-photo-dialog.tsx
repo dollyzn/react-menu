@@ -69,7 +69,6 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
   const handleOpenChange = () => {
     if (busy && open) return;
     setOpen(!open);
-    form.reset();
   };
 
   const handleUpdatePhoto = async (data: z.infer<typeof UpdatePhotoSchema>) => {
@@ -104,7 +103,7 @@ export function UpdatePhotoDialog({ storeId }: UpdatePhotoDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
       <DialogTrigger
         render={
           <Button

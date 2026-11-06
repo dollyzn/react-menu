@@ -100,7 +100,6 @@ export function OptionGroupDialog({
   const close = (next: boolean) => {
     if (busy) return;
     onOpenChange(next);
-    if (!next) form.reset();
   };
 
   const submit = async (data: Values) => {
@@ -115,7 +114,16 @@ export function OptionGroupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={close}>
+    <Dialog
+      open={open}
+      onOpenChange={close}
+      // Cleared once closed: resetting during the exit animation flickers.
+      onOpenChangeComplete={(next) => {
+        if (next) return;
+        form.reset();
+        setSamePrice(undefined);
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <form noValidate onSubmit={form.handleSubmit(submit)}>
           <DialogHeader>

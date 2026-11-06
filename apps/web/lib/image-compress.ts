@@ -7,12 +7,20 @@ export const MAX_INPUT_BYTES = 20 * 1024 * 1024;
 export class ImageCompressError extends Error {}
 
 /**
- * Resizes a photo to at most 1600px and re-encodes it as WebP (JPEG where
+ * Resizes a photo to at most 1600px (or `maxSide`, optionally cropped square) and re-encodes it as WebP (JPEG where
  * the browser can't encode WebP). Re-encoding also applies the camera's
  * orientation and drops EXIF metadata (phone photos may carry the GPS
  * location). The API is still the one that validates the file.
  */
-export async function compressImage(file: File): Promise<Blob> {
+export async function compressImage(
+  file: File,
+  options: {
+    /** Longest side (default: menu photos' 1600px). */
+    maxSide?: number;
+    /** Center crop to a square first (profile photos). */
+    square?: boolean;
+  } = {}
+): Promise<Blob> {
   if (!file.type.startsWith("image/")) throw new ImageCompressError("Escolha um arquivo de imagem (JPG, PNG ou WebP).");
   if (file.size > MAX_INPUT_BYTES) throw new ImageCompressError("Imagem muito grande: até 20 MB.");
 
@@ -23,16 +31,29 @@ export async function compressImage(file: File): Promise<Blob> {
     throw new ImageCompressError("Não foi possível ler esta imagem. Tente uma foto em JPG ou PNG.");
   }
 
-  const scale = Math.min(1, MAX_SIDE / Math.max(bitmap.width, bitmap.height));
-  const width = Math.round(bitmap.width * scale);
-  const height = Math.round(bitmap.height * scale);
+  const crop = options.square ? Math.min(bitmap.width, bitmap.height) : null;
+  const sourceWidth = crop ?? bitmap.width;
+  const sourceHeight = crop ?? bitmap.height;
+  const scale = Math.min(1, (options.maxSide ?? MAX_SIDE) / Math.max(sourceWidth, sourceHeight));
+  const width = Math.round(sourceWidth * scale);
+  const height = Math.round(sourceHeight * scale);
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   const context = canvas.getContext("2d");
   if (!context) throw new ImageCompressError("Seu navegador não conseguiu processar a imagem.");
   context.imageSmoothingQuality = "high";
-  context.drawImage(bitmap, 0, 0, width, height);
+  context.drawImage(
+    bitmap,
+    (bitmap.width - sourceWidth) / 2,
+    (bitmap.height - sourceHeight) / 2,
+    sourceWidth,
+    sourceHeight,
+    0,
+    0,
+    width,
+    height
+  );
   bitmap.close();
 
   const encode = (type: string) =>

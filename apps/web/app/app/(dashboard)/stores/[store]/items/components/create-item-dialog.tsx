@@ -113,8 +113,14 @@ export function CreateItemDialog() {
 
   const handleOpenChange = () => {
     if (busy && open) return;
-    if (open) setPhoto(KEEP_PHOTO);
     setOpen(!open);
+  };
+
+  // Empty again once closed (not while it fades out).
+  const handleOpenChangeComplete = (nextOpen: boolean) => {
+    if (nextOpen) return;
+    form.reset();
+    setPhoto(KEEP_PHOTO);
   };
 
   const handleCreateItem = async (data: z.infer<typeof CreateItemSchema>) => {
@@ -131,7 +137,6 @@ export function CreateItemDialog() {
       if (photoError) {
         toast.error(`Item criado, mas a foto não foi enviada: ${photoError} Abra o item para tentar de novo.`);
       }
-      form.reset();
       handleOpenChange();
     } catch (err: unknown) {
       toast.error(
@@ -148,7 +153,7 @@ export function CreateItemDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange} modal>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={handleOpenChangeComplete} modal>
       <DialogTrigger
         render={
           <Button variant="outline">

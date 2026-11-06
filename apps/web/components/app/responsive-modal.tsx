@@ -24,6 +24,8 @@ import { cn } from "@/lib/utils";
 interface ResponsiveModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** After the open/close animation (both the dialog and the drawer). */
+  onOpenChangeComplete?: (open: boolean) => void;
   title: React.ReactNode;
   description?: React.ReactNode;
   /** Visually hide the header (it stays available to screen readers). */
@@ -36,6 +38,7 @@ interface ResponsiveModalProps {
 export function ResponsiveModal({
   open,
   onOpenChange,
+  onOpenChangeComplete,
   title,
   description,
   hideHeader,
@@ -46,7 +49,7 @@ export function ResponsiveModal({
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange}>
+      <Drawer open={open} onOpenChange={onOpenChange} onAnimationEnd={onOpenChangeComplete}>
         <DrawerContent className={cn("max-h-[92svh]", className)}>
           <DrawerHeader className={cn(hideHeader && "sr-only")}>
             <DrawerTitle>{title}</DrawerTitle>
@@ -59,7 +62,7 @@ export function ResponsiveModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
       <DialogContent
         showCloseButton={false}
         className={cn("gap-0 overflow-hidden p-0 sm:max-w-lg", className)}

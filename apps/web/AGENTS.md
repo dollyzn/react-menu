@@ -15,6 +15,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Opening hours | panel card `stores/[store]/components/opening-hours-card.tsx` (table Dia / Disponibilidade / Horas: "O dia todo" = 00:00–23:59, 30-min `TimeSelect`s), schedule-aware `store-status-dropdown.tsx`; menu hero/banner text and the "Horários" modal (`(menu)/_components/store-hours.tsx`, today highlighted after hydration; `lib/opening-hours.ts`: `formatWhen`, `dayHours`), `MenuView` refreshes itself when the store opens or closes |
 | Stock limits in the menu and POS | `lib/stock.ts` (`unitsLeft`, `stockHint`: "Restam N" from `stockLeft`); `ItemCustomizer` caps the quantity (bag/ticket included); the API is authoritative |
 | Auth pages | `app/app/(auth)/`; "Entrar com Google" (`login/components/social-login.tsx`, shown when `GET /auth/social/providers` lists it) opens `/app/social` in a popup (520×760, room for Google's consent without scrolling) that reports over a BroadcastChannel (`lib/social-auth.ts`), full page when popups are blocked or in the installed app. The popup can't be watched (Google's COOP makes it read as closed), so while it is open the e-mail form is locked and "Cancelar" or a 5-min timeout frees it; the page keeps listening, so a sign-in finished after "Cancelar" still enters |
+| Settings (own account) | `(dashboard)/settings/page.tsx` in sections Conta / Segurança / Preferências; `settings/components/`: `profile-card.tsx` (photo cropped square ≤512px via `compressImage(file, { maxSide, square })`, name, stores), `password-card.tsx`, `sessions-card.tsx` (device icon, "Este dispositivo", `timeAgo` from `lib/relative-time.ts`, revoke one or all others); `redux/features/account/accountApi.ts` (profile/photo writes put the returned user in the session); avatars everywhere through `lib/avatar.ts` (`avatarUrl`: the photo or a DiceBear one seeded by the name) |
 | Legal pages | `app/(legal)/privacy`, `app/(legal)/terms` (linked from the login and the menu footer) |
 | SEO | `app/robots.ts` (panel, orders and API disallowed), `app/sitemap.ts` (stores from `GET /public/stores`); per store: `_lib/store-seo.ts` (title, ≈160-char description that always keeps the call to action, canonical: the default store's `/<slug>` → `/`, Open Graph/Twitter), `(menu)/opengraph-image.tsx` + `[slug]/opengraph-image.tsx` (`_lib/store-og-image.tsx`: banner, logo, name in Geist from `public/fonts`; Satori has no `inset`), `_components/store-json-ld.tsx` (schema.org Restaurant + Menu with BRL prices). The panel and order pages are `noindex` |
 | Item photo | `components/app/photo-field.tsx` (`PhotoField`: drop, paste, pick or camera; previews the 16:10 detail and the list thumbnail; staged as `PhotoChange` until the form saves, "Desfazer" goes back), `lib/image-compress.ts` (≤1600px WebP/JPEG, applies orientation, drops EXIF), saved after the item by `items/components/use-save-item-photo.ts` (`uploadItemPhoto` / `removeItemPhoto`) |
@@ -67,6 +68,13 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `display: contents`, so header/body/footer can live inside the form).
   Never put `overflow` on `DialogContent` or use `scrollIntoView` for
   horizontal strips (it scrolls the window too; scroll the strip instead).
+- Dialogs never change while they animate closed (it reads as a flicker).
+  One opened from a piece of state (`open={Boolean(item)}`) renders from
+  `useLastValue(item)` (`hooks/use-last-value.ts`), which keeps the last
+  value until the next one. Forms and local state are cleared in
+  `onOpenChangeComplete` (Base UI `Dialog`/`AlertDialog`, and
+  `AlertDialogDestructive`/`ResponsiveModal`, which maps it to vaul's
+  `onAnimationEnd`), never in `onOpenChange` or right before closing.
 - Search fields use `components/app/search-input.tsx` (one clear button,
   Escape clears).
 - Base UI `Select` shows the raw value in the trigger unless the root gets

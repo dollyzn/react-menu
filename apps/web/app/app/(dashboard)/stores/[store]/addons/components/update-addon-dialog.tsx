@@ -71,13 +71,16 @@ export function UpdateAddonDialog({
   const handleOpenChange = (nextOpen: boolean) => {
     if (busy && open && !nextOpen) return;
     onOpenChange(nextOpen);
-    if (!nextOpen) {
-      form.reset({
-        name: row.original.name,
-        description: row.original.description ?? "",
-        price: row.original.price,
-      });
-    }
+  };
+
+  // Back to the saved values once closed (not while it fades out).
+  const handleOpenChangeComplete = (nextOpen: boolean) => {
+    if (nextOpen) return;
+    form.reset({
+      name: row.original.name,
+      description: row.original.description ?? "",
+      price: row.original.price,
+    });
   };
 
   const onSubmit = async (data: z.infer<typeof UpdateAddonSchema>) => {
@@ -97,7 +100,7 @@ export function UpdateAddonDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={handleOpenChangeComplete}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Editar adicional</DialogTitle>

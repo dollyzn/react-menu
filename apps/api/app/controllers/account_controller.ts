@@ -1,0 +1,73 @@
+import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import AccountService from '#services/account_service'
+import AuthService from '#services/auth_service'
+import { messageOnly, ok, updated } from '#helpers/api_response'
+import {
+  avatarValidator,
+  changePasswordValidator,
+  profileValidator,
+  sessionIdValidator,
+} from '#validators/account'
+
+/** The signed-in user's own account (any role; nothing store-scoped here). */
+@inject()
+export default class AccountController {
+  constructor(
+    private account: AccountService,
+    private auth: AuthService
+  ) {}
+
+  /** The id of the token this request came with. */
+  private currentId(auth: HttpContext['auth']) {
+    const id = auth.getUserOrFail().currentAccessToken?.identifier
+    return id === undefined ? undefined : String(id)
+  }
+
+  async sessions({ auth }: HttpContext) {
+    return ok(await this.account.sessions(auth.getUserOrFail(), this.currentId(auth)))
+  }
+
+  async revokeSession({ auth, params }: HttpContext) {
+    const id = await sessionIdValidator.validate(Number(params.id))
+    await this.account.revokeSession(auth.getUserOrFail(), id, this.currentId(auth))
+    return messageOnly('Sessão encerrada')
+  }
+
+  async revokeOtherSessions({ auth }: HttpContext) {
+    await this.account.revokeOtherSessions(auth.getUserOrFail(), this.currentId(auth))
+    return messageOnly('As outras sessões foram encerradas')
+  }
+
+  async updateProfile({ auth, request, response }: HttpContext) {
+    const data = await request.validateUsing(profileValidator)
+    await this.account.updateProfile(auth.getUserOrFail(), data)
+    return updated(
+      await this.auth.me(auth.getUserOrFail(), { auth, request, response }),
+      'Perfil atualizado'
+    )
+  }
+
+  async setAvatar({ auth, request, response }: HttpContext) {
+    const { avatar } = await request.validateUsing(avatarValidator)
+    await this.account.setAvatar(auth.getUserOrFail(), avatar)
+    return updated(
+      await this.auth.me(auth.getUserOrFail(), { auth, request, response }),
+      'Foto atualizada'
+    )
+  }
+
+  async removeAvatar({ auth, request, response }: HttpContext) {
+    await this.account.removeAvatar(auth.getUserOrFail())
+    return updated(
+      await this.auth.me(auth.getUserOrFail(), { auth, request, response }),
+      'Foto removida'
+    )
+  }
+
+  async changePassword({ auth, request }: HttpContext) {
+    const data = await request.validateUsing(changePasswordValidator)
+    await this.account.changePassword(auth.getUserOrFail(), data, this.currentId(auth))
+    return messageOnly('Senha alterada. As outras sessões foram encerradas.')
+  }
+}

@@ -22,6 +22,7 @@ import {
 } from "@/redux/features/inventory/inventoryApi";
 import { unitLabels } from "@/utils/units";
 import { IngredientIconPicker } from "./ingredient-icon-picker";
+import { useLastValue } from "@/hooks/use-last-value";
 
 interface IngredientDialogProps {
   storeId: string;
@@ -34,11 +35,15 @@ interface IngredientDialogProps {
 const toNumber = (value: string) => Number(value.replace(",", "."));
 
 export function IngredientDialog({ storeId, open, ingredient, onOpenChange }: IngredientDialogProps) {
+  // The form stays (with what it showed) until the dialog has animated closed.
+  const shown = useLastValue(ingredient, () => open);
+  const [present, setPresent] = useState(open);
+  if (open && !present) setPresent(true);
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={(next) => !next && setPresent(false)}>
       <DialogContent>
-        {open && (
-          <IngredientForm key={ingredient?.id ?? "new"} storeId={storeId} ingredient={ingredient} onDone={() => onOpenChange(false)} />
+        {present && (
+          <IngredientForm key={shown?.id ?? "new"} storeId={storeId} ingredient={shown} onDone={() => onOpenChange(false)} />
         )}
       </DialogContent>
     </Dialog>

@@ -69,7 +69,6 @@ export function UpdateBannerDialog({ storeId }: UpdateBannerDialogProps) {
   const handleOpenChange = () => {
     if (busy && open) return;
     setOpen(!open);
-    form.reset();
   };
 
   const handleUpdateBanner = async (
@@ -106,7 +105,7 @@ export function UpdateBannerDialog({ storeId }: UpdateBannerDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
       <DialogTrigger
         render={
           <Button

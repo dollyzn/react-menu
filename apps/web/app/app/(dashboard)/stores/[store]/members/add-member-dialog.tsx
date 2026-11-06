@@ -65,7 +65,6 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
           ? `Convite enviado para ${member.email}`
           : `${member.name ?? member.email} entrou na equipe`
       );
-      reset();
       setOpen(false);
     } catch {
       // baseApi shows the reason (e.g. already in the team).
@@ -75,10 +74,9 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
   return (
     <Dialog
       open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        if (!next) reset();
-      }}
+      onOpenChange={setOpen}
+      // Cleared once closed: resetting during the exit animation flickers.
+      onOpenChangeComplete={(next) => !next && reset()}
     >
       <DialogTrigger render={<Button />}>
         <UserPlus /> Adicionar pessoa

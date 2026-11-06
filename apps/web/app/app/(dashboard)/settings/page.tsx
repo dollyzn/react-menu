@@ -1,11 +1,10 @@
 "use client";
 
-import { Bell, BellOff, Check, LogOut, Monitor, Moon, Palette, Sun, UserRound } from "lucide-react";
+import type { ReactNode } from "react";
+import { Bell, BellOff, Check, LogOut, Monitor, Moon, Palette, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
-import type { StoreRole } from "@react-menu/contracts";
 import { PageHeader } from "@/components/app/layout/page-header";
 import { Radio } from "@base-ui/react/radio";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -17,6 +16,9 @@ import { useThemeTransition, type ThemeChoice } from "@/hooks/use-theme-transiti
 import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { redirectToLogout } from "@/utils/navigation";
+import { PasswordCard } from "./components/password-card";
+import { ProfileCard } from "./components/profile-card";
+import { SessionsCard } from "./components/sessions-card";
 
 const THEMES: { value: ThemeChoice; label: string; hint: string; icon: typeof Sun }[] = [
   { value: "system", label: "Automático", hint: "Segue o aparelho", icon: Monitor },
@@ -24,7 +26,20 @@ const THEMES: { value: ThemeChoice; label: string; hint: string; icon: typeof Su
   { value: "dark", label: "Escuro", hint: "Descansa a vista", icon: Moon },
 ];
 
-const ROLE_LABEL: Record<StoreRole, string> = { manager: "Gerente", attendant: "Atendente", kitchen: "Cozinha" };
+/** A titled group of cards ("Perfil", "Segurança", "Preferências"). */
+function Section({ id, title, description, children }: { id: string; title: string; description: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-4">
+      <div>
+        <h2 id={id} className="text-base font-semibold">
+          {title}
+        </h2>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
 
 /** A tiny panel drawn in light or dark colors (fixed, not following the theme). */
 function MiniPanel({ dark }: { dark: boolean }) {
@@ -56,8 +71,15 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-3xl flex flex-col gap-6 p-4 md:p-6">
-      <PageHeader title="Configurações" description="Sua conta e as preferências deste aparelho." />
+      <PageHeader title="Configurações" description="Sua conta, as preferências deste aparelho e a segurança." />
 
+      {user && (
+        <Section id="settings-account" title="Conta" description="Seus dados no painel.">
+          <ProfileCard user={user} />
+        </Section>
+      )}
+
+      <Section id="settings-preferences" title="Preferências" description="Valem só para este aparelho.">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -138,46 +160,21 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
+      </Section>
+
       {user && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserRound className="size-4 text-primary" /> Conta
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <Avatar className="size-12 border">
-                <AvatarImage src={`https://api.dicebear.com/9.x/lorelei/svg?seed=${user.name ?? user.email}`} alt="" />
-                <AvatarFallback>{(user.name ?? user.email).slice(0, 2).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <div className="min-w-0">
-                <p className="truncate font-semibold">{user.name}</p>
-                <p className="truncate text-sm text-muted-foreground">{user.email}</p>
-              </div>
-              {user.superUser && (
-                <span className="ml-auto rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Administrador</span>
-              )}
-            </div>
-            {user.stores.length > 0 && (
-              <ul className="divide-y rounded-xl border text-sm">
-                {user.stores.map((store) => (
-                  <li key={store.id} className="flex items-center justify-between gap-3 px-3 py-2">
-                    <span className="truncate">{store.name}</span>
-                    <span className="text-muted-foreground">{ROLE_LABEL[store.role]}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">Versão {env.NEXT_PUBLIC_BUILD_VERSION || "dev"}</p>
-              <Button variant="outline" onClick={() => redirectToLogout(router)}>
-                <LogOut /> Sair
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <Section id="settings-security" title="Segurança" description="Sua senha e os aparelhos com a conta aberta.">
+          <PasswordCard />
+          <SessionsCard />
+        </Section>
       )}
+
+      <div className="flex items-center justify-between gap-3 border-t pt-4">
+        <p className="text-xs text-muted-foreground">Versão {env.NEXT_PUBLIC_BUILD_VERSION || "dev"}</p>
+        <Button variant="outline" onClick={() => redirectToLogout(router)}>
+          <LogOut /> Sair
+        </Button>
+      </div>
     </div>
   );
 }
