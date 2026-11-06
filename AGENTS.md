@@ -42,6 +42,7 @@ alone for the shortcuts.
 | All checks before a PR | `pnpm check` |
 | Migrations / seed | `pnpm --filter @react-menu/api exec node ace migration:run` / `... db:seed` |
 | Dev databases (Docker) | `docker compose -f docker-compose.dev.yml up -d` |
+| Local Grafana (traces, logs, metrics) | `docker compose -f docker-compose.dev.yml --profile observability up -d lgtm` (http://localhost:3005; see `docs/development/observability.md`) |
 | Production stack (Docker) | `docker compose up -d --build` (configure `.env` from `.env.docker.example`) |
 
 Tests need Postgres and Redis reachable with `apps/api/.env`; see README.

@@ -8,6 +8,11 @@
 | command to run this file and monitor file changes
 |
 */
+/**
+ * OpenTelemetry first: its loader hook must be in place before anything it
+ * instruments (http, knex, ioredis) is imported. Off without an endpoint.
+ */
+import '../otel.js'
 
 import 'reflect-metadata'
 import { Ignitor, prettyPrintError } from '@adonisjs/core'

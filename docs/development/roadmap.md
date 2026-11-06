@@ -40,8 +40,10 @@ picked from Product below, one PR at a time.
     Shield's CSRF and CSP target pages the Adonis app renders (ours are the
     Next app's), and the login is an access token in an httpOnly cookie.
 
-- Queue tracing: OpenTelemetry (`@adonisjs/queue/otel`) once there is a
-  collector. Failed jobs already notify (super users; managers for refunds).
+- The API's OpenTelemetry only runs from the compiled build: under
+  `node ace serve` (TypeScript) its loader hook breaks the boot ("Cannot
+  resolve binding server"). Worth reporting to adonisjs/otel with a minimal
+  repro; then `pnpm dev` could send traces too (docs/development/observability.md).
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in

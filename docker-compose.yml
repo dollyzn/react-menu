@@ -38,6 +38,10 @@ services:
     restart: unless-stopped
     environment:
       API_INTERNAL_URL: http://api:3333/api/v1
+      # OpenTelemetry (instrumentation.ts; off when the endpoint is empty).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      APP_ENV: ${APP_ENV:-production}
     depends_on: [api]
 
   api:
@@ -83,6 +87,13 @@ services:
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
+      # OpenTelemetry to Grafana Cloud (off when the endpoint is empty). The
+      # worker reports as react-menu-worker by itself (config/otel.ts).
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+      OTEL_EXPORTER_OTLP_HEADERS: ${OTEL_EXPORTER_OTLP_HEADERS:-}
+      OTEL_TRACES_SAMPLE_RATIO: ${OTEL_TRACES_SAMPLE_RATIO:-1}
+      APP_VERSION: ${BUILD_VERSION:-docker}
+      APP_ENV: ${APP_ENV:-production}
     volumes:
       - uploads:/repo/apps/api/storage
     depends_on:
