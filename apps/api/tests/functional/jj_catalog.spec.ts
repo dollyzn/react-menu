@@ -4,7 +4,7 @@ import StoreStatus from '#enums/store_status'
 import Ingredient from '#models/ingredient'
 import Order from '#models/order'
 import CatalogImportService from '#services/catalog_import_service'
-import { JJ_PASTEIS } from '#catalog/jj_pasteis'
+import { JJ_PASTEIS, JJ_PASTEIS_PROFILE } from '#catalog/jj_pasteis'
 import { createStore } from '#tests/helpers/fixtures'
 
 type MenuOption = { id: string; name: string; price: number }
@@ -311,5 +311,20 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
       () => new CatalogImportService().import(store, JJ_PASTEIS, { photos: false }),
       /só entra numa loja vazia/
     )
+  })
+
+  test('the profile fills what the store left empty, never what it typed', async ({ assert }) => {
+    const store = await createStore()
+    store.address = 'Endereço digitado no painel'
+    await store.save()
+
+    const filled = await new CatalogImportService().applyProfile(store, JJ_PASTEIS_PROFILE)
+
+    await store.refresh()
+    assert.sameMembers(filled, ['description', 'instagramUrl', 'photoUrl', 'bannerUrl'])
+    assert.equal(store.address, 'Endereço digitado no painel')
+    assert.include(store.description!, 'desde 2021')
+    assert.match(store.bannerUrl!, /\/uploads\/banners\//)
+    assert.match(store.photoUrl!, /\/uploads\/photos\//)
   })
 })

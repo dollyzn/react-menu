@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { extname } from 'node:path'
 import app from '@adonisjs/core/services/app'
 import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
@@ -15,7 +16,7 @@ import StockMovement from '#models/stock_movement'
 import type Store from '#models/store'
 import env from '#start/env'
 import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
-import type { Catalog, RecipeLine } from '#catalog/types'
+import type { Catalog, CatalogStoreProfile, RecipeLine } from '#catalog/types'
 
 export type ImportSummary = {
   categories: number
@@ -209,6 +210,33 @@ export default class CatalogImportService {
     })
   }
 
+  /**
+   * The store's description, address, Instagram, logo and banner, where the
+   * store left them empty (what was typed or uploaded in the panel stays).
+   * Answers the fields it filled.
+   */
+  async applyProfile(store: Store, profile: CatalogStoreProfile) {
+    const filled: string[] = []
+    for (const field of ['description', 'address', 'instagramUrl'] as const) {
+      if (store[field]) continue
+      store[field] = profile[field]
+      filled.push(field)
+    }
+    for (const [field, file, folder] of [
+      ['photoUrl', profile.logo, 'photos'],
+      ['bannerUrl', profile.banner, 'banners'],
+    ] as const) {
+      if (store[field]) continue
+      store[field] = await storeFile(
+        `${folder}/${store.id}_catalog${extname(file)}`,
+        app.makePath('database/data', file)
+      )
+      filled.push(field)
+    }
+    await store.save()
+    return filled
+  }
+
   private async enableInventory(store: Store, trx: TransactionClientContract) {
     store.useTransaction(trx)
     store.inventoryEnabled = true
@@ -222,33 +250,35 @@ export default class CatalogImportService {
  * Under `menu/`, so deleting an item's photo never removes a shared file.
  */
 class PhotoStore {
-  private urls = new Map<number, string>()
+  private urls = new Map<string, string>()
 
   get count() {
     return this.urls.size
   }
 
-  async url(photoId: number) {
-    const cached = this.urls.get(photoId)
+  async url(file: string) {
+    const cached = this.urls.get(file)
     if (cached) return cached
-    const file = `pexels-${photoId}.webp`
-    const key = `menu/catalog-${file}`
-    const disk = drive.use()
-    await disk.put(key, await readFile(app.makePath('database/data/menu-photos', file)))
-    const url = await this.publicUrl(key)
-    this.urls.set(photoId, url)
+    const url = await storeFile(
+      `menu/catalog-${file}`,
+      app.makePath('database/data/menu-photos', file)
+    )
+    this.urls.set(file, url)
     return url
   }
+}
 
-  /**
-   * The disk's URL; outside an HTTP server (seeders, Ace) the local disk has
-   * no route to build it from, so its /uploads path on APP_URL.
-   */
-  private async publicUrl(key: string) {
-    try {
-      return await drive.use().getUrl(key)
-    } catch {
-      return `${env.get('APP_URL').replace(/\/$/, '')}/uploads/${key}`
-    }
+/**
+ * Puts a file on the Drive disk and answers its public URL. Outside an HTTP
+ * server (seeders, Ace) the local disk has no route to build the URL from,
+ * so its /uploads path on APP_URL.
+ */
+async function storeFile(key: string, path: string) {
+  const disk = drive.use()
+  await disk.put(key, await readFile(path))
+  try {
+    return await disk.getUrl(key)
+  } catch {
+    return `${env.get('APP_URL').replace(/\/$/, '')}/uploads/${key}`
   }
 }

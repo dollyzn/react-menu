@@ -8,8 +8,8 @@ export type CatalogItem = {
   description: string
   /** Defaults to the category's price. */
   price?: number
-  /** Pexels id of a photo in database/data/menu-photos (none: the menu's placeholder). */
-  photo?: number
+  /** A file in database/data/menu-photos (none: the menu's placeholder). */
+  photo?: string
   recipe: RecipeLine[]
   /** Choice groups (keys), in display order. */
   groups: string[]
@@ -23,6 +23,16 @@ export type CatalogItem = {
  * A store's menu as data: stock items, add-ons (with recipes), choice groups
  * and categories of items. Names refer to each other; `key`s are local.
  */
+/** The store's public profile, filled where the store left it empty. */
+export type CatalogStoreProfile = {
+  description: string
+  address: string
+  instagramUrl: string
+  /** Files in database/data. */
+  banner: string
+  logo: string
+}
+
 export type Catalog = {
   ingredients: { name: string; unit: IngredientUnit; stock: number; min: number }[]
   addons: {
@@ -31,7 +41,7 @@ export type Catalog = {
     description?: string
     price: number
     recipe: RecipeLine[]
-    photo?: number
+    photo?: string
   }[]
   groups: {
     key: string

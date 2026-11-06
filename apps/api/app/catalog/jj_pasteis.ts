@@ -1,5 +1,5 @@
 import IngredientUnit from '#enums/ingredient_unit'
-import type { Catalog, CatalogItem } from '#catalog/types'
+import type { Catalog, CatalogItem, CatalogStoreProfile } from '#catalog/types'
 
 /**
  * The JJ Pastéis menu, choice groups, add-ons and stock, as specified by the
@@ -111,7 +111,7 @@ const addons: Catalog['addons'] = [
     description: 'Pedaços de bacon',
     price: 5,
     recipe: [['Bacon', 20]],
-    photo: 4110376,
+    photo: 'pexels-4110376.webp',
   },
   {
     key: 'ovo',
@@ -119,7 +119,7 @@ const addons: Catalog['addons'] = [
     description: 'Um ovo cozido inteiro',
     price: 5,
     recipe: [['Ovo', 1]],
-    photo: 4397261,
+    photo: 'pexels-4397261.webp',
   },
   {
     key: 'azeitona',
@@ -134,7 +134,7 @@ const addons: Catalog['addons'] = [
     description: 'Porção de tomate',
     price: 3,
     recipe: [['Tomate', 20]],
-    photo: 11789795,
+    photo: 'pexels-11789795.webp',
   },
   {
     key: 'milho',
@@ -142,7 +142,7 @@ const addons: Catalog['addons'] = [
     description: 'Porção de milho',
     price: 3,
     recipe: [['Milho', 20]],
-    photo: 12408945,
+    photo: 'pexels-12408945.webp',
   },
   {
     key: 'ervilha',
@@ -269,7 +269,7 @@ function pastry(
   description: string,
   filling: [string, number][],
   extra: string | null,
-  options: { photo?: number; cheese?: boolean; complements?: string[] } = {}
+  options: { photo?: string; cheese?: boolean; complements?: string[] } = {}
 ): CatalogItem {
   const cheese = options.cheese ?? /queijo/i.test(`${name} ${description}`)
   return {
@@ -282,7 +282,7 @@ function pastry(
   }
 }
 
-function sweet(name: string, description: string, filling: [string, number][], photo?: number) {
+function sweet(name: string, description: string, filling: [string, number][], photo?: string) {
   const cheese = /queijo/i.test(`${name} ${description}`)
   return {
     name,
@@ -294,7 +294,7 @@ function sweet(name: string, description: string, filling: [string, number][], p
   }
 }
 
-function drink(name: string, description: string, price: number, photo?: number): CatalogItem {
+function drink(name: string, description: string, price: number, photo?: string): CatalogItem {
   // One stock line per product (brand, flavor, package and size), sold whole.
   return {
     name,
@@ -318,37 +318,35 @@ const categories: Catalog['categories'] = [
         'Recheado com Carne Moída e Temperada',
         [['Carne moída', MAIN]],
         'extraSimples',
-        { photo: 37118885 }
+        { photo: 'pexels-37118885.webp' }
       ),
       pastry('Pastel de Queijo', 'Queijo à sua Escolha, Derretido e Cremoso', [], 'extraSimples', {
-        photo: 6054485,
+        photo: 'pexels-6054485.webp',
       }),
       pastry(
         'Pastel de Frango',
         'Frango Desfiado e Temperado',
         [['Frango desfiado', MAIN]],
         'extraSimples',
-        { photo: 15010282 }
+        { photo: 'pexels-15010282.webp' }
       ),
       pastry('Pastel de Presunto', 'Presunto Triturado', [['Presunto', MAIN]], 'extraSimples', {
-        photo: 14699211,
+        photo: 'pexels-14699211.webp',
       }),
-      pastry('Pastel de Calabresa', 'Calabresa Triturada', [['Calabresa', MAIN]], 'extraSimples', {
-        photo: 36959794,
-      }),
+      pastry('Pastel de Calabresa', 'Calabresa Triturada', [['Calabresa', MAIN]], 'extraSimples'),
       pastry(
         'Pastel de Brócolis',
         'Brócolis Destrinchado e Temperado',
         [['Brócolis', MAIN]],
         'extraSimples',
-        { photo: 14699210 }
+        { photo: 'pexels-14699210.webp' }
       ),
       pastry(
         'Pastel de Escarola',
         'Escarola Temperada Crua (cozinha por dentro do pastel)',
         [['Escarola', MAIN]],
         'extraSimples',
-        { photo: 14699209 }
+        { photo: 'pexels-14699209.webp' }
       ),
     ],
   },
@@ -364,7 +362,7 @@ const categories: Catalog['categories'] = [
           ['Orégano', 2],
         ],
         'extraEspeciais',
-        { photo: 28442527 }
+        { photo: 'pexels-28442527.webp' }
       ),
       pastry(
         'Pastel de Calafrango',
@@ -373,15 +371,13 @@ const categories: Catalog['categories'] = [
           ['Calabresa', SECOND],
           ['Frango desfiado', SECOND],
         ],
-        'extraEspeciais',
-        { photo: 28902906 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Berinjela',
         'Berinjela Temperada e Cozida',
         [['Berinjela', MAIN]],
-        'extraEspeciais',
-        { photo: 36057933 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Palmito',
@@ -390,8 +386,7 @@ const categories: Catalog['categories'] = [
           ['Palmito', MAIN],
           ['Catupiry', 20],
         ],
-        'extraEspeciais',
-        { photo: 32912391 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Bauru',
@@ -401,7 +396,7 @@ const categories: Catalog['categories'] = [
           ['Orégano', 2],
         ],
         'extraEspeciais',
-        { photo: 30893317 }
+        { photo: 'pexels-30893317.webp' }
       ),
       pastry(
         'Pastel de Camarão',
@@ -410,8 +405,7 @@ const categories: Catalog['categories'] = [
           ['Camarão 7 barbas', MAIN],
           ['Catupiry', 20],
         ],
-        'extraEspeciais',
-        { photo: 40108720 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Carne Seca',
@@ -426,15 +420,13 @@ const categories: Catalog['categories'] = [
           ['Carne moída', MAIN],
           ['Ovo', 1],
         ],
-        'extraEspeciais',
-        { photo: 28902899 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Carne com Queijo',
         'Carne Moída Acompanhada de Queijo à sua Escolha',
         [['Carne moída', MAIN]],
-        'extraEspeciais',
-        { photo: 32912393 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de FranBacon',
@@ -443,22 +435,20 @@ const categories: Catalog['categories'] = [
           ['Frango desfiado', SECOND],
           ['Bacon', SECOND],
         ],
-        'extraEspeciais',
-        { photo: 8725241 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Frango com Queijo',
         'Frango Cozido com Queijo à sua Escolha',
         [['Frango desfiado', MAIN]],
-        'extraEspeciais',
-        { photo: 37168116 }
+        'extraEspeciais'
       ),
       pastry(
         'Pastel de Brócolis com Queijo',
         'Brócolis Cozido com Queijo à sua Escolha',
         [['Brócolis', MAIN]],
         'extraEspeciais',
-        { photo: 24962986 }
+        { photo: 'pexels-24962986.webp' }
       ),
       pastry(
         'Pastel de Escarola com Queijo',
@@ -569,7 +559,7 @@ const categories: Catalog['categories'] = [
           ['Molho rosé', 30],
         ],
         null,
-        { cheese: true, photo: 34389364 }
+        { cheese: true, photo: 'pexels-34389364.webp' }
       ),
       pastry('Pastel de Salmão', 'Salmão grelhado', [['Salmão', MAIN]], null, { cheese: true }),
     ],
@@ -579,38 +569,20 @@ const categories: Catalog['categories'] = [
     price: 25,
     items: [
       sweet('Pastel de Brigadeiro', 'Chocolate Derretido', [['Chocolate ao leite', MAIN]]),
-      sweet(
-        'Pastel de KitKat',
-        'Creme de KitKat com Pedacinhos de KitKat',
-        [
-          ['Chocolate ao leite', 50],
-          ['KitKat', 1],
-        ],
-        29161757
-      ),
-      sweet(
-        'Pastel de Doce de Leite',
-        'Recheado com Doce de leite',
-        [['Doce de leite', MAIN]],
-        10970323
-      ),
+      sweet('Pastel de KitKat', 'Creme de KitKat com Pedacinhos de KitKat', [
+        ['Chocolate ao leite', 50],
+        ['KitKat', 1],
+      ]),
+      sweet('Pastel de Doce de Leite', 'Recheado com Doce de leite', [['Doce de leite', MAIN]]),
       sweet('Pastel Romeu e Julieta', 'Goiabada com queijo', [['Goiabada', 50]]),
-      sweet('Pastel de Nutella', 'Creme de Avelã com Cacau e Leite', [['Nutella', MAIN]], 19822572),
-      sweet(
-        'Pastel de Chocolate Branco',
-        'Creme de Chocolate Branco',
-        [['Chocolate branco', MAIN]],
-        19499014
-      ),
-      sweet(
-        'Pastel de Banana com Canela',
-        'Banana Fatiada com Açúcar e Canela',
-        [
-          ['Banana', 1],
-          ['Açúcar e canela', 10],
-        ],
-        34159052
-      ),
+      sweet('Pastel de Nutella', 'Creme de Avelã com Cacau e Leite', [['Nutella', MAIN]]),
+      sweet('Pastel de Chocolate Branco', 'Creme de Chocolate Branco', [
+        ['Chocolate branco', MAIN],
+      ]),
+      sweet('Pastel de Banana com Canela', 'Banana Fatiada com Açúcar e Canela', [
+        ['Banana', 1],
+        ['Açúcar e canela', 10],
+      ]),
     ],
   },
   {
@@ -664,14 +636,14 @@ const categories: Catalog['categories'] = [
     items: [
       drink('Coca-Cola Original lata 350 ml', 'Refrigerante em lata', 10),
       drink('Coca-Cola Zero lata 350 ml', 'Refrigerante em lata, sem açúcar', 10),
-      drink('Guaraná Antarctica lata 350 ml', 'Refrigerante em lata', 10, 32183186),
+      drink('Guaraná Antarctica lata 350 ml', 'Refrigerante em lata', 10, 'pexels-32183186.webp'),
       drink('Guaraná Antarctica Zero lata 350 ml', 'Refrigerante em lata, sem açúcar', 10),
-      drink('Sprite lata 350 ml', 'Refrigerante em lata', 10, 31332092),
-      drink('Schweppes lata 350 ml', 'Refrigerante em lata', 10, 33642286),
+      drink('Sprite lata 350 ml', 'Refrigerante em lata', 10, 'pexels-31332092.webp'),
+      drink('Schweppes lata 350 ml', 'Refrigerante em lata', 10),
       drink('Fanta Uva lata 350 ml', 'Refrigerante em lata', 10),
-      drink('Fanta Laranja lata 350 ml', 'Refrigerante em lata', 10, 13950097),
+      drink('Fanta Laranja lata 350 ml', 'Refrigerante em lata', 10, 'pexels-13950097.webp'),
       drink('Coca-Cola Original 200 ml', 'Refrigerante em garrafinha', 6),
-      drink('Coca-Cola Zero 200 ml', 'Refrigerante em garrafinha, sem açúcar', 6, 15871954),
+      drink('Coca-Cola Zero 200 ml', 'Refrigerante em garrafinha, sem açúcar', 6),
       drink('Coca-Cola Original 600 ml', 'Refrigerante em garrafa', 15),
       drink('Guaraná Antarctica normal 600 ml', 'Refrigerante em garrafa', 15),
       drink('Suco Del Valle Maracujá lata 290 ml', 'Suco Del Valle em lata', 10),
@@ -689,3 +661,12 @@ const categories: Catalog['categories'] = [
 ]
 
 export const JJ_PASTEIS: Catalog = { ingredients, addons, groups, categories }
+
+/** JJ Pastéis' public profile (the menu's header, logo and banner). */
+export const JJ_PASTEIS_PROFILE: CatalogStoreProfile = {
+  description: 'Pastéis feitos na hora, crocantes e bem recheados desde 2021.',
+  address: 'Praia do Boqueirão - Santos / SP',
+  instagramUrl: 'https://www.instagram.com/jjpasteis',
+  banner: 'jj-banner.jpg',
+  logo: 'jj-logo.png',
+}
