@@ -118,4 +118,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_PASSWORD: Env.schema.string.optional(),
   /** Resend (MAIL_MAILER=resend): an API key with "Sending access". */
   RESEND_API_KEY: Env.schema.string.optional(),
+
+  /**
+   * e2e only: keeps the last sign-in code per e-mail in memory and exposes it
+   * at GET /api/v1/__e2e/two-factor-code. The app refuses to boot with it in
+   * production.
+   */
+  E2E_TEST_HOOKS: Env.schema.boolean.optional(),
 })

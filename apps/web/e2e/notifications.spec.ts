@@ -1,5 +1,5 @@
 import { request as playwrightRequest } from "@playwright/test";
-import { test, expect, login, createStoreViaApi } from "./fixtures";
+import { test, expect, login, createStoreViaApi, apiSignIn } from "./fixtures";
 import { API_URL } from "../playwright.config";
 
 test("store members are notified in realtime when the status changes", async ({ page }) => {
@@ -29,7 +29,7 @@ test("store members are notified in realtime when the status changes", async ({ 
   await subscribed;
 
   const colleagueApi = await playwrightRequest.newContext({ baseURL: API_URL });
-  await colleagueApi.post("/api/v1/auth/login", { data: colleague });
+  await apiSignIn(colleagueApi, colleague);
   const patch = await colleagueApi.patch(`/api/v1/stores/${store.id}/status`, {
     data: { status: "open" },
   });

@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
+import encryption from '@adonisjs/core/services/encryption'
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, belongsTo, column, computed, hasMany, manyToMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
@@ -18,6 +19,10 @@ import Store from './store.js'
  * again after half of it (7 days), the session renews for another 14.
  */
 export const SESSION_TTL = '14 days'
+
+const encryptNullable = (value: string | null) => (value ? encryption.encrypt(value) : null)
+const decryptNullable = (value: string | null) =>
+  value ? (encryption.decrypt<string>(value) ?? null) : null
 
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
@@ -52,6 +57,27 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column()
   declare avatarUrl: string | null
+
+  /** TOTP secret (base32), encrypted at rest with APP_KEY; never serialized. */
+  @column({ serializeAs: null, prepare: encryptNullable, consume: decryptNullable })
+  declare twoFactorSecret: string | null
+
+  /** A secret shown during setup, waiting for its first code. */
+  @column({ serializeAs: null, prepare: encryptNullable, consume: decryptNullable })
+  declare twoFactorPendingSecret: string | null
+
+  @column.dateTime({ serializeAs: null })
+  declare twoFactorEnabledAt: DateTime | null
+
+  /** The last TOTP time step accepted: a code works only once. */
+  @column({ serializeAs: null })
+  declare twoFactorLastStep: number | null
+
+  /** An authenticator app is set up (otherwise sign-ins get an e-mail code). */
+  @computed()
+  get twoFactorEnabled() {
+    return Boolean(this.twoFactorEnabledAt)
+  }
 
   @column()
   declare status: UserStatusEnum

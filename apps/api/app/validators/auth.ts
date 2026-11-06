@@ -21,4 +21,14 @@ const resetPasswordValidator = vine.create(
   })
 )
 
-export { loginValidator, forgotPasswordValidator, resetPasswordValidator }
+/** The second step: a 6-digit code, or a recovery code ("ABCD-EFGH"). */
+const twoFactorValidator = vine.create(
+  vine.object({
+    code: vine.string().trim().minLength(6).maxLength(20),
+    recovery: vine.boolean().optional(),
+    /** "Confiar neste dispositivo por 30 dias". */
+    remember: vine.boolean().optional(),
+  })
+)
+
+export { loginValidator, forgotPasswordValidator, resetPasswordValidator, twoFactorValidator }

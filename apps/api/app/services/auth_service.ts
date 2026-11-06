@@ -6,6 +6,8 @@ import string from '@adonisjs/core/helpers/string'
 import User, { SESSION_TTL } from '#models/user'
 import env from '#start/env'
 import db from '@adonisjs/lucid/services/db'
+import { inject } from '@adonisjs/core'
+import TwoFactorService from '#services/two_factor_service'
 import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
 
@@ -14,7 +16,10 @@ type LoginPayload = {
   password: string
 }
 
+@inject()
 export default class AuthService {
+  constructor(private twoFactor: TwoFactorService) {}
+
   private sendCookie = env.get('AUTH_COOKIE_ENABLED', false)
   private cookieName = env.get('AUTH_COOKIE_NAME')
 
@@ -25,7 +30,7 @@ export default class AuthService {
   async createSession(
     user: User,
     ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>,
-    options: { signedInAt?: Date | null } = {}
+    options: { signedInAt?: Date | null; trustedDeviceId?: string | null } = {}
   ) {
     if (user.invitePending) {
       user.invitePending = false
@@ -42,6 +47,8 @@ export default class AuthService {
         user_agent: ctx.request.header('user-agent')?.slice(0, 512) ?? null,
         ip_address: ctx.request.ip(),
         signed_in_at: options.signedInAt ?? new Date(),
+        // Ending this session ends the trust it was opened with.
+        trusted_device_id: options.trustedDeviceId ?? null,
       })
 
     if (this.sendCookie && serializedToken.token) {
@@ -86,8 +93,29 @@ export default class AuthService {
       )
     }
 
-    const serializedToken = await this.createSession(user, ctx)
+    return await this.afterFirstFactor(user, ctx)
+  }
 
+  /**
+   * Password (or Google) passed: a trusted device signs in now, anything else
+   * gets the second step (`twoFactor`: an e-mail code or the authenticator).
+   */
+  async afterFirstFactor(user: User, ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>) {
+    const next = await this.twoFactor.start(user, ctx)
+    if ('challenge' in next) return { twoFactor: next.challenge }
+    const serializedToken = await this.createSession(user, ctx, {
+      trustedDeviceId: next.trustedDeviceId,
+    })
+    return { user: await this.sessionUser(user, serializedToken.expiresAt) }
+  }
+
+  /** The second step: the code is right, the session starts. */
+  async completeTwoFactor(
+    input: { code: string; recovery?: boolean; remember?: boolean },
+    ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>
+  ) {
+    const { user, trustedDeviceId } = await this.twoFactor.verify(ctx, input)
+    const serializedToken = await this.createSession(user, ctx, { trustedDeviceId })
     return { user: await this.sessionUser(user, serializedToken.expiresAt) }
   }
 
@@ -113,9 +141,12 @@ export default class AuthService {
       const row = await db
         .from('auth_access_tokens')
         .where('id', String(current.identifier))
-        .select('signed_in_at')
+        .select('signed_in_at', 'trusted_device_id')
         .first()
-      const renewed = await this.createSession(user, ctx, { signedInAt: row?.signed_in_at })
+      const renewed = await this.createSession(user, ctx, {
+        signedInAt: row?.signed_in_at,
+        trustedDeviceId: row?.trusted_device_id,
+      })
       await User.accessTokens.delete(user, current.identifier)
       return await this.sessionUser(user, renewed.expiresAt)
     }

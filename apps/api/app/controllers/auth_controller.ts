@@ -1,6 +1,12 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import { forgotPasswordValidator, loginValidator, resetPasswordValidator } from '#validators/auth'
+import {
+  forgotPasswordValidator,
+  loginValidator,
+  resetPasswordValidator,
+  twoFactorValidator,
+} from '#validators/auth'
+import TwoFactorService from '#services/two_factor_service'
 import AuthService from '#services/auth_service'
 import PasswordResetService from '#services/password_reset_service'
 import { messageOnly, ok } from '#helpers/api_response'
@@ -9,7 +15,8 @@ import { messageOnly, ok } from '#helpers/api_response'
 export default class AuthController {
   constructor(
     private authService: AuthService,
-    private passwordResets: PasswordResetService
+    private passwordResets: PasswordResetService,
+    private twoFactor: TwoFactorService
   ) {}
 
   async login({ request, response, auth }: HttpContext) {
@@ -18,6 +25,20 @@ export default class AuthController {
     const result = await this.authService.login(data, { request, response, auth })
 
     return ok(result)
+  }
+
+  /** The pending second step of this browser (after "Entrar com Google"). */
+  async twoFactorChallenge({ request, response }: HttpContext) {
+    return ok({ twoFactor: await this.twoFactor.current({ request, response }) })
+  }
+
+  async verifyTwoFactor({ request, response, auth }: HttpContext) {
+    const data = await request.validateUsing(twoFactorValidator)
+    return ok(await this.authService.completeTwoFactor(data, { request, response, auth }))
+  }
+
+  async resendTwoFactor({ request, response }: HttpContext) {
+    return ok({ twoFactor: await this.twoFactor.resend({ request, response }) })
   }
 
   async logout({ auth, response }: HttpContext) {

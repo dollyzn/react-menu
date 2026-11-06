@@ -1,4 +1,4 @@
-import type { AccountSession, SessionUser } from "@react-menu/contracts";
+import type { AccountSession, SessionUser, TwoFactorStatus } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
 import { setUser } from "@/redux/slices/auth";
 
@@ -54,10 +54,40 @@ export const accountApi = baseApi.injectEndpoints({
       extraOptions: { quiet: true },
       invalidatesTags: [{ type: "AccountSession", id: "LIST" }],
     }),
+    twoFactorStatus: build.query<TwoFactorStatus, void>({
+      query: () => "account/two-factor",
+      providesTags: ["TwoFactor"],
+    }),
+    /** A new secret to scan; nothing changes until `enableTwoFactor` gets a code from it. */
+    setupTwoFactor: build.mutation<{ secret: string; uri: string }, void>({
+      query: () => ({ url: "account/two-factor/setup", method: "POST" }),
+      extraOptions: { quiet: true },
+    }),
+    /** Returns the recovery codes (shown once). */
+    enableTwoFactor: build.mutation<{ recoveryCodes: string[] }, { code: string }>({
+      query: (body) => ({ url: "account/two-factor/enable", method: "POST", body }),
+      extraOptions: { quiet: true },
+      invalidatesTags: ["TwoFactor", { type: "AccountSession", id: "LIST" }],
+    }),
+    disableTwoFactor: build.mutation<void, { password: string }>({
+      query: (body) => ({ url: "account/two-factor/disable", method: "POST", body }),
+      extraOptions: { quiet: true },
+      invalidatesTags: ["TwoFactor", { type: "AccountSession", id: "LIST" }],
+    }),
+    regenerateRecoveryCodes: build.mutation<{ recoveryCodes: string[] }, { code: string }>({
+      query: (body) => ({ url: "account/two-factor/recovery-codes", method: "POST", body }),
+      extraOptions: { quiet: true },
+      invalidatesTags: ["TwoFactor"],
+    }),
   }),
 });
 
 export const {
+  useTwoFactorStatusQuery,
+  useSetupTwoFactorMutation,
+  useEnableTwoFactorMutation,
+  useDisableTwoFactorMutation,
+  useRegenerateRecoveryCodesMutation,
   useGetSessionsQuery,
   useRevokeSessionMutation,
   useRevokeOtherSessionsMutation,

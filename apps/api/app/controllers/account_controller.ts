@@ -2,10 +2,13 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import AccountService from '#services/account_service'
 import AuthService from '#services/auth_service'
+import TwoFactorService from '#services/two_factor_service'
 import { messageOnly, ok, updated } from '#helpers/api_response'
 import {
   avatarValidator,
   changePasswordValidator,
+  passwordConfirmValidator,
+  totpCodeValidator,
   profileValidator,
   sessionIdValidator,
 } from '#validators/account'
@@ -15,7 +18,8 @@ import {
 export default class AccountController {
   constructor(
     private account: AccountService,
-    private auth: AuthService
+    private auth: AuthService,
+    private twoFactor: TwoFactorService
   ) {}
 
   /** The id of the token this request came with. */
@@ -69,5 +73,37 @@ export default class AccountController {
     const data = await request.validateUsing(changePasswordValidator)
     await this.account.changePassword(auth.getUserOrFail(), data, this.currentId(auth))
     return messageOnly('Senha alterada. As outras sessões foram encerradas.')
+  }
+
+  /** Second step settings: the authenticator app and its recovery codes. */
+  async twoFactorStatus({ auth }: HttpContext) {
+    const user = auth.getUserOrFail()
+    return ok({
+      enabled: user.twoFactorEnabled,
+      enabledAt: user.twoFactorEnabledAt?.toISO() ?? null,
+      recoveryCodesLeft: user.twoFactorEnabled ? await this.twoFactor.recoveryCodesLeft(user) : 0,
+    })
+  }
+
+  async setupTwoFactor({ auth }: HttpContext) {
+    return ok(await this.twoFactor.setup(auth.getUserOrFail()))
+  }
+
+  async enableTwoFactor({ auth, request }: HttpContext) {
+    const { code } = await request.validateUsing(totpCodeValidator)
+    const recoveryCodes = await this.twoFactor.enable(auth.getUserOrFail(), code)
+    return ok({ recoveryCodes })
+  }
+
+  async disableTwoFactor({ auth, request }: HttpContext) {
+    const { password } = await request.validateUsing(passwordConfirmValidator)
+    await this.twoFactor.disable(auth.getUserOrFail(), password)
+    return messageOnly('App autenticador desativado. Os acessos voltam a usar o código por e-mail.')
+  }
+
+  async regenerateRecoveryCodes({ auth, request }: HttpContext) {
+    const { code } = await request.validateUsing(totpCodeValidator)
+    const recoveryCodes = await this.twoFactor.regenerateRecoveryCodes(auth.getUserOrFail(), code)
+    return ok({ recoveryCodes })
   }
 }

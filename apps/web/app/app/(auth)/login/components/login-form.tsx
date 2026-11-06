@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import * as z from "zod";
+import { AnimatePresence, motion } from "motion/react";
+import type { TwoFactorChallenge } from "@react-menu/contracts";
+import { useLazyTwoFactorChallengeQuery, useTwoFactorChallengeQuery } from "@/redux/features/auth/authApi";
 import { SocialLogin, type SocialLoginStatus } from "./social-login";
+import { TwoFactorStep } from "./two-factor-step";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -40,6 +44,27 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [socialStatus, setSocialStatus] = useState<SocialLoginStatus>("idle");
+  /** The password (or Google) passed: the second step is on screen. */
+  const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
+  const [loadChallenge] = useLazyTwoFactorChallengeQuery();
+
+  // After Google: the API set the challenge cookie; ask what it is.
+  const continueWithCode = async () => {
+    const result = await loadChallenge();
+    if (result.data) setChallenge(result.data.twoFactor);
+  };
+
+  // Google without a popup comes back here with ?etapa=codigo (read once;
+  // the server render has no window and nothing to show yet either way).
+  const [cameFromGoogle] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("etapa") === "codigo"
+  );
+  const arrival = useTwoFactorChallengeQuery(undefined, { skip: !cameFromGoogle });
+  const [arrivalDone, setArrivalDone] = useState(false);
+  const current = challenge ?? (arrivalDone ? null : (arrival.data?.twoFactor ?? null));
+  useEffect(() => {
+    if (cameFromGoogle) window.history.replaceState(null, "", "/app/login");
+  }, [cameFromGoogle]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -76,12 +101,14 @@ export function LoginForm() {
   async function onSubmit(data: LoginValues) {
     const { email, password } = data;
 
-    const error = await login({
+    const { error, twoFactor } = await login({
       email,
       password,
     });
 
-    if (error) {
+    if (twoFactor) {
+      setChallenge(twoFactor);
+    } else if (error) {
       form.setError("email", {
         type: "manual",
         message: "",
@@ -98,7 +125,35 @@ export function LoginForm() {
 
 
   return (
-    <div className="grid gap-6">
+    // The steps slide sideways: clip them (no horizontal scroll).
+    <div className="-mx-1 overflow-x-clip px-1">
+    <AnimatePresence mode="wait" initial={false}>
+      {current ? (
+        <motion.div
+          key="two-factor"
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 24 }}
+          transition={{ duration: 0.2 }}
+        >
+          <TwoFactorStep
+            challenge={current}
+            onBack={() => {
+              setChallenge(null);
+              setArrivalDone(true);
+              form.resetField("password");
+            }}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="password"
+          className="grid gap-6"
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.2 }}
+        >
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <FieldGroup className="pb-6">
           <Controller
@@ -208,7 +263,14 @@ export function LoginForm() {
         </Button>
       </form>
 
-      <SocialLogin disabled={isSubmitting} onStatusChange={setSocialStatus} />
+      <SocialLogin
+        disabled={isSubmitting}
+        onStatusChange={setSocialStatus}
+        onTwoFactor={() => void continueWithCode()}
+      />
+        </motion.div>
+      )}
+    </AnimatePresence>
     </div>
   );
 }

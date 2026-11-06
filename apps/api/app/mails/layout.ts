@@ -30,8 +30,12 @@ export type EmailContent = {
   /** Small label above the title ("Pagamento confirmado"). */
   eyebrow?: string
   title: string
-  /** A big highlighted value under the title (e.g. the order number). */
-  highlight?: { label: string; value: string }
+  /**
+   * A big highlighted value under the title (e.g. the order number). `code`
+   * spreads it out with letter spacing only, so copying it gives the bare
+   * value (a sign-in code pastes into the six boxes).
+   */
+  highlight?: { label: string; value: string; code?: boolean }
   blocks: EmailBlock[]
   footer?: string
 }
@@ -182,7 +186,7 @@ export function emailHtml(content: EmailContent) {
     ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px"><tr>
 <td class="em-panel" bgcolor="${LIGHT.panel}" style="background:${LIGHT.panel};border-radius:14px;padding:18px 20px">
 <p class="em-muted" style="margin:0;font-size:13px;font-weight:500;color:${LIGHT.muted}">${escape(content.highlight.label)}</p>
-<p class="em-text" style="margin:4px 0 0;font-size:44px;line-height:1;font-weight:900;letter-spacing:-.03em;color:${LIGHT.text}">${escape(content.highlight.value)}</p>
+<p class="em-text" style="margin:4px 0 0;font-size:44px;line-height:1;font-weight:900;letter-spacing:${content.highlight.code ? '.25em' : '-.03em'};${content.highlight.code ? "font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;" : ''}color:${LIGHT.text}">${escape(content.highlight.value)}</p>
 </td></tr></table>`
     : ''
   const footer = [

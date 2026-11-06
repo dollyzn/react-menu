@@ -58,6 +58,8 @@ export default defineConfig({
         GOOGLE_CLIENT_ID: "e2e-google-client",
         GOOGLE_CLIENT_SECRET: "e2e-google-secret", // gitleaks:allow (fake)
         GOOGLE_CALLBACK_URL: `${API_URL}/api/v1/auth/social/google/callback`,
+        // No mail worker here: sign-in codes are read from GET /api/v1/__e2e/two-factor-code.
+        E2E_TEST_HOOKS: "true",
       },
     },
     {
