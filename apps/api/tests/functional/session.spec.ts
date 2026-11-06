@@ -4,6 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import { createUser } from '#tests/helpers/fixtures'
+import { signIn } from '#tests/helpers/sign_in'
 
 const COOKIE = env.get('AUTH_COOKIE_NAME')
 
@@ -15,11 +16,7 @@ test.group('Session', (group) => {
     assert,
   }) => {
     const user = await createUser({ password: 'secret123' })
-    const login = await client
-      .post('/api/v1/auth/login')
-      .json({ email: user.email, password: 'secret123' })
-    login.assertStatus(200)
-    const token = login.cookie(COOKIE)!.value
+    const { session: token } = await signIn(client, { email: user.email, password: 'secret123' })
 
     // Fresh session: nothing changes.
     const fresh = await client.get('/api/v1/auth/me').withCookie(COOKIE, token)

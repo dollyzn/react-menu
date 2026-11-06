@@ -7,6 +7,7 @@ import Notification from '#models/notification'
 import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
 import { createStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { signIn } from '#tests/helpers/sign_in'
 
 async function storeWithManager() {
   const manager = await createUser({ name: 'Gerente' })
@@ -144,9 +145,7 @@ test.group('Store members', (group) => {
     user.invitePending = true
     await user.save()
 
-    const login = await client
-      .post('/api/v1/auth/login')
-      .json({ email: user.email, password: 'secret123' })
+    const { response: login } = await signIn(client, { email: user.email, password: 'secret123' })
 
     login.assertStatus(200)
     await user.refresh()

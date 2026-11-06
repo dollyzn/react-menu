@@ -118,4 +118,18 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_PASSWORD: Env.schema.string.optional(),
   /** Resend (MAIL_MAILER=resend): an API key with "Sending access". */
   RESEND_API_KEY: Env.schema.string.optional(),
+
+  /**
+   * e2e only: keeps the last sign-in code per e-mail in memory and exposes it
+   * at GET /api/v1/__e2e/two-factor-code. The app refuses to boot with it in
+   * production.
+   */
+  E2E_TEST_HOOKS: Env.schema.boolean.optional(),
+  /**
+   * Per user: sign-ins that reach the second step in 15 minutes, and wrong
+   * codes in an hour (defaults 10 and 10). The e2e run raises them: every
+   * test signs in as the same admin.
+   */
+  TWO_FACTOR_START_LIMIT: Env.schema.number.optional(),
+  TWO_FACTOR_FAILURE_LIMIT: Env.schema.number.optional(),
 })

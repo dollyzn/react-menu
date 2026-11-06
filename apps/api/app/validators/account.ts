@@ -26,3 +26,16 @@ export const changePasswordValidator = vine.create(
 )
 
 export const sessionIdValidator = vine.create(vine.number().withoutDecimals().positive())
+
+/** A 6-digit code of the authenticator app. */
+export const totpCodeValidator = vine.create(
+  vine.object({
+    code: vine.string().trim().minLength(6).maxLength(10),
+  })
+)
+
+export const passwordConfirmValidator = vine.create(
+  vine.object({
+    password: vine.string().minLength(1).maxLength(512),
+  })
+)

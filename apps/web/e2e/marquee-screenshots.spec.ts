@@ -1,7 +1,7 @@
 import path from "node:path";
 import { test, request as playwrightRequest, type Page } from "@playwright/test";
 import sharp from "sharp";
-import { login } from "./fixtures";
+import { login, apiSignIn } from "./fixtures";
 import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 /**
@@ -45,7 +45,7 @@ async function placeOrders() {
 /** Moves the first kitchen batch along so the board shows ready orders too. */
 async function prepareSome(storeId: string) {
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
-  await api.post("/api/v1/auth/login", { data: E2E_ADMIN });
+  await apiSignIn(api, E2E_ADMIN);
   const queue = (await (await api.get(`/api/v1/stores/${storeId}/kitchen/queue`)).json()).data as {
     units: { lineId: number; quantity: number }[];
   }[];

@@ -6,6 +6,7 @@ import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { uploadKey } from '#helpers/uploads'
 import { createUser } from '#tests/helpers/fixtures'
+import { signIn } from '#tests/helpers/sign_in'
 
 const COOKIE = env.get('AUTH_COOKIE_NAME')
 const CHROME_WINDOWS =
@@ -22,22 +23,18 @@ const PNG = Buffer.from(
 test.group('Account', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
 
-  /** Signs in from a browser and returns that session's cookie value. */
-  async function signIn(client: ApiClient, email: string, password: string, userAgent: string) {
-    const login = await client
-      .post('/api/v1/auth/login')
-      .header('user-agent', userAgent)
-      .json({ email, password })
-    login.assertStatus(200)
-    return login.cookie(COOKIE)!.value
+  /** Signs in from a browser (both steps) and returns that session's cookie value. */
+  async function signInFrom(client: ApiClient, email: string, password: string, userAgent: string) {
+    const { session } = await signIn(client, { email, password }, { userAgent })
+    return session
   }
 
   test('lists the sessions with their device, and ends the others', async ({ client, assert }) => {
     const user = await createUser({ password: 'secret123' })
     const other = await createUser({ password: 'secret123' })
-    const laptop = await signIn(client, user.email, 'secret123', CHROME_WINDOWS)
-    const phone = await signIn(client, user.email, 'secret123', SAFARI_IPHONE)
-    const stranger = await signIn(client, other.email, 'secret123', CHROME_WINDOWS)
+    const laptop = await signInFrom(client, user.email, 'secret123', CHROME_WINDOWS)
+    const phone = await signInFrom(client, user.email, 'secret123', SAFARI_IPHONE)
+    const stranger = await signInFrom(client, other.email, 'secret123', CHROME_WINDOWS)
 
     const list = await client.get('/api/v1/account/sessions').withCookie(COOKIE, laptop)
     list.assertStatus(200)
@@ -72,7 +69,7 @@ test.group('Account', (group) => {
     const phoneMe = await client.get('/api/v1/auth/me').withCookie(COOKIE, phone)
     phoneMe.assertStatus(401)
 
-    const again = await signIn(client, user.email, 'secret123', SAFARI_IPHONE)
+    const again = await signInFrom(client, user.email, 'secret123', SAFARI_IPHONE)
     const others = await client.delete('/api/v1/account/sessions').withCookie(COOKIE, laptop)
     others.assertStatus(200)
     const againMe = await client.get('/api/v1/auth/me').withCookie(COOKIE, again)
@@ -129,8 +126,8 @@ test.group('Account', (group) => {
     assert,
   }) => {
     const user = await createUser({ password: 'secret123' })
-    const here = await signIn(client, user.email, 'secret123', CHROME_WINDOWS)
-    const elsewhere = await signIn(client, user.email, 'secret123', SAFARI_IPHONE)
+    const here = await signInFrom(client, user.email, 'secret123', CHROME_WINDOWS)
+    const elsewhere = await signInFrom(client, user.email, 'secret123', SAFARI_IPHONE)
     const change = (body: object) =>
       client.put('/api/v1/account/password').json(body).withCookie(COOKIE, here)
 
@@ -168,6 +165,6 @@ test.group('Account', (group) => {
       .post('/api/v1/auth/login')
       .json({ email: user.email, password: 'secret123' })
     assert.notEqual(oldLogin.status(), 200)
-    await signIn(client, user.email, 'brand-new-1', CHROME_WINDOWS)
+    await signInFrom(client, user.email, 'brand-new-1', CHROME_WINDOWS)
   })
 })

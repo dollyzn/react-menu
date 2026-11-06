@@ -18,6 +18,7 @@ import { env } from "@/lib/env";
 import { NavMain } from "./nav-main";
 import { NavUser } from "./nav-user";
 import { StoreSwitcher } from "./store-switcher";
+import { TwoFactorPrompt } from "@/components/app/two-factor-prompt";
 
 /**
  * Store switcher on top, navigation grouped by area, account at the bottom.
@@ -49,6 +50,7 @@ export default function AppSidebar(props: React.ComponentProps<typeof Sidebar>) 
         <NavMain groups={groups} />
       </SidebarContent>
       <SidebarFooter className="gap-2">
+        <TwoFactorPrompt />
         <InstallAppCard
           context="staff"
           variant="sidebar"

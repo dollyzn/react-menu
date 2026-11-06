@@ -1,8 +1,10 @@
 import { test } from '@japa/runner'
+import env from '#start/env'
 import testUtils from '@adonisjs/core/services/test_utils'
 import { randomUUID } from 'node:crypto'
 import User from '#models/user'
 import { createStore, createUser, createUserWithPermissions } from '#tests/helpers/fixtures'
+import { signIn } from '#tests/helpers/sign_in'
 
 test.group('Store creation and deletion', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
@@ -108,12 +110,14 @@ test.group('Auth', (group) => {
   test('login issues an expiring session cookie', async ({ client, assert }) => {
     const user = await createUser()
 
-    const response = await client
-      .post('/api/v1/auth/login')
-      .json({ email: user.email, password: 'secret123' })
+    // The session (and its cookie) starts after the second step.
+    const { response } = await signIn(client, { email: user.email, password: 'secret123' })
 
     response.assertStatus(200)
     assert.isNotNull(response.body().data.user.tokenExpiresAt)
-    assert.match(response.header('set-cookie')?.[0] ?? '', /Max-Age=1209600/)
+    const sessionCookie = [response.header('set-cookie') ?? []]
+      .flat()
+      .find((cookie: string) => cookie.startsWith(`${env.get('AUTH_COOKIE_NAME')}=`))
+    assert.match(sessionCookie ?? '', /Max-Age=1209600/)
   })
 })

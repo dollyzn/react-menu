@@ -19,6 +19,21 @@ export default function accountRoutes() {
       router.put('/avatar', [AccountController, 'setAvatar']).as('account.avatar')
       router.delete('/avatar', [AccountController, 'removeAvatar']).as('account.avatar.remove')
       router.put('/password', [AccountController, 'changePassword']).as('account.password')
+      router
+        .group(() => {
+          router.get('/', [AccountController, 'twoFactorStatus']).as('account.twoFactor')
+          router.post('/setup', [AccountController, 'setupTwoFactor']).as('account.twoFactor.setup')
+          router
+            .post('/enable', [AccountController, 'enableTwoFactor'])
+            .as('account.twoFactor.enable')
+          router
+            .post('/disable', [AccountController, 'disableTwoFactor'])
+            .as('account.twoFactor.disable')
+          router
+            .post('/recovery-codes', [AccountController, 'regenerateRecoveryCodes'])
+            .as('account.twoFactor.recoveryCodes')
+        })
+        .prefix('/two-factor')
     })
     .prefix('/account')
     .use([middleware.auth(), throttle])

@@ -79,6 +79,10 @@ export default class PasswordResetService {
       record.usedAt = DateTime.now()
       await record.save()
       await trx.from('auth_access_tokens').where('tokenable_id', user.id).delete()
+      // Like a password change: trusted devices ask for the code again, and a
+      // sign-in started with the old password can't finish.
+      await trx.from('trusted_devices').where('user_id', user.id).delete()
+      await trx.from('login_challenges').where('user_id', user.id).whereNull('consumed_at').delete()
     })
   }
 }

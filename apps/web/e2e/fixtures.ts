@@ -1,4 +1,4 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 type ConsoleEntry = { type: string; text: string; url: string };
@@ -60,20 +60,42 @@ export const DEMO_STAFF = {
   kitchen: { email: "cozinha@jjpasteis.dev", password: "demo12345" },
 };
 
-export async function login(page: Page, credentials = E2E_ADMIN) {
+/**
+ * The sign-in code last e-mailed to this address. The e2e API keeps it in
+ * memory (E2E_TEST_HOOKS): there is no mail worker in the run.
+ */
+export async function signInCode(request: APIRequestContext, email: string) {
+  const response = await request.get(`${API_URL}/api/v1/__e2e/two-factor-code`, { params: { email } });
+  expect(response.ok(), `no sign-in code was sent to ${email}`).toBeTruthy();
+  return (await response.json()).code as string;
+}
+
+/** Both steps through the login page (password, then the e-mail code). */
+export async function login(page: Page, credentials = E2E_ADMIN, options: { landing?: RegExp } = {}) {
   await page.goto("/app/login");
   await page.getByLabel("E-mail").fill(credentials.email);
   await page.getByLabel("Senha", { exact: true }).fill(credentials.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
-  await page.waitForURL(/\/app\/stores\/[^/]+/);
+  await expect(page.getByRole("heading", { name: "Confirme que é você" })).toBeVisible();
+  // Six digits submit by themselves.
+  await page.getByLabel("Código de 6 dígitos").fill(await signInCode(page.request, credentials.email));
+  await page.waitForURL(options.landing ?? /\/app\/stores\/[^/]+/);
+}
+
+/** Both steps through the API, on a request context (its cookies keep the session). */
+export async function apiSignIn(request: APIRequestContext, credentials = E2E_ADMIN) {
+  const first = await request.post(`${API_URL}/api/v1/auth/login`, { data: credentials });
+  expect(first.ok()).toBeTruthy();
+  if ((await first.json()).data.user) return;
+  const second = await request.post(`${API_URL}/api/v1/auth/two-factor`, {
+    data: { code: await signInCode(request, credentials.email) },
+  });
+  expect(second.ok()).toBeTruthy();
 }
 
 /** Creates a store through the API as the seeded admin (who becomes a member). */
 export async function createStoreViaApi(page: Page, name: string) {
-  const login = await page.request.post(`${API_URL}/api/v1/auth/login`, {
-    data: E2E_ADMIN,
-  });
-  expect(login.ok()).toBeTruthy();
+  await apiSignIn(page.request);
 
   const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${Date.now()}`;
   const response = await page.request.post(`${API_URL}/api/v1/stores`, {

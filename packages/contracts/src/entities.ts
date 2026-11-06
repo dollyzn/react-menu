@@ -119,10 +119,36 @@ export type User = {
   avatarUrl: string | null;
   status: UserStatus;
   superUser: boolean;
+  /** An authenticator app is set up (otherwise sign-ins get an e-mail code). */
+  twoFactorEnabled: boolean;
   createdAt: string;
   updatedAt: string;
   role?: Role | null;
   stores?: Store[];
+};
+
+/**
+ * The second step of a sign-in (POST /auth/login answers it instead of the
+ * user, unless the device is trusted): a 6-digit code by e-mail, or the
+ * authenticator app's.
+ */
+export type TwoFactorChallenge = {
+  method: "email" | "totp";
+  /** "a•••@gmail.com" (e-mail codes only). */
+  emailHint: string | null;
+  expiresAt: string;
+  /** When "Reenviar" works again (e-mail codes only). */
+  resendAt: string | null;
+};
+
+/** POST /auth/login: signed in, or the second step to go. */
+export type LoginResult = { user: SessionUser } | { twoFactor: TwoFactorChallenge };
+
+/** GET /account/two-factor. */
+export type TwoFactorStatus = {
+  enabled: boolean;
+  enabledAt: string | null;
+  recoveryCodesLeft: number;
 };
 
 /** `data.user` of POST /auth/login and GET /auth/me. */
@@ -148,6 +174,8 @@ export type AccountSession = {
   signedInAt: string;
   lastActiveAt: string;
   expiresAt: string | null;
+  /** Signed in with "Confiar neste dispositivo" (no second step there). */
+  trusted: boolean;
 };
 
 /**

@@ -73,7 +73,12 @@ export default class SocialAuthController {
       }
 
       await this.saveOrUpdateSocialAccount(provider, socialUser, user.id)
-      await this.authService.createSession(user, { request, response, auth })
+      // Google is the first factor only: the second step (cookie set here)
+      // continues on the login page, unless this device is trusted.
+      const result = await this.authService.afterFirstFactor(user, { request, response, auth })
+      if ('twoFactor' in result) {
+        return response.redirect(`${env.get('FRONTEND_URL')}/app/social?twoFactor=1`)
+      }
 
       return redirect()
     } catch (error) {

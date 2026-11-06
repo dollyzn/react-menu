@@ -6,6 +6,7 @@ import StoreRole from '#enums/store_role'
 import type { EmailBrand } from '#mails/layout'
 import type { OrderEmailData } from '#mails/order_email_data'
 import ResetPasswordNotification from '#mails/reset_password_notification'
+import SignInCodeNotification from '#mails/sign_in_code_notification'
 import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
 import OrderReceiptNotification from '#mails/order_receipt_notification'
@@ -56,6 +57,11 @@ export default class MailPreview extends BaseCommand {
 
     const mails: Record<string, BaseMail> = {
       'reset-password': new ResetPasswordNotification(person, link),
+      'sign-in-code': new SignInCodeNotification(person, '482913', {
+        minutes: 10,
+        device: 'Chrome 141 em Windows 10',
+        ip: '189.40.12.7',
+      }),
       'staff-invite': new StaffInviteNotification(
         person,
         { store, role: StoreRole.ATTENDANT, invitedBy: 'Carlos' },
