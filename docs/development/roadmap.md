@@ -40,10 +40,16 @@ picked from Product below, one PR at a time.
     Shield's CSRF and CSP target pages the Adonis app renders (ours are the
     Next app's), and the login is an access token in an httpOnly cookie.
 
-- The API's OpenTelemetry only runs from the compiled build: under
-  `node ace serve` (TypeScript) its loader hook breaks the boot ("Cannot
-  resolve binding server"). Worth reporting to adonisjs/otel with a minimal
-  repro; then `pnpm dev` could send traces too (docs/development/observability.md).
+- The API's OpenTelemetry only runs from the compiled build. Under
+  `node ace serve` (TypeScript through `@poppinss/ts-exec`, with or without
+  `--hmr`), the import-in-the-middle loader hook that `@adonisjs/otel`'s
+  `init()` registers breaks the boot ("Cannot resolve binding "server" from
+  the container"), and in `bin/console.ts` it breaks Ace's command loading
+  ("Missing "export default" in module "mail_preview.js""), even with
+  `enabled: false`. So `otel.ts` skips `init()` unless the build is compiled
+  and `OTEL_EXPORTER_OTLP_ENDPOINT` is in the process environment: `pnpm dev`
+  sends nothing (docs/development/observability.md). To report to
+  adonisjs/otel; once fixed upstream, drop the `compiled` check in `otel.ts`.
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in
