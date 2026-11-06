@@ -1,6 +1,6 @@
 import { optionPrice } from '#models/option_group'
 import { inject } from '@adonisjs/core'
-import { UAParser } from 'ua-parser-js'
+import Bowser from 'bowser'
 import AppException from '#exceptions/app_exception'
 import StoreStatus from '#enums/store_status'
 import Store from '#models/store'
@@ -140,7 +140,7 @@ export default class PublicMenuService {
   }
 
   private async trackView(store: Store, userAgent: string | undefined) {
-    const { device } = UAParser(userAgent)
-    await store.incrementViews(device.is('mobile') ? 'mobile' : 'desktop')
+    const platform = userAgent ? Bowser.parse(userAgent).platform.type : undefined
+    await store.incrementViews(platform === 'mobile' ? 'mobile' : 'desktop')
   }
 }
