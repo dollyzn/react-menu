@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises'
-import { extname } from 'node:path'
+import { createHash } from 'node:crypto'
+import { readdir, readFile } from 'node:fs/promises'
+import { extname, join } from 'node:path'
 import app from '@adonisjs/core/services/app'
 import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
@@ -237,6 +238,48 @@ export default class CatalogImportService {
     return filled
   }
 
+  /**
+   * Photos from a local folder (outside git: the store's own or ones it
+   * chose), matched by the item's or add-on's name as a slug
+   * ("Pastel de Palmito" -> pastel-de-palmito.webp|jpg|jpeg|png). Replaces
+   * empty and catalog photos; photos uploaded in the panel only with `force`.
+   */
+  async applyLocalPhotos(store: Store, dir: string, options: { force?: boolean } = {}) {
+    const files = new Map<string, string>()
+    for (const file of await readdir(dir)) {
+      const ext = extname(file).toLowerCase()
+      if (['.webp', '.jpg', '.jpeg', '.png'].includes(ext))
+        files.set(file.slice(0, -ext.length), file)
+    }
+    const replaceable = (url: string | null) =>
+      options.force || !url || url.includes('/menu/catalog-') || url.includes('/menu/local-')
+    const applied: string[] = []
+    const skipped: string[] = []
+    const items = await Item.query().whereHas('category', (query) =>
+      query.where('storeId', store.id)
+    )
+    const addons = await Addon.query().where('storeId', store.id)
+    for (const record of [...items, ...addons]) {
+      const file = files.get(photoSlug(record.name))
+      if (!file) continue
+      if (!replaceable(record.photoUrl)) {
+        skipped.push(record.name)
+        continue
+      }
+      const content = await readFile(join(dir, file))
+      const hash = createHash('sha256').update(content).digest('hex').slice(0, 8)
+      record.photoUrl = await storeFile(
+        `menu/local-${photoSlug(record.name)}-${hash}${extname(file).toLowerCase()}`,
+        join(dir, file)
+      )
+      await record.save()
+      applied.push(record.name)
+    }
+    const used = new Set([...items, ...addons].map((record) => photoSlug(record.name)))
+    const unmatched = [...files.keys()].filter((slug) => !used.has(slug))
+    return { applied, skipped, unmatched }
+  }
+
   private async enableInventory(store: Store, trx: TransactionClientContract) {
     store.useTransaction(trx)
     store.inventoryEnabled = true
@@ -266,6 +309,16 @@ class PhotoStore {
     this.urls.set(file, url)
     return url
   }
+}
+
+/** "Pastel de Palmito" -> "pastel-de-palmito" (the photo's file name). */
+export function photoSlug(name: string) {
+  return name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
 }
 
 /**

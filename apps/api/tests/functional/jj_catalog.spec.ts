@@ -1,9 +1,13 @@
+import { mkdtemp, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import StoreStatus from '#enums/store_status'
 import Ingredient from '#models/ingredient'
+import Item from '#models/item'
 import Order from '#models/order'
-import CatalogImportService from '#services/catalog_import_service'
+import CatalogImportService, { photoSlug } from '#services/catalog_import_service'
 import { JJ_PASTEIS, JJ_PASTEIS_PROFILE } from '#catalog/jj_pasteis'
 import { createStore } from '#tests/helpers/fixtures'
 
@@ -326,5 +330,40 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
     assert.include(store.description!, 'desde 2021')
     assert.match(store.bannerUrl!, /\/uploads\/banners\//)
     assert.match(store.photoUrl!, /\/uploads\/photos\//)
+  })
+
+  test('local photos go on the items by name, never over a panel upload', async ({ assert }) => {
+    const store = await createStore()
+    await new CatalogImportService().import(store, JJ_PASTEIS, { photos: false })
+    const panel = await Item.query()
+      .whereHas('category', (query) => query.where('storeId', store.id))
+      .where('name', 'Pastel de Carne')
+      .firstOrFail()
+    panel.photoUrl = 'http://localhost/uploads/items/enviada-no-painel.webp'
+    await panel.save()
+    const dir = await mkdtemp(join(tmpdir(), 'jj-fotos-'))
+    // A 1×1 PNG is enough: the file is only stored.
+    const png = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+      'base64'
+    )
+    for (const name of ['Pastel de Palmito', 'Pastel de Carne', 'Bacon', 'Item Que Nao Existe']) {
+      await writeFile(join(dir, `${photoSlug(name)}.png`), png)
+    }
+
+    const result = await new CatalogImportService().applyLocalPhotos(store, dir)
+
+    assert.equal(photoSlug('Pastel de Palmito'), 'pastel-de-palmito')
+    assert.equal(photoSlug('Guaraná Antarctica normal 600 ml'), 'guarana-antarctica-normal-600-ml')
+    assert.sameMembers(result.applied, ['Pastel de Palmito', 'Bacon'])
+    assert.deepEqual(result.skipped, ['Pastel de Carne'])
+    assert.deepEqual(result.unmatched, ['item-que-nao-existe'])
+    await panel.refresh()
+    assert.equal(panel.photoUrl, 'http://localhost/uploads/items/enviada-no-painel.webp')
+    const palmito = await Item.query()
+      .whereHas('category', (query) => query.where('storeId', store.id))
+      .where('name', 'Pastel de Palmito')
+      .firstOrFail()
+    assert.match(palmito.photoUrl!, /\/menu\/local-pastel-de-palmito-[0-9a-f]{8}\.png$/)
   })
 })
