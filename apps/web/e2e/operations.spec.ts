@@ -1,11 +1,11 @@
 import { request as playwrightRequest } from "@playwright/test";
-import { test, expect, login, DEMO_STAFF } from "./fixtures";
+import { test, expect, login, DEMO_STAFF, apiSignIn } from "./fixtures";
 import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 /** Marks every pending kitchen unit as done so this test owns the queue. */
 async function clearKitchen() {
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
-  await api.post("/api/v1/auth/login", { data: E2E_ADMIN });
+  await apiSignIn(api, E2E_ADMIN);
   const menu = await (await api.get("/api/v1/public/menu?preview=1")).json();
   const storeId = menu.data.store.id as string;
   const queue = await (await api.get(`/api/v1/stores/${storeId}/kitchen/queue`)).json();

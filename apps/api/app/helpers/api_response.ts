@@ -1,3 +1,4 @@
+import type { HttpContext } from '@adonisjs/core/http'
 import type { ApiMessage, ApiSuccess, BulkDeleteResult } from '@react-menu/contracts'
 
 /**
@@ -38,4 +39,13 @@ export function bulkDeleted<T>(
     data: result,
     message: result.failed.length > 0 ? messages.partial : messages.success,
   }
+}
+
+/**
+ * Marks an answer that must not be kept anywhere: it carries secrets (a TOTP
+ * secret, recovery codes) or sets cookies that a replayed body would not.
+ * The idempotency middleware doesn't store it (a retry runs again).
+ */
+export function noStore(response: HttpContext['response']) {
+  response.header('Cache-Control', 'no-store')
 }

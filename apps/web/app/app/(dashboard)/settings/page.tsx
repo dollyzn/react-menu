@@ -19,6 +19,7 @@ import { redirectToLogout } from "@/utils/navigation";
 import { PasswordCard } from "./components/password-card";
 import { ProfileCard } from "./components/profile-card";
 import { SessionsCard } from "./components/sessions-card";
+import { TwoFactorCard } from "./components/two-factor/two-factor-card";
 
 const THEMES: { value: ThemeChoice; label: string; hint: string; icon: typeof Sun }[] = [
   { value: "system", label: "Automático", hint: "Segue o aparelho", icon: Monitor },
@@ -163,7 +164,8 @@ export default function SettingsPage() {
       </Section>
 
       {user && (
-        <Section id="settings-security" title="Segurança" description="Sua senha e os aparelhos com a conta aberta.">
+        <Section id="settings-security" title="Segurança" description="Como você entra, sua senha e os aparelhos com a conta aberta.">
+          <TwoFactorCard />
           <PasswordCard />
           <SessionsCard />
         </Section>

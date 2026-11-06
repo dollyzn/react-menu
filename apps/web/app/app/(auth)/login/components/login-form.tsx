@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowBigUpDash, Eye, EyeOff, Lock, User } from "lucide-react";
+import { ArrowBigUpDash, Eye, EyeOff, Lock, ShieldAlert, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -23,7 +23,15 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import * as z from "zod";
+import { AnimatePresence, motion } from "motion/react";
+import type { TwoFactorChallenge } from "@react-menu/contracts";
+import { useLazyTwoFactorChallengeQuery, useTwoFactorChallengeQuery } from "@/redux/features/auth/authApi";
 import { SocialLogin, type SocialLoginStatus } from "./social-login";
+import { TwoFactorStep } from "./two-factor-step";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getErrorMessage } from "@/utils/get-error-message";
+import { useLoggingOut } from "@/lib/logout-state";
+import { Spinner } from "@/components/ui/spinner";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -40,6 +48,35 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
   const [socialStatus, setSocialStatus] = useState<SocialLoginStatus>("idle");
+  /** The password (or Google) passed: the second step is on screen. */
+  const [challenge, setChallenge] = useState<TwoFactorChallenge | null>(null);
+  const [loadChallenge] = useLazyTwoFactorChallengeQuery();
+
+  const [codeError, setCodeError] = useState<string | null>(null);
+  const googleCodeFailed = "Não foi possível continuar o login com o Google. Tente de novo.";
+
+  // After Google: the API set the challenge cookie; ask what it is.
+  const continueWithCode = async () => {
+    setCodeError(null);
+    const result = await loadChallenge();
+    if (result.data) setChallenge(result.data.twoFactor);
+    // Expired, cookie blocked, too many tries: say so instead of doing nothing.
+    else setCodeError(getErrorMessage(result.error, googleCodeFailed));
+  };
+
+  // Google without a popup comes back here with ?etapa=codigo (read once;
+  // the server render has no window and nothing to show yet either way).
+  const [cameFromGoogle] = useState(
+    () => typeof window !== "undefined" && new URLSearchParams(window.location.search).get("etapa") === "codigo"
+  );
+  const arrival = useTwoFactorChallengeQuery(undefined, { skip: !cameFromGoogle });
+  const [arrivalDone, setArrivalDone] = useState(false);
+  const current = challenge ?? (arrivalDone ? null : (arrival.data?.twoFactor ?? null));
+  const shownCodeError =
+    codeError ?? (cameFromGoogle && !arrivalDone && arrival.isError ? getErrorMessage(arrival.error, googleCodeFailed) : null);
+  useEffect(() => {
+    if (cameFromGoogle) window.history.replaceState(null, "", "/app/login");
+  }, [cameFromGoogle]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -71,17 +108,21 @@ export function LoginForm() {
   const { isSubmitting } = form.formState;
   // One sign-in at a time: the Google popup is open (or finishing). It never
   // locks for good: "Cancelar" and a timeout free the form.
-  const locked = isSubmitting || socialStatus !== "idle";
+  // A sign-out still finishing (another tab, the logout page) locks it too.
+  const loggingOut = useLoggingOut();
+  const locked = isSubmitting || socialStatus !== "idle" || loggingOut;
 
   async function onSubmit(data: LoginValues) {
     const { email, password } = data;
 
-    const error = await login({
+    const { error, twoFactor } = await login({
       email,
       password,
     });
 
-    if (error) {
+    if (twoFactor) {
+      setChallenge(twoFactor);
+    } else if (error) {
       form.setError("email", {
         type: "manual",
         message: "",
@@ -98,7 +139,43 @@ export function LoginForm() {
 
 
   return (
-    <div className="grid gap-6">
+    // The steps slide sideways: clip them (no horizontal scroll), with room
+    // for focus rings and the wrong-code shake.
+    <div className="-mx-3 overflow-x-clip px-3">
+    <AnimatePresence mode="wait" initial={false}>
+      {current ? (
+        <motion.div
+          key="two-factor"
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 24 }}
+          transition={{ duration: 0.2 }}
+        >
+          <TwoFactorStep
+            challenge={current}
+            onBack={() => {
+              setChallenge(null);
+              setArrivalDone(true);
+              form.resetField("password");
+            }}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="password"
+          className="grid gap-6"
+          initial={{ opacity: 0, x: -24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -24 }}
+          transition={{ duration: 0.2 }}
+        >
+      {shownCodeError && (
+        <Alert variant="destructive">
+          <ShieldAlert />
+          <AlertTitle>Login com o Google não concluído</AlertTitle>
+          <AlertDescription>{shownCodeError}</AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <FieldGroup className="pb-6">
           <Controller
@@ -202,13 +279,25 @@ export function LoginForm() {
           size="lg"
           className="w-full cursor-pointer"
           loading={isSubmitting}
-          disabled={socialStatus !== "idle"}
+          disabled={socialStatus !== "idle" || loggingOut}
         >
           Entrar
         </Button>
+        {loggingOut && (
+          <p role="status" className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Spinner aria-hidden /> Encerrando a sessão anterior…
+          </p>
+        )}
       </form>
 
-      <SocialLogin disabled={isSubmitting} onStatusChange={setSocialStatus} />
+      <SocialLogin
+        disabled={isSubmitting || loggingOut}
+        onStatusChange={setSocialStatus}
+        onTwoFactor={() => void continueWithCode()}
+      />
+        </motion.div>
+      )}
+    </AnimatePresence>
     </div>
   );
 }

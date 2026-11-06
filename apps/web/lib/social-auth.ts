@@ -3,7 +3,11 @@ export const SOCIAL_AUTH_CHANNEL = "social-auth";
 /** sessionStorage key: whether /app/social runs in a popup or as the whole page. */
 export const SOCIAL_AUTH_MODE_KEY = "social-auth-mode";
 
-export type SocialAuthMessage = { type: "success" } | { type: "error"; error: string };
+export type SocialAuthMessage =
+  | { type: "success" }
+  | { type: "error"; error: string }
+  /** Google was the first factor: the login page asks for the second step. */
+  | { type: "two-factor" };
 
 /** Installed app (PWA): popups open outside it, so the login uses the whole page. */
 export function prefersFullPageLogin() {

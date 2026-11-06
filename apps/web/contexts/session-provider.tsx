@@ -1,6 +1,6 @@
 "use client";
 
-import type { LoginProps, SessionContextType, SessionProviderProps } from "@/types/session";
+import type { LoginProps, SessionContextType, SessionProviderProps, TwoFactorInput } from "@/types/session";
 
 import { createContext, useCallback, useContext, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
@@ -22,6 +22,7 @@ import { ptBR } from "date-fns/locale";
 import { useNotification } from "./notification-provider";
 import { clearSessionCookie } from "@/app/app/(auth)/actions";
 import { closeTransmit } from "@/lib/transmit";
+import { endLogout, startLogout } from "@/lib/logout-state";
 
 export interface LoginError {
   message: string;
@@ -80,34 +81,65 @@ export function SessionProvider({ children }: SessionProviderProps) {
   const login = useCallback(
     async ({ email, password }: LoginProps) => {
       try {
-        const { user } = await dispatch(authApi.endpoints.login.initiate({ email, password })).unwrap();
+        const result = await dispatch(authApi.endpoints.login.initiate({ email, password })).unwrap();
+        if ("twoFactor" in result) return { twoFactor: result.twoFactor };
+        dispatch(setIsSessionExpired(false));
+        dispatch(setUser(result.user));
+        return {};
+      } catch (error) {
+        return {
+          error: getErrorMessage(
+            error as { data?: { error?: string } },
+            "Não foi possível efetuar o login. Por favor, tente novamente mais tarde."
+          ),
+        };
+      }
+    },
+    [dispatch]
+  );
+
+  const completeTwoFactor = useCallback(
+    async (input: TwoFactorInput) => {
+      try {
+        const { user } = await dispatch(authApi.endpoints.verifyTwoFactor.initiate(input)).unwrap();
         dispatch(setIsSessionExpired(false));
         dispatch(setUser(user));
+        return {};
       } catch (error) {
-        return getErrorMessage(
-          error as { data?: { error?: string } },
-          "Não foi possível efetuar o login. Por favor, tente novamente mais tarde."
-        );
+        const data = (error as { data?: { code?: string; details?: { attemptsLeft?: number } } }).data;
+        return {
+          error: getErrorMessage(error as { data?: { error?: string } }, "Não foi possível confirmar o código."),
+          attemptsLeft: data?.details?.attemptsLeft,
+          // Expired or locked: only a new sign-in helps.
+          expired: data?.code === "E_TWO_FACTOR_EXPIRED" || data?.code === "E_TWO_FACTOR_LOCKED",
+        };
       }
     },
     [dispatch]
   );
 
   async function logout() {
-    if (user) {
-      try {
-        await unsubscribe();
-        await dispatch(authApi.endpoints.logout.initiate()).unwrap();
-      } catch (error) {
-        // 401: the session had already ended (expired, signed out elsewhere,
-        // APP_KEY changed). Either way the local sign-out below goes on.
-        if ((error as { status?: unknown }).status !== 401) console.warn("Logout request failed", error);
+    startLogout();
+    try {
+      if (user) {
+        try {
+          await unsubscribe();
+          await dispatch(authApi.endpoints.logout.initiate()).unwrap();
+        } catch (error) {
+          // 401: the session had already ended (expired, signed out elsewhere,
+          // APP_KEY changed). Either way the local sign-out below goes on.
+          if ((error as { status?: unknown }).status !== 401) console.warn("Logout request failed", error);
+        }
       }
+      await clearSessionCookie().catch(() => undefined);
+      closeTransmit();
+      dispatch(setUser(null));
+      // Awaited: the purge resets the stored session, and must not land after
+      // a new sign-in (the login page stays locked until here).
+      await persistor.purge();
+    } finally {
+      endLogout();
     }
-    await clearSessionCookie().catch(() => undefined);
-    closeTransmit();
-    dispatch(setUser(null));
-    persistor.purge();
   }
 
   /** Loads the session (and renews it when it is past half its life). */
@@ -128,7 +160,11 @@ export function SessionProvider({ children }: SessionProviderProps) {
         // In the panel, the cookie the API refused (expired, another
         // project's on the same host, APP_KEY changed) would keep the route
         // guard sending /app/login back to the panel.
-        if (window.location.pathname.startsWith("/app")) {
+        // Not on the login page: the guard only lets you in there without a
+        // cookie, so one arriving now is a sign-in finishing (the second
+        // step) and clearing it would end the new session.
+        const path = window.location.pathname;
+        if (path.startsWith("/app") && path !== "/app/login") {
           await clearSessionCookie().catch(() => undefined);
         }
       }
@@ -142,7 +178,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   return (
     <SessionContext.Provider
-      value={{ isAuthenticated, user, login, logout, verify }}
+      value={{ isAuthenticated, user, login, completeTwoFactor, logout, verify }}
     >
       {children}
     </SessionContext.Provider>

@@ -1,5 +1,5 @@
 import { request as playwrightRequest } from "@playwright/test";
-import { test, expect } from "./fixtures";
+import { test, expect, apiSignIn } from "./fixtures";
 import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 /**
@@ -38,7 +38,7 @@ test("a lost response while ordering never duplicates the order", async ({ page 
   expect(new Set(keys).size).toBe(1);
 
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
-  await api.post("/api/v1/auth/login", { data: E2E_ADMIN });
+  await apiSignIn(api, E2E_ADMIN);
   const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
   const orders = (await (await api.get(`/api/v1/stores/${menu.store.id}/orders`)).json()).data as {
     customerName: string;

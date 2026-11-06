@@ -6,6 +6,7 @@ import { DateTime } from 'luxon'
 import PasswordResetToken from '#models/password_reset_token'
 import ResetPasswordNotification from '#mails/reset_password_notification'
 import { createUser } from '#tests/helpers/fixtures'
+import { SESSION_COOKIE, TRUST_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 /** Token from the link in the last queued reset e-mail. */
 function tokenFromMail(fake: ReturnType<typeof mail.fake>) {
@@ -40,14 +41,21 @@ test.group('Password reset', (group) => {
     })
   })
 
-  test('the link sets a new password once and ends every session', async ({ client, assert }) => {
-    const fake = mail.fake()
+  test('the link sets a new password once and ends every session and trusted device', async ({
+    client,
+    assert,
+  }) => {
     const user = await createUser({ password: 'old-password' })
-    const session = await client
-      .post('/api/v1/auth/login')
-      .json({ email: user.email, password: 'old-password' })
-    session.assertStatus(200)
+    // A real session (both steps), on a trusted browser.
+    const signedIn = await signIn(
+      client,
+      { email: user.email, password: 'old-password' },
+      { remember: true }
+    )
+    const before = await db.from('auth_access_tokens').where('tokenable_id', user.id)
+    assert.lengthOf(before, 1)
 
+    const fake = mail.fake()
     await client.post('/api/v1/auth/forgot-password').json({ email: user.email })
     const token = tokenFromMail(fake)
 
@@ -55,21 +63,31 @@ test.group('Password reset', (group) => {
       .post('/api/v1/auth/reset-password')
       .json({ token, password: 'new-password-123' })
     const sessionsLeft = await db.from('auth_access_tokens').where('tokenable_id', user.id)
+    const devicesLeft = await db.from('trusted_devices').where('user_id', user.id)
+    const oldSession = await client
+      .get('/api/v1/auth/me')
+      .withCookie(SESSION_COOKIE, signedIn.session)
     const reused = await client
       .post('/api/v1/auth/reset-password')
       .json({ token, password: 'another-password' })
     const oldLogin = await client
       .post('/api/v1/auth/login')
       .json({ email: user.email, password: 'old-password' })
-    const newLogin = await client
-      .post('/api/v1/auth/login')
-      .json({ email: user.email, password: 'new-password-123' })
+    mail.restore()
 
     reset.assertStatus(200)
     assert.lengthOf(sessionsLeft, 0)
+    assert.lengthOf(devicesLeft, 0, 'the old trust asks for the code again')
+    oldSession.assertStatus(401)
     reused.assertStatus(422)
     oldLogin.assertStatus(400)
-    newLogin.assertStatus(200)
+    // With the new password, the old trust cookie no longer skips the code.
+    const withOldTrust = await client
+      .post('/api/v1/auth/login')
+      .withCookie(TRUST_COOKIE, signedIn.trust!)
+      .json({ email: user.email, password: 'new-password-123' })
+    withOldTrust.assertStatus(200)
+    assert.exists(withOldTrust.body().data.twoFactor)
     const tokens = await PasswordResetToken.query().where('userId', user.id)
     assert.isNotNull(tokens[0].usedAt)
   })

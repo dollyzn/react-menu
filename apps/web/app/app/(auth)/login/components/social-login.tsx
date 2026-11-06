@@ -37,6 +37,8 @@ export function SocialLogin(props: {
   /** The e-mail login is running. */
   disabled?: boolean;
   onStatusChange?: (status: SocialLoginStatus) => void;
+  /** Google passed and the second step is due (its cookie is set). */
+  onTwoFactor?: () => void;
 }) {
   // useSearchParams needs a Suspense boundary for static prerendering.
   return (
@@ -49,9 +51,12 @@ export function SocialLogin(props: {
 function GoogleLogin({
   disabled,
   onStatusChange,
+  onTwoFactor,
 }: {
   disabled?: boolean;
   onStatusChange?: (status: SocialLoginStatus) => void;
+  /** Google passed and the second step is due (its cookie is set). */
+  onTwoFactor?: () => void;
 }) {
   const router = useRouter();
   // Errors of the full-page flow come back as ?erro=.
@@ -67,6 +72,11 @@ function GoogleLogin({
   };
 
   const finish = async (message: SocialAuthMessage) => {
+    if (message.type === "two-factor") {
+      setStatus("idle");
+      onTwoFactor?.();
+      return;
+    }
     if (message.type === "error") {
       setError(message.error);
       setStatus("idle");

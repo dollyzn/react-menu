@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { LogOut, MonitorSmartphone, Monitor, Smartphone, Tablet } from "lucide-react";
+import { LogOut, MonitorSmartphone, Monitor, ShieldCheck, Smartphone, Tablet } from "lucide-react";
 import type { AccountSession } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +93,11 @@ export function SessionsCard() {
                         {session.current && (
                           <Badge variant="outline" className="border-success/40 text-success">
                             <span className="size-1.5 rounded-full bg-success" aria-hidden /> Este dispositivo
+                          </Badge>
+                        )}
+                        {session.trusted && (
+                          <Badge variant="secondary" title="Não pede o código de verificação por 30 dias">
+                            <ShieldCheck aria-hidden /> Confiável
                           </Badge>
                         )}
                       </p>

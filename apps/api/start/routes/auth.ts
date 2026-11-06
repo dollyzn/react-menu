@@ -17,6 +17,14 @@ export default function authRoutes() {
         .post('/reset-password', [AuthController, 'resetPassword'])
         .as('auth.resetPassword')
         .use(throttle)
+      router
+        .group(() => {
+          router.get('/', [AuthController, 'twoFactorChallenge']).as('twoFactor.show')
+          router.post('/', [AuthController, 'verifyTwoFactor']).as('twoFactor.verify')
+          router.post('/resend', [AuthController, 'resendTwoFactor']).as('twoFactor.resend')
+        })
+        .prefix('/two-factor')
+        .use(throttle)
       router.get('/me', [AuthController, 'me']).use([middleware.auth(), throttle]).as('auth.me')
 
       router

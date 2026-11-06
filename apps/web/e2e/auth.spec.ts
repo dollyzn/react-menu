@@ -45,12 +45,7 @@ test("a user without stores sees an empty state instead of being redirected", as
   expect(created.ok()).toBeTruthy();
   await page.context().clearCookies();
 
-  await page.goto("/app/login");
-  await page.getByLabel("E-mail").fill(staff.email);
-  await page.getByLabel("Senha", { exact: true }).fill(staff.password);
-  await page.getByRole("button", { name: "Entrar", exact: true }).click();
-
-  await expect(page).toHaveURL(/\/app\/stores$/);
+  await login(page, staff, { landing: /\/app\/stores$/ });
   await expect(page.getByText("Nenhuma loja por aqui")).toBeVisible();
   await expect(page.getByText(/Peça a um administrador/)).toBeVisible();
   await expect(page.getByRole("button", { name: "Criar loja" })).toHaveCount(0);

@@ -39,6 +39,7 @@ function AuthSocial() {
   const searchParams = useSearchParams();
   const provider = searchParams.get("provider") as SocialProvider | null;
   const error = searchParams.get("error");
+  const twoFactor = searchParams.get("twoFactor") === "1";
   const { verify } = useSession();
   const started = useRef(false);
 
@@ -55,6 +56,7 @@ function AuthSocial() {
         return;
       }
       if (message.type === "success") router.replace("/app/stores");
+      else if (message.type === "two-factor") router.replace("/app/login?etapa=codigo");
       else router.replace(`/app/login?erro=${encodeURIComponent(message.error)}`);
     };
 
@@ -70,6 +72,10 @@ function AuthSocial() {
     }
 
     async function complete() {
+      if (twoFactor) {
+        finish({ type: "two-factor" });
+        return;
+      }
       if (error) {
         finish({ type: "error", error });
         return;
@@ -80,7 +86,7 @@ function AuthSocial() {
 
     if (provider) start(provider);
     else void complete();
-  }, [provider, error, verify, router]);
+  }, [provider, error, twoFactor, verify, router]);
 
   return (
     <motion.main
