@@ -7,7 +7,7 @@ import Notification from '#models/notification'
 import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
 import { createStore, createUser, linkUser } from '#tests/helpers/fixtures'
-import { signIn } from '#tests/helpers/sign_in'
+import { SESSION_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 async function storeWithManager() {
   const manager = await createUser({ name: 'Gerente' })
@@ -107,6 +107,8 @@ test.group('Store members', (group) => {
     list.assertBodyContains({ data: [{ id: manager.id, invitePending: false }] })
     const pending = list.body().data.find((member: { id: string }) => member.id === invited.id)
     assert.isTrue(pending.invitePending)
+    assert.isFalse(pending.emailVerified)
+    assert.isNotNull(pending.inviteExpiresAt)
 
     const resent = await client
       .post(`/api/v1/stores/${store.id}/members/${invited.id}/invite`)
@@ -133,6 +135,13 @@ test.group('Store members', (group) => {
 
     await invited.refresh()
     assert.isFalse(invited.invitePending)
+    // The link reached their inbox: the address is verified.
+    assert.isNotNull(invited.emailVerifiedAt)
+    const accepted = await client.get(`/api/v1/stores/${store.id}/members`).loginAs(manager)
+    assert.deepInclude(
+      accepted.body().data.find((member: { id: string }) => member.id === invited.id),
+      { invitePending: false, inviteExpiresAt: null, emailVerified: true }
+    )
     const afterAccepted = await client
       .post(`/api/v1/stores/${store.id}/members/${invited.id}/invite`)
       .loginAs(manager)
@@ -199,5 +208,144 @@ test.group('Store members', (group) => {
     unknown.assertStatus(404)
     // The account still exists (it may belong to other stores).
     assert.isNotNull(await User.find(attendant.id))
+  })
+
+  test('the e-mail sign-in code verifies the address', async ({ client, assert }) => {
+    const user = await createUser({ password: 'secret123' })
+    assert.notExists(user.emailVerifiedAt)
+
+    await signIn(client, { email: user.email, password: 'secret123' })
+
+    await user.refresh()
+    assert.isNotNull(user.emailVerifiedAt)
+  })
+
+  test('the team shows who is online', async ({ client, assert }) => {
+    const { store, manager } = await storeWithManager()
+    const attendant = await createUser()
+    const kitchen = await createUser()
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    await linkUser(store, kitchen, StoreRole.KITCHEN)
+
+    // The panel's heartbeat (any authenticated request counts).
+    const ping = await client.get('/api/v1/auth/presence').loginAs(attendant)
+    const list = await client.get(`/api/v1/stores/${store.id}/members`).loginAs(manager)
+
+    ping.assertStatus(204)
+    const byId = new Map(
+      list.body().data.map((member: { id: string; online: boolean }) => [member.id, member])
+    )
+    assert.include(byId.get(attendant.id), { online: true })
+    assert.isNotNull((byId.get(attendant.id) as { lastSeenAt: string | null }).lastSeenAt)
+    assert.include(byId.get(kitchen.id), { online: false, lastSeenAt: null })
+  })
+
+  test('access to the store can be switched off and on, ending the sessions', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager } = await storeWithManager()
+    const other = await storeWithManager()
+    const attendant = await createUser({ password: 'secret123' })
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    await linkUser(other.store, attendant, StoreRole.ATTENDANT)
+    const { session } = await signIn(client, { email: attendant.email, password: 'secret123' })
+
+    const byAttendant = await client
+      .put(`/api/v1/stores/${store.id}/members/${manager.id}/access`)
+      .json({ enabled: false })
+      .loginAs(attendant)
+    const byOtherStore = await client
+      .put(`/api/v1/stores/${store.id}/members/${attendant.id}/access`)
+      .json({ enabled: false })
+      .loginAs(other.manager)
+    const self = await client
+      .put(`/api/v1/stores/${store.id}/members/${manager.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+    const disabled = await client
+      .put(`/api/v1/stores/${store.id}/members/${attendant.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+
+    byAttendant.assertStatus(403)
+    byOtherStore.assertStatus(403)
+    self.assertStatus(409)
+    disabled.assertStatus(200)
+    assert.isNotNull(disabled.body().data.disabledAt)
+    assert.isFalse(disabled.body().data.online)
+
+    // The open session ended; signed in again, only the other store works.
+    const oldSession = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
+    const here = await client.get(`/api/v1/stores/${store.id}/orders`).loginAs(attendant)
+    const there = await client.get(`/api/v1/stores/${other.store.id}/orders`).loginAs(attendant)
+    const me = await client.get('/api/v1/auth/me').loginAs(attendant)
+    oldSession.assertStatus(401)
+    here.assertStatus(403)
+    there.assertStatus(200)
+    assert.deepEqual(
+      me.body().data.user.stores.map((item: { id: string }) => item.id),
+      [other.store.id]
+    )
+
+    // Kept in the team, with the role, and back on.
+    const enabled = await client
+      .put(`/api/v1/stores/${store.id}/members/${attendant.id}/access`)
+      .json({ enabled: true })
+      .loginAs(manager)
+    const again = await client.get(`/api/v1/stores/${store.id}/orders`).loginAs(attendant)
+    enabled.assertBodyContains({ data: { id: attendant.id, role: 'attendant', disabledAt: null } })
+    again.assertStatus(200)
+  })
+
+  test('a disabled manager does not count as an active manager', async ({ client }) => {
+    const { store, manager } = await storeWithManager()
+    const second = await createUser()
+    await linkUser(store, second, StoreRole.MANAGER)
+
+    const disableSecond = await client
+      .put(`/api/v1/stores/${store.id}/members/${second.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+    // `second` is off: `manager` is the only active manager left.
+    const demoteLast = await client
+      .put(`/api/v1/stores/${store.id}/members/${manager.id}`)
+      .json({ role: 'attendant' })
+      .loginAs(manager)
+    const disabledCanAct = await client.get(`/api/v1/stores/${store.id}/members`).loginAs(second)
+
+    disableSecond.assertStatus(200)
+    demoteLast.assertStatus(409)
+    demoteLast.assertBodyContains({ code: 'E_LAST_MANAGER' })
+    disabledCanAct.assertStatus(403)
+  })
+
+  test('managers can end a member sessions without removing access', async ({ client, assert }) => {
+    const { store, manager } = await storeWithManager()
+    const admin = await createUser({ superUser: true })
+    const attendant = await createUser({ password: 'secret123' })
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+    await linkUser(store, admin, StoreRole.MANAGER)
+    const { session } = await signIn(client, { email: attendant.email, password: 'secret123' })
+
+    const revoked = await client
+      .delete(`/api/v1/stores/${store.id}/members/${attendant.id}/sessions`)
+      .loginAs(manager)
+    const onAdmin = await client
+      .delete(`/api/v1/stores/${store.id}/members/${admin.id}/sessions`)
+      .loginAs(manager)
+    const disableAdmin = await client
+      .put(`/api/v1/stores/${store.id}/members/${admin.id}/access`)
+      .json({ enabled: false })
+      .loginAs(manager)
+
+    revoked.assertStatus(200)
+    assert.equal(revoked.body().data.ended, 1)
+    onAdmin.assertBodyContains({ code: 'E_SUPER_USER' })
+    disableAdmin.assertBodyContains({ code: 'E_SUPER_USER' })
+    const oldSession = await client.get('/api/v1/auth/me').withCookie(SESSION_COOKIE, session)
+    const stillMember = await client.get(`/api/v1/stores/${store.id}/orders`).loginAs(attendant)
+    oldSession.assertStatus(401)
+    stillMember.assertStatus(200)
   })
 })

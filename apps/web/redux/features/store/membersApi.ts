@@ -27,6 +27,20 @@ export const membersApi = baseApi.injectEndpoints({
     }),
     resendInvite: build.mutation<void, { storeId: string; userId: string }>({
       query: ({ storeId, userId }) => ({ url: `stores/${storeId}/members/${userId}/invite`, method: "POST" }),
+      // A new link: the list shows its new expiry.
+      invalidatesTags: (_res, _err, { storeId }) => [tag(storeId)],
+    }),
+    setMemberAccess: build.mutation<StoreMember, { storeId: string; userId: string; enabled: boolean }>({
+      query: ({ storeId, userId, enabled }) => ({
+        url: `stores/${storeId}/members/${userId}/access`,
+        method: "PUT",
+        body: { enabled },
+      }),
+      invalidatesTags: (_res, _err, { storeId }) => [tag(storeId)],
+    }),
+    revokeMemberSessions: build.mutation<{ ended: number }, { storeId: string; userId: string }>({
+      query: ({ storeId, userId }) => ({ url: `stores/${storeId}/members/${userId}/sessions`, method: "DELETE" }),
+      invalidatesTags: (_res, _err, { storeId }) => [tag(storeId)],
     }),
     removeMember: build.mutation<void, { storeId: string; userId: string }>({
       query: ({ storeId, userId }) => ({ url: `stores/${storeId}/members/${userId}`, method: "DELETE" }),
@@ -41,4 +55,6 @@ export const {
   useUpdateMemberRoleMutation,
   useRemoveMemberMutation,
   useResendInviteMutation,
+  useSetMemberAccessMutation,
+  useRevokeMemberSessionsMutation,
 } = membersApi;

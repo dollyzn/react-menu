@@ -94,6 +94,7 @@ export default class NotificationService {
     const members = await db
       .from('store_user')
       .where('store_id', storeId)
+      .whereNull('disabled_at')
       .if(options.exceptUserId, (query) => query.whereNot('user_id', options.exceptUserId!))
       .if(options.roles?.length, (query) => query.whereIn('role', options.roles!))
       .select('user_id')

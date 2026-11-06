@@ -160,7 +160,10 @@ export default class AuthService {
   /** SessionUser contract: the user, its permissions, and each store with its role. */
   private async sessionUser(user: User, tokenExpiresAt: Date | null | undefined) {
     await user.load((loader) =>
-      loader.preload('stores').preload('role', (query) => query.preload('permissions'))
+      loader
+        // A store whose managers switched them off disappears from the panel.
+        .preload('stores', (query) => query.whereNullPivot('disabled_at'))
+        .preload('role', (query) => query.preload('permissions'))
     )
 
     return {

@@ -3,7 +3,10 @@ import { managersOnly } from '#routes/store/shared'
 
 const StoreMembersController = () => import('#controllers/store_members_controller')
 
-/** The store's team: managers add people, change roles and remove them. */
+/**
+ * The store's team: managers add people, change roles, switch access off and
+ * on, end someone's sessions, and remove them.
+ */
 export default function registerStoreMemberRoutes() {
   router
     .group(() => {
@@ -13,6 +16,10 @@ export default function registerStoreMemberRoutes() {
         .post('/members/:userId/invite', [StoreMembersController, 'resendInvite'])
         .as('members.invite')
       router.put('/members/:userId', [StoreMembersController, 'update']).as('members.update')
+      router.put('/members/:userId/access', [StoreMembersController, 'access']).as('members.access')
+      router
+        .delete('/members/:userId/sessions', [StoreMembersController, 'revokeSessions'])
+        .as('members.sessions.destroy')
       router.delete('/members/:userId', [StoreMembersController, 'destroy']).as('members.destroy')
     })
     .use(managersOnly)

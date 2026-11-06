@@ -162,7 +162,14 @@ export function ProfileCard({ user }: { user: User }) {
                   <Lock aria-hidden />
                 </InputGroupAddon>
               </InputGroup>
-              <FieldDescription>É o seu login. Para trocar, fale com um administrador.</FieldDescription>
+              <FieldDescription>
+                É o seu login. Para trocar, fale com um administrador.{" "}
+                {user.emailVerifiedAt
+                  ? "Endereço verificado."
+                  : user.twoFactorEnabled
+                    ? "Ainda não verificado: um link de \"Esqueci minha senha\" confirma o endereço."
+                    : "Ainda não verificado: o código do próximo login confirma o endereço."}
+              </FieldDescription>
             </Field>
           </FieldGroup>
 

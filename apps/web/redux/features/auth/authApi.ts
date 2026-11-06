@@ -30,6 +30,15 @@ export const authApi = baseApi.injectEndpoints({
       extraOptions: { quiet: true, session: true },
       keepUnusedDataFor: 0,
     }),
+    /**
+     * The panel's heartbeat ("online" on the team page). A 401 here signs the
+     * tab out like any other request (e.g. a manager switched access off).
+     */
+    presence: build.query<void, void>({
+      query: () => "auth/presence",
+      extraOptions: { quiet: true },
+      keepUnusedDataFor: 0,
+    }),
     logout: build.mutation<void, void>({
       query: () => ({ url: "auth/logout", method: "DELETE" }),
       extraOptions: { quiet: true, session: true, background: true },
@@ -58,4 +67,5 @@ export const {
   useResendTwoFactorMutation,
   useLazyTwoFactorChallengeQuery,
   useTwoFactorChallengeQuery,
+  useLazyPresenceQuery,
 } = authApi;
