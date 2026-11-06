@@ -1,4 +1,5 @@
 import app from '@adonisjs/core/services/app'
+import { context, trace } from '@opentelemetry/api'
 import { ExceptionHandler } from '@adonisjs/core/http'
 import { type HttpContext } from '@adonisjs/core/http'
 import { errors as vineErrors } from '@vinejs/vine'
@@ -174,6 +175,13 @@ export default class HttpExceptionHandler extends ExceptionHandler {
   }
 
   async report(error: unknown, ctx: HttpContext) {
+    // @adonisjs/otel records every reported error on the request's span (as
+    // ERROR). A 4xx is the client's (validation, 401, 404, 429): report it
+    // outside the span so error rates in Grafana show server failures only.
+    const status = (error as { status?: unknown }).status
+    if (typeof status === 'number' && status < 500) {
+      return context.with(trace.deleteSpan(context.active()), () => super.report(error, ctx))
+    }
     return super.report(error, ctx)
   }
 }

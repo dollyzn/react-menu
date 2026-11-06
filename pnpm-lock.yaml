@@ -224,6 +224,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.1161.0
         version: 3.1161.0
+      '@opentelemetry/api':
+        specifier: ~1.9.1
+        version: 1.9.1
       '@react-menu/contracts':
         specifier: workspace:*
         version: link:../../packages/contracts
@@ -370,8 +373,8 @@ importers:
         specifier: ^1.9.0
         version: 1.9.0
       '@vercel/otel':
-        specifier: ~2.1.4
-        version: 2.1.4(@opentelemetry/api-logs@0.213.0)(@opentelemetry/api@1.9.1)(@opentelemetry/instrumentation@0.213.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2))(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.213.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))
+        specifier: 2.1.3
+        version: 2.1.3(@opentelemetry/api-logs@0.213.0)(@opentelemetry/api@1.9.1)(@opentelemetry/instrumentation@0.213.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2))(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.213.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))
       '@wrksz/themes':
         specifier: 2.1.1
         version: 2.1.1(next@16.4.3(@babel/core@7.29.7(supports-color@10.2.2))(@opentelemetry/api@1.9.1)(@playwright/test@1.64.1)(@types/node@24.19.2)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(typescript@6.0.3)
@@ -3534,8 +3537,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@vercel/otel@2.1.4':
-    resolution: {integrity: sha512-ApQeMuWRTlbbAMgxchbk7RZ0UnzT06rrQo/wuzqvsCANtXSQ3/CMhOwKShiO5P1WfRd2C1fQpNCfceMhjqPQQw==}
+  '@vercel/otel@2.1.3':
+    resolution: {integrity: sha512-Ofvzs9qhftRD1YMLuPnhbXjQZG6IKrJ9AmEKmRHRGfoWlV89ed2gAOkvddkFiZDFZJm2rrFNdeZKRVxoCdnWiw==}
     engines: {node: ^18.19.0 || >=20.6.0}
     peerDependencies:
       '@opentelemetry/api': '>=1.9.0 <2.0.0'
@@ -10445,7 +10448,7 @@ snapshots:
   '@unrs/resolver-binding-win32-x64-msvc@1.12.2':
     optional: true
 
-  '@vercel/otel@2.1.4(@opentelemetry/api-logs@0.213.0)(@opentelemetry/api@1.9.1)(@opentelemetry/instrumentation@0.213.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2))(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.213.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))':
+  '@vercel/otel@2.1.3(@opentelemetry/api-logs@0.213.0)(@opentelemetry/api@1.9.1)(@opentelemetry/instrumentation@0.213.0(@opentelemetry/api@1.9.1)(supports-color@10.2.2))(@opentelemetry/resources@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-logs@0.213.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-metrics@2.12.0(@opentelemetry/api@1.9.1))(@opentelemetry/sdk-trace-base@2.12.0(@opentelemetry/api@1.9.1))':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/api-logs': 0.213.0

@@ -11,8 +11,6 @@
 |
 */
 
-// Only the queue worker gets OpenTelemetry (see config/otel.ts).
-if (process.argv.includes('queue:work')) await import('../otel.js')
 import 'reflect-metadata'
 import { Ignitor, prettyPrintError } from '@adonisjs/core'
 

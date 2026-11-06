@@ -145,5 +145,5 @@ export default await Env.create(new URL('../', import.meta.url), {
   /** Shown on every trace and log: the deployed version and environment. */
   APP_NAME: Env.schema.string.optional(),
   APP_VERSION: Env.schema.string.optional(),
-  APP_ENV: Env.schema.enum.optional(['development', 'staging', 'production'] as const),
+  APP_ENV: Env.schema.string.optional(),
 })

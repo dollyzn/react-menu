@@ -44,13 +44,14 @@ picked from Product below, one PR at a time.
   `node ace serve` (TypeScript through `@poppinss/ts-exec`, with or without
   `--hmr`), the import-in-the-middle loader hook that `@adonisjs/otel`'s
   `init()` registers breaks the boot ("Cannot resolve binding "server" from
-  the container"), and in `bin/console.ts` it breaks Ace's command loading
-  ("Missing "export default" in module "mail_preview.js""), even with
-  `enabled: false`. So `otel.ts` skips `init()` unless the build is compiled
-  and `OTEL_EXPORTER_OTLP_ENDPOINT` is in the process environment: `pnpm dev`
-  sends nothing (docs/development/observability.md). Reported in
+  the container"), and imported by `bin/console.ts` it breaks Ace's command
+  loading ("Missing "export default" in module "mail_preview.js""), even with
+  `enabled: false`. So `otel.ts` is preloaded only by the production commands
+  (`node --import ./otel.js bin/server.js` / `ace queue:work` in the
+  Dockerfile and compose) and `pnpm dev` sends nothing
+  (docs/development/observability.md). Reported in
   [adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27); once fixed
-  upstream, drop the `compiled` check in `otel.ts`.
+  upstream, the dev scripts can preload it too.
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in

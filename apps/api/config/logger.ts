@@ -1,7 +1,6 @@
 import env from '#start/env'
 import app from '@adonisjs/core/services/app'
 import { defineConfig, targets } from '@adonisjs/core/logger'
-import { otelLoggingPreset } from '@adonisjs/otel/helpers'
 
 const loggerConfig = defineConfig({
   default: 'app',
@@ -17,9 +16,7 @@ const loggerConfig = defineConfig({
       level: env.get('LOG_LEVEL'),
       transport: {
         targets: targets()
-          // Logs carry trace_id/span_id (sent to Grafana with them); the pretty
-          // console output hides them.
-          .pushIf(!app.inProduction, targets.pretty({ ...otelLoggingPreset() }))
+          .pushIf(!app.inProduction, targets.pretty())
           .pushIf(app.inProduction, targets.file({ destination: 1 }))
           .toArray(),
       },

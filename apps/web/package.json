@@ -33,7 +33,7 @@
     "@tailwindcss/postcss": "^4.2.4",
     "@tanstack/react-table": "^9.3.1",
     "@types/canvas-confetti": "^1.9.0",
-    "@vercel/otel": "~2.1.4",
+    "@vercel/otel": "2.1.3",
     "@wrksz/themes": "2.1.1",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",

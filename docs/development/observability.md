@@ -17,7 +17,11 @@ Nothing is sent unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 A page rendered on the server and the API calls behind it share one trace:
 the web sends `traceparent` to the API (`instrumentation.ts`, only to the API's
 origin). E-mails, cookies and request bodies are not recorded; users appear
-by id.
+by id (`user.id`, set by the auth middleware) and stores by `store.id`. Order
+tracking tokens (`/pedido/<token>`, `/orders/<token>`) and secrets in query
+strings (`token`, `code`, `state`, …) are masked in recorded URLs, on both
+sides. Client errors (4xx) are not counted as span errors; 5xx are, with the
+stack.
 
 ## Grafana Cloud (production)
 
@@ -55,32 +59,42 @@ docker compose -f docker-compose.dev.yml --profile observability up -d lgtm
 with Tempo, Loki and Prometheus behind it, and Grafana at
 <http://localhost:3005> (admin / admin).
 
-**The API only sends from the compiled build.** Under `node ace serve`
-(TypeScript), the OpenTelemetry loader hook breaks the app's boot ("Cannot
-resolve binding server"), so `otel.ts` skips it there: `pnpm dev` never sends.
-To try it with the local Grafana:
+**The API only sends from the compiled build.** `otel.ts` must be preloaded
+(`node --import ./otel.js …`), which the Dockerfile and `docker-compose.yml`
+do; `pnpm dev` doesn't, because the OpenTelemetry loader hook breaks
+`node ace serve` ("Cannot resolve binding server",
+[adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27)). To try it
+with the local Grafana:
 
 ```bash
-cd apps/api && node ace build
-cd build && set -a && . ../.env && set +a
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 node bin/server.js     # API
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 node ace queue:work    # worker
+cd apps/api && node ace build && cd build
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
+  node --env-file=../.env --import ./otel.js bin/server.js        # API
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_SERVICE_NAME=react-menu-worker \
+  node --env-file=../.env --import ./otel.js ace queue:work       # worker
 ```
 
-(The variable must be in the process environment: a value only in `.env` is
-read too late.) The web app sends from `pnpm dev` too:
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm dev:web`.
+(The endpoint must be in the process environment before `otel.js` runs:
+`--env-file` loads `.env` early enough, a value only read by Adonis is too
+late.) Uploaded photos are read from `build/storage`, so copy or link
+`apps/api/storage` there if you need them. The web app sends from `pnpm dev`
+too: `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm dev:web`.
 
 Or run the whole production stack (`docker compose up -d --build`) with
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318`.
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318`. On Linux
+that host name needs `extra_hosts: ["host.docker.internal:host-gateway"]` on
+the `api`, `worker` and `web` services (Docker Desktop has it built in).
 
 ## Where it lives
 
-- API: `apps/api/otel.ts` (starts it first; compiled build + endpoint only),
-  `config/otel.ts` (service names, sampling, ignored URLs, user context, the
-  queue instrumentation), `bin/server.ts` and `bin/console.ts` (worker) import
-  it first, `start/kernel.ts` (middleware after auth), `config/logger.ts`
-  (trace ids in logs).
-- Web: `apps/web/instrumentation.ts`.
-- Compose: `docker-compose.yml` (production env), `docker-compose.dev.yml`
-  (profile `observability`).
+- API: `apps/api/otel.ts` (preloaded with `--import`; starts the SDK only
+  with an endpoint), `app/helpers/otel.ts` (`otelRunning()`, `redactUrl`),
+  `providers/otel_provider.ts` and `start/kernel.ts` (provider and middleware
+  only when it runs), `config/otel.ts` (service names, sampling, ignored
+  URLs, URL masking, the queue instrumentation), `AuthMiddleware` /
+  `StoreAccessMiddleware` (`user.id`, `store.id`), `app/exceptions/handler.ts`
+  (4xx not marked as errors).
+- Web: `apps/web/instrumentation.ts` (propagation, URL masking).
+- Docker: `Dockerfile` (`--import ./otel.js`), `docker-compose.yml`
+  (production env, worker command), `docker-compose.dev.yml` (profile
+  `observability`).
