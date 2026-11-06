@@ -149,7 +149,7 @@ export function ProfileCard({ user }: { user: User }) {
               render={({ field, fieldState }) => (
                 <Field data-invalid={fieldState.invalid}>
                   <FieldLabel htmlFor="profile-name">Nome</FieldLabel>
-                  <Input {...field} id="profile-name" autoComplete="name" aria-invalid={fieldState.invalid} disabled={saving.isLoading} />
+                  <Input {...field} id="profile-name" autoComplete="name" placeholder="Como você aparece no painel" aria-invalid={fieldState.invalid} disabled={saving.isLoading} />
                   {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                 </Field>
               )}

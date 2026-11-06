@@ -10,6 +10,7 @@ import { RowActions } from "./table-row-actions";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HeaderActions } from "./table-header-actions";
 import { ItemsColumnDialog } from "./items-column-dialog";
+import { NoPrepBadge } from "./requires-preparation-field";
 import { cellButtonSize } from "@/components/app/data-table/density";
 
 import dayjs from "dayjs";
@@ -53,8 +54,9 @@ export const columns: ColumnDef<Category>[] = [
     ),
     cell: ({ row }) => (
       <DataTableColumnCell>
-        <span className="min-w-37.5 font-medium block">
+        <span className="flex min-w-37.5 flex-wrap items-center gap-2 font-medium">
           {row.getValue("name")}
+          {!row.original.requiresPreparation && <NoPrepBadge />}
         </span>
       </DataTableColumnCell>
     ),

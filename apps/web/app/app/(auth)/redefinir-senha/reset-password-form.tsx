@@ -87,6 +87,7 @@ export function ResetPasswordForm() {
             autoComplete="new-password"
             autoFocus
             className="pr-10 pl-10"
+            placeholder="Pelo menos 8 caracteres"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
           />
@@ -108,6 +109,7 @@ export function ResetPasswordForm() {
           id="confirm-password"
           type={visible ? "text" : "password"}
           autoComplete="new-password"
+          placeholder="Digite a nova senha de novo"
           value={confirmation}
           onChange={(event) => setConfirmation(event.target.value)}
         />

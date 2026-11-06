@@ -27,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { FolderPlus } from "lucide-react";
 
 import { getErrorMessage } from "@/utils/get-error-message";
+import { RequiresPreparationField } from "./requires-preparation-field";
 import { z } from "zod";
 import {
   InputGroup,
@@ -47,6 +48,7 @@ const CreateCategorySchema = z.object({
     .string()
     .max(DESC_MAX, `No máximo ${DESC_MAX} caracteres.`)
     .optional(),
+  requiresPreparation: z.boolean(),
 });
 
 interface CreateCategoryDialogProps {
@@ -61,6 +63,7 @@ export function CreateCategoryDialog({ storeId }: CreateCategoryDialogProps) {
     defaultValues: {
       name: "",
       description: "",
+      requiresPreparation: true,
     },
   });
   const { isSubmitting } = form.formState;
@@ -164,6 +167,17 @@ export function CreateCategoryDialog({ storeId }: CreateCategoryDialogProps) {
                       <FieldError errors={[fieldState.error]} />
                     )}
                   </Field>
+                )}
+              />
+              <Controller
+                name="requiresPreparation"
+                control={form.control}
+                render={({ field }) => (
+                  <RequiresPreparationField
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    disabled={busy}
+                  />
                 )}
               />
             </FieldGroup>
