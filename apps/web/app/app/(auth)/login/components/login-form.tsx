@@ -28,6 +28,8 @@ import type { TwoFactorChallenge } from "@react-menu/contracts";
 import { useLazyTwoFactorChallengeQuery, useTwoFactorChallengeQuery } from "@/redux/features/auth/authApi";
 import { SocialLogin, type SocialLoginStatus } from "./social-login";
 import { TwoFactorStep } from "./two-factor-step";
+import { useLoggingOut } from "@/lib/logout-state";
+import { Spinner } from "@/components/ui/spinner";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -96,7 +98,9 @@ export function LoginForm() {
   const { isSubmitting } = form.formState;
   // One sign-in at a time: the Google popup is open (or finishing). It never
   // locks for good: "Cancelar" and a timeout free the form.
-  const locked = isSubmitting || socialStatus !== "idle";
+  // A sign-out still finishing (another tab, the logout page) locks it too.
+  const loggingOut = useLoggingOut();
+  const locked = isSubmitting || socialStatus !== "idle" || loggingOut;
 
   async function onSubmit(data: LoginValues) {
     const { email, password } = data;
@@ -258,14 +262,19 @@ export function LoginForm() {
           size="lg"
           className="w-full cursor-pointer"
           loading={isSubmitting}
-          disabled={socialStatus !== "idle"}
+          disabled={socialStatus !== "idle" || loggingOut}
         >
           Entrar
         </Button>
+        {loggingOut && (
+          <p role="status" className="mt-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Spinner aria-hidden /> Encerrando a sessão anterior…
+          </p>
+        )}
       </form>
 
       <SocialLogin
-        disabled={isSubmitting}
+        disabled={isSubmitting || loggingOut}
         onStatusChange={setSocialStatus}
         onTwoFactor={() => void continueWithCode()}
       />

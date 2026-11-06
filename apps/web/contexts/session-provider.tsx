@@ -22,6 +22,7 @@ import { ptBR } from "date-fns/locale";
 import { useNotification } from "./notification-provider";
 import { clearSessionCookie } from "@/app/app/(auth)/actions";
 import { closeTransmit } from "@/lib/transmit";
+import { endLogout, startLogout } from "@/lib/logout-state";
 
 export interface LoginError {
   message: string;
@@ -118,20 +119,27 @@ export function SessionProvider({ children }: SessionProviderProps) {
   );
 
   async function logout() {
-    if (user) {
-      try {
-        await unsubscribe();
-        await dispatch(authApi.endpoints.logout.initiate()).unwrap();
-      } catch (error) {
-        // 401: the session had already ended (expired, signed out elsewhere,
-        // APP_KEY changed). Either way the local sign-out below goes on.
-        if ((error as { status?: unknown }).status !== 401) console.warn("Logout request failed", error);
+    startLogout();
+    try {
+      if (user) {
+        try {
+          await unsubscribe();
+          await dispatch(authApi.endpoints.logout.initiate()).unwrap();
+        } catch (error) {
+          // 401: the session had already ended (expired, signed out elsewhere,
+          // APP_KEY changed). Either way the local sign-out below goes on.
+          if ((error as { status?: unknown }).status !== 401) console.warn("Logout request failed", error);
+        }
       }
+      await clearSessionCookie().catch(() => undefined);
+      closeTransmit();
+      dispatch(setUser(null));
+      // Awaited: the purge resets the stored session, and must not land after
+      // a new sign-in (the login page stays locked until here).
+      await persistor.purge();
+    } finally {
+      endLogout();
     }
-    await clearSessionCookie().catch(() => undefined);
-    closeTransmit();
-    dispatch(setUser(null));
-    persistor.purge();
   }
 
   /** Loads the session (and renews it when it is past half its life). */

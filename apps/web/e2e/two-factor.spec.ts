@@ -78,6 +78,9 @@ test("two-step sign-in: e-mail code, trusted device, then the authenticator app"
   // This device is trusted: signing in again skips the second step.
   await page.getByRole("button", { name: "Sair", exact: true }).click();
   await page.waitForURL(/\/app\/login/);
+  // No toast for signing out, and the form is ready once it finished.
+  await expect(page.getByText("Sessão encerrada com sucesso.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeEnabled();
   await page.getByLabel("E-mail").fill(staff.email);
   await page.getByLabel("Senha", { exact: true }).fill(staff.password);
   await page.getByRole("button", { name: "Entrar", exact: true }).click();
