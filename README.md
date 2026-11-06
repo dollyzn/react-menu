@@ -127,6 +127,9 @@ the old `-test` / `-e2e` ones when you like.
 
 ## Production (Docker)
 
+Step by step on a Hetzner VPS, with every `.env` variable explained:
+[docs/deployment/hetzner.md](docs/deployment/hetzner.md).
+
 One server with Docker runs everything: Caddy (HTTPS and a single origin for
 the web app and the API, required by the session cookie), the web app, the
 API, the background job worker, PostgreSQL and Redis.
@@ -167,9 +170,10 @@ logo and banner where they're empty.
 
 Real product photos stay out of git: put them in a folder named by item
 (`pastel-de-palmito.webp`, `coca-cola-zero-lata-350-ml.webp`: the item's
-name as a slug), copy it to the server and pass `--photos=<folder>` to
-`jj:setup`, or apply them later with
-`docker compose exec api node ace jj:photos --store=<slug> --dir=<folder>`
+name as a slug), copy it to the server and into the API container
+(`docker compose cp <folder> api:/tmp/fotos`), then pass
+`--photos=/tmp/fotos` to `jj:setup`, or apply them later with
+`docker compose exec api node ace jj:photos --store=<slug> --dir=/tmp/fotos`
 (photos uploaded in the panel are kept unless `--force`).
 
 **Keep `APP_KEY`**: it encrypts the stored payment credentials; losing or

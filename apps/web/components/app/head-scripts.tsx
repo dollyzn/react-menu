@@ -17,12 +17,12 @@ const SCRIPT = [
  * HTML only (useServerInsertedHTML), so React never creates a <script> on the
  * client, which it warns about and would not run anyway.
  */
-export function HeadScripts() {
+export function HeadScripts({ nonce }: { nonce?: string }) {
   const inserted = useRef(false);
   useServerInsertedHTML(() => {
     if (inserted.current) return null;
     inserted.current = true;
-    return <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
+    return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SCRIPT }} />;
   });
   return null;
 }

@@ -25,20 +25,18 @@ picked from Product below, one PR at a time.
 
 ## Technical
 
-- **Security review of the deploy** (hardening, nothing known broken):
-  - API: refuse cookie-authenticated writes whose `Origin` (or
-    `Sec-Fetch-Site`) isn't `FRONTEND_URL`. `SameSite=Lax` already blocks
-    other sites; this also covers another subdomain of the same site.
-  - Caddy: `Strict-Transport-Security` (with `includeSubDomains` once every
-    subdomain is on HTTPS), plus `nosniff` and `Referrer-Policy` on the API's
-    answers (the web already sends them).
-  - Web: a nonce-based Content-Security-Policy, first as
-    `Content-Security-Policy-Report-Only`. It must allow the Mercado Pago
-    Brick and the 3-D Secure iframe, Firebase (push), Google sign-in and the
-    API's images.
-  - `@adonisjs/shield` and `@adonisjs/session` were looked at and left out:
-    Shield's CSRF and CSP target pages the Adonis app renders (ours are the
-    Next app's), and the login is an access token in an httpOnly cookie.
+- **Enforce the Content-Security-Policy.** The web sends it as
+  `Content-Security-Policy-Report-Only` (`apps/web/lib/csp.ts`, nonce from
+  `proxy.ts`); reports are logged by `/csp-report` (in Grafana/Loki with
+  OpenTelemetry). After a few weeks of real traffic without unexpected
+  reports (Mercado Pago Brick, 3-D Secure, push), switch the header to
+  `Content-Security-Policy`.
+- **HSTS `includeSubDomains`/`preload`** in `docker/caddy/Caddyfile`, once
+  every subdomain of the production domain is on HTTPS.
+- `@adonisjs/shield` and `@adonisjs/session` were looked at and left out:
+  Shield's CSRF and CSP target pages the Adonis app renders (ours are the
+  Next app's), and the login is an access token in an httpOnly cookie
+  (cross-origin writes are refused by `#helpers/trusted_origin`).
 
 - The API's OpenTelemetry only runs from the compiled build. Under
   `node ace serve` (TypeScript through `@poppinss/ts-exec`, with or without
