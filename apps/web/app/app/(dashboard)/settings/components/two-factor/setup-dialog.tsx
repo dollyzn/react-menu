@@ -240,7 +240,7 @@ export function TwoFactorSetupDialog({ open, onOpenChange }: { open: boolean; on
         <DialogBody>
           {/* The steps slide sideways: clip them here (no horizontal scroll, and
               never overflow on DialogContent). */}
-          <div className="-mx-1 overflow-x-clip px-1">
+          <div className="-mx-3 overflow-x-clip px-3">
           <AnimatePresence mode="wait" initial={false}>
             {step === "scan" && (
               <motion.div key="scan" {...slide} className="flex flex-col gap-5">

@@ -25,6 +25,8 @@ test("two-step sign-in: e-mail code, trusted device, then the authenticator app"
   await codeInput.fill(code === "000000" ? "111111" : "000000");
   await expect(page.getByText("Código inválido. Você tem mais 4 tentativas.")).toBeVisible();
   await page.screenshot({ path: "test-results/two-factor-step.png", caret: "initial" });
+  // Nothing scrolls sideways (the focus ring and the shake stay inside).
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.getByText("Confiar neste dispositivo por 30 dias").click();
   // Pasted as it reads in an e-mail or a chat ("123 456"): only the digits count.
   await codeInput.evaluate((input, text) => {

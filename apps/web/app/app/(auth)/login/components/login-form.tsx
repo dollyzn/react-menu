@@ -125,8 +125,9 @@ export function LoginForm() {
 
 
   return (
-    // The steps slide sideways: clip them (no horizontal scroll).
-    <div className="-mx-1 overflow-x-clip px-1">
+    // The steps slide sideways: clip them (no horizontal scroll), with room
+    // for focus rings and the wrong-code shake.
+    <div className="-mx-3 overflow-x-clip px-3">
     <AnimatePresence mode="wait" initial={false}>
       {current ? (
         <motion.div
