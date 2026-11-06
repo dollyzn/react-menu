@@ -9,7 +9,8 @@
  *   compose, the shell; a value only in .env isn't read this early);
  * - this is the compiled build (`node bin/server.js`, the Docker images).
  *   Under `node ace serve` (TypeScript), the hook breaks the app's boot
- *   ("Cannot resolve binding server"), so development runs without it.
+ *   ("Cannot resolve binding server"), so development runs without it
+ *   (https://github.com/adonisjs/otel/issues/27).
  */
 import { init } from '@adonisjs/otel/init'
 

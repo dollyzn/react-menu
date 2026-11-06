@@ -48,8 +48,9 @@ picked from Product below, one PR at a time.
   ("Missing "export default" in module "mail_preview.js""), even with
   `enabled: false`. So `otel.ts` skips `init()` unless the build is compiled
   and `OTEL_EXPORTER_OTLP_ENDPOINT` is in the process environment: `pnpm dev`
-  sends nothing (docs/development/observability.md). To report to
-  adonisjs/otel; once fixed upstream, drop the `compiled` check in `otel.ts`.
+  sends nothing (docs/development/observability.md). Reported in
+  [adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27); once fixed
+  upstream, drop the `compiled` check in `otel.ts`.
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in
