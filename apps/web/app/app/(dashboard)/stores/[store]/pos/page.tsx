@@ -128,6 +128,8 @@ export default function PosPage() {
   const clearTicket = () => {
     const previous = lines;
     setLines([]);
+    // On phones the ticket is a drawer: an empty one has nothing left to do.
+    setTicketOpen(false);
     toast("Comanda limpa", { ...POS_TOAST, action: { label: "Desfazer", onClick: () => setLines(previous) } });
   };
 
@@ -172,6 +174,12 @@ export default function PosPage() {
       );
     }
   };
+
+  // The drawer keeps showing the ticket while it slides down after "Limpar"
+  // or "Enviar" (both empty it at once).
+  const drawerLines = useLastValue(lines, () => ticketOpen);
+  const drawerCustomerName = useLastValue(customerName, () => ticketOpen);
+  const drawerCustomerPhone = useLastValue(customerPhone, () => ticketOpen);
 
   const ticketProps = {
     storeId,
@@ -317,7 +325,15 @@ export default function PosPage() {
       </AnimatePresence>
 
       <ResponsiveModal open={ticketOpen} onOpenChange={setTicketOpen} title="Comanda" hideHeader>
-        <Ticket {...ticketProps} inModal />
+        <Ticket
+          {...ticketProps}
+          lines={drawerLines}
+          count={drawerLines.reduce((sum, line) => sum + line.quantity, 0)}
+          total={drawerLines.reduce((sum, line) => sum + lineTotal(line), 0)}
+          customerName={drawerCustomerName}
+          customerPhone={drawerCustomerPhone}
+          inModal
+        />
       </ResponsiveModal>
 
       <ResponsiveModal

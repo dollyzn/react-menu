@@ -3,7 +3,7 @@ import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { UAParser } from 'ua-parser-js'
+import Bowser from 'bowser'
 import AppException from '#exceptions/app_exception'
 import { deleteUpload } from '#helpers/uploads'
 import { assertOwnPassword } from '#helpers/own_password'
@@ -22,22 +22,31 @@ type TokenRow = {
   trusted_device_id: string | null
 }
 
-/** "Chrome 141", "Windows 11", desktop/mobile/tablet from a user agent. */
+/** "Chrome 141", "Windows 10", "iOS 18.1", desktop/mobile/tablet from a user agent. */
 export function describeDevice(userAgent: string | null) {
   if (!userAgent) return { browser: null, os: null, device: 'desktop' as const }
-  const parsed = new UAParser(userAgent).getResult()
-  const major = parsed.browser.version?.split('.')[0]
-  const type = parsed.device.type
+  const { browser, os, platform } = Bowser.parse(userAgent)
+  const major = browser.version?.split('.')[0]
   return {
-    browser: parsed.browser.name ? [parsed.browser.name, major].filter(Boolean).join(' ') : null,
-    os: parsed.os.name ? [parsed.os.name, parsed.os.version].filter(Boolean).join(' ') : null,
+    browser: browser.name ? [browser.name, major].filter(Boolean).join(' ') : null,
+    os: os.name ? [os.name, osVersion(os)].filter(Boolean).join(' ') : null,
     device:
-      type === 'mobile'
+      platform.type === 'mobile'
         ? ('mobile' as const)
-        : type === 'tablet'
+        : platform.type === 'tablet'
           ? ('tablet' as const)
           : ('desktop' as const),
   }
+}
+
+/**
+ * Windows reads best by its marketing name ("10", not "NT 10.0"); browsers
+ * freeze macOS at 10.15.7 in the user agent, so its version says nothing.
+ */
+function osVersion(os: Bowser.Parser.OSDetails) {
+  if (os.name === 'Windows') return os.versionName ?? null
+  if (os.name === 'macOS') return null
+  return os.version ?? null
 }
 
 /** The signed-in user's own account: sessions, profile, photo and password. */

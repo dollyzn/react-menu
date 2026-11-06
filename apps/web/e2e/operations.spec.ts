@@ -238,3 +238,22 @@ test("POS: customer autocomplete fills name and phone", async ({ page }) => {
   await expect(input).toHaveValue("");
   await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("");
 });
+
+test("POS on a phone: clearing the ticket closes its drawer", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(page.url().replace(/\/orders$/, "/pos"));
+
+  await page.getByRole("button", { name: /^Pastel de Carne R\$/ }).click();
+  if (await page.getByRole("dialog").isVisible()) await page.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
+  await page.getByRole("button", { name: /Comanda \(1\)/ }).click();
+  const drawer = page.getByRole("dialog", { name: "Comanda" });
+  await expect(drawer).toBeVisible();
+
+  await drawer.getByRole("button", { name: "Limpar", exact: true }).click();
+  await expect(drawer).toBeHidden();
+  await expect(page.getByText("Comanda limpa")).toBeVisible();
+  // "Desfazer" brings the items back (the drawer stays closed).
+  await page.getByRole("button", { name: "Desfazer" }).click();
+  await expect(page.getByRole("button", { name: /Comanda \(1\)/ })).toBeVisible();
+});
