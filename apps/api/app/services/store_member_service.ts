@@ -14,14 +14,29 @@ import StoreAccessNotification from '#mails/store_access_notification'
 import { storeBrand } from '#mails/layout'
 import NotificationService from '#services/notification_service'
 import PasswordResetService from '#services/password_reset_service'
+import { ONLINE_WINDOW_MS } from '#helpers/user_activity'
+
+type Membership = { role: StoreRole; disabled_at: Date | null }
+
+const iso = (value: Date | null) => (value ? DateTime.fromJSDate(value).toISO()! : null)
 
 export type StoreMember = {
   id: string
   name: string | null
   email: string
+  avatarUrl: string | null
   role: StoreRole
   since: string
   invitePending: boolean
+  /** When the pending invite's link stops working (null: no invite pending). */
+  inviteExpiresAt: string | null
+  emailVerified: boolean
+  online: boolean
+  lastSeenAt: string | null
+  /** Access to this store switched off by a manager (null: active). */
+  disabledAt: string | null
+  /** Platform admin: always has access, can't be switched off here. */
+  superUser: boolean
 }
 
 const ROLE_ORDER = [StoreRole.MANAGER, StoreRole.ATTENDANT, StoreRole.KITCHEN]
@@ -30,8 +45,9 @@ const INVITE_TTL = { days: 7 }
 /**
  * The team of a store (store_user.role). Managers add people by e-mail:
  * existing accounts are linked, new ones get an invite to create their
- * password (and can get it again while they haven't used it). A store
- * always keeps at least one manager.
+ * password (and can get it again while they haven't used it). Managers can
+ * switch someone's access to the store off and on (their sessions end) and
+ * see who is online. A store always keeps at least one active manager.
  */
 @inject()
 export default class StoreMemberService {
@@ -45,15 +61,52 @@ export default class StoreMemberService {
       .from('store_user as su')
       .join('users as u', 'u.id', 'su.user_id')
       .where('su.store_id', storeId)
-      .select('u.id', 'u.name', 'u.email', 'u.invite_pending', 'su.role', 'su.created_at')
+      .select(
+        'u.id',
+        'u.name',
+        'u.email',
+        'u.avatar_url',
+        'u.invite_pending',
+        'u.email_verified_at',
+        'u.last_seen_at',
+        'u.super_user',
+        'su.role',
+        'su.created_at',
+        'su.disabled_at'
+      )
+    // When each pending invite's link (the latest one) stops working.
+    const pending = rows.filter((row) => row.invite_pending).map((row) => row.id)
+    const invites = pending.length
+      ? await db
+          .from('password_reset_tokens')
+          .whereIn('user_id', pending)
+          .whereNull('used_at')
+          .groupBy('user_id')
+          .select('user_id')
+          .max('expires_at as expires_at')
+      : []
+    const inviteExpiry = new Map<string, Date>(
+      invites.map((invite) => [invite.user_id, invite.expires_at])
+    )
+    const onlineSince = Date.now() - ONLINE_WINDOW_MS
     return rows
-      .map((row) => ({
+      .map((row): StoreMember => ({
         id: row.id,
         name: row.name,
         email: row.email,
+        avatarUrl: row.avatar_url,
         role: row.role,
-        since: DateTime.fromJSDate(row.created_at).toISO()!,
+        since: iso(row.created_at)!,
         invitePending: row.invite_pending,
+        inviteExpiresAt: iso(inviteExpiry.get(row.id) ?? null),
+        emailVerified: Boolean(row.email_verified_at),
+        online:
+          !row.disabled_at &&
+          Boolean(row.last_seen_at) &&
+          row.last_seen_at.getTime() >= onlineSince,
+        lastSeenAt: iso(row.last_seen_at),
+        disabledAt: iso(row.disabled_at),
+        superUser: row.super_user,
       }))
       .sort(
         (a, b) =>
@@ -86,8 +139,15 @@ export default class StoreMemberService {
           { client: trx }
         )
       }
-      if (await this.membership(trx, storeId, existing.id)) {
-        throw new AppException('Essa pessoa já faz parte da equipe.', 409, 'E_ALREADY_MEMBER')
+      const membership = await this.membership(trx, storeId, existing.id)
+      if (membership) {
+        throw new AppException(
+          membership.disabled_at
+            ? 'Essa pessoa já faz parte da equipe, com o acesso desativado. Reative pela lista.'
+            : 'Essa pessoa já faz parte da equipe.',
+          409,
+          'E_ALREADY_MEMBER'
+        )
       }
       await trx.table('store_user').insert({
         user_id: existing.id,
@@ -163,7 +223,9 @@ export default class StoreMemberService {
     await db.transaction(async (trx) => {
       const current = await this.requireMembership(trx, storeId, userId)
       if (current.role === role) return
-      if (current.role === StoreRole.MANAGER) await this.assertAnotherManager(trx, storeId, userId)
+      if (current.role === StoreRole.MANAGER && !current.disabled_at) {
+        await this.assertAnotherManager(trx, storeId, userId)
+      }
       await trx
         .from('store_user')
         .where({ store_id: storeId, user_id: userId })
@@ -176,17 +238,98 @@ export default class StoreMemberService {
   async remove(storeId: string, userId: string) {
     await db.transaction(async (trx) => {
       const current = await this.requireMembership(trx, storeId, userId)
-      if (current.role === StoreRole.MANAGER) await this.assertAnotherManager(trx, storeId, userId)
+      if (current.role === StoreRole.MANAGER && !current.disabled_at) {
+        await this.assertAnotherManager(trx, storeId, userId)
+      }
       await trx.from('store_user').where({ store_id: storeId, user_id: userId }).delete()
+      // Without any store left, there's nothing to do signed in.
+      if (!(await this.hasActiveStore(trx, userId))) await this.endSessions(trx, userId)
     })
+  }
+
+  private async hasActiveStore(trx: TransactionClientContract, userId: string) {
+    const user = await trx.from('users').where('id', userId).select('super_user').first()
+    if (user?.super_user) return true
+    const store = await trx
+      .from('store_user')
+      .where('user_id', userId)
+      .whereNull('disabled_at')
+      .first()
+    return Boolean(store)
+  }
+
+  /**
+   * Switches the person's access to this store off (their sessions end, so
+   * open panels sign out; other stores they belong to keep working after
+   * they sign in again) or back on with the same role.
+   */
+  async setAccess(storeId: string, userId: string, enabled: boolean, actor: User) {
+    if (userId === actor.id) {
+      throw new AppException('Você não pode desativar o seu próprio acesso.', 409, 'E_SELF_ACCESS')
+    }
+    await db.transaction(async (trx) => {
+      const current = await this.requireMembership(trx, storeId, userId)
+      if (Boolean(current.disabled_at) === !enabled) return
+      if (!enabled) {
+        await this.assertNotSuperUser(trx, userId)
+        if (current.role === StoreRole.MANAGER)
+          await this.assertAnotherManager(trx, storeId, userId)
+      }
+      await trx
+        .from('store_user')
+        .where({ store_id: storeId, user_id: userId })
+        .update({
+          disabled_at: enabled ? null : new Date(),
+          disabled_by: enabled ? null : actor.id,
+          updated_at: new Date(),
+        })
+      if (!enabled) await this.endSessions(trx, userId)
+    })
+    const members = await this.list(storeId)
+    return members.find((member) => member.id === userId)!
+  }
+
+  /** Signs the person out everywhere (e.g. a lost phone), without touching their access. */
+  async revokeSessions(storeId: string, userId: string, actor: User) {
+    if (userId === actor.id) {
+      throw new AppException(
+        'Para encerrar as suas sessões, use Configurações > Sessões ativas.',
+        409,
+        'E_SELF_ACCESS'
+      )
+    }
+    return await db.transaction(async (trx) => {
+      await this.requireMembership(trx, storeId, userId)
+      await this.assertNotSuperUser(trx, userId)
+      return await this.endSessions(trx, userId)
+    })
+  }
+
+  private async endSessions(trx: TransactionClientContract, userId: string) {
+    const ended = await trx.from('auth_access_tokens').where('tokenable_id', userId).delete()
+    // Nobody is in the panel any more: "online" goes off right away.
+    await trx.from('users').where('id', userId).update({ last_seen_at: null })
+    return Number(ended) || 0
+  }
+
+  private async assertNotSuperUser(trx: TransactionClientContract, userId: string) {
+    const user = await trx.from('users').where('id', userId).select('super_user').first()
+    if (user?.super_user) {
+      throw new AppException(
+        'Administradores da plataforma não podem ser desativados por aqui.',
+        409,
+        'E_SUPER_USER'
+      )
+    }
   }
 
   private async membership(trx: TransactionClientContract, storeId: string, userId: string) {
     return (await trx
       .from('store_user')
       .where({ store_id: storeId, user_id: userId })
+      .select('role', 'disabled_at')
       .forUpdate()
-      .first()) as { role: StoreRole } | null
+      .first()) as Membership | null
   }
 
   private async requireMembership(trx: TransactionClientContract, storeId: string, userId: string) {
@@ -203,11 +346,12 @@ export default class StoreMemberService {
     const others = await trx
       .from('store_user')
       .where({ store_id: storeId, role: StoreRole.MANAGER })
+      .whereNull('disabled_at')
       .whereNot('user_id', userId)
       .forUpdate()
     if (others.length === 0) {
       throw new AppException(
-        'A loja precisa de pelo menos um gerente. Promova outra pessoa antes.',
+        'A loja precisa de pelo menos um gerente com acesso. Promova outra pessoa antes.',
         409,
         'E_LAST_MANAGER'
       )

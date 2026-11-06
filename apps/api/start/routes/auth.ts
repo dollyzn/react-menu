@@ -26,6 +26,12 @@ export default function authRoutes() {
         .prefix('/two-factor')
         .use(throttle)
       router.get('/me', [AuthController, 'me']).use([middleware.auth(), throttle]).as('auth.me')
+      // The panel's heartbeat while it is open: the auth middleware records the
+      // activity ("online" on the team page).
+      router
+        .get('/presence', ({ response }) => response.noContent())
+        .use([middleware.auth(), throttle])
+        .as('auth.presence')
 
       router
         .delete('/logout', [AuthController, 'logout'])

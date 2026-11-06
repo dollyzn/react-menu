@@ -5,7 +5,7 @@ import mail from '@adonisjs/mail/services/main'
 import { DateTime } from 'luxon'
 import * as OTPAuth from 'otpauth'
 import SignInCodeNotification from '#mails/sign_in_code_notification'
-import { createUser } from '#tests/helpers/fixtures'
+import { createStaff } from '#tests/helpers/fixtures'
 import { CHALLENGE_COOKIE, SESSION_COOKIE, TRUST_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 const PASSWORD = 'secret123'
@@ -24,7 +24,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD, email: 'ana.souza@example.com' })
+    const user = await createStaff({ password: PASSWORD, email: 'ana.souza@example.com' })
     const mails = mail.fake()
 
     const first = await client
@@ -58,7 +58,7 @@ test.group('Two-factor sign-in', (group) => {
   })
 
   test('five wrong codes lock the challenge; an expired one is gone', async ({ client }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     const mails = mail.fake()
     const first = await client
       .post('/api/v1/auth/login')
@@ -98,7 +98,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     const mails = mail.fake()
     const first = await client
       .post('/api/v1/auth/login')
@@ -142,7 +142,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     const trusted = await signIn(
       client,
       { email: user.email, password: PASSWORD },
@@ -163,7 +163,7 @@ test.group('Two-factor sign-in', (group) => {
     assert.isTrue(sessions.body().data.find((s: { current: boolean }) => s.current).trusted)
 
     // Another user can't ride on that cookie.
-    const other = await createUser({ password: PASSWORD })
+    const other = await createStaff({ password: PASSWORD })
     const otherLogin = await client
       .post('/api/v1/auth/login')
       .withCookie(TRUST_COOKIE, trusted.trust!)
@@ -202,7 +202,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     const { session } = await signIn(client, { email: user.email, password: PASSWORD })
     const account = (method: 'get' | 'post', path: string, body?: object) => {
       const request = client[method](`/api/v1/account/two-factor${path}`).withCookie(
@@ -305,7 +305,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     mail.fake()
     const login = () =>
       client.post('/api/v1/auth/login').json({ email: user.email, password: PASSWORD })
@@ -350,7 +350,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     const { session } = await signIn(client, { email: user.email, password: PASSWORD })
     const key = 'two-factor-setup-key-1'
     const setup = () =>
@@ -379,7 +379,7 @@ test.group('Two-factor sign-in', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: PASSWORD })
+    const user = await createStaff({ password: PASSWORD })
     const { session } = await signIn(
       client,
       { email: user.email, password: PASSWORD },

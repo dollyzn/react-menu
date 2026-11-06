@@ -5,7 +5,7 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import PasswordResetToken from '#models/password_reset_token'
 import ResetPasswordNotification from '#mails/reset_password_notification'
-import { createUser } from '#tests/helpers/fixtures'
+import { createStaff } from '#tests/helpers/fixtures'
 import { SESSION_COOKIE, TRUST_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 /** Token from the link in the last queued reset e-mail. */
@@ -24,7 +24,7 @@ test.group('Password reset', (group) => {
 
   test('answers the same for unknown e-mails and only mails real accounts', async ({ client }) => {
     const fake = mail.fake()
-    const user = await createUser()
+    const user = await createStaff()
 
     const known = await client.post('/api/v1/auth/forgot-password').json({ email: user.email })
     const unknown = await client
@@ -45,7 +45,7 @@ test.group('Password reset', (group) => {
     client,
     assert,
   }) => {
-    const user = await createUser({ password: 'old-password' })
+    const user = await createStaff({ password: 'old-password' })
     // A real session (both steps), on a trusted browser.
     const signedIn = await signIn(
       client,
@@ -94,7 +94,7 @@ test.group('Password reset', (group) => {
 
   test('expired links are refused and only the latest link works', async ({ client }) => {
     const fake = mail.fake()
-    const user = await createUser()
+    const user = await createStaff()
 
     await client.post('/api/v1/auth/forgot-password').json({ email: user.email })
     const first = tokenFromMail(fake)

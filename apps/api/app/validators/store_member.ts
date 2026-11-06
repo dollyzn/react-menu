@@ -13,4 +13,6 @@ const addMemberValidator = vine.create(
 
 const updateMemberValidator = vine.create(vine.object({ role }))
 
-export { addMemberValidator, updateMemberValidator }
+const memberAccessValidator = vine.create(vine.object({ enabled: vine.boolean() }))
+
+export { addMemberValidator, updateMemberValidator, memberAccessValidator }

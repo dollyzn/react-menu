@@ -86,11 +86,23 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
           <DialogHeader>
             <DialogTitle>Adicionar à equipe</DialogTitle>
             <DialogDescription>
-              Quem já tem conta entra na hora. Para quem é novo, enviamos um convite por e-mail para criar a senha.
+              Quem já tem conta entra na hora. Quem é novo recebe um convite por e-mail, válido por 7 dias: o link confirma o endereço e cria a senha.
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
             <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="member-name">Nome (opcional)</FieldLabel>
+                <Input
+                  id="member-name"
+                  autoFocus
+                  autoComplete="off"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Como chamamos no painel"
+                />
+                <FieldDescription>Usado no convite de quem ainda não tem conta.</FieldDescription>
+              </Field>
               <Field data-invalid={invalid}>
                 <FieldLabel htmlFor="member-email">E-mail</FieldLabel>
                 <Input
@@ -98,23 +110,12 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
                   type="email"
                   inputMode="email"
                   autoComplete="off"
-                  autoFocus
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="pessoa@exemplo.com"
                   aria-invalid={invalid}
                 />
                 {invalid && <FieldError>Informe um e-mail válido.</FieldError>}
-              </Field>
-              <Field>
-                <FieldLabel htmlFor="member-name">Nome (opcional)</FieldLabel>
-                <Input
-                  id="member-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Como chamamos no painel"
-                />
-                <FieldDescription>Usado no convite de quem ainda não tem conta.</FieldDescription>
               </Field>
               <FieldSet>
                 <FieldLegend variant="label">Função</FieldLegend>

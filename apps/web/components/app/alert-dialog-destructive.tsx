@@ -26,6 +26,8 @@ interface AlertDialogDestructiveProps {
   onConfirm: () => void;
   /** Action button text (default "Excluir"). */
   confirmLabel?: string;
+  /** The header icon (default a trash can). */
+  icon?: React.ReactNode;
 }
 
 export function AlertDialogDestructive({
@@ -38,6 +40,7 @@ export function AlertDialogDestructive({
   onOpenChangeComplete,
   loading,
   onConfirm,
+  icon = <Trash2Icon />,
 }: AlertDialogDestructiveProps) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
@@ -47,7 +50,7 @@ export function AlertDialogDestructive({
       <AlertDialogContent size="sm">
         <AlertDialogHeader>
           <AlertDialogMedia className="bg-destructive/10 text-destructive dark:bg-destructive/20 dark:text-destructive">
-            <Trash2Icon />
+            {icon}
           </AlertDialogMedia>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>

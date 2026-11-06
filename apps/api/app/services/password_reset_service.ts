@@ -74,6 +74,8 @@ export default class PasswordResetService {
       const user = await User.findOrFail(record.userId, { client: trx })
       user.password = password
       user.invitePending = false
+      // The link reached them: the address is theirs (an invite is accepted this way).
+      user.emailVerifiedAt ??= DateTime.now()
       await user.save()
 
       record.usedAt = DateTime.now()
