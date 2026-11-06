@@ -41,6 +41,7 @@ alone for the shortcuts.
 | E2E (Playwright) | `pnpm test:e2e` |
 | All checks before a PR | `pnpm check` |
 | Migrations / seed | `pnpm --filter @react-menu/api exec node ace migration:run` / `... db:seed` |
+| Load the JJ Pastéis catalog into an empty store | `node ace jj:setup --store=<slug>` (in `apps/api`; production setup) |
 | Dev databases (Docker) | `docker compose -f docker-compose.dev.yml up -d` |
 | Local Grafana (traces, logs, metrics) | `docker compose -f docker-compose.dev.yml --profile observability up -d lgtm` (http://localhost:3005; see `docs/development/observability.md`) |
 | Production stack (Docker) | `docker compose up -d --build` (configure `.env` from `.env.docker.example`) |
