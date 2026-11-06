@@ -7,6 +7,8 @@ export type OptionGroupInput = {
   name: string;
   minChoices: number;
   maxChoices: number;
+  /** Price by pick order (the last repeats), instead of the options' prices; null = per option. */
+  pickPrices: number[] | null;
   /** The options (store add-ons), in display order; price null = the add-on's own. */
   options: { addonId: string; price: number | null }[];
 };

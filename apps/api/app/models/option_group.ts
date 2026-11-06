@@ -15,6 +15,16 @@ export function optionPrice(option: Addon) {
 }
 
 /**
+ * What the nth pick (0-based, in the order the customer chose) costs in a
+ * group priced by pick order, or null when its options carry their own price.
+ */
+export function pickPrice(group: Pick<OptionGroup, 'pickPrices'>, index: number) {
+  const prices = group.pickPrices
+  if (!prices?.length) return null
+  return Number(prices[Math.min(index, prices.length - 1)])
+}
+
+/**
  * A choice group ("Escolha o queijo": choose 1; "Molhos": up to 2). Its
  * options are the store's add-ons (pivot `order`), so price, recipe and
  * stock come from them (the pivot `price` overrides the add-on's in this
@@ -36,6 +46,15 @@ export default class OptionGroup extends BaseModel {
 
   @column()
   declare maxChoices: number
+
+  /**
+   * Price by pick order ([3, 5]: the 1st pick R$ 3, every later one R$ 5),
+   * overriding the options' prices; null = each option's price.
+   */
+  @column({
+    prepare: (value: number[] | null) => (value?.length ? JSON.stringify(value) : null),
+  })
+  declare pickPrices: number[] | null
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

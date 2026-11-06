@@ -7,6 +7,7 @@ import type { OrderStatus } from "@react-menu/contracts";
 import { useAppDispatch } from "@/redux/hooks";
 import { addLine, type CartAddon } from "@/redux/slices/cart";
 import { publicApi } from "@/redux/features/public/publicApi";
+import { repriceByPick } from "@/lib/choice-pricing";
 
 /** How each status reads for the customer. */
 export const ORDER_STATUS: Record<OrderStatus, { label: string; icon: LucideIcon; tone: string }> = {
@@ -67,6 +68,8 @@ export function useReorder() {
           const current = item.addons.find((a) => a.id === addon.addonId && a.isAvailable);
           return current ? [{ id: current.id, name: current.name, price: current.price }] : [];
         });
+        // Groups priced by pick order: the prices follow the picks again.
+        const repriced = repriceByPick(addons, item.optionGroups);
         // A required choice that can't be rebuilt (option gone, group changed)
         // would only fail at checkout: leave the item out.
         const unfilled = item.optionGroups.some(
@@ -84,7 +87,7 @@ export function useReorder() {
               name: item.name,
               photoUrl: item.photoUrl,
               unitPrice: item.price,
-              addons,
+              addons: repriced,
               notes: line.notes ?? "",
               quantity: line.quantity,
             },

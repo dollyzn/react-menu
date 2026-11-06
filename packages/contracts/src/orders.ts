@@ -299,6 +299,11 @@ export type PublicOptionGroup = {
   /** 0 = optional; the order needs at least this many. */
   minChoices: number;
   maxChoices: number;
+  /**
+   * Price by pick order (the nth pick, in the order chosen, costs the nth
+   * price; the last repeats), instead of the options' `price`. Null: per option.
+   */
+  pickPrices: number[] | null;
   options: PublicMenuAddon[];
 };
 

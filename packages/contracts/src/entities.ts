@@ -201,6 +201,11 @@ export type OptionGroup = {
   /** 0 = optional. */
   minChoices: number;
   maxChoices: number;
+  /**
+   * Price by pick order ([3, 5]: the 1st pick R$ 3, every later one R$ 5; the
+   * last value repeats), overriding the options' prices. Null: per option.
+   */
+  pickPrices: number[] | null;
   /** In display order; `groupPrice` is the price in this group (null = the add-on's). */
   options?: (Addon & { groupPrice: number | null })[];
   /** How many items use the group (in the list). */
