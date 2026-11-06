@@ -153,6 +153,25 @@ Sign in at `PUBLIC_URL/app/login` with `ADMIN_USER` / `ADMIN_PASS` and
 create your store. `HTTP_PORT` / `HTTPS_PORT` change the published ports
 (defaults 80 / 443).
 
+For JJ Pastéis, load its menu (pastries, portions, drinks), add-ons, choice
+groups, stock and recipes into the new, still empty store, once:
+
+```bash
+docker compose exec api node ace jj:setup --store=<store slug>
+```
+
+It refuses a store that already has a menu. The data lives in
+`apps/api/app/catalog/jj_pasteis.ts`; prices and stock are edited in the
+panel afterwards. It also fills the store's description, address, Instagram,
+logo and banner where they're empty.
+
+Real product photos stay out of git: put them in a folder named by item
+(`pastel-de-palmito.webp`, `coca-cola-zero-lata-350-ml.webp`: the item's
+name as a slug), copy it to the server and pass `--photos=<folder>` to
+`jj:setup`, or apply them later with
+`docker compose exec api node ace jj:photos --store=<slug> --dir=<folder>`
+(photos uploaded in the panel are kept unless `--force`).
+
 **Keep `APP_KEY`**: it encrypts the stored payment credentials; losing or
 changing it makes them unreadable.
 

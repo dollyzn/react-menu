@@ -70,7 +70,11 @@ test("with a long queue the kitchen's action button stays on screen", async ({ p
   await clearKitchen();
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
   const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
-  const items = menu.categories.flatMap((c: { items: { id: string }[] }) => c.items);
+  // Items that need no choice (the cheese of choice is required elsewhere).
+  type MenuItem = { id: string; optionGroups: { minChoices: number }[] };
+  const items = menu.categories
+    .flatMap((c: { items: MenuItem[] }) => c.items)
+    .filter((item: MenuItem) => item.optionGroups.every((group) => group.minChoices === 0));
   for (let i = 0; i < 8; i++) {
     await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
       data: {
@@ -151,7 +155,8 @@ test("kitchen: swipe right finishes the batch", async ({ page }) => {
   const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
   await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
     data: {
-      lines: [{ itemId: menu.categories[0].items[1].id, quantity: 2 }],
+      // Pastel de Frango (needs no choice).
+      lines: [{ itemId: menu.categories[0].items[2].id, quantity: 2 }],
       customer: { name: "Swipe", phone: "11900000000" },
       paymentMethod: "counter",
     },

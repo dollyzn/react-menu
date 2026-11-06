@@ -39,6 +39,7 @@
     "#config/*": "./config/*.js",
     "#notifications/*": "./app/notifications/*.js",
     "#kitchen/*": "./app/kitchen/*.js",
+    "#catalog/*": "./app/catalog/*.js",
     "#orders/*": "./app/orders/*.js",
     "#payments/*": "./app/payments/*.js",
     "#generated/*": "./.adonisjs/server/*.js",

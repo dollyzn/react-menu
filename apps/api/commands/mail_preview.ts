@@ -31,7 +31,7 @@ export default class MailPreview extends BaseCommand {
       name: 'JJ Pastéis',
       logoUrl:
         'https://images.pexels.com/photos/5949891/pexels-photo-5949891.jpeg?w=120&h=120&fit=crop',
-      address: 'Rua das Flores, 123 - Centro',
+      address: 'Praia do Boqueirão - Santos / SP',
       phone: '(11) 99999-0000',
     }
     const person = { email: 'bruna@example.com', name: 'Bruna' }

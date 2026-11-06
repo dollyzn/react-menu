@@ -18,15 +18,17 @@ test.describe("Customer menu", () => {
     await card.click();
 
     const detail = page.getByRole("dialog");
-    await detail.getByText("Catupiry Extra").click();
+    // The cheese is required (and included); bacon is an add-on (+ R$ 5).
+    await detail.getByRole("group", { name: "Escolha o queijo" }).getByText("Catupiry", { exact: true }).click();
+    await detail.getByText("Bacon", { exact: true }).click();
     await detail.getByRole("textbox", { name: /observação/i }).fill("bem passado");
     await detail.getByRole("button", { name: "Aumentar quantidade" }).click();
     await page.screenshot({ path: "test-results/menu-item-detail.png", caret: "initial" });
     await detail.getByRole("button", { name: /Adicionar/ }).click();
 
-    // (18 + 3) × 2
+    // (20 + 5) × 2
     const bagButton = page.getByRole("button", { name: /Ver sacola/ });
-    await expect(bagButton).toContainText("42,00");
+    await expect(bagButton).toContainText("50,00");
     await bagButton.click();
     await page.screenshot({ path: "test-results/menu-bag.png", caret: "initial" });
     await page.getByRole("button", { name: "Continuar" }).click();
@@ -91,7 +93,7 @@ test.describe("Customer menu", () => {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true });
     const phone = await context.newPage();
     await phone.goto("/");
-    await phone.getByRole("button", { name: /^Pastel de Queijo, R\$/ }).first().click();
+    await phone.getByRole("button", { name: /^Pastel de Carne, R\$/ }).first().click();
     await phone.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
     await phone.getByRole("button", { name: /Ver sacola/ }).click({ timeout: 5000 });
     await expect(phone.getByRole("button", { name: "Continuar" })).toBeVisible();
