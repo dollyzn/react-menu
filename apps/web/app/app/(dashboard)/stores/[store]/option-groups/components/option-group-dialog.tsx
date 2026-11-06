@@ -19,7 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
 import { NumberStepper } from "@/components/app/number-stepper";
@@ -31,12 +32,15 @@ import {
 } from "@/redux/features/option-group/optionGroupApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { pickPricesLabel } from "@/lib/choice-pricing";
 
 const Schema = z
   .object({
     name: z.string().trim().min(1, "Dê um nome ao grupo, ex.: Escolha o queijo.").max(120),
     minChoices: z.number({ message: "Informe um número." }).int().min(0, "No mínimo 0.").max(20),
     maxChoices: z.number({ message: "Informe um número." }).int().min(1, "Pelo menos 1.").max(20),
+    /** Price by pick order (one per pick up to the maximum); null = each option's price. */
+    pickPrices: z.array(z.number().min(0)).nullable(),
     /** In display order; price null = the add-on's own price. */
     options: z
       .array(z.object({ addonId: z.string(), price: z.number().min(0).nullable() }))
@@ -65,6 +69,12 @@ export function groupRule(group: Pick<OptionGroup, "minChoices" | "maxChoices">)
   return `Obrigatório · de ${group.minChoices} a ${group.maxChoices}`;
 }
 
+/** One price per pick up to `max`: missing ones repeat the last (or 0). */
+const tiers = (prices: number[], max: number) =>
+  Array.from({ length: max }, (_, index) => prices[index] ?? prices.at(-1) ?? 0);
+
+const ordinal = (index: number) => `${index + 1}ª escolha`;
+
 /** Create or edit a choice group; its options are the store's add-ons. */
 export function OptionGroupDialog({
   storeId,
@@ -90,19 +100,27 @@ export function OptionGroupDialog({
       name: group?.name ?? "",
       minChoices: group?.minChoices ?? 1,
       maxChoices: group?.maxChoices ?? 1,
+      pickPrices: group?.pickPrices ?? null,
       options: group?.options?.map((option) => ({ addonId: option.id, price: option.groupPrice })) ?? [],
     },
   });
   const values = useWatch({ control: form.control }) as Values;
   const [samePrice, setSamePrice] = useState<number | undefined>(undefined);
   const addonById = new Map(addons.map((addon) => [addon.id, addon]));
+  // Pick pricing only means something when more than one pick is allowed.
+  const byPick = Boolean(values.pickPrices) && values.maxChoices > 1;
 
   const close = (next: boolean) => {
     if (busy) return;
     onOpenChange(next);
   };
 
-  const submit = async (data: Values) => {
+  const submit = async (values: Values) => {
+    // One price per pick up to the maximum (the API repeats the last one).
+    const data = {
+      ...values,
+      pickPrices: values.pickPrices && values.maxChoices > 1 ? tiers(values.pickPrices, values.maxChoices) : null,
+    };
     try {
       if (group) await update({ storeId, id: group.id, data }).unwrap();
       else await create({ storeId, data }).unwrap();
@@ -182,7 +200,12 @@ export function OptionGroupDialog({
                       mesmo &quot;Carne&quot; sai a R$ 0 em &quot;Troque o recheio&quot; e a R$ 4 em &quot;Recheio
                       extra&quot;. Vazio, vale o preço do adicional.
                     </FieldDescription>
-                    {field.value.length > 0 && (
+                    {field.value.length > 0 && byPick && (
+                      <p className="rounded-lg border bg-muted/40 p-2 text-xs text-muted-foreground">
+                        Preço pela ordem da escolha (abaixo): o preço de cada opção não vale neste grupo.
+                      </p>
+                    )}
+                    {field.value.length > 0 && !byPick && (
                       <div className="flex flex-col rounded-lg border">
                         <div className="flex flex-wrap items-center gap-2 border-b bg-muted/40 p-2">
                           <span className="flex-1 text-xs font-medium text-muted-foreground">Mesmo preço para todas</span>
@@ -299,9 +322,55 @@ export function OptionGroupDialog({
                   )}
                 />
               </div>
+              {values.maxChoices > 1 && (
+                <Controller
+                  name="pickPrices"
+                  control={form.control}
+                  render={({ field }) => (
+                    <div className="flex flex-col gap-3 rounded-lg border p-3">
+                      <Field orientation="horizontal">
+                        <Switch
+                          id="group-pick-prices"
+                          checked={byPick}
+                          onCheckedChange={(checked) => field.onChange(checked ? tiers([], values.maxChoices) : null)}
+                          disabled={busy}
+                        />
+                        <FieldContent>
+                          <FieldLabel htmlFor="group-pick-prices">Preço pela ordem da escolha</FieldLabel>
+                          <FieldDescription>
+                            Ex.: o 1º recheio extra + R$ 3,00 e os outros + R$ 5,00, seja qual for a opção.
+                          </FieldDescription>
+                        </FieldContent>
+                      </Field>
+                      {byPick && field.value && (
+                        <ul className="grid gap-2 sm:grid-cols-2">
+                          {tiers(field.value, values.maxChoices).map((price, index, all) => (
+                            <li key={index} className="flex items-center justify-between gap-2">
+                              <span className="text-sm">{ordinal(index)}</span>
+                              <MoneyInput
+                                className="h-8 w-28"
+                                aria-label={`Preço da ${ordinal(index)}`}
+                                placeholder="R$ 0,00"
+                                value={price}
+                                onChange={(next) =>
+                                  field.onChange(all.map((value, i) => (i === index ? (next ?? 0) : value)))
+                                }
+                                disabled={busy}
+                              />
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                />
+              )}
               {Number.isFinite(values.minChoices) && Number.isFinite(values.maxChoices) && values.maxChoices >= 1 && (
                 <p className="text-sm text-muted-foreground">
                   O cliente vê: <strong className="text-foreground">{groupRule(values)}</strong>
+                  {byPick && values.pickPrices && (
+                    <> · {pickPricesLabel(tiers(values.pickPrices, values.maxChoices), values.maxChoices)}</>
+                  )}
                 </p>
               )}
               {form.formState.errors.root?.message && (

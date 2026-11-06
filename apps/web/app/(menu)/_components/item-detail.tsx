@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addLine, type CartLine } from "@/redux/slices/cart";
 import { formatCurrencyBRL } from "@/utils/string";
+import { pickPrice, pickPricesLabel, pricedPicks } from "@/lib/choice-pricing";
 import { cn } from "@/lib/utils";
 import { stockHint, unitsLeft } from "@/lib/stock";
 import { useLastValue } from "@/hooks/use-last-value";
@@ -95,10 +96,14 @@ export function ItemCustomizer({
 
   const groups = item.optionGroups ?? [];
   // A pick carries its group: the price there and "Recheio extra: Carne".
+  // In the order chosen: groups priced by pick order charge the 1st pick
+  // its price, the 2nd the next…
   const chosenOptions = groups.flatMap((group) =>
-    group.options
-      .filter((option) => (choices[group.id] ?? []).includes(option.id))
-      .map((option) => ({ ...option, groupId: group.id, groupName: group.name }))
+    pricedPicks(group, choices[group.id] ?? []).map((option) => ({
+      ...option,
+      groupId: group.id,
+      groupName: group.name,
+    }))
   );
   const missing = groups.filter((group) => (choices[group.id] ?? []).length < group.minChoices);
   const choose = (groupId: string, optionId: string, max: number) =>
@@ -360,8 +365,24 @@ function ChoiceGroup({
       : required
         ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
         : `Escolha até ${group.maxChoices}`;
-  const pickedOptions = group.options.filter((option) => picked.includes(option.id));
+  // "Escolha até 3 · 1º + R$ 3,00 · a partir do 2º + R$ 5,00"
+  const ruleText = group.pickPrices?.length
+    ? `${rule} · ${pickPricesLabel(group.pickPrices, group.maxChoices)}`
+    : rule;
+  const pickedOptions = pricedPicks(group, picked);
   const pickedPrice = pickedOptions.reduce((sum, option) => sum + option.price, 0);
+  // Priced by pick order: a picked option shows what it costs as picked, the
+  // others what the next pick would.
+  const pickedPriceOf = new Map(pickedOptions.map((option) => [option.id, option.price]));
+  const nextPrice = pickPrice(group, picked.length);
+  const priceLabel = (option: (typeof group.options)[number], checked: boolean) => {
+    const price = group.pickPrices?.length
+      ? checked
+        ? pickedPriceOf.get(option.id)!
+        : (nextPrice ?? option.price)
+      : option.price;
+    return price ? `+ ${formatCurrencyBRL(price)}` : "Incluso";
+  };
   // "Frango, Mussarela · + R$ 6,00": names once, the group's total at the end.
   const summary = pickedOptions.length
     ? `${pickedOptions.map((option) => option.name).join(", ")}${pickedPrice ? ` · + ${formatCurrencyBRL(pickedPrice)}` : ""}`
@@ -420,7 +441,7 @@ function ChoiceGroup({
               )}
             </span>
             <span className="text-sm text-muted-foreground tabular-nums">
-              {!option.isAvailable ? "Esgotado" : option.price ? `+ ${formatCurrencyBRL(option.price)}` : "Incluso"}
+              {!option.isAvailable ? "Esgotado" : priceLabel(option, checked)}
             </span>
           </label>
         );
@@ -434,7 +455,7 @@ function ChoiceGroup({
         <legend className="mb-2 flex w-full items-center justify-between gap-2 text-sm font-semibold">
           <span>
             {group.name}
-            <span className="block text-xs font-normal text-muted-foreground">{rule}</span>
+            <span className="block text-xs font-normal text-muted-foreground">{ruleText}</span>
           </span>
           {badge}
         </legend>
@@ -458,7 +479,7 @@ function ChoiceGroup({
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">{group.name}</span>
           <span className={cn("block text-xs text-pretty", summary ? "font-medium text-primary" : "text-muted-foreground")}>
-            {summary ?? rule}
+            {summary ?? ruleText}
           </span>
         </span>
         {badge}

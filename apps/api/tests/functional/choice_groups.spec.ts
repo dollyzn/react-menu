@@ -317,6 +317,90 @@ test.group('Choice groups', (group) => {
     })
   })
 
+  test('a group priced by pick order: the 1st pick R$ 3, every later one R$ 5', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, mussarela, cheddar } = await storeWithCheeseChoice()
+    const frango = await Addon.create({ storeId: store.id, name: 'Frango', price: 9 })
+    const groups = `/api/v1/stores/${store.id}/option-groups`
+    const definition = {
+      name: 'Recheio extra',
+      minChoices: 0,
+      maxChoices: 3,
+      pickPrices: [3, 5],
+      options: options([mussarela, cheddar, frango]),
+    }
+
+    const created = await client.post(groups).json(definition).loginAs(manager)
+    const tooManyPrices = await client
+      .post(groups)
+      .json({ ...definition, pickPrices: [3, 5, 5, 5] })
+      .loginAs(manager)
+    created.assertStatus(200)
+    created.assertBodyContains({ data: { pickPrices: [3, 5] } })
+    tooManyPrices.assertStatus(422)
+    const groupId = created.body().data.id
+    await client
+      .put(`/api/v1/stores/${store.id}/items/${carne.id}`)
+      .json({ optionGroupIds: [groupId] })
+      .loginAs(manager)
+
+    const menu = await client.get(`/api/v1/public/menu/${store.slug}`)
+    const listed = menu
+      .body()
+      .data.categories.flatMap((category: { items: object[] }) => category.items)
+      .find((item: { id: string }) => item.id === carne.id)
+    assert.deepEqual(listed.optionGroups[0].pickPrices, [3, 5])
+
+    // In the order chosen: Frango first (R$ 3, not its own R$ 9), then 5 and 5.
+    const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [
+        {
+          itemId: carne.id,
+          quantity: 1,
+          choices: [
+            { groupId, addonId: frango.id },
+            { groupId, addonId: cheddar.id },
+            { groupId, addonId: mussarela.id },
+          ],
+        },
+      ],
+    })
+    const one = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [{ itemId: carne.id, quantity: 2, choices: [{ groupId, addonId: cheddar.id }] }],
+    })
+    placed.assertStatus(200)
+    const order = await Order.query()
+      .where('publicToken', placed.body().data.publicToken)
+      .preload('items', (items) => items.preload('addons'))
+      .firstOrFail()
+    assert.equal(order.total, carne.price + 3 + 5 + 5)
+    assert.sameDeepMembers(
+      order.items[0].addons.map(({ name, unitPrice }) => ({ name, unitPrice })),
+      [
+        { name: 'Frango', unitPrice: 3 },
+        { name: 'Cheddar', unitPrice: 5 },
+        { name: 'Mussarela', unitPrice: 5 },
+      ]
+    )
+    const single = await Order.query()
+      .where('publicToken', one.body().data.publicToken)
+      .firstOrFail()
+    assert.equal(single.total, 2 * (carne.price + 3))
+
+    // Back to each option's price.
+    const perOption = await client
+      .put(`${groups}/${groupId}`)
+      .json({ ...definition, pickPrices: null })
+      .loginAs(manager)
+    perOption.assertBodyContains({ data: { pickPrices: null } })
+  })
+
   test('older bags (ids only): a group option counts for its group, in the item order', async ({
     client,
     assert,

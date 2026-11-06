@@ -140,3 +140,65 @@ test("an optional extra filling: priced in the group, closed on the menu, named 
   await expect(page.getByRole("dialog")).toHaveCount(1);
   await expect(page.getByRole("dialog").getByRole("button", { name: /^Adicionar/ })).toBeVisible();
 });
+
+test("a group priced by pick order: the 1st extra filling + R$ 3, the others + R$ 5", async ({ page }) => {
+  const store = await createStoreViaApi(page, "Preço por escolha");
+  const api = storeApi(page, store.id);
+  const category = await api.post("/categories", { name: "Pastéis" });
+  const pastel = await api.post(`/categories/${category.id}/items`, { name: "Pastel simples", price: 18 });
+  for (const name of ["Carne", "Frango", "Calabresa"]) await api.post("/addons", { name, price: 9 });
+  const base = `${API_URL}/api/v1/stores/${store.id}`;
+  await page.request.patch(`${base}/status`, { data: { status: "open" } });
+  const { slug } = (await (await page.request.get(base)).json()).data;
+
+  await page.context().clearCookies();
+  await login(page);
+  await page.goto(`/app/stores/${store.id}/option-groups`, { timeout: 30_000 });
+  await page.getByRole("button", { name: "Criar grupo" }).click();
+  const dialog = page.getByRole("dialog", { name: "Novo grupo de escolha" });
+  await dialog.getByLabel("Nome").fill("Recheio extra");
+  await dialog.getByPlaceholder("Selecione os adicionais que viram opções").click();
+  for (const name of ["Carne", "Frango", "Calabresa"]) await page.getByRole("option", { name: new RegExp(name) }).click();
+  await page.keyboard.press("Escape");
+  await dialog.getByRole("textbox", { name: "Mínimo" }).fill("0");
+  await dialog.getByRole("textbox", { name: "Máximo" }).fill("3");
+  await dialog.getByRole("switch", { name: "Preço pela ordem da escolha" }).click();
+  await dialog.getByLabel("Preço da 1ª escolha").fill("300");
+  await dialog.getByLabel("Preço da 2ª escolha").fill("500");
+  await dialog.getByLabel("Preço da 3ª escolha").fill("500");
+  await expect(dialog.getByText("1º + R$ 3,00 · a partir do 2º + R$ 5,00")).toBeVisible();
+  await dialog.getByRole("button", { name: "Criar grupo" }).click();
+  await expect(dialog).toBeHidden();
+
+  const groups = (await (await page.request.get(`${base}/option-groups`)).json()).data;
+  expect(groups[0].pickPrices).toEqual([3, 5, 5]);
+  await page.request.put(`${base}/items/${pastel.id}`, { data: { optionGroupIds: [groups[0].id] } });
+
+  // The next pick's price on each option; the total follows the picks.
+  await page.goto(`/${slug}`);
+  await page.getByRole("button", { name: /^Pastel simples/ }).click();
+  const item = page.getByRole("dialog");
+  const toggle = item.getByRole("button", { name: /Recheio extra/ });
+  await expect(toggle).toContainText("a partir do 2º + R$ 5,00");
+  await toggle.click();
+  const add = item.getByRole("button", { name: /^Adicionar/ });
+  await item.getByText("Frango", { exact: true }).click();
+  await expect(add).toContainText("R$ 21,00");
+  await item.getByText("Carne", { exact: true }).click();
+  await expect(add).toContainText("R$ 26,00");
+  await item.getByText("Calabresa", { exact: true }).click();
+  await expect(add).toContainText("R$ 31,00");
+  await add.click();
+
+  await page.getByRole("button", { name: /Ver sacola/ }).click();
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByLabel("Seu nome").fill("Ana Cliente");
+  await page.getByLabel("Celular (WhatsApp)").fill("11987654321");
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByText("Pagar na retirada", { exact: true }).click();
+  await page.getByRole("button", { name: /Fazer pedido/ }).click();
+
+  // The API charged the same: 18 + 3 + 5 + 5.
+  await expect(page).toHaveURL(/\/pedido\/[0-9a-f-]{36}$/);
+  await expect(page.getByText("R$ 31,00").first()).toBeVisible();
+});

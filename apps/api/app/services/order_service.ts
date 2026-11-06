@@ -16,7 +16,7 @@ import Item from '#models/item'
 import Order from '#models/order'
 import OrderItem from '#models/order_item'
 import OrderItemAddon from '#models/order_item_addon'
-import { optionPrice, type default as OptionGroup } from '#models/option_group'
+import { optionPrice, pickPrice, type default as OptionGroup } from '#models/option_group'
 import OrderStatusHistory from '#models/order_status_history'
 import Store from '#models/store'
 import type User from '#models/user'
@@ -508,6 +508,17 @@ export default class OrderService {
         }
       }
 
+      // Groups priced by pick order: the nth pick (in the order chosen) costs
+      // the nth price, whichever option it is.
+      const priceOf = new Map<{ addon: Addon; group: OptionGroup | null }, number>()
+      const pickCount = new Map<string, number>()
+      for (const entry of picks.values()) {
+        if (!entry.group) continue
+        const index = pickCount.get(entry.group.id) ?? 0
+        pickCount.set(entry.group.id, index + 1)
+        priceOf.set(entry, pickPrice(entry.group, index) ?? optionPrice(entry.addon))
+      }
+
       // Saved (and printed) like the menu shows them: groups in the item's
       // order, each one's options in order, then the free add-ons.
       const rank = ({ addon, group }: { addon: Addon; group: OptionGroup | null }) =>
@@ -516,7 +527,8 @@ export default class OrderService {
           : Number.MAX_SAFE_INTEGER
       const addons = [...picks.values()]
         .sort((a, b) => rank(a) - rank(b))
-        .map(({ addon, group }) => {
+        .map((entry) => {
+          const { addon, group } = entry
           if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
             throw new AppException(
               `${addon.name} está indisponível no momento.`,
@@ -527,7 +539,7 @@ export default class OrderService {
           return {
             id: addon.id,
             name: addon.name,
-            price: group ? optionPrice(addon) : addon.price,
+            price: priceOf.get(entry) ?? addon.price,
             groupName: group?.name ?? null,
           }
         })

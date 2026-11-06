@@ -9,6 +9,8 @@ export type OptionGroupInput = {
   name: string
   minChoices: number
   maxChoices: number
+  /** Price by pick order (see OptionGroup.pickPrices); null/absent = per option. */
+  pickPrices?: number[] | null
   /** The options, in display order (the store's add-ons), with their price here. */
   options: { addonId: string; price: number | null }[]
 }
@@ -44,7 +46,13 @@ export default class OptionGroupService {
     return await db.transaction(async (trx) => {
       await this.assertValid(storeId, input, trx)
       const group = await OptionGroup.create(
-        { storeId, name: input.name, minChoices: input.minChoices, maxChoices: input.maxChoices },
+        {
+          storeId,
+          name: input.name,
+          minChoices: input.minChoices,
+          maxChoices: input.maxChoices,
+          pickPrices: input.pickPrices ?? null,
+        },
         { client: trx }
       )
       await this.syncOptions(group, input.options, trx)
@@ -56,7 +64,12 @@ export default class OptionGroupService {
     return await db.transaction(async (trx) => {
       const group = await this.find(storeId, id, trx)
       await this.assertValid(storeId, input, trx)
-      group.merge({ name: input.name, minChoices: input.minChoices, maxChoices: input.maxChoices })
+      group.merge({
+        name: input.name,
+        minChoices: input.minChoices,
+        maxChoices: input.maxChoices,
+        pickPrices: input.pickPrices ?? null,
+      })
       await group.useTransaction(trx).save()
       await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, id, trx)
@@ -110,6 +123,13 @@ export default class OptionGroupService {
     }
     if (input.minChoices > input.maxChoices) {
       throw new AppException('O mínimo não pode ser maior que o máximo.', 422, 'E_INVALID_GROUP')
+    }
+    if (input.pickPrices && input.pickPrices.length > input.maxChoices) {
+      throw new AppException(
+        'Há mais preços por escolha do que escolhas permitidas.',
+        422,
+        'E_INVALID_GROUP'
+      )
     }
     if (input.maxChoices > options.size) {
       throw new AppException(
