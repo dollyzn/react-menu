@@ -14,9 +14,10 @@
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
-	# HTTPS only from the first visit on (ignored over plain HTTP). Add
-	# includeSubDomains once every subdomain of the domain is on HTTPS.
-	header Strict-Transport-Security "max-age=31536000"
+	# HTTPS only from the first visit on (ignored over plain HTTP), for the
+	# domain's subdomains too: every one must be served over HTTPS. Not in
+	# the browsers' preload list (hard to undo, little gain here).
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	header -Server
 
 	# /health answers monitors that send X-Monitoring-Secret.

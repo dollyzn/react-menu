@@ -28,11 +28,10 @@ picked from Product below, one PR at a time.
 - **Enforce the Content-Security-Policy.** The web sends it as
   `Content-Security-Policy-Report-Only` (`apps/web/lib/csp.ts`, nonce from
   `proxy.ts`); reports are logged by `/csp-report` (`docker compose logs web
-  | grep csp-report`). After a few weeks of real traffic without unexpected
-  reports (Mercado Pago Brick, 3-D Secure, push), switch the header to
-  `Content-Security-Policy`.
-- **HSTS `includeSubDomains`/`preload`** in `docker/caddy/Caddyfile`, once
-  every subdomain of the production domain is on HTTPS.
+  | grep csp-report`). Zod's `eval` probe, the only report so far, is gone
+  since v1.0.1 (2026-11-07). After a few weeks of real traffic without
+  unexpected reports (Mercado Pago Brick, 3-D Secure, push), switch the
+  header to `Content-Security-Policy`.
 - `@adonisjs/shield` and `@adonisjs/session` were looked at and left out:
   Shield's CSRF and CSP target pages the Adonis app renders (ours are the
   Next app's), and the login is an access token in an httpOnly cookie
@@ -48,8 +47,13 @@ picked from Product below, one PR at a time.
   (`node --import ./otel.js bin/server.js` / `ace queue:work` in the
   Dockerfile and compose) and `pnpm dev` sends nothing
   (docs/development/observability.md). Reported in
-  [adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27); once fixed
-  upstream, the dev scripts can preload it too.
+  [adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27): it's a
+  `@poppinss/ts-exec` regression since 1.5.0
+  ([poppinss/ts-exec#12](https://github.com/poppinss/ts-exec/issues/12)),
+  fixed in ts-exec **1.5.2** (2026-11-06). From ~2026-11-20 (our two-week
+  rule for new versions): bump `@poppinss/ts-exec` to `^1.5.2`, check that
+  `node ace serve` boots with `--import ./otel.js` and Ace commands load,
+  then the dev scripts can preload it too (optional) and this note goes.
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in
