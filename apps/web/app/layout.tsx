@@ -2,6 +2,7 @@ import "@/styles/globals.css";
 
 import type { Metadata, Viewport } from "next";
 
+import { headers } from "next/headers";
 import { ThemeProvider } from "@wrksz/themes/next";
 import { ReduxProvider } from "@/contexts/redux-provider";
 import { SessionProvider } from "@/contexts/session-provider";
@@ -89,7 +90,9 @@ interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-export default function RootLayout({ children }: RootLayoutProps) {
+export default async function RootLayout({ children }: RootLayoutProps) {
+  // This request's CSP nonce (proxy.ts) for the scripts we inline.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
       lang="pt-BR"
@@ -108,8 +111,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
           defaultTheme="system"
           enableSystem
           disableTransitionOnChange
+          nonce={nonce}
         >
-          <HeadScripts />
+          <HeadScripts nonce={nonce} />
           <ReduxProvider>
             <NotificationProvider>
               <SessionProvider>

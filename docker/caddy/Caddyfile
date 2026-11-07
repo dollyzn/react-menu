@@ -2,11 +2,29 @@
 # SameSite=Strict, so both must be served from the same host.
 # SITE_ADDRESS=:80 serves plain HTTP; a domain (menu.example.com) gets HTTPS
 # certificates automatically.
+{
+	servers {
+		# Behind another proxy on the same server (nginx, Traefik…), keep the
+		# visitor's IP it sends in X-Forwarded-For: the API limits per IP.
+		# Only private addresses are trusted, so visitors can't fake it.
+		trusted_proxies static private_ranges
+	}
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
-	@api path /api/* /__transmit/* /uploads/*
+	# HTTPS only from the first visit on (ignored over plain HTTP). Add
+	# includeSubDomains once every subdomain of the domain is on HTTPS.
+	header Strict-Transport-Security "max-age=31536000"
+	header -Server
+
+	# /health answers monitors that send X-Monitoring-Secret.
+	@api path /api/* /__transmit/* /uploads/* /health
 	handle @api {
+		# The web sets these for its pages; the API's answers get them here.
+		header X-Content-Type-Options nosniff
+		header Referrer-Policy strict-origin-when-cross-origin
 		# flush_interval -1 keeps Server-Sent Events (Transmit) streaming.
 		reverse_proxy api:3333 {
 			flush_interval -1

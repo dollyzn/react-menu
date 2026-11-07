@@ -27,7 +27,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Customer history and device link | `_lib/customer-orders.ts`, `_components/order-history.tsx`, `customer.tokens` (ADR 0014) |
 | Bag and customer identity | `redux/slices/cart.ts`, `redux/slices/customer.ts` (persisted) |
 | Sidebar by role | `lib/menu-itens.ts` (`getManageMenuGroups`, `homeForRole`); new store sections also need a label in `app-breadcrumbs.tsx` |
-| Route guard (UX only) | `proxy.ts` (checks the auth cookie exists) |
+| Route guard (UX only) and CSP | `proxy.ts` (checks the auth cookie exists; sets `Content-Security-Policy-Report-Only` from `lib/csp.ts` with a per-request nonce in `x-nonce`, which Next and the root layout put on scripts: inline scripts take `nonce`; violations are logged by `app/csp-report/route.ts`). A new third-party script, frame, API or image host needs `lib/csp.ts` |
 | Server state | RTK Query: `redux/api/baseApi.ts`, `redux/features/<domain>/<domain>Api.ts` |
 | Server-side API calls (SSR, metadata, icons) | `lib/server-api.ts`: `serverApiBase()` (internal URL in Docker) and `visitorHeaders()` (forwards the visitor's IP so the API's per-IP limit counts them, not the server) |
 | Panel shortcut on customer pages | `app/(menu)/_components/panel-shortcut.tsx` (staff signed in on the device; after rehydration) |

@@ -4,7 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import { createStaff } from '#tests/helpers/fixtures'
-import { signIn } from '#tests/helpers/sign_in'
+import { SESSION_COOKIE, signIn } from '#tests/helpers/sign_in'
 
 const COOKIE = env.get('AUTH_COOKIE_NAME')
 
@@ -53,5 +53,36 @@ test.group('Session', (group) => {
     const withNew = await client.get('/api/v1/auth/me').withCookie(COOKIE, newToken!)
     withOld.assertStatus(401)
     withNew.assertStatus(200)
+  })
+})
+
+test.group('Cookie writes from another origin', (group) => {
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+
+  test('a write with the session cookie must come from the panel origin', async ({ client }) => {
+    const user = await createStaff({ password: 'secret123' })
+    const { session } = await signIn(client, { email: user.email, password: 'secret123' })
+    const write = () =>
+      client
+        .put('/api/v1/account/profile')
+        .json({ name: 'Novo Nome' })
+        .withCookie(SESSION_COOKIE, session)
+
+    const evil = await write().header('origin', 'https://evil.example')
+    const sibling = await write().header('sec-fetch-site', 'same-site')
+    const panel = await write().header('origin', new URL(env.get('FRONTEND_URL')).origin)
+    const noBrowser = await write()
+    // Reading is never blocked.
+    const read = await client
+      .get('/api/v1/auth/me')
+      .withCookie(SESSION_COOKIE, session)
+      .header('origin', 'https://evil.example')
+
+    evil.assertStatus(403)
+    evil.assertBodyContains({ code: 'E_UNTRUSTED_ORIGIN' })
+    sibling.assertStatus(403)
+    panel.assertStatus(200)
+    noBrowser.assertStatus(200)
+    read.assertStatus(200)
   })
 })

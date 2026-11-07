@@ -19,6 +19,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   LOG_LEVEL: Env.schema.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']),
   APP_URL: Env.schema.string({ format: 'url', tld: false }),
   FRONTEND_URL: Env.schema.string({ format: 'url', tld: false }),
+  /** More origins allowed to write with the session cookie (comma-separated); usually empty. */
+  TRUSTED_ORIGINS: Env.schema.string.optional(),
 
   AUTH_COOKIE_NAME: Env.schema.string(),
   AUTH_COOKIE_ENABLED: Env.schema.boolean(),
