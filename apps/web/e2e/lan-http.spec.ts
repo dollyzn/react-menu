@@ -41,5 +41,5 @@ test("the Pix code can be copied without navigator.clipboard", async ({ page }) 
   await payment.getByLabel("Seu e-mail").fill("rede@example.com");
   await payment.getByRole("button", { name: "Gerar Pix" }).click();
   await payment.getByRole("button", { name: "Copiar" }).click();
-  await expect(page.getByText("Código Pix copiado! Cole no app do banco.")).toBeVisible();
+  await expect(payment.getByRole("button", { name: "Copiado!" })).toBeVisible();
 });
