@@ -120,7 +120,7 @@ export function MemberRow({
             ))}
           </SelectContent>
         </Select>
-        {member.invitePending && (
+        {member.invitePending && !disabled && (
           <Button variant="outline" size="sm" loading={resending} onClick={() => actions.resendInvite(member)}>
             {!resending && <MailPlus />} Reenviar convite
           </Button>

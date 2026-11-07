@@ -126,7 +126,7 @@ export default function MembersPage() {
         ? {
             title: `Desativar o acesso de ${shownName}?`,
             description:
-              "A pessoa sai do painel desta loja na hora e as sessões abertas dela são encerradas. Ela continua na equipe com a mesma função, e você pode reativar quando quiser.",
+              "A pessoa sai do painel desta loja na hora (e, se não trabalhar em outra loja, as sessões abertas dela são encerradas). Ela continua na equipe com a mesma função, e você pode reativar quando quiser.",
             confirmLabel: "Desativar",
             icon: <ShieldOff />,
           }

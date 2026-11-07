@@ -1,7 +1,8 @@
-import { mkdtemp, writeFile } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from '@japa/runner'
+import drive from '@adonisjs/drive/services/main'
 import testUtils from '@adonisjs/core/services/test_utils'
 import StoreStatus from '#enums/store_status'
 import Ingredient from '#models/ingredient'
@@ -64,6 +65,11 @@ async function jjStore(client: { get: (url: string) => Promise<{ body(): { data:
 
 test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
   group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  // Logo, banner and photos go to a fake disk, never the dev server's storage.
+  group.each.setup(() => {
+    drive.fake()
+    return () => drive.restore()
+  })
 
   test('categories, base prices and who gets which group', async ({ client, assert }) => {
     const { menu, item, group: groupOf } = await jjStore(client)
@@ -328,8 +334,8 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
     assert.sameMembers(filled, ['description', 'instagramUrl', 'photoUrl', 'bannerUrl'])
     assert.equal(store.address, 'Endereço digitado no painel')
     assert.include(store.description!, 'desde 2021')
-    assert.match(store.bannerUrl!, /\/uploads\/banners\//)
-    assert.match(store.photoUrl!, /\/uploads\/photos\//)
+    assert.match(store.bannerUrl!, /banners\//)
+    assert.match(store.photoUrl!, /photos\//)
   })
 
   test('local photos go on the items by name, never over a panel upload', async ({ assert }) => {
@@ -352,6 +358,7 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
     }
 
     const result = await new CatalogImportService().applyLocalPhotos(store, dir)
+    await rm(dir, { recursive: true, force: true })
 
     assert.equal(photoSlug('Pastel de Palmito'), 'pastel-de-palmito')
     assert.equal(photoSlug('Guaraná Antarctica normal 600 ml'), 'guarana-antarctica-normal-600-ml')

@@ -155,6 +155,12 @@ export default class TwoFactorService {
   }
 
   /** The pending challenge of this browser (the login page after Google). */
+  /** Who the pending second step is for (refused like `verify` when there's none). */
+  async pendingUser(ctx: Ctx) {
+    const row = await this.findChallenge(ctx)
+    return await User.findOrFail(row.user_id)
+  }
+
   async current(ctx: Ctx) {
     const row = await this.findChallenge(ctx)
     return this.describe(row.id)

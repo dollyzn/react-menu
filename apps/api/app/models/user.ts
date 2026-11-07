@@ -113,11 +113,20 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare socialAccounts: HasMany<typeof UserSocialAccount>
 
   /**
-   * Pivot `role`: StoreRole of the user in each store. `disabled_at` set by
-   * the store's managers switches that store off for them (see `activeStores`).
+   * Pivot `role`: StoreRole of the user in each store, including stores the
+   * managers switched off for them (`disabled_at`). Access checks use
+   * `activeStores`.
    */
-  @manyToMany(() => Store, { pivotColumns: ['role'] })
+  @manyToMany(() => Store, { pivotColumns: ['role', 'disabled_at'] })
   declare stores: ManyToMany<typeof Store>
+
+  /** The stores the user can work in (`stores` minus the switched-off ones). */
+  @manyToMany(() => Store, {
+    pivotTable: 'store_user',
+    pivotColumns: ['role'],
+    onQuery: (query) => query.whereNullPivot('disabled_at'),
+  })
+  declare activeStores: ManyToMany<typeof Store>
 
   async can(access: string): Promise<boolean> {
     if (this.superUser) return true
@@ -135,10 +144,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
     if (this.superUser) return true
 
     const membership = await (this as User)
-      .related('stores')
+      .related('activeStores')
       .query()
       .where('stores.id', storeId)
-      .whereNullPivot('disabled_at')
       .select('stores.id')
       .first()
 
@@ -150,10 +158,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
     if (this.superUser) return StoreRole.MANAGER
 
     const store = await (this as User)
-      .related('stores')
+      .related('activeStores')
       .query()
       .where('stores.id', storeId)
-      .whereNullPivot('disabled_at')
       .select('stores.id')
       .first()
 

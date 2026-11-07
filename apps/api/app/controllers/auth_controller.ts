@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { touchLastSeen } from '#helpers/user_activity'
 import { inject } from '@adonisjs/core'
 import {
   forgotPasswordValidator,
@@ -70,7 +71,10 @@ export default class AuthController {
   }
 
   async me({ auth, request, response }: HttpContext) {
-    const user = await this.authService.me(auth.getUserOrFail(), { auth, request, response })
+    const signedIn = auth.getUserOrFail()
+    const user = await this.authService.me(signedIn, { auth, request, response })
+    // The panel loading counts as activity ("online" on the team page).
+    await touchLastSeen(signedIn.id)
 
     return ok({ user })
   }

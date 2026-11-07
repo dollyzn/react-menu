@@ -1,6 +1,7 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from '#start/kernel'
 import { throttle } from '#start/limiter'
+import { touchLastSeen } from '#helpers/user_activity'
 
 const AuthController = () => import('#controllers/auth_controller')
 const SocialAuthController = () => import('#controllers/social_auth_controller')
@@ -26,10 +27,12 @@ export default function authRoutes() {
         .prefix('/two-factor')
         .use(throttle)
       router.get('/me', [AuthController, 'me']).use([middleware.auth(), throttle]).as('auth.me')
-      // The panel's heartbeat while it is open: the auth middleware records the
-      // activity ("online" on the team page).
+      // The panel's heartbeat while it is open and visible ("online" on the team page).
       router
-        .get('/presence', ({ response }) => response.noContent())
+        .get('/presence', async ({ auth, response }) => {
+          await touchLastSeen(auth.getUserOrFail().id)
+          return response.noContent()
+        })
         .use([middleware.auth(), throttle])
         .as('auth.presence')
 
