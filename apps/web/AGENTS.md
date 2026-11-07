@@ -83,6 +83,11 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   (`components/ui/drawer.tsx`, a local change to the shadcn file: keep it
   when updating) — elsewhere it left drawers stuck up after the keyboard
   closed.
+- Menus size to their items: `DropdownMenuContent` is `w-max`, at least the
+  trigger's width (or 8rem) and at most the room on screen
+  (`components/ui/dropdown-menu.tsx`, a local change to the shadcn file:
+  keep it when updating). Give a menu a `min-w-*`, not a fixed `w-*`, so a
+  long label doesn't wrap.
 - Search fields use `components/app/search-input.tsx` (one clear button,
   Escape clears).
 - Base UI `Select` shows the raw value in the trigger unless the root gets

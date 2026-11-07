@@ -37,7 +37,7 @@ export function RowActions({ row }: RowActionsProps) {
           <MoreHorizontal />
           <span className="sr-only">Abrir menu</span>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
+        <DropdownMenuContent align="end" className="min-w-40">
           <DropdownMenuItem onClick={() => setIsEditModalOpen(true)}>
             <Edit />
             Editar
