@@ -9,6 +9,11 @@ allowBuilds:
   sharp: true
   unrs-resolver: false
 
+# Allowed before pnpm's minimum release age: ts-exec 1.5.2 fixes loader
+# hooks under `node ace serve` (OpenTelemetry in dev). Can go after 2026-11-20.
+minimumReleaseAgeExclude:
+  - '@poppinss/ts-exec@1.5.2'
+
 overrides:
   '@types/react': 19.3.0
   '@types/react-dom': 19.3.0

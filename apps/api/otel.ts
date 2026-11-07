@@ -1,13 +1,13 @@
 /**
- * OpenTelemetry initialization, preloaded by the production commands only:
- * `node --import ./otel.js bin/server.js` (Dockerfile) and
- * `node --import ./otel.js ace queue:work` (the compose worker). Its loader
- * hook must be in place before anything it instruments is imported, and
- * under `node ace serve` (TypeScript) it breaks the app's boot
- * (https://github.com/adonisjs/otel/issues/27), so development and tests
- * never load this file. Settings live in config/otel.ts.
+ * OpenTelemetry initialization. Its loader hook must be in place before
+ * anything it instruments is imported, so it runs first: preloaded by the
+ * production commands (`node --import ./otel.js bin/server.js`, and
+ * `… ace queue:work` for the worker) and imported first by bin/server.ts and,
+ * for `queue:work`, bin/console.ts, which also covers `pnpm dev`
+ * (`node ace serve`). One module: preloaded and imported, it runs once.
  *
- * It starts only with OTEL_EXPORTER_OTLP_ENDPOINT in the environment.
+ * It starts only with OTEL_EXPORTER_OTLP_ENDPOINT in the process environment
+ * (a value only in .env is read too late). Settings live in config/otel.ts.
  */
 import { init } from '@adonisjs/otel/init'
 

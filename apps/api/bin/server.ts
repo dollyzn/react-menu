@@ -9,6 +9,9 @@
 |
 */
 
+// First: OpenTelemetry's hook must load before what it instruments (a no-op
+// without OTEL_EXPORTER_OTLP_ENDPOINT).
+import '../otel.js'
 import 'reflect-metadata'
 import { Ignitor, prettyPrintError } from '@adonisjs/core'
 
