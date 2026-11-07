@@ -58,9 +58,8 @@ export function mercadoPagoStyle(dark: boolean): BrickStyle {
   const px = (value: number) => `${Math.round(value)}px`;
 
   return {
-    // The Brick's dark theme fixes some colors (light borders) over the
-    // variables; its default theme takes them all, ours carry the dark mode.
-    theme: "default",
+    // The dark theme also darkens what the variables don't reach (its alerts).
+    theme,
     customVariables: {
       formBackgroundColor: hex(card),
       inputBackgroundColor: hex(card),

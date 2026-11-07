@@ -5,6 +5,7 @@ import { CardPayment, initMercadoPago } from "@mercadopago/sdk-react";
 import { useTheme } from "@wrksz/themes/client";
 import type { PublicPaymentRequest } from "@react-menu/contracts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { mercadoPagoStyle, type BrickStyle } from "@/lib/mercado-pago-style";
 
 type BrickProps = React.ComponentProps<typeof CardPayment>;
@@ -62,25 +63,33 @@ export default function CardPaymentForm({
     latest.current = { onPay, email };
   });
   const onReady = useCallback(() => setReady(true), []);
+  // From "Pagar" until our API answers (Mercado Pago can take seconds, and
+  // the 3-D Secure step shows only after): visible, and no second attempt.
+  const [submitting, setSubmitting] = useState(false);
   const onSubmit = useCallback<NonNullable<BrickProps["onSubmit"]>>(
     async (data, additional) => {
       const { onPay, email } = latest.current;
-      await onPay({
-        method: "card",
-        payer: { email: data.payer.email ?? email ?? "" },
-        card: {
-          token: data.token,
-          installments: data.installments,
-          paymentMethodId: data.payment_method_id,
-          // credit_card / debit_card: the Orders API needs the card type.
-          paymentTypeId: additional?.paymentTypeId,
-          issuerId: data.issuer_id ? String(data.issuer_id) : undefined,
-          identification:
-            data.payer.identification?.type && data.payer.identification.number
-              ? { type: data.payer.identification.type, number: data.payer.identification.number }
-              : undefined,
-        },
-      });
+      setSubmitting(true);
+      try {
+        await onPay({
+          method: "card",
+          payer: { email: data.payer.email ?? email ?? "" },
+          card: {
+            token: data.token,
+            installments: data.installments,
+            paymentMethodId: data.payment_method_id,
+            // credit_card / debit_card: the Orders API needs the card type.
+            paymentTypeId: additional?.paymentTypeId,
+            issuerId: data.issuer_id ? String(data.issuer_id) : undefined,
+            identification:
+              data.payer.identification?.type && data.payer.identification.number
+                ? { type: data.payer.identification.type, number: data.payer.identification.number }
+                : undefined,
+          },
+        });
+      } finally {
+        setSubmitting(false);
+      }
     },
     []
   );
@@ -92,6 +101,15 @@ export default function CardPaymentForm({
     // list ends in Arial there instead of the browser's serif default.
     <div className="relative -mx-4 min-h-80 [font-family:var(--font-sans),Arial,Helvetica,sans-serif]">
       {!ready && <Skeleton className="absolute inset-0 mx-4 rounded-2xl" />}
+      {submitting && (
+        <div
+          role="status"
+          className="absolute inset-0 z-10 mx-4 flex flex-col items-center justify-center gap-3 rounded-2xl bg-card/85 text-sm font-medium"
+        >
+          <Spinner className="size-6 text-primary" aria-hidden />
+          Processando pagamento…
+        </div>
+      )}
       {style && (
       <CardPayment
         initialization={initialization}
