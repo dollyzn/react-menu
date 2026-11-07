@@ -162,6 +162,24 @@ test.group('Push registrations (FCM)', (group) => {
     assert.equal(rows[0].userId, second.id)
   })
 
+  test('the same installation registered twice at once is one row, no error', async ({
+    client,
+    assert,
+  }) => {
+    const user = await createUser()
+    const installation = fid()
+    const register = () =>
+      client.post('/api/v1/notifications/push/register').json({ fid: installation }).loginAs(user)
+
+    // The panel's call and Firebase's onRegistered arrive together.
+    const [first, second] = await Promise.all([register(), register()])
+
+    first.assertStatus(200)
+    second.assertStatus(200)
+    const rows = await PushRegistration.query().where('fid', installation)
+    assert.lengthOf(rows, 1)
+  })
+
   test('rejects malformed installation ids', async ({ client }) => {
     const user = await createUser()
 
