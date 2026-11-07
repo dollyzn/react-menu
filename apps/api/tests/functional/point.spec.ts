@@ -14,7 +14,7 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import RefundOrder from '#jobs/refund_order'
 
-const TOKEN = 'TEST-1234567890-abcdef'
+const TOKEN = 'TEST-1234567890-abcdef' // gitleaks:allow (fake test credential)
 const SECRET = 'webhook-secret-123'
 const BALCAO = 'NEWLAND_N950__N950NCB400655765'
 const RESERVA = 'PAX_Q92__Q92-1734068575'

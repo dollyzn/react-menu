@@ -126,6 +126,17 @@ class FakeMercadoPago extends MercadoPagoClient {
     order.transactions!.payments![0].status_detail = 'cc_rejected_3ds_challenge'
   }
 
+  /** The store refunded it in Mercado Pago's own app: a second refund is refused. */
+  refundElsewhere(id: string) {
+    const order = this.orders.get(id)!
+    order.status = 'refunded'
+    order.status_detail = 'refunded'
+    order.transactions!.payments![0].status = 'refunded'
+    this.refundedElsewhere.add(id)
+  }
+
+  refundedElsewhere = new Set<string>()
+
   async getOrder(_token: string, orderId: string) {
     return this.orders.get(orderId)!
   }
@@ -137,7 +148,9 @@ class FakeMercadoPago extends MercadoPagoClient {
   failRefunds = false
 
   async refundOrder(_token: string, orderId: string) {
-    if (this.failRefunds) throw new AppException('down', 502, 'E_PAYMENT_PROVIDER')
+    if (this.failRefunds || this.refundedElsewhere.has(orderId)) {
+      throw new AppException('down', 502, 'E_PAYMENT_PROVIDER')
+    }
     this.refunds.push(orderId)
   }
 
@@ -519,6 +532,63 @@ test.group('Payments (in-app checkout)', (group) => {
     byAttendant.assertStatus(403)
     refunded.assertBodyContains({ data: { paymentStatus: 'refunded', refundPending: false } })
     again.assertStatus(409)
+  })
+
+  test('a payment already refunded in Mercado Pago only gets recorded', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    fake.nextCardStatus = 'processed'
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: { token: 't1', installments: 1, paymentMethodId: 'visa' },
+    })
+    const order = await Order.findByOrFail('publicToken', token)
+    const attempt = await Payment.findByOrFail('orderId', order.id)
+    // The store refunds it in the Mercado Pago app, then cancels the order.
+    fake.refundElsewhere(attempt.gatewayPaymentId!)
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
+    await runJob(RefundOrder, { orderId: order.id })
+
+    await order.refresh()
+    await attempt.refresh()
+    assert.equal(order.paymentStatus, 'refunded')
+    assert.equal(attempt.status, 'refunded')
+    assert.deepEqual(fake.refunds, [])
+  })
+
+  test('an attempt the webhook marked refunded settles the order on retry', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    fake.nextCardStatus = 'processed'
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: { token: 't1', installments: 1, paymentMethodId: 'visa' },
+    })
+    const order = await Order.findByOrFail('publicToken', token)
+    fake.failRefunds = true
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
+    await assert.rejects(() => runJob(RefundOrder, { orderId: order.id }))
+    // Mercado Pago's webhook reports the refund made in its app.
+    await Payment.query().where('orderId', order.id).update({ status: 'refunded' })
+
+    const retried = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/refund`)
+      .loginAs(manager)
+
+    retried.assertBodyContains({ data: { paymentStatus: 'refunded', refundPending: false } })
+    assert.deepEqual(fake.refunds, [])
   })
 
   test('card installments follow the store limit', async ({ client }) => {

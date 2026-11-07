@@ -276,23 +276,37 @@ export default class PaymentService {
    */
   async refundCancelled(order: Order, store: Store) {
     if (order.status !== OrderStatus.CANCELLED || order.paymentStatus !== PaymentStatus.PAID) return
-    const approved = await Payment.query().where({
-      orderId: order.id,
-      status: PaymentAttemptStatus.APPROVED,
-    })
+    const settled = await Payment.query()
+      .where('orderId', order.id)
+      .whereIn('status', [PaymentAttemptStatus.APPROVED, PaymentAttemptStatus.REFUNDED])
+    const approved = settled.filter((payment) => payment.status === PaymentAttemptStatus.APPROVED)
     // Legacy Checkout Pro orders only have the payment id on the order.
     const targets: { gatewayPaymentId: string; payment?: Payment }[] = approved.length
       ? approved.map((payment) => ({ gatewayPaymentId: payment.gatewayPaymentId!, payment }))
-      : order.mercadoPagoPaymentId
+      : order.mercadoPagoPaymentId && settled.length === 0
         ? [{ gatewayPaymentId: order.mercadoPagoPaymentId }]
         : []
-    if (targets.length === 0) return
+    if (targets.length === 0) {
+      // Already refunded attempts (the webhook told us of a refund made in
+      // Mercado Pago): the order only needs to say so.
+      if (settled.length > 0) {
+        order.paymentStatus = PaymentStatus.REFUNDED
+        await order.save()
+      }
+      return
+    }
 
     for (const target of targets) {
       const gateway =
         target.payment?.gateway === 'fake' ? new FakeGateway() : this.gatewayFor(store)
       if (!gateway) throw new Error('no gateway to refund the payment')
-      await gateway.refund(target.gatewayPaymentId, `refund-${target.gatewayPaymentId}`)
+      // Refunded elsewhere first (the store's Mercado Pago app or panel): the
+      // provider refuses a second refund, so only record it. A failed lookup
+      // still tries the refund, which answers for itself.
+      const current = await gateway.fetch(target.gatewayPaymentId).catch(() => null)
+      if (current?.status !== PaymentAttemptStatus.REFUNDED) {
+        await gateway.refund(target.gatewayPaymentId, `refund-${target.gatewayPaymentId}`)
+      }
       if (target.payment) {
         target.payment.status = PaymentAttemptStatus.REFUNDED
         await target.payment.save()
