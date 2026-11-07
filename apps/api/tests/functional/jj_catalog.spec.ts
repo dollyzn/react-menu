@@ -294,6 +294,18 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
     assert.equal(await stock('Massa de mini pastel'), doughBefore - 12)
     assert.equal(await stock('Carne moída'), meatBefore - 80)
 
+    // 8 minis, both flavors cheese (the group allows repeats): 8 doughs.
+    const doughNow = await stock('Massa de mini pastel')
+    const allCheese = await order([
+      {
+        itemId: item('8 Mini Pastéis').id,
+        quantity: 1,
+        choices: picks('8 Mini Pastéis', 'Escolha 2 sabores', ['Queijo', 'Queijo']),
+      },
+    ])
+    assert.equal(allCheese.total, 80)
+    assert.equal(await stock('Massa de mini pastel'), doughNow - 8)
+
     // A can deducts its own SKU, never the 200 ml bottle.
     const can = await stock('Coca-Cola Original lata 350 ml')
     const bottle = await stock('Coca-Cola Original 200 ml')

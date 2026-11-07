@@ -114,6 +114,15 @@ export function ItemCustomizer({
       return picked.length >= max ? current : { ...current, [groupId]: [...picked, optionId] };
     });
 
+  // Groups that allow repeats count each option (−/+): "Queijo" twice.
+  const repeat = (groupId: string, optionId: string, delta: 1 | -1, max: number) =>
+    setChoices((current) => {
+      const picked = current[groupId] ?? [];
+      if (delta > 0) return picked.length >= max ? current : { ...current, [groupId]: [...picked, optionId] };
+      const at = picked.lastIndexOf(optionId);
+      return at === -1 ? current : { ...current, [groupId]: picked.filter((_, index) => index !== at) };
+    });
+
   // Group choices are add-ons too: price, stock and the order line.
   const selected = [
     ...chosenOptions,
@@ -213,6 +222,7 @@ export function ItemCustomizer({
             group={group}
             picked={choices[group.id] ?? []}
             onChoose={(optionId) => choose(group.id, optionId, group.maxChoices)}
+            onRepeat={(optionId, delta) => repeat(group.id, optionId, delta, group.maxChoices)}
           />
         ))}
 
@@ -344,14 +354,24 @@ export function ItemCustomizer({
  * extra") start closed with what was picked in the header, so a long list
  * of options doesn't push the rest of the item down.
  */
+/** ["Queijo", "Queijo", "Carne"] → ["2× Queijo", "Carne"] (first-seen order). */
+function countedNames(names: string[]) {
+  const counts = new Map<string, number>();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts].map(([name, count]) => (count > 1 ? `${count}× ${name}` : name));
+}
+
 function ChoiceGroup({
   group,
   picked,
   onChoose,
+  onRepeat,
 }: {
   group: PublicOptionGroup;
   picked: string[];
   onChoose: (optionId: string) => void;
+  /** Groups that allow repeats: one more (1) or one less (-1) of an option. */
+  onRepeat: (optionId: string, delta: 1 | -1) => void;
 }) {
   const required = group.minChoices > 0;
   const [open, setOpen] = useState(required);
@@ -366,9 +386,13 @@ function ChoiceGroup({
         ? `Escolha de ${group.minChoices} a ${group.maxChoices}`
         : `Escolha até ${group.maxChoices}`;
   // "Escolha até 3 · 1º + R$ 3,00 · a partir do 2º + R$ 5,00"
-  const ruleText = group.pickPrices?.length
-    ? `${rule} · ${pickPricesLabel(group.pickPrices, group.maxChoices)}`
-    : rule;
+  const ruleText = [
+    rule,
+    group.allowRepeat && "pode repetir a mesma opção",
+    group.pickPrices?.length && pickPricesLabel(group.pickPrices, group.maxChoices),
+  ]
+    .filter(Boolean)
+    .join(" · ");
   const pickedOptions = pricedPicks(group, picked);
   const pickedPrice = pickedOptions.reduce((sum, option) => sum + option.price, 0);
   // Priced by pick order: a picked option shows what it costs as picked, the
@@ -385,7 +409,7 @@ function ChoiceGroup({
   };
   // "Frango, Mussarela · + R$ 6,00": names once, the group's total at the end.
   const summary = pickedOptions.length
-    ? `${pickedOptions.map((option) => option.name).join(", ")}${pickedPrice ? ` · + ${formatCurrencyBRL(pickedPrice)}` : ""}`
+    ? `${countedNames(pickedOptions.map((option) => option.name)).join(", ")}${pickedPrice ? ` · + ${formatCurrencyBRL(pickedPrice)}` : ""}`
     : null;
 
   const badge = (
@@ -401,7 +425,61 @@ function ChoiceGroup({
     </span>
   );
 
-  const options = (
+  const options = group.allowRepeat ? (
+    <div className="flex flex-col gap-2">
+      {group.options.map((option) => {
+        const count = picked.filter((id) => id === option.id).length;
+        const blocked = !option.isAvailable;
+        return (
+          <div
+            key={option.id}
+            className={cn(
+              "flex items-center gap-3 rounded-xl border p-3 transition-colors",
+              count > 0 && "border-primary bg-primary/5",
+              blocked && "opacity-50"
+            )}
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium">{option.name}</span>
+              {option.description && (
+                <span className="block text-xs text-muted-foreground">{option.description}</span>
+              )}
+              <span className="block text-xs text-muted-foreground tabular-nums">
+                {blocked ? "Esgotado" : priceLabel(option, false)}
+              </span>
+            </span>
+            <div className="flex shrink-0 items-center rounded-full border">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-full"
+                aria-label={`Menos ${option.name}`}
+                disabled={count === 0}
+                onClick={() => onRepeat(option.id, -1)}
+              >
+                <Minus />
+              </Button>
+              <span className="w-6 text-center text-sm font-semibold tabular-nums" aria-live="polite">
+                {count}
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="rounded-full"
+                aria-label={`Mais ${option.name}`}
+                disabled={blocked || full}
+                onClick={() => onRepeat(option.id, 1)}
+              >
+                <Plus />
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  ) : (
     <div className="flex flex-col gap-2">
       {group.options.map((option) => {
         const checked = picked.includes(option.id);

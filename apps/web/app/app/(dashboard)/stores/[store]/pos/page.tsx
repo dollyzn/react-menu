@@ -25,7 +25,7 @@ import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
 import { CustomerAutocomplete } from "./customer-autocomplete";
-import { addonLabel } from "@/lib/addon-label";
+import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
 import { useLastValue } from "@/hooks/use-last-value";
 
@@ -570,7 +570,7 @@ function Ticket({
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium leading-snug">{line.name}</p>
                   {line.addons.length > 0 && (
-                    <p className="text-xs text-muted-foreground">+ {line.addons.map(addonLabel).join(", ")}</p>
+                    <p className="text-xs text-muted-foreground">+ {addonLabels(line.addons).join(", ")}</p>
                   )}
                   {line.notes && <p className="text-xs text-warning italic">“{line.notes}”</p>}
                   <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
