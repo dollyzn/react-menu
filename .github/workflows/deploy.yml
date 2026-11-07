@@ -49,21 +49,26 @@ jobs:
               echo "::group::Backup"
               mkdir -p backups
               file="backups/$(date +%F-%H%M)-before-${REF//\//-}.sql.gz"
-              docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$file"
+              # </dev/null: this script arrives on stdin (bash -s); a command that
+              # reads stdin would swallow the rest of it and end the deploy early.
+              docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' </dev/null | gzip > "$file"
               ls -1t backups/*.sql.gz | tail -n +11 | xargs -r rm --
               echo "saved $file"
               echo "::endgroup::"
             fi
 
             echo "::group::Build and start"
-            BUILD_VERSION="$REF" docker compose up -d --build --remove-orphans
+            BUILD_VERSION="$REF" docker compose up -d --build --remove-orphans </dev/null
+            # The Caddyfile is a mounted file: a checkout replaces it, and the
+            # running Caddy keeps the old one until it restarts.
+            docker compose restart caddy </dev/null
             echo "::endgroup::"
 
             # The API migrates before listening: wait until it answers (a 404
             # is fine, there may be no store yet; /health is for monitoring).
             echo "Waiting for the API..."
             for i in $(seq 1 60); do
-              if docker compose exec -T api node -e "fetch('http://localhost:3333/api/v1/public/menu').then((r) => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))" 2>/dev/null; then
+              if docker compose exec -T api node -e "fetch('http://localhost:3333/api/v1/public/menu').then((r) => process.exit(r.status < 500 ? 0 : 1), () => process.exit(1))" </dev/null 2>/dev/null; then
                 docker image prune -f > /dev/null
                 echo "Deployed $REF"
                 exit 0
@@ -71,6 +76,6 @@ jobs:
               sleep 3
             done
             echo "The API did not become healthy:"
-            docker compose logs --tail 100 api worker
+            docker compose logs --tail 100 api worker </dev/null
             exit 1
           EOF
