@@ -80,6 +80,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // The on-screen keyboard shrinks the page (Android): bottom drawers and
+  // bars stay above it and come back down when it closes.
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#c46014" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },

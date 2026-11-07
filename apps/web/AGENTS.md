@@ -77,6 +77,12 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `onOpenChangeComplete` (Base UI `Dialog`/`AlertDialog`, and
   `AlertDialogDestructive`/`ResponsiveModal`, which maps it to vaul's
   `onAnimationEnd`), never in `onOpenChange` or right before closing.
+- The on-screen keyboard: the viewport has `interactive-widget=resizes-content`
+  (app/layout.tsx), so on Android the page shrinks and bottom drawers/bars
+  ride above the keyboard. vaul's own repositioning runs only on iOS
+  (`components/ui/drawer.tsx`, a local change to the shadcn file: keep it
+  when updating) — elsewhere it left drawers stuck up after the keyboard
+  closed.
 - Search fields use `components/app/search-input.tsx` (one clear button,
   Escape clears).
 - Base UI `Select` shows the raw value in the trigger unless the root gets
