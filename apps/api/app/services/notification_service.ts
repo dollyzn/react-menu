@@ -5,10 +5,17 @@ import { DateTime } from 'luxon'
 import type { Notification as NotificationDto } from '@react-menu/contracts'
 import Notification from '#models/notification'
 import PushService from '#services/push_service'
+import NotificationPreferenceService from '#services/notification_preference_service'
+import mail from '@adonisjs/mail/services/main'
+import NotificationMail from '#mails/notification_mail'
+import { storeBrand } from '#mails/layout'
+import Store from '#models/store'
+import User from '#models/user'
 import type StoreRole from '#enums/store_role'
 import SendPushNotification from '#jobs/send_push_notification'
 import { broadcastUserEvent } from '#helpers/realtime'
 import {
+  notificationTemplates,
   renderNotification,
   type NotificationData,
   type NotificationType,
@@ -28,11 +35,16 @@ type ListOptions = {
 
 @inject()
 export default class NotificationService {
-  constructor(private push: PushService) {}
+  constructor(
+    private push: PushService,
+    private preferences: NotificationPreferenceService
+  ) {}
 
   /**
-   * Persists one notification per recipient, then delivers it in realtime
-   * and via web push. Delivery is best effort; the stored row is the truth.
+   * Persists one notification per recipient (the bell), delivers it in
+   * realtime, and by web push and e-mail as each recipient chose
+   * (NotificationPreferenceService: per type, muted stores). Delivery is
+   * best effort; the stored row is the truth.
    */
   async notify<Type extends NotificationType>(
     type: Type,
@@ -57,6 +69,14 @@ export default class NotificationService {
       }))
     )
 
+    const deliveries = await this.preferences.deliveries(userIds, type, recipients.storeId ?? null)
+    await this.email(
+      type,
+      rendered,
+      recipients.storeId ?? null,
+      [...deliveries].filter(([, delivery]) => delivery.email).map(([userId]) => userId)
+    )
+
     for (const notification of notifications) {
       broadcastUserEvent({
         type: 'notification.created',
@@ -66,7 +86,7 @@ export default class NotificationService {
       })
 
       // Off the request, retried by the queue; the stored row is the truth.
-      if (this.push.isEnabled) {
+      if (this.push.isEnabled && deliveries.get(notification.userId)?.push) {
         await SendPushNotification.dispatch({
           userId: notification.userId,
           message: {
@@ -82,6 +102,36 @@ export default class NotificationService {
     }
 
     return notifications
+  }
+
+  /** Queues the e-mail version for the people who chose it. */
+  private async email(
+    type: NotificationType,
+    rendered: ReturnType<typeof renderNotification>,
+    storeId: string | null,
+    userIds: string[]
+  ) {
+    if (userIds.length === 0) return
+    const [users, store] = await Promise.all([
+      User.query().whereIn('id', userIds).select('id', 'email', 'name'),
+      storeId ? Store.find(storeId) : null,
+    ])
+    for (const user of users) {
+      await mail
+        .sendLater(
+          new NotificationMail(
+            { email: user.email, name: user.name },
+            {
+              label: notificationTemplates[type].label,
+              title: rendered.title,
+              body: rendered.body,
+              url: rendered.url ?? null,
+              brand: store ? storeBrand(store) : null,
+            }
+          )
+        )
+        .catch((error) => logger.error({ err: error }, 'could not queue a notification e-mail'))
+    }
   }
 
   /** Notifies every member of a store, optionally skipping the actor. */

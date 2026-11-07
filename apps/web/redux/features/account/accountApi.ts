@@ -1,4 +1,10 @@
-import type { AccountSession, SessionUser, TwoFactorStatus } from "@react-menu/contracts";
+import type {
+  AccountSession,
+  NotificationPreferences,
+  NotificationPreferencesInput,
+  SessionUser,
+  TwoFactorStatus,
+} from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
 import { setUser } from "@/redux/slices/auth";
 
@@ -17,6 +23,33 @@ const updatesSessionUser = {
 /** The signed-in user's own account: sessions, profile, photo and password. */
 export const accountApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
+    getNotificationPreferences: build.query<NotificationPreferences, void>({
+      query: () => "account/notification-preferences",
+      providesTags: ["NotificationPreferences"],
+    }),
+    /** Saves on every change; the screen shows the choice right away. */
+    updateNotificationPreferences: build.mutation<NotificationPreferences, NotificationPreferencesInput>({
+      query: (body) => ({ url: "account/notification-preferences", method: "PUT", body }),
+      async onQueryStarted(input, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          accountApi.util.updateQueryData("getNotificationPreferences", undefined, (draft) => {
+            for (const type of draft.types) {
+              const choice = input.channels[type.type];
+              if (choice) Object.assign(type, choice);
+            }
+            for (const store of draft.stores) store.muted = input.mutedStoreIds.includes(store.id);
+            draft.dailySummary.enabled = input.dailySummary.enabled;
+            draft.dailySummary.hour = input.dailySummary.hour;
+          })
+        );
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(accountApi.util.upsertQueryData("getNotificationPreferences", undefined, data));
+        } catch {
+          patch.undo();
+        }
+      },
+    }),
     getSessions: build.query<AccountSession[], void>({
       query: () => "account/sessions",
       providesTags: [{ type: "AccountSession", id: "LIST" }],
@@ -84,6 +117,8 @@ export const accountApi = baseApi.injectEndpoints({
 });
 
 export const {
+  useGetNotificationPreferencesQuery,
+  useUpdateNotificationPreferencesMutation,
   useTwoFactorStatusQuery,
   useSetupTwoFactorMutation,
   useEnableTwoFactorMutation,

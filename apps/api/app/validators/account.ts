@@ -39,3 +39,15 @@ export const passwordConfirmValidator = vine.create(
     password: vine.string().minLength(1).maxLength(512),
   })
 )
+
+/** Notification preferences (see NotificationPreferenceService). */
+export const notificationPreferencesValidator = vine.create(
+  vine.object({
+    channels: vine.record(vine.object({ push: vine.boolean(), email: vine.boolean() })),
+    mutedStoreIds: vine.array(vine.string().uuid()).maxLength(100),
+    dailySummary: vine.object({
+      enabled: vine.boolean(),
+      hour: vine.number().withoutDecimals().min(0).max(23),
+    }),
+  })
+)

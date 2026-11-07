@@ -19,7 +19,6 @@ picked from Product below, one PR at a time.
   consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an
   intentional placeholder for a future review system (not backed by data).
-- **Notification preferences** (per category, email digest).
 - **Delivery and table service**: only pickup at the counter is supported
   by design for now.
 

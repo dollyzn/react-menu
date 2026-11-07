@@ -45,3 +45,31 @@ test("store members are notified in realtime when the status changes", async ({ 
     page.getByRole("dialog").getByText("Bruno alterou o status da loja para aberta.")
   ).toBeVisible();
 });
+
+test("the popover filters and marks as read; preferences save per type and store", async ({ page }) => {
+  await createStoreViaApi(page, "Preferências");
+  await page.goto("/app/settings#notificacoes");
+  const orders = page.getByRole("switch", { name: "Novos pedidos: e-mail" });
+  await expect(orders).not.toBeChecked();
+  await orders.click();
+  await expect(orders).toBeChecked();
+  const mute = page.getByRole("switch", { name: "Notificações da Preferências" });
+  await expect(mute).toBeChecked();
+  await mute.click();
+  await expect(mute).not.toBeChecked();
+
+  // Saved on the server: a reload shows the same choice.
+  await page.waitForLoadState("networkidle");
+  await page.reload();
+  await expect(page.getByRole("switch", { name: "Novos pedidos: e-mail" })).toBeChecked();
+  await expect(page.getByRole("switch", { name: "Notificações da Preferências" })).not.toBeChecked();
+
+  await page.getByRole("button", { name: /Notificações/ }).first().click();
+  const popover = page.getByRole("dialog");
+  await popover.getByRole("button", { name: /^Não lidas/ }).click();
+  const markAll = popover.getByRole("button", { name: "Marcar todas como lidas" });
+  if (await markAll.isEnabled()) await markAll.click();
+  await expect(popover.getByText("Tudo em dia").first()).toBeVisible();
+  await popover.getByRole("button", { name: "Todas", exact: true }).click();
+  await expect(popover.getByRole("switch", { name: "Notificações push neste aparelho" })).toBeVisible();
+});

@@ -1,21 +1,20 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Bell, BellOff, Check, LogOut, Monitor, Moon, Palette, Sun } from "lucide-react";
+import { Check, LogOut, Monitor, Moon, Palette, Sun } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/layout/page-header";
 import { Radio } from "@base-ui/react/radio";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RadioGroup } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
 import { useSession } from "@/contexts/session-provider";
-import { useNotification } from "@/contexts/notification-provider";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { useThemeTransition, type ThemeChoice } from "@/hooks/use-theme-transition";
 import { env } from "@/lib/env";
 import { cn } from "@/lib/utils";
 import { redirectToLogout } from "@/utils/navigation";
+import { NotificationPreferencesCard } from "./components/notification-preferences-card";
 import { PasswordCard } from "./components/password-card";
 import { ProfileCard } from "./components/profile-card";
 import { SessionsCard } from "./components/sessions-card";
@@ -68,7 +67,6 @@ export default function SettingsPage() {
   const hydrated = useHydrated();
   const { user } = useSession();
   const { choice, change, originOfEvent } = useThemeTransition();
-  const push = useNotification();
 
   return (
     <div className="mx-auto max-w-3xl flex flex-col gap-6 p-4 md:p-6">
@@ -79,6 +77,14 @@ export default function SettingsPage() {
           <ProfileCard user={user} />
         </Section>
       )}
+
+      <Section
+        id="notificacoes"
+        title="Notificações"
+        description="Este aparelho, o que chega por push e e-mail, lojas silenciadas e o resumo diário."
+      >
+        <NotificationPreferencesCard />
+      </Section>
 
       <Section id="settings-preferences" title="Preferências" description="Valem só para este aparelho.">
       <Card>
@@ -135,31 +141,6 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            {push.isSubscribed ? <Bell className="size-4 text-primary" /> : <BellOff className="size-4 text-muted-foreground" />}
-            Notificações
-          </CardTitle>
-          <CardDescription>Avisos de novos pedidos e mudanças na loja, mesmo com o painel fechado.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <label className="flex items-center justify-between gap-4 rounded-xl border p-3">
-            <span>
-              <span className="block text-sm font-medium">Notificações neste aparelho</span>
-              <span className="block text-xs text-muted-foreground">
-                {push.isSupported ? "Usa as notificações do navegador." : (push.error ?? "Indisponível neste navegador.")}
-              </span>
-            </span>
-            <Switch
-              checked={push.isSubscribed}
-              disabled={!push.isSupported || push.loading}
-              onCheckedChange={(on) => void (on ? push.subscribe() : push.unsubscribe())}
-              aria-label="Notificações neste aparelho"
-            />
-          </label>
-        </CardContent>
-      </Card>
 
       </Section>
 

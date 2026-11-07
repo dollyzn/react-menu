@@ -3,6 +3,7 @@ import { inject } from '@adonisjs/core'
 import AccountService from '#services/account_service'
 import AuthService from '#services/auth_service'
 import TwoFactorService from '#services/two_factor_service'
+import NotificationPreferenceService from '#services/notification_preference_service'
 import { messageOnly, noStore, ok, updated } from '#helpers/api_response'
 import {
   avatarValidator,
@@ -11,6 +12,7 @@ import {
   totpCodeValidator,
   profileValidator,
   sessionIdValidator,
+  notificationPreferencesValidator,
 } from '#validators/account'
 
 /** The signed-in user's own account (any role; nothing store-scoped here). */
@@ -19,8 +21,21 @@ export default class AccountController {
   constructor(
     private account: AccountService,
     private auth: AuthService,
-    private twoFactor: TwoFactorService
+    private twoFactor: TwoFactorService,
+    private notificationPreferences: NotificationPreferenceService
   ) {}
+
+  async notificationPreferencesShow({ auth }: HttpContext) {
+    return ok(await this.notificationPreferences.forUser(auth.getUserOrFail()))
+  }
+
+  async notificationPreferencesUpdate({ auth, request }: HttpContext) {
+    const input = await request.validateUsing(notificationPreferencesValidator)
+    return updated(
+      await this.notificationPreferences.update(auth.getUserOrFail(), input),
+      'Preferências salvas'
+    )
+  }
 
   /** The id of the token this request came with. */
   private currentId(auth: HttpContext['auth']) {
