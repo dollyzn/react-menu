@@ -407,22 +407,22 @@ export default class PaymentService {
   /** Mirrors the attempt on the order (only the latest attempt decides). */
   async settle(order: Order, payment: Payment) {
     if (payment.status === PaymentAttemptStatus.APPROVED) {
-      // Already paid by something else (cash, another charge): this one goes back.
-      // The same approval notified twice finds its own id on the order and stays.
-      if (
-        order.paymentStatus === PaymentStatus.PAID &&
-        payment.gateway === 'mercado_pago' &&
-        order.mercadoPagoPaymentId !== payment.gatewayPaymentId
-      ) {
-        const { default: RefundDuplicatePayment } = await import('#jobs/refund_duplicate_payment')
-        await RefundDuplicatePayment.dispatchFor(payment)
-        return
-      }
       await this.orders.markPaid(order, {
         mercadoPagoPaymentId:
           payment.gateway === 'mercado_pago' ? (payment.gatewayPaymentId ?? undefined) : undefined,
         paymentMethod: payment.method === PaymentMethod.POINT ? PaymentMethod.POINT : undefined,
       })
+      // markPaid records, under the order's lock, which approval paid it. One
+      // that isn't it came second (cash first, another charge, a late Pix):
+      // it goes back. The same approval notified twice finds its own id.
+      if (payment.gateway === 'mercado_pago') {
+        await order.refresh()
+        if (order.mercadoPagoPaymentId !== payment.gatewayPaymentId) {
+          const { default: RefundDuplicatePayment } = await import('#jobs/refund_duplicate_payment')
+          await RefundDuplicatePayment.dispatchFor(payment)
+          return
+        }
+      }
       await SendOrderReceipt.dispatchFor(payment)
       // Paid after it expired (a late Pix): give the money back.
       if (order.status === OrderStatus.CANCELLED) {

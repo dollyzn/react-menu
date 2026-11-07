@@ -382,8 +382,8 @@ export interface PointSettingsInput {
 
 export interface PointChargeInput {
   terminalId?: string;
-  /** null: the customer picks on the machine. */
-  paymentType: PointPaymentType | null;
+  /** How the machine charges (the store's types and limits hold). */
+  paymentType: PointPaymentType;
   installments?: number;
 }
 

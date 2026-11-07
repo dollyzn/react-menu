@@ -24,11 +24,11 @@ const pointTerminalValidator = vine.create(
   })
 )
 
-/** A charge from the POS; no type = the customer picks on the machine. */
+/** A charge from the POS: how the machine charges it. */
 const pointChargeValidator = vine.create(
   vine.object({
     terminalId: terminalId.clone().optional(),
-    paymentType: vine.enum(POINT_PAYMENT_TYPES).nullable(),
+    paymentType: vine.enum(POINT_PAYMENT_TYPES),
     installments: vine.number().withoutDecimals().min(1).max(12).optional(),
   })
 )

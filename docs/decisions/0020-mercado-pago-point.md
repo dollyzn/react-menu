@@ -55,6 +55,15 @@ so no second application is needed.
 - **Following the charge**: the POS polls our API every 2 s. Every 10 s it
   also asks Mercado Pago (`?check=1`), so a slow or unreachable webhook
   (development) doesn't leave it waiting. Charges expire after 10 minutes.
+- **Every charge says how** (credit, debit or QR, plus the installments).
+  Left open, the machine would offer every method and installment, past the
+  store's settings.
+- **No charge is lost**: a `SettlePointCharge` job reads each charge from
+  Mercado Pago a minute after its deadline. An approval whose webhook never
+  came is recorded, and a charge still waiting is closed. Cancelling the
+  order takes its waiting charge off the machine. "Entregar" doesn't mark a
+  counter order paid while a charge waits: the machine's answer does.
+  Otherwise that approval would look like a second payment and be refunded.
 - **Cancelling**: a charge still `created` is cancelled through the API.
   Once it is on the machine's screen, Mercado Pago answers 409 for Point Pro
   machines, and the POS says to cancel on the machine (hold the red button).
@@ -79,7 +88,9 @@ so no second application is needed.
 - **Paid twice**: an approved attempt on an order that was already paid by
   something else (cash, another charge, a late Pix) is refunded by the
   `RefundDuplicatePayment` job. The order's `mercado_pago_payment_id` says
-  which attempt paid it, so the same approval notified twice is kept.
+  which attempt paid it, set under the order's lock by `markPaid`. The
+  decision is made after that call, so two approvals racing can't both look
+  like the first, and the same approval notified twice is kept.
 - The `orders.payment_method` check constraint lists `point` (migration
   1792531273411). The first version built it from the enum when it ran, so
   older databases refused `point`.

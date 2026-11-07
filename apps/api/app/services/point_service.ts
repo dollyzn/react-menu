@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import env from '#start/env'
@@ -34,8 +34,11 @@ const sandboxEnabled = () =>
 
 export type PointChargeInput = {
   terminalId?: string
-  /** Null: the customer picks on the machine. */
-  paymentType: PointPaymentType | null
+  /**
+   * Always set: the machine is told how to charge, so the store's types and
+   * installment limit hold (left open, it would offer everything).
+   */
+  paymentType: PointPaymentType
   installments?: number
   idempotencyKey?: string
 }
@@ -143,7 +146,11 @@ export default class PointService {
     if (mine && (await this.stillPending(order, store, mine))) {
       return { payment: mine, resumed: true }
     }
-    if (input.paymentType && !store.pointPaymentTypes.includes(input.paymentType)) {
+    // Reading that charge may have just found it paid (settle updates `order`).
+    if ((order.paymentStatus as PaymentStatus) === PaymentStatus.PAID) {
+      throw new AppException('Este pedido já está pago.', 409, 'E_NOT_PAYABLE')
+    }
+    if (!store.pointPaymentTypes.includes(input.paymentType)) {
       throw new AppException('Esta forma de pagamento não está ativa na maquininha.', 422)
     }
     const installments = input.paymentType === 'credit_card' ? (input.installments ?? 1) : 1
@@ -192,7 +199,9 @@ export default class PointService {
       )
     }
 
-    const attempt = randomUUID().slice(0, 8)
+    // The same key (a retry after a lost answer) sends the very same charge.
+    const idempotencyKey = input.idempotencyKey ?? randomUUID()
+    const attempt = createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 8)
     const result = store.mercadoPagoAccessToken
       ? await this.client.createPointOrder(
           store.mercadoPagoAccessToken,
@@ -207,21 +216,26 @@ export default class PointService {
                 terminal_id: terminal.terminalId,
                 print_on_terminal: store.pointPrintTicket ? 'seller_ticket' : 'no_ticket',
               },
-              ...(input.paymentType && {
-                payment_method: {
-                  default_type: input.paymentType,
-                  ...(input.paymentType === 'credit_card' && {
-                    default_installments: installments,
-                    installments_cost: 'seller' as const,
-                  }),
-                },
-              }),
+              payment_method: {
+                default_type: input.paymentType,
+                ...(input.paymentType === 'credit_card' && {
+                  default_installments: installments,
+                  installments_cost: 'seller' as const,
+                }),
+              },
             },
           },
-          input.idempotencyKey ?? randomUUID()
+          idempotencyKey
         )
       : this.fakeCharge(order, attempt)
 
+    const existing = await Payment.query()
+      .where({
+        gateway: store.mercadoPagoAccessToken ? 'mercado_pago' : 'fake',
+        gatewayPaymentId: result.id,
+      })
+      .first()
+    if (existing) return { payment: existing, resumed: true }
     const payment = await Payment.create({
       orderId: order.id,
       storeId: store.id,
@@ -234,7 +248,36 @@ export default class PointService {
       pointTerminalId: terminal.terminalId,
       expiresAt: DateTime.now().plus({ minutes: CHARGE_TTL_MINUTES }),
     })
+    // Mercado Pago drops it when its time is up; read it then, in case no
+    // webhook told us how it ended.
+    const { default: SettlePointCharge } = await import('#jobs/settle_point_charge')
+    await SettlePointCharge.scheduleFor(payment)
     return { payment, resumed: false }
+  }
+
+  /**
+   * The charge's time is up (or nearly): read it from Mercado Pago once more;
+   * still waiting, it is over (the machine drops it too).
+   */
+  async settleExpired(payment: Payment) {
+    if (payment.status !== PaymentAttemptStatus.PENDING) return
+    const order = await Order.query().where('id', payment.orderId).preload('store').firstOrFail()
+    await this.check(order, order.store, payment)
+    if (payment.status !== PaymentAttemptStatus.PENDING) return
+    payment.status = PaymentAttemptStatus.EXPIRED
+    payment.statusDetail = 'expired'
+    await payment.save()
+  }
+
+  /**
+   * The order was cancelled: its charge leaves the machine. One already on
+   * the machine's screen can't be taken back from here (Point Pro); if the
+   * customer pays it anyway, the cancelled order is refunded.
+   */
+  async cancelWaiting(order: Order, store: Store) {
+    const waiting = await this.pending(order)
+    if (!waiting) return
+    await this.cancel(store, waiting).catch(() => undefined)
   }
 
   /**

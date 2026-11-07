@@ -29,9 +29,24 @@ export const pointApi = baseApi.injectEndpoints({
       providesTags: (_res, _err, storeId) => [terminalsTag(storeId)],
       extraOptions: { quiet: true },
     }),
+    /**
+     * Each change sends the whole setting: the screen updates at once (the
+     * next change builds on it, not on a stale copy) and goes back if it fails.
+     */
     updatePointSettings: build.mutation<PointConfig, { storeId: string; input: PointSettingsInput }>({
       query: ({ storeId, input }) => ({ url: `stores/${storeId}/point/settings`, method: "PUT", body: input }),
-      invalidatesTags: (_res, _err, { storeId }) => [configTag(storeId)],
+      async onQueryStarted({ storeId, input }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          pointApi.util.updateQueryData("getPointConfig", storeId, (draft) => {
+            Object.assign(draft, input);
+          })
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
     }),
     enablePointTerminal: build.mutation<PointConfig, { storeId: string; terminalId: string; name: string }>({
       query: ({ storeId, terminalId, name }) => ({

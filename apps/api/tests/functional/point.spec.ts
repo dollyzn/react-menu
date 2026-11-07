@@ -14,6 +14,7 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import RefundOrder from '#jobs/refund_order'
 import RefundDuplicatePayment from '#jobs/refund_duplicate_payment'
+import SettlePointCharge from '#jobs/settle_point_charge'
 
 const TOKEN = 'TEST-1234567890-abcdef' // gitleaks:allow (fake test credential)
 const SECRET = 'webhook-secret-123'
@@ -244,7 +245,7 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     const order = await posOrder(client, store, carne.id, attendant)
     const first = await client
       .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
-      .json({ paymentType: null })
+      .json({ paymentType: 'debit_card' })
       .loginAs(attendant)
 
     // No webhook here (it can't reach a development machine): the POS asks.
@@ -263,7 +264,6 @@ test.group('Mercado Pago Point (card machine)', (group) => {
       data: { status: 'rejected', statusDetail: 'insufficient_amount' },
     })
     second.assertStatus(200)
-    assert.notProperty(fake.charges[0].input.config, 'payment_method')
     const unpaid = await Order.findOrFail(order.id)
     assert.equal(unpaid.paymentStatus, 'pending')
     assert.equal(unpaid.paymentMethod, 'counter')
@@ -374,6 +374,139 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     const paid = await Order.findOrFail(order.id)
     assert.equal(paid.paymentStatus, 'paid')
     assert.equal(paid.paymentMethod, 'counter')
+  })
+
+  test('handed over while the machine charges: its answer, not the hand-over, pays it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, coca, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const order = await posOrder(client, store, coca.id, attendant)
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
+      .json({ paymentType: 'debit_card' })
+      .loginAs(attendant)
+
+    // Drinks only: ready at once, handed over before the webhook arrives.
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`).loginAs(attendant)
+    const handedOver = await Order.findOrFail(order.id)
+    assert.equal(handedOver.status, 'completed')
+    assert.equal(handedOver.paymentStatus, 'pending')
+
+    fake.set('ORD2001', 'processed', 'accredited')
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('ORD2001', 'req-1'))
+      .header('x-request-id', 'req-1')
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD2001' } })
+
+    const paid = await Order.findOrFail(order.id)
+    assert.equal(paid.paymentStatus, 'paid')
+    assert.equal(paid.paymentMethod, 'point')
+    assert.deepEqual(fake.refunds, [])
+  })
+
+  test('a charge paid without a webhook: charging again is refused, not sent twice', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const order = await posOrder(client, store, carne.id, attendant)
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    fake.set('ORD2001', 'processed', 'accredited')
+
+    const again = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+
+    again.assertStatus(409)
+    again.assertBodyContains({ code: 'E_NOT_PAYABLE' })
+    assert.lengthOf(fake.charges, 1)
+    const paid = await Order.findOrFail(order.id)
+    assert.equal(paid.paymentStatus, 'paid')
+  })
+
+  test('when a charge runs out of time it is read once more, then closed', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, queijo, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const paidLate = await posOrder(client, store, carne.id, attendant)
+    const forgotten = await posOrder(client, store, queijo.id, attendant)
+    const first = await client
+      .post(`/api/v1/stores/${store.id}/orders/${paidLate.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    // The webhook was lost: the deadline job finds the payment.
+    fake.set('ORD2001', 'processed', 'accredited')
+    await runJob(SettlePointCharge, { paymentId: first.body().data.id })
+    const second = await client
+      .post(`/api/v1/stores/${store.id}/orders/${forgotten.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    await runJob(SettlePointCharge, { paymentId: second.body().data.id })
+
+    const late = await Order.findOrFail(paidLate.id)
+    assert.equal(late.paymentStatus, 'paid')
+    const closed = await Payment.findOrFail(second.body().data.id)
+    assert.equal(closed.status, 'expired')
+  })
+
+  test('cancelling the order takes its charge off the machine', async ({ client, assert }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const order = await posOrder(client, store, carne.id, attendant)
+    const charge = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(attendant)
+
+    const cancelled = await Payment.findOrFail(charge.body().data.id)
+    assert.equal(cancelled.status, 'expired')
+    assert.equal(fake.orders.get('ORD2001')!.status, 'canceled')
+  })
+
+  test("another store's staff can't charge, follow or cancel this store's charges", async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    const other = await pointStore()
+    await enable(client, store, manager)
+    const order = await posOrder(client, store, carne.id, attendant)
+    const charge = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}/point-charges`
+    const id = charge.body().data.id
+
+    const attempts = [
+      await client.post(base).json({ paymentType: 'credit_card' }).loginAs(other.manager),
+      await client.get(`${base}/${id}`).loginAs(other.manager),
+      await client.post(`${base}/${id}/cancel`).loginAs(other.manager),
+      await client.post(`${base}/${id}/simulate`).json({ approve: true }).loginAs(other.manager),
+      await client.get(`/api/v1/stores/${store.id}/point/charges`).loginAs(other.manager),
+      await client.get(`/api/v1/stores/${store.id}/point`).loginAs(other.manager),
+    ]
+    // Through the other store's own path, this store's order isn't found either.
+    const throughOwnStore = await client
+      .get(`/api/v1/stores/${other.store.id}/orders/${order.id}/point-charges/${id}`)
+      .loginAs(other.manager)
+
+    for (const response of attempts) assert.include([403, 404], response.status())
+    throughOwnStore.assertStatus(404)
+    const untouched = await Payment.findOrFail(id)
+    assert.equal(untouched.status, 'pending')
   })
 
   test('the store settings bound what the POS may send', async ({ client }) => {

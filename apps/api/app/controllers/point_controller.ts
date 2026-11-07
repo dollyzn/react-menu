@@ -113,8 +113,10 @@ export default class PointController {
   /** Charges waiting on the store's machines (the POS lists them to open again). */
   async pendingCharges({ params, request }: HttpContext) {
     const store = await this.store(params)
-    const charges = await this.point.pendingCharges(store, { check: Boolean(request.qs().check) })
-    return ok(await Promise.all(charges.map((payment) => this.view(store, payment, payment.order))))
+    const charges = await this.point.pendingCharges(store, { check: request.qs().check === '1' })
+    // The machines' names once for the whole list.
+    const terminals = await this.point.enabledTerminals(store)
+    return ok(charges.map((payment) => this.present(payment, payment.order, terminals)))
   }
 
   /** The POS follows the charge; `?check=1` also asks Mercado Pago. */
@@ -122,7 +124,7 @@ export default class PointController {
     const { store, order } = await this.order(params)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.find(order, paymentId)
-    if (request.qs().check) await this.point.check(order, store, payment)
+    if (request.qs().check === '1') await this.point.check(order, store, payment)
     return ok(await this.view(store, payment, order))
   }
 
@@ -151,7 +153,15 @@ export default class PointController {
   }
 
   private async view(store: Store, payment: Payment, order: Order, resumed = false) {
-    const terminals = await this.point.enabledTerminals(store)
+    return this.present(payment, order, await this.point.enabledTerminals(store), resumed)
+  }
+
+  private present(
+    payment: Payment,
+    order: Order,
+    terminals: { terminalId: string; name: string }[],
+    resumed = false
+  ) {
     const terminalName =
       terminals.find((terminal) => terminal.terminalId === payment.pointTerminalId)?.name ?? null
     return charge(payment, order, {

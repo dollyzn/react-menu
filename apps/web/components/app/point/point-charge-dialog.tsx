@@ -12,7 +12,6 @@ import {
   FlaskConical,
   QrCode,
   RotateCcw,
-  Smartphone,
   SmartphoneNfc,
   TriangleAlert,
   Wallet,
@@ -40,14 +39,12 @@ import { formatCurrencyBRL } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { cn } from "@/lib/utils";
 
-/** "Cliente escolhe": no type, the machine asks. */
-type Choice = PointPaymentType | "any";
+type Choice = PointPaymentType;
 
 const CHOICES: Record<Choice, { label: string; hint: string; icon: typeof CreditCard }> = {
   credit_card: { label: "Crédito", hint: "À vista", icon: CreditCard },
   debit_card: { label: "Débito", hint: "Na hora", icon: Wallet },
   qr: { label: "Pix / QR", hint: "QR no visor", icon: QrCode },
-  any: { label: "Cliente escolhe", hint: "Na maquininha", icon: Smartphone },
 };
 
 /** Why a charge didn't go through, for the counter. */
@@ -167,9 +164,9 @@ function ChargeFlow({
   const [simulate, { isLoading: simulating }] = useSimulatePointChargeMutation();
 
   const types = config?.paymentTypes ?? [];
-  const choices: Choice[] = [...types, ...(types.length > 1 ? (["any"] as const) : [])];
+  const choices: Choice[] = types;
   const [choice, setChoice] = useState<Choice | null>(null);
-  const picked = choice ?? choices[0] ?? "any";
+  const picked: Choice = choice ?? choices[0] ?? "credit_card";
   const [installments, setInstallments] = useState(1);
   const [terminalId, setTerminalId] = useState<string | null>(null);
   const terminals = config?.terminals ?? [];
@@ -241,7 +238,7 @@ function ChargeFlow({
     }
     const input = {
       terminalId: terminal ?? undefined,
-      paymentType: picked === "any" ? null : picked,
+      paymentType: picked,
       installments: picked === "credit_card" ? installments : undefined,
     };
     // A dropped connection resent with the same key never charges twice.
