@@ -22,7 +22,7 @@ import {
 } from "@/redux/features/order/orderApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
-import { addonLabel } from "@/lib/addon-label";
+import { addonLabels } from "@/lib/addon-label";
 
 interface OrderCardProps {
   order: Order;
@@ -96,7 +96,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
           <li key={line.id}>
             <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.name}
             {line.addons.length > 0 && (
-              <span className="text-muted-foreground"> + {line.addons.map(addonLabel).join(", ")}</span>
+              <span className="text-muted-foreground"> + {addonLabels(line.addons).join(", ")}</span>
             )}
             {line.notes && <span className="block text-xs font-medium text-warning">“{line.notes}”</span>}
           </li>

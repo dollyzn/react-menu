@@ -202,3 +202,24 @@ test("a group priced by pick order: the 1st extra filling + R$ 3, the others + R
   await expect(page).toHaveURL(/\/pedido\/[0-9a-f-]{36}$/);
   await expect(page.getByText("R$ 31,00").first()).toBeVisible();
 });
+
+test("a group that allows repeats: the same flavor twice with − and +", async ({ page }) => {
+  // The demo store's mini pastry portions allow repeated flavors.
+  await page.goto("/");
+  await page.getByRole("searchbox", { name: "Buscar no cardápio" }).fill("8 mini");
+  await page.getByRole("button", { name: /^8 Mini Pastéis/ }).click();
+  const item = page.getByRole("dialog");
+  await expect(item.getByText(/pode repetir a mesma opção/)).toBeVisible();
+  const add = item.getByRole("button", { name: /^Adicionar/ });
+  await expect(add).toBeDisabled();
+
+  await item.getByRole("button", { name: "Mais Queijo" }).click();
+  await item.getByRole("button", { name: "Mais Queijo" }).click();
+  // Full: no third pick.
+  await expect(item.getByRole("button", { name: "Mais Carne" })).toBeDisabled();
+  await expect(add).toBeEnabled();
+  await add.click();
+
+  await page.getByRole("button", { name: /Ver sacola/ }).click();
+  await expect(page.getByRole("dialog").getByText("+ Escolha 2 sabores: 2× Queijo")).toBeVisible();
+});

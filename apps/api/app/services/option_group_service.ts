@@ -9,6 +9,8 @@ export type OptionGroupInput = {
   name: string
   minChoices: number
   maxChoices: number
+  /** The same option may be picked more than once. */
+  allowRepeat?: boolean
   /** Price by pick order (see OptionGroup.pickPrices); null/absent = per option. */
   pickPrices?: number[] | null
   /** The options, in display order (the store's add-ons), with their price here. */
@@ -51,6 +53,7 @@ export default class OptionGroupService {
           name: input.name,
           minChoices: input.minChoices,
           maxChoices: input.maxChoices,
+          allowRepeat: input.allowRepeat ?? false,
           pickPrices: input.pickPrices ?? null,
         },
         { client: trx }
@@ -68,6 +71,7 @@ export default class OptionGroupService {
         name: input.name,
         minChoices: input.minChoices,
         maxChoices: input.maxChoices,
+        allowRepeat: input.allowRepeat ?? false,
         pickPrices: input.pickPrices ?? null,
       })
       await group.useTransaction(trx).save()
@@ -131,7 +135,7 @@ export default class OptionGroupService {
         'E_INVALID_GROUP'
       )
     }
-    if (input.maxChoices > options.size) {
+    if (!input.allowRepeat && input.maxChoices > options.size) {
       throw new AppException(
         `O grupo tem ${options.size} ${options.size === 1 ? 'opção' : 'opções'}: o máximo não pode passar disso.`,
         422,

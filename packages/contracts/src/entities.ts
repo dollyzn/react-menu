@@ -203,6 +203,8 @@ export type OptionGroup = {
   /** 0 = optional. */
   minChoices: number;
   maxChoices: number;
+  /** The same option may be picked more than once (up to the maximum). */
+  allowRepeat: boolean;
   /**
    * Price by pick order ([3, 5]: the 1st pick R$ 3, every later one R$ 5; the
    * last value repeats), overriding the options' prices. Null: per option.

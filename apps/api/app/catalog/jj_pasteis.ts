@@ -252,6 +252,8 @@ const groups: Catalog['groups'] = [
     name: `Escolha ${flavors} sabores`,
     minChoices: flavors,
     maxChoices: flavors,
+    // Queijo twice = 8 minis of cheese.
+    allowRepeat: true,
     options: MINI_FLAVORS.map(([key]) => key),
   })),
 ]
