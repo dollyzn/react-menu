@@ -11,6 +11,7 @@ import TwoFactorService from '#services/two_factor_service'
 import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
 import { UserStatusEnum } from '#enums/user_status'
+import { hasActiveStore } from '#helpers/membership'
 
 type LoginPayload = {
   email: string
@@ -117,30 +118,27 @@ export default class AuthService {
     input: { code: string; recovery?: boolean; remember?: boolean },
     ctx: Pick<HttpContext, 'request' | 'response' | 'auth'>
   ) {
+    // Access may have changed while the code was on its way: checked before
+    // the code is used (a recovery code is single-use; `remember` trusts the browser).
+    await this.assertCanSignIn(await this.twoFactor.pendingUser(ctx))
     const { user, trustedDeviceId } = await this.twoFactor.verify(ctx, input)
-    // Access may have changed while the code was on its way.
-    await this.assertCanSignIn(user)
     const serializedToken = await this.createSession(user, ctx, { trustedDeviceId })
     return { user: await this.sessionUser(user, serializedToken.expiresAt) }
   }
 
   /**
    * Why this account can't open a session, or null. Staff need an active
-   * account and at least one store they can access (super users see all).
+   * account and a store they can access; super users and people allowed to
+   * create stores (their first store comes after signing in) need none.
    */
   async signInBlocker(user: User): Promise<string | null> {
     if (user.status !== UserStatusEnum.ACTIVE) {
       return 'Sua conta está inativa. Entre em contato com o administrador.'
     }
-    if (user.superUser) return null
-    const store = await db
-      .from('store_user')
-      .where('user_id', user.id)
-      .whereNull('disabled_at')
-      .first()
-    return store
-      ? null
-      : 'Você não tem acesso a nenhuma loja no momento. Fale com a gerência da loja.'
+    if (user.superUser || (await hasActiveStore(user.id)) || (await user.can('create_store'))) {
+      return null
+    }
+    return 'Você não tem acesso a nenhuma loja no momento. Fale com a gerência da loja.'
   }
 
   private async assertCanSignIn(user: User) {
@@ -198,13 +196,13 @@ export default class AuthService {
     await user.load((loader) =>
       loader
         // A store whose managers switched them off disappears from the panel.
-        .preload('stores', (query) => query.whereNullPivot('disabled_at'))
+        .preload('activeStores')
         .preload('role', (query) => query.preload('permissions'))
     )
 
     return {
       ...user.serialize(),
-      stores: user.stores.map((store) => ({
+      stores: user.activeStores.map((store) => ({
         ...store.serialize(),
         role: user.superUser ? StoreRole.MANAGER : store.$extras.pivot_role,
       })),

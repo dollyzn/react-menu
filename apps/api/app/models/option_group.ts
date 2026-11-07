@@ -51,8 +51,15 @@ export default class OptionGroup extends BaseModel {
    * Price by pick order ([3, 5]: the 1st pick R$ 3, every later one R$ 5),
    * overriding the options' prices; null = each option's price.
    */
+  // jsonb, not the decimal(10,2) money columns: a list. Values are kept to
+  // cents on the way in and out.
   @column({
-    prepare: (value: number[] | null) => (value?.length ? JSON.stringify(value) : null),
+    prepare: (value: number[] | null) =>
+      value?.length ? JSON.stringify(value.map((price) => Math.round(price * 100) / 100)) : null,
+    consume: (value: unknown) =>
+      Array.isArray(value) && value.length
+        ? value.map((price) => Math.round(Number(price) * 100) / 100)
+        : null,
   })
   declare pickPrices: number[] | null
 

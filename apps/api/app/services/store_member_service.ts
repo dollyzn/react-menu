@@ -14,7 +14,8 @@ import StoreAccessNotification from '#mails/store_access_notification'
 import { storeBrand } from '#mails/layout'
 import NotificationService from '#services/notification_service'
 import PasswordResetService from '#services/password_reset_service'
-import { ONLINE_WINDOW_MS } from '#helpers/user_activity'
+import { ONLINE_WINDOW_MS, forgetLastSeen } from '#helpers/user_activity'
+import { hasActiveStore } from '#helpers/membership'
 
 type Membership = { role: StoreRole; disabled_at: Date | null }
 
@@ -196,6 +197,13 @@ export default class StoreMemberService {
       .where({ store_id: storeId, user_id: userId })
       .first()
     if (!membership) throw new AppException('Membro não encontrado nesta loja.', 404)
+    if (membership.disabled_at) {
+      throw new AppException(
+        'O acesso dessa pessoa a esta loja está desativado. Reative antes de reenviar o convite.',
+        409,
+        'E_ACCESS_DISABLED'
+      )
+    }
     const user = await User.findOrFail(userId)
     if (!user.invitePending) {
       throw new AppException(
@@ -249,13 +257,7 @@ export default class StoreMemberService {
 
   private async hasActiveStore(trx: TransactionClientContract, userId: string) {
     const user = await trx.from('users').where('id', userId).select('super_user').first()
-    if (user?.super_user) return true
-    const store = await trx
-      .from('store_user')
-      .where('user_id', userId)
-      .whereNull('disabled_at')
-      .first()
-    return Boolean(store)
+    return Boolean(user?.super_user) || (await hasActiveStore(userId, trx))
   }
 
   /**
@@ -283,13 +285,21 @@ export default class StoreMemberService {
           disabled_by: enabled ? null : actor.id,
           updated_at: new Date(),
         })
-      if (!enabled) await this.endSessions(trx, userId)
+      // Nothing left to do signed in: the sessions end. With another store,
+      // they keep working there (this store's requests are refused anyway).
+      if (!enabled && !(await this.hasActiveStore(trx, userId))) {
+        await this.endSessions(trx, userId)
+      }
     })
     const members = await this.list(storeId)
     return members.find((member) => member.id === userId)!
   }
 
-  /** Signs the person out everywhere (e.g. a lost phone), without touching their access. */
+  /**
+   * Signs the person out everywhere (e.g. a lost phone), without touching
+   * their access. Sessions aren't per store, so only someone who manages
+   * every store the person works in (or a super user) can do it.
+   */
   async revokeSessions(storeId: string, userId: string, actor: User) {
     if (userId === actor.id) {
       throw new AppException(
@@ -301,14 +311,39 @@ export default class StoreMemberService {
     return await db.transaction(async (trx) => {
       await this.requireMembership(trx, storeId, userId)
       await this.assertNotSuperUser(trx, userId)
+      if (!actor.superUser) {
+        const elsewhere = await trx
+          .from('store_user as theirs')
+          .where('theirs.user_id', userId)
+          .whereNull('theirs.disabled_at')
+          .whereNot('theirs.store_id', storeId)
+          .whereNotExists((query) =>
+            query
+              .from('store_user as mine')
+              .whereColumn('mine.store_id', 'theirs.store_id')
+              .where({ 'mine.user_id': actor.id, 'mine.role': StoreRole.MANAGER })
+              .whereNull('mine.disabled_at')
+          )
+          .first()
+        if (elsewhere) {
+          throw new AppException(
+            'Essa pessoa também trabalha em outra loja. Ela pode encerrar as sessões em Configurações > Sessões ativas.',
+            409,
+            'E_OTHER_STORES'
+          )
+        }
+      }
       return await this.endSessions(trx, userId)
     })
   }
 
   private async endSessions(trx: TransactionClientContract, userId: string) {
     const ended = await trx.from('auth_access_tokens').where('tokenable_id', userId).delete()
+    // Like signing out elsewhere: a trusted browser asks for the code again.
+    await trx.from('trusted_devices').where('user_id', userId).delete()
     // Nobody is in the panel any more: "online" goes off right away.
     await trx.from('users').where('id', userId).update({ last_seen_at: null })
+    forgetLastSeen(userId)
     return Number(ended) || 0
   }
 

@@ -21,8 +21,9 @@ export default class JjSetup extends BaseCommand {
   @flags.string({ description: 'Slug of the store (created in the panel)', required: true })
   declare store: string
 
+  // Not --no-photos: Ace reads it as the negation of --photos.
   @flags.boolean({ description: 'Skip the illustrative item photos', default: false })
-  declare noPhotos: boolean
+  declare skipPhotos: boolean
 
   @flags.string({
     description: 'Local folder with photos by item name (see jj:photos), applied after loading',
@@ -38,7 +39,7 @@ export default class JjSetup extends BaseCommand {
     }
     const importer = new CatalogImportService()
     try {
-      const summary = await importer.import(store, JJ_PASTEIS, { photos: !this.noPhotos })
+      const summary = await importer.import(store, JJ_PASTEIS, { photos: !this.skipPhotos })
       this.logger.success(
         `${store.name}: ${summary.categories} categorias, ${summary.items} itens, ` +
           `${summary.addons} adicionais, ${summary.groups} grupos de escolha, ` +
