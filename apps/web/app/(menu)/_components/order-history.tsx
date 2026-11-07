@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, Link2, RefreshCw, RotateCcw, Share2, ShoppingBag, Smartphone, Unlink } from "lucide-react";
+import { Check, ChevronRight, Link2, RefreshCw, RotateCcw, Share2, ShoppingBag, Smartphone, Unlink } from "lucide-react";
 import { toast } from "sonner";
 import type { PublicOrderSummary } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
@@ -16,7 +16,7 @@ import { useRehydrated } from "@/hooks/use-rehydrated";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { linkStore, unlinkStore } from "@/redux/slices/customer";
 import { useGetOrderHistoryQuery } from "@/redux/features/public/publicApi";
-import { copyToClipboard } from "@/utils/copy-to-clipboard";
+import { useCopied } from "@/hooks/use-copied";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { CustomerShell } from "./customer-shell";
@@ -57,8 +57,8 @@ export function OrderHistory() {
     if (!raw) return;
     const dot = raw.indexOf(".");
     if (dot > 0) {
+      // The list below fills with the orders: that is the confirmation.
       dispatch(linkStore({ storeSlug: raw.slice(0, dot), token: raw.slice(dot + 1) }));
-      toast.success("Pronto! Este aparelho agora mostra os seus pedidos.");
     }
     router.replace("/pedidos");
   }, [dispatch, rehydrated, router, searchParams]);
@@ -243,6 +243,7 @@ function DeviceLink({ customers }: { customers: { name: string; phone: string; s
   const tokenMap = useAppSelector((state) => state.customer.tokens) ?? {};
   const linked = customers.filter((customer) => tokenMap[customer.storeSlug]);
 
+  const { copied, copy } = useCopied();
   const share = async (storeSlug: string) => {
     const url = linkUrl(storeSlug, tokenMap[storeSlug]);
     if (navigator.share) {
@@ -253,7 +254,7 @@ function DeviceLink({ customers }: { customers: { name: string; phone: string; s
         // Cancelled: fall back to copying.
       }
     }
-    copyToClipboard(url, { toastSuccessMessage: "Link copiado! Abra no outro aparelho." });
+    await copy(url);
   };
 
   return (
@@ -274,7 +275,15 @@ function DeviceLink({ customers }: { customers: { name: string; phone: string; s
             </p>
             <div className="flex flex-wrap gap-2">
               <Button size="sm" className="rounded-full" onClick={() => void share(customer.storeSlug)}>
-                <Share2 /> Usar em outro aparelho
+                {copied ? (
+                  <>
+                    <Check /> Link copiado: abra no outro aparelho
+                  </>
+                ) : (
+                  <>
+                    <Share2 /> Usar em outro aparelho
+                  </>
+                )}
               </Button>
               <AlertDialogDestructive
                 title="Desvincular este aparelho?"

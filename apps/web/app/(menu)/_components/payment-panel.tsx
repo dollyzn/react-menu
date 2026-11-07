@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import dynamic from "next/dynamic";
 import { QRCodeSVG } from "qrcode.react";
-import { AlertTriangle, Copy, FlaskConical, Lock, QrCode } from "lucide-react";
+import { AlertTriangle, Check, Copy, FlaskConical, Lock, QrCode } from "lucide-react";
 import type { OnlinePaymentMethod, PublicOrder, PublicPaymentRequest } from "@react-menu/contracts";
 import { Radio } from "@base-ui/react/radio";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -18,7 +18,7 @@ import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/ide
 import { usePayOrderMutation, useSimulatePaymentMutation } from "@/redux/features/public/publicApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { rememberEmail } from "@/redux/slices/customer";
-import { copyToClipboard } from "@/utils/copy-to-clipboard";
+import { useCopied } from "@/hooks/use-copied";
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
 import { CHECKOUT_METHODS, cardRejection } from "../_lib/payment-methods";
@@ -101,6 +101,7 @@ export function PaymentPanel({ order }: { order: PublicOrder }) {
 }
 
 function PixPayment({ order }: { order: PublicOrder }) {
+  const { copied, copy } = useCopied();
   const dispatch = useAppDispatch();
   const savedEmail = useAppSelector((state) => state.customer.email) ?? "";
   const [email, setEmail] = useState(savedEmail);
@@ -150,13 +151,8 @@ function PixPayment({ order }: { order: PublicOrder }) {
           <code className="min-w-0 flex-1 truncate text-left text-xs" title={pix.qrCode}>
             {pix.qrCode}
           </code>
-          <Button
-            size="sm"
-            onClick={() =>
-              copyToClipboard(pix.qrCode, { toastSuccessMessage: "Código Pix copiado! Cole no app do banco." })
-            }
-          >
-            <Copy /> Copiar
+          <Button size="sm" className="min-w-24" onClick={() => void copy(pix.qrCode)}>
+            {copied ? <Check /> : <Copy />} {copied ? "Copiado!" : "Copiar"}
           </Button>
         </div>
         <p className="flex items-center gap-2 text-sm font-medium" aria-live="polite">

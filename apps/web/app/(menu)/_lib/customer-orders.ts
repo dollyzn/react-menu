@@ -100,11 +100,10 @@ export function useReorder() {
         toast.error("Os itens desse pedido não estão disponíveis agora.");
         return;
       }
-      toast.success(
-        skipped > 0
-          ? `${added} ${added === 1 ? "item voltou" : "itens voltaram"} para a sacola (${skipped} indisponível${skipped > 1 ? "is" : ""}).`
-          : "Pedido de novo na sacola! Confira e finalize."
-      );
+      // The bag opens with the items; only what was left out needs saying.
+      if (skipped > 0) {
+        toast.info(`${skipped} ${skipped === 1 ? "item não está disponível" : "itens não estão disponíveis"} agora e ficou de fora.`);
+      }
       router.push(`/${storeSlug}?sacola=1`);
     } catch {
       // baseApi already showed the error.

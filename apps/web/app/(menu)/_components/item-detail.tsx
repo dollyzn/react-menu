@@ -4,7 +4,6 @@ import { useId, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Image from "@/components/app/image";
 import { Check, ChevronDown, Minus, Plus, TriangleAlert } from "lucide-react";
-import { toast } from "sonner";
 import type { PublicMenuItem, PublicOptionGroup } from "@react-menu/contracts";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { AnimatedPrice } from "@/components/app/animated-price";
@@ -59,7 +58,7 @@ export function ItemDetail({ item: current, storeSlug, storeOpen, onClose }: Ite
           alreadyChosen={inBag}
           onAdd={(line) => {
             dispatch(addLine({ storeSlug, line }));
-            toast.success(`${line.quantity}× ${item.name} na sacola`);
+            // No toast: the bag bar's count bumps, and a toast would cover it on a phone.
             onClose();
           }}
         />

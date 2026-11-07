@@ -11,7 +11,7 @@ interface CopyToClipboardOptions {
  * navigator.clipboard only exists on secure origins (https, localhost); on a
  * plain-http LAN address (testing on a phone) a hidden textarea copies instead.
  */
-async function write(value: string) {
+export async function writeClipboard(value: string) {
   if (navigator.clipboard) return navigator.clipboard.writeText(value);
 
   const textarea = document.createElement("textarea");
@@ -39,7 +39,7 @@ export function copyToClipboard(
     toastErrorId = "copy-error",
   } = options || {};
 
-  write(value)
+  writeClipboard(value)
     .then(() => {
       toast.success(toastSuccessMessage, { id: toastSuccessId });
     })

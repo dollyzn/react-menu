@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
 import type { OrderStatus } from "@react-menu/contracts";
 
 /**
@@ -20,8 +19,8 @@ export function useReadyAlert(status: OrderStatus | undefined, orderNumber: numb
     if ("Notification" in window && Notification.permission === "default") {
       await Notification.requestPermission().catch(() => undefined);
     }
+    // The button turns into "Vamos te avisar quando ficar pronto".
     setArmed(true);
-    toast.success("Combinado! Vamos te avisar quando ficar pronto. Deixe esta página aberta.");
   };
 
   useEffect(() => {

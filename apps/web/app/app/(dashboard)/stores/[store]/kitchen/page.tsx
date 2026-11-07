@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { toast } from "sonner";
 import {
   Bell,
@@ -27,6 +27,7 @@ import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatQuantity } from "@/utils/units";
 import { SwipeCard } from "./swipe-card";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 /**
  * Kitchen display. The cook works top-down: the API already groups identical
@@ -43,6 +44,10 @@ export default function KitchenPage() {
   const { data: store } = useGetStoreByIdQuery(storeId);
   const [prepare, { isLoading: saving }] = usePrepareUnitsMutation();
   const [soundOn, setSoundOn] = useState(false);
+  // The queue card growing into "Fazer agora" only where both are side by
+  // side (large screens); on phones the queue is below, off screen, and the
+  // morph would only cost frames.
+  const morph = !useIsMobile(1024);
   const [fullscreen, setFullscreen] = useState(false);
   useNewBatchChime(batches, soundOn);
 
@@ -93,6 +98,7 @@ export default function KitchenPage() {
       : document.documentElement.requestFullscreen().catch(() => undefined);
 
   return (
+    <MotionConfig reducedMotion="user">
     <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-4 p-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:p-6">
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
@@ -154,7 +160,7 @@ export default function KitchenPage() {
                 card grows into this one. Its content fades in as the box grows, so
                 the text is never seen stretched. */}
             <motion.section
-              layoutId={batchId(current)}
+              layoutId={morph ? batchId(current) : undefined}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={LAYOUT_SPRING}
@@ -238,7 +244,7 @@ export default function KitchenPage() {
 
               {/* Always reachable: sticks to the screen (phones) or the card (large screens).
                   Its bottom follows the card's corners (rounded-3xl inside a 2px border). */}
-              <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 rounded-b-[calc(1.5rem-2px)] bg-card/95 px-5 pt-6 pb-5 backdrop-blur sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
+              <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 rounded-b-[calc(1.5rem-2px)] bg-card px-5 pt-6 pb-5 sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
                 {current.quantity > 1 && (
                   <Button
                     variant="outline"
@@ -274,12 +280,13 @@ export default function KitchenPage() {
               </p>
             )}
             {/* overflow-x-hidden: entering and leaving cards must not scroll it sideways. */}
-            <motion.ul layoutScroll className="flex flex-col gap-2 overflow-x-hidden lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y">
+            <motion.ul layoutScroll={morph} className="flex flex-col gap-2 overflow-x-hidden lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y">
               <AnimatePresence initial={false}>
                 {next.map((batch, index) => (
                   <motion.li
                     key={batchId(batch)}
-                    layoutId={batchId(batch)}
+                    layoutId={morph ? batchId(batch) : undefined}
+                    layout={morph}
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0 }}
@@ -313,6 +320,7 @@ export default function KitchenPage() {
         </div>
       )}
     </div>
+    </MotionConfig>
   );
 }
 

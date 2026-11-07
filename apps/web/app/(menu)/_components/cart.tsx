@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 import Image from "@/components/app/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -269,13 +268,17 @@ function BagStep({
   const inBag = (itemId: string) =>
     lines.filter((line) => line.itemId === itemId).reduce((sum, line) => sum + line.quantity, 0);
   const left = (itemId: string) => stock[itemId] ?? null;
+  /** The line whose "+" just hit the stock limit. */
+  const [limited, setLimited] = useState<string | null>(null);
 
   const increase = (line: CartLine) => {
     const units = left(line.itemId);
     if (units !== null && inBag(line.itemId) >= units) {
-      toast.info(`Só temos ${units} ${line.name} agora.`, { id: "stock-limit" });
+      // Said on the line itself: a toast would cover the bag on a phone.
+      setLimited(line.key);
       return;
     }
+    setLimited(null);
     dispatch(setQuantity({ key: line.key, quantity: line.quantity + 1 }));
   };
 
@@ -304,6 +307,11 @@ function BagStep({
                 )}
                 {line.notes && <p className="text-xs text-muted-foreground italic">“{line.notes}”</p>}
                 <p className="mt-1 text-sm font-semibold">{formatCurrencyBRL(lineTotal(line))}</p>
+                {limited === line.key && inBag(line.itemId) === left(line.itemId) && (
+                  <p role="status" className="mt-1 text-xs font-medium text-warning">
+                    Só temos {left(line.itemId)} agora.
+                  </p>
+                )}
                 {left(line.itemId) !== null && inBag(line.itemId) > left(line.itemId)! && (
                   <p role="alert" className="mt-1 text-xs font-medium text-warning">
                     {left(line.itemId) === 0

@@ -37,7 +37,6 @@ test("the order history follows the customer to another device, never by phone a
   // Another device opens the link from "Usar em outro aparelho".
   const linked = await device(browser);
   await linked.goto(`/pedidos?vincular=${first.store.slug}.${first.customerToken}`);
-  await expect(linked.getByText("Pronto! Este aparelho agora mostra os seus pedidos.")).toBeVisible();
   await expect(linked).toHaveURL(/\/pedidos$/);
   await expect(linked.getByRole("article", { name: new RegExp(`Pedido ${first.number}:`) })).toBeVisible();
   await expect(linked.getByText(`Vinculado a ${name}`)).toBeVisible();
