@@ -35,3 +35,23 @@ test("panel layout: grouped sidebar, router breadcrumbs, theme and settings", as
   await page.getByRole("radiogroup", { name: "Tema" }).getByRole("radio", { name: /Claro/ }).click();
   await page.screenshot({ path: "test-results/layout-items.png" });
 });
+
+test("the phone's bar color follows the theme chosen on the site", async ({ browser }) => {
+  for (const [system, site, color] of [
+    ["light", "dark", "#0a0a0a"],
+    ["dark", "light", "#ffffff"],
+  ] as const) {
+    const context = await browser.newContext({ colorScheme: system });
+    const page = await context.newPage();
+    await page.addInitScript((theme) => localStorage.setItem("theme", theme), site);
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveClass(new RegExp(site));
+    const metas = page.locator('meta[name="theme-color"]');
+    await expect(metas.first()).toHaveAttribute("content", color);
+    // Every tag, whatever system scheme it is for, says the site's color.
+    await expect
+      .poll(() => metas.evaluateAll((all) => [...new Set(all.map((meta) => meta.getAttribute("content")))]))
+      .toEqual([color]);
+    await context.close();
+  }
+});
