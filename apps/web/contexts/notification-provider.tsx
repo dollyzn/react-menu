@@ -33,6 +33,24 @@ function withTimeout<T>(promise: Promise<T>) {
   ]);
 }
 
+/**
+ * What went wrong turning push on, in words the person can act on. The
+ * browser refuses the push subscription itself in the common cases (Brave
+ * blocks Google's push service by default; a blocked network or extension).
+ */
+function pushErrorMessage(error: unknown) {
+  const name = error instanceof Error ? error.name : "";
+  const message = error instanceof Error ? error.message : String(error);
+  if (name === "AbortError" || /push service/i.test(message)) {
+    return /brave/i.test(navigator.userAgent) || "brave" in navigator
+      ? 'O Brave bloqueia notificações push por padrão: ative "Usar serviços do Google para mensagens push" em brave://settings/privacy e tente de novo.'
+      : "O navegador recusou o serviço de notificações push. Verifique se alguma extensão ou bloqueador não está impedindo e tente de novo.";
+  }
+  if (name === "NotAllowedError") return "Permissão negada. Ative as notificações nas configurações do navegador.";
+  if (message === "Firebase timeout") return "O serviço de notificações demorou a responder. Verifique a conexão e tente de novo.";
+  return `Não foi possível ativar as notificações push (${name || message}). Tente novamente.`;
+}
+
 /** The Firebase Installation ID that FCM uses to address this browser. */
 function currentFid() {
   return withTimeout(getId(getInstallations(getFirebaseApp())));
@@ -140,8 +158,10 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
       setIsSubscribed(true);
       listenForNewInstallations();
-    } catch {
-      setError("Não foi possível ativar as notificações push. Tente novamente.");
+    } catch (error) {
+      // Logged for support: the reasons are in the browser, not the API.
+      console.warn("push subscribe failed", error);
+      setError(pushErrorMessage(error));
     } finally {
       setLoading(false);
     }
