@@ -262,3 +262,100 @@ test("POS on a phone: clearing the ticket closes its drawer", async ({ page }) =
   await page.getByRole("button", { name: "Desfazer" }).click();
   await expect(page.getByRole("button", { name: /Comanda \(1\)/ })).toBeVisible();
 });
+
+test("orders board: the order's menu fits its items on one line", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const item = menu.categories[0].items[0];
+  const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: { lines: [{ itemId: item.id, quantity: 1 }], customer: { name: "Menu largo", phone: "11955553333" }, paymentMethod: "counter" },
+  });
+  const number = (await placed.json()).data.number as number;
+  await api.dispose();
+
+  await login(page);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  await page.getByRole("button", { name: `Mais ações do pedido ${number}` }).click();
+  for (const name of ["Marcar como pago", "Cancelar pedido"]) {
+    const box = await page.getByRole("menuitem", { name }).boundingBox();
+    // One line of text (a wrapped label doubles the height).
+    expect(box!.height).toBeLessThan(40);
+  }
+});
+
+test("kitchen: after \"Fiz 1\" the card comes back without flashing the other side's color", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [{ itemId: menu.categories[0].items[2].id, quantity: 3 }],
+      customer: { name: "Fiz um", phone: "11900000001" },
+      paymentMethod: "counter",
+    },
+  });
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(page.url().replace(/\/[^/]+$/, "/kitchen"));
+  const card = page.getByRole("region", { name: "Fazer agora" });
+  await expect(card).toBeVisible();
+
+  // Every frame, the highest opacity the green ("Fiz todos") side reached.
+  await page.evaluate(() => {
+    const w = window as unknown as { maxGreen: number };
+    w.maxGreen = 0;
+    const tick = () => {
+      for (const panel of document.querySelectorAll<HTMLElement>("[aria-hidden] > .bg-success")) {
+        w.maxGreen = Math.max(w.maxGreen, Number(getComputedStyle(panel).opacity));
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  const box = (await card.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 80);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step++) await page.mouse.move(box.x + box.width / 2 - step * 30, box.y + 80);
+  await page.mouse.up();
+
+  await expect(page.getByText(/1× .* pronto/)).toBeVisible();
+  await page.waitForTimeout(800);
+  expect(await page.evaluate(() => (window as unknown as { maxGreen: number }).maxGreen)).toBeLessThan(0.05);
+});
+
+test("orders board: \"Entregar\" reminds of the items that skip the kitchen", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+  const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [
+        { itemId: menu.categories[0].items[2].id, quantity: 1 },
+        { itemId: drink.id, quantity: 2 },
+      ],
+      customer: { name: "Com bebida", phone: "11900000003" },
+      paymentMethod: "counter",
+    },
+  });
+  const number = (await placed.json()).data.number as number;
+  await api.dispose();
+  // The kitchen finishes the pastry: the order is ready.
+  await clearKitchen();
+
+  await login(page, DEMO_STAFF.attendant);
+  const card = page.getByRole("article", { name: new RegExp(`Pedido ${number} de`) });
+  await card.getByRole("button", { name: "Entregar" }).click();
+  const reminder = page.getByRole("alertdialog");
+  await expect(reminder).toContainText(`Separou tudo do pedido #${number}?`);
+  await expect(reminder.getByRole("list", { name: "Itens sem preparo" })).toContainText(`2×${drink.name}`);
+  await reminder.getByRole("button", { name: "Voltar" }).click();
+  await expect(card).toBeVisible();
+
+  await card.getByRole("button", { name: "Entregar" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Sim, entregar" }).click();
+  await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
+});

@@ -238,7 +238,7 @@ export function ItemCustomizer({
                 <label
                   key={addon.id}
                   className={cn(
-                    "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                    "relative flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
                     checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
                     !addon.isAvailable && "cursor-not-allowed opacity-50"
                   )}
@@ -488,7 +488,7 @@ function ChoiceGroup({
           <label
             key={option.id}
             className={cn(
-              "flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+              "relative flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
               checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
               blocked && "cursor-not-allowed opacity-50"
             )}

@@ -11,6 +11,8 @@ import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
 import OrderReceiptNotification from '#mails/order_receipt_notification'
 import OrderRefundNotification from '#mails/order_refund_notification'
+import NotificationMail from '#mails/notification_mail'
+import DailySummaryMail from '#mails/daily_summary_mail'
 
 /**
  * Renders every e-mail with sample data into HTML files, to look at them
@@ -83,6 +85,44 @@ export default class MailPreview extends BaseCommand {
         { name: 'Pastelaria Nova', pickupEtaMinutes: 20 },
         { ...order, paymentMethod: 'card' }
       ),
+      'notification': new NotificationMail(person, {
+        label: 'Estorno não concluído',
+        title: 'Estorno do pedido #42 não concluído',
+        body: 'O estorno de R$ 51,00 do pedido #42 falhou no Mercado Pago. Confira e tente de novo pelo painel.',
+        url: '/app/stores/1/orders',
+        brand: store,
+      }),
+      'daily-summary': new DailySummaryMail(person, {
+        dateLabel: 'ontem (06/11)',
+        stores: [
+          {
+            storeId: '1',
+            storeName: 'JJ Pastéis',
+            revenue: 1843.5,
+            orders: 87,
+            averageTicket: 21.19,
+            cancelled: 2,
+            previousRevenue: 1620,
+            topItems: [
+              { name: 'Pastel de Carne', quantity: 34 },
+              { name: 'Pastel de Queijo', quantity: 28 },
+              { name: 'Caldo de Cana 500 ml', quantity: 25 },
+            ],
+            lowStock: [{ name: 'Mussarela' }, { name: 'Massa de pastel' }],
+          },
+          {
+            storeId: '2',
+            storeName: 'JJ Pastéis - Feira',
+            revenue: 640,
+            orders: 31,
+            averageTicket: 20.65,
+            cancelled: 0,
+            previousRevenue: null,
+            topItems: [{ name: 'Pastel de Frango', quantity: 12 }],
+            lowStock: [],
+          },
+        ],
+      }),
     }
 
     await mkdir(this.out, { recursive: true })

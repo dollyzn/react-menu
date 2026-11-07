@@ -23,6 +23,13 @@ export type RenderedNotification = {
 
 type Template<Data> = {
   category: NotificationCategory
+  /** In the preferences ("Novos pedidos") and as the e-mail's label. */
+  label: string
+  description: string
+  /** Channels before the person chooses (the bell always records it). */
+  defaults: { push: boolean; email: boolean }
+  /** Who gets it, so who sees it in the preferences: store staff or platform admins. */
+  audience: 'staff' | 'super'
   render: (data: Data) => RenderedNotification
 }
 
@@ -50,6 +57,10 @@ export const notificationTemplates = {
     changedBy: string
   }>({
     category: 'store',
+    label: 'Loja aberta ou fechada',
+    description: 'Quando alguém da equipe abre, fecha ou põe a loja em manutenção.',
+    defaults: { push: true, email: false },
+    audience: 'staff',
     render: ({ storeId, storeName, status, changedBy }) => ({
       title: `${storeName} está ${storeStatusLabels[status]}`,
       body: `${changedBy} alterou o status da loja para ${storeStatusLabels[status]}.`,
@@ -64,6 +75,10 @@ export const notificationTemplates = {
     addedBy: string
   }>({
     category: 'store',
+    label: 'Adicionado a uma equipe',
+    description: 'Quando você passa a fazer parte da equipe de uma loja.',
+    defaults: { push: true, email: true },
+    audience: 'staff',
     render: ({ storeId, storeName, role, addedBy }) => ({
       title: `Você agora faz parte da ${storeName}`,
       body: `${addedBy} adicionou você à equipe como ${storeRoleLabels[role]}.`,
@@ -78,6 +93,10 @@ export const notificationTemplates = {
     itemsCount: number
   }>({
     category: 'order',
+    label: 'Novos pedidos',
+    description: 'Cada pedido feito pelo cardápio online (os do PDV, não).',
+    defaults: { push: true, email: false },
+    audience: 'staff',
     render: ({ storeId, orderNumber, customerName, itemsCount }) => ({
       title: `Novo pedido #${orderNumber}`,
       body: `${customerName} · ${itemsCount} ${itemsCount === 1 ? 'item' : 'itens'}`,
@@ -91,6 +110,10 @@ export const notificationTemplates = {
     orderNumber: number
   }>({
     category: 'order',
+    label: 'Estorno não concluído',
+    description: 'Quando o estorno automático de um pedido falha e precisa de você.',
+    defaults: { push: true, email: true },
+    audience: 'staff',
     render: ({ storeId, orderId, orderNumber }) => ({
       title: `Reembolso do pedido #${orderNumber} não concluído`,
       body: 'O reembolso automático falhou várias vezes. Tente "Reembolsar agora" no pedido ou faça pelo Mercado Pago.',
@@ -100,6 +123,10 @@ export const notificationTemplates = {
 
   'system.job_failed': defineTemplate<{ job: string; detail: string }>({
     category: 'system',
+    label: 'Falhas em tarefas do sistema',
+    description: 'Tarefas em segundo plano que desistiram depois de todas as tentativas.',
+    defaults: { push: true, email: true },
+    audience: 'super',
     render: ({ job, detail }) => ({
       title: 'Tarefa em segundo plano falhou',
       body: `${job} desistiu depois de todas as tentativas: ${detail}`,
@@ -108,6 +135,10 @@ export const notificationTemplates = {
 
   'system.announcement': defineTemplate<{ title: string; body: string; url?: string }>({
     category: 'system',
+    label: 'Avisos da plataforma',
+    description: 'Novidades e avisos importantes sobre o sistema.',
+    defaults: { push: true, email: false },
+    audience: 'staff',
     render: ({ title, body, url }) => ({ title, body, url }),
   }),
 }

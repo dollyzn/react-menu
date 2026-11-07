@@ -5,11 +5,8 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-1. **Notification preferences** (in progress): per notification type, push
-   and e-mail on/off for the whole account, and each store can be muted;
-   a daily summary e-mail for managers (opt-in, per store: yesterday's
-   sales and orders, best sellers, low stock); the notifications popover
-   redesigned.
+Manual testing of the current build comes first; then the next item is
+picked from Product below, one PR at a time.
 
 ## Standby (decided not to do for now)
 

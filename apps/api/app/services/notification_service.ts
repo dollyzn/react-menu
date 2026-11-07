@@ -5,10 +5,17 @@ import { DateTime } from 'luxon'
 import type { Notification as NotificationDto } from '@react-menu/contracts'
 import Notification from '#models/notification'
 import PushService from '#services/push_service'
+import NotificationPreferenceService from '#services/notification_preference_service'
+import mail from '@adonisjs/mail/services/main'
+import NotificationMail from '#mails/notification_mail'
+import { storeBrand } from '#mails/layout'
+import Store from '#models/store'
+import User from '#models/user'
 import type StoreRole from '#enums/store_role'
 import SendPushNotification from '#jobs/send_push_notification'
 import { broadcastUserEvent } from '#helpers/realtime'
 import {
+  notificationTemplates,
   renderNotification,
   type NotificationData,
   type NotificationType,
@@ -18,6 +25,11 @@ type Recipients = {
   userIds: string[]
   /** Store the notification is about; scopes it and cascades on delete. */
   storeId?: string | null
+  /**
+   * false: never by e-mail, whatever the preferences (failures of the mail
+   * job itself; types whose e-mail the caller sends in its own template).
+   */
+  email?: boolean
 }
 
 type ListOptions = {
@@ -28,11 +40,16 @@ type ListOptions = {
 
 @inject()
 export default class NotificationService {
-  constructor(private push: PushService) {}
+  constructor(
+    private push: PushService,
+    private preferences: NotificationPreferenceService
+  ) {}
 
   /**
-   * Persists one notification per recipient, then delivers it in realtime
-   * and via web push. Delivery is best effort; the stored row is the truth.
+   * Persists one notification per recipient (the bell), delivers it in
+   * realtime, and by web push and e-mail as each recipient chose
+   * (NotificationPreferenceService: per type, muted stores). Delivery is
+   * best effort; the stored row is the truth.
    */
   async notify<Type extends NotificationType>(
     type: Type,
@@ -57,6 +74,7 @@ export default class NotificationService {
       }))
     )
 
+    // The bell first: realtime doesn't wait for preferences or the queue.
     for (const notification of notifications) {
       broadcastUserEvent({
         type: 'notification.created',
@@ -64,9 +82,21 @@ export default class NotificationService {
         // The model serializes to the Notification contract (camelCase, ISO dates).
         notification: notification.serialize() as NotificationDto,
       })
+    }
 
+    const deliveries = await this.preferences.deliveries(userIds, type, recipients.storeId ?? null)
+    if (recipients.email !== false) {
+      await this.email(
+        type,
+        rendered,
+        recipients.storeId ?? null,
+        [...deliveries].filter(([, delivery]) => delivery.email).map(([userId]) => userId)
+      )
+    }
+
+    for (const notification of notifications) {
       // Off the request, retried by the queue; the stored row is the truth.
-      if (this.push.isEnabled) {
+      if (this.push.isEnabled && deliveries.get(notification.userId)?.push) {
         await SendPushNotification.dispatch({
           userId: notification.userId,
           message: {
@@ -82,6 +112,37 @@ export default class NotificationService {
     }
 
     return notifications
+  }
+
+  /** Queues the e-mail version for the people who chose it. */
+  private async email(
+    type: NotificationType,
+    rendered: ReturnType<typeof renderNotification>,
+    storeId: string | null,
+    userIds: string[]
+  ) {
+    if (userIds.length === 0) return
+    // In sequence: notify may run inside a caller's transaction (one connection).
+    const users = await User.query().whereIn('id', userIds).select('id', 'email', 'name')
+    const store = storeId ? await Store.find(storeId) : null
+    await Promise.all(
+      users.map((user) =>
+        mail
+          .sendLater(
+            new NotificationMail(
+              { email: user.email, name: user.name },
+              {
+                label: notificationTemplates[type].label,
+                title: rendered.title,
+                body: rendered.body,
+                url: rendered.url ?? null,
+                brand: store ? storeBrand(store) : null,
+              }
+            )
+          )
+          .catch((error) => logger.error({ err: error }, 'could not queue a notification e-mail'))
+      )
+    )
   }
 
   /** Notifies every member of a store, optionally skipping the actor. */
@@ -106,9 +167,13 @@ export default class NotificationService {
   }
 
   /** Platform admins (super users), e.g. for background job failures. */
-  async notifySuperUsers<Type extends NotificationType>(type: Type, data: NotificationData<Type>) {
+  async notifySuperUsers<Type extends NotificationType>(
+    type: Type,
+    data: NotificationData<Type>,
+    options: { email?: boolean } = {}
+  ) {
     const admins = await db.from('users').where('super_user', true).select('id')
-    return await this.notify(type, data, { userIds: admins.map((admin) => admin.id) })
+    return await this.notify(type, data, { userIds: admins.map((admin) => admin.id), ...options })
   }
 
   async list(userId: string, { page = 1, perPage = 20, unreadOnly = false }: ListOptions = {}) {

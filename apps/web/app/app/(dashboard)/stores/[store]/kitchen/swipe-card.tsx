@@ -22,7 +22,8 @@ interface SwipeCardProps {
 
 /**
  * Tinder-style card: drag right or left past the threshold (or flick) and
- * it flies off and runs the action; otherwise it springs back. The colored
+ * it flies off that side and runs the action (a batch still on screen rises
+ * back from the pile in place); otherwise it springs back. The colored
  * panel and icon behind it grow with the drag, and the phone ticks when the
  * action arms. Vertical scrolling keeps working (touch-action: pan-y).
  */
@@ -36,6 +37,10 @@ export function SwipeCard({
   children,
 }: SwipeCardProps) {
   const x = useMotionValue(0);
+  // The card that comes back after an action (same batch, one fewer) rises
+  // from the pile in place, instead of sliding across the screen.
+  const scale = useMotionValue(1);
+  const opacity = useMotionValue(1);
   const rotate = useTransform(x, [-300, 0, 300], [-6, 0, 6]);
   const rightOpacity = useTransform(x, [0, THRESHOLD], [0, 1]);
   const leftOpacity = useTransform(x, [-THRESHOLD, 0], [1, 0]);
@@ -55,9 +60,13 @@ export function SwipeCard({
     try {
       await (direction === 1 ? onSwipeRight() : onSwipeLeft());
     } finally {
-      // Same batch still on screen (e.g. "Fiz 1" of 3, or an error): slide back in.
-      x.set(-direction * width * 0.6);
-      void animate(x, 0, { type: "spring", stiffness: 260, damping: 28 });
+      // Same batch still on screen ("Fiz 1" of 3, or an error): the next one
+      // comes up from the pile where the card was.
+      opacity.set(0);
+      scale.set(0.9);
+      x.set(0);
+      void animate(opacity, 1, { duration: 0.18 });
+      void animate(scale, 1, { type: "spring", stiffness: 380, damping: 26 });
     }
   };
 
@@ -96,7 +105,7 @@ export function SwipeCard({
         dragConstraints={{ left: 0, right: 0 }}
         dragSnapToOrigin={false}
         onDragEnd={onDragEnd}
-        style={{ x, rotate, touchAction: "pan-y" }}
+        style={{ x, rotate, scale, opacity, touchAction: "pan-y" }}
         className="relative h-full cursor-grab active:cursor-grabbing"
       >
         {children}

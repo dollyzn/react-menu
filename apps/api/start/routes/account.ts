@@ -4,7 +4,7 @@ import { throttle } from '#start/limiter'
 
 const AccountController = () => import('#controllers/account_controller')
 
-/** /account: the signed-in user's profile, photo, password and sessions. */
+/** /account: the signed-in user's profile, photo, password, sessions and notification preferences. */
 export default function accountRoutes() {
   router
     .group(() => {
@@ -19,6 +19,12 @@ export default function accountRoutes() {
       router.put('/avatar', [AccountController, 'setAvatar']).as('account.avatar')
       router.delete('/avatar', [AccountController, 'removeAvatar']).as('account.avatar.remove')
       router.put('/password', [AccountController, 'changePassword']).as('account.password')
+      router
+        .get('/notification-preferences', [AccountController, 'notificationPreferencesShow'])
+        .as('account.notificationPreferences')
+      router
+        .put('/notification-preferences', [AccountController, 'notificationPreferencesUpdate'])
+        .as('account.notificationPreferences.update')
       router
         .group(() => {
           router.get('/', [AccountController, 'twoFactorStatus']).as('account.twoFactor')

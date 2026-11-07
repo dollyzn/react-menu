@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Ban, Banknote, CircleCheck, ExternalLink, MessageCircle, Phone, Undo2 } from "lucide-react";
+import { AlertTriangle, Ban, Banknote, ExternalLink, MessageCircle, Phone, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCancelOrderMutation,
-  useCompleteOrderMutation,
   useGetOrderQuery,
   useMarkOrderPaidMutation,
   useRefundOrderMutation,
@@ -20,6 +19,7 @@ import { useStoreRole } from "@/hooks/use-store-role";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { ATTEMPT, CHANNEL, PAYMENT, STATUS } from "./order-labels";
+import { DeliverOrderButton } from "./deliver-order-button";
 import { addonLabels } from "@/lib/addon-label";
 import { useLastValue } from "@/hooks/use-last-value";
 
@@ -43,7 +43,6 @@ export function OrderDetailSheet({
     { storeId, orderId: shownId ?? "" },
     { skip: !shownId }
   );
-  const [complete, { isLoading: completing }] = useCompleteOrderMutation();
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
   const [markPaid, { isLoading: paying }] = useMarkOrderPaidMutation();
   const [refund, { isLoading: refunding }] = useRefundOrderMutation();
@@ -240,16 +239,7 @@ export function OrderDetailSheet({
             {canOperate && ACTIVE.has(show.status) && (
               <footer className="flex flex-wrap gap-2 border-t p-4">
                 {show.status === "ready" && (
-                  <Button
-                    className="flex-1"
-                    loading={completing}
-                    onClick={async () => {
-                      await complete({ storeId, orderId: show.id }).unwrap();
-                      toast.success(`Pedido #${show.number} entregue`);
-                    }}
-                  >
-                    <CircleCheck /> Entregar
-                  </Button>
+                  <DeliverOrderButton order={show} storeId={storeId} className="flex-1" />
                 )}
                 {show.paymentStatus !== "paid" && (
                   <Button variant="outline" loading={paying} onClick={() => markPaid({ storeId, orderId: show.id })}>

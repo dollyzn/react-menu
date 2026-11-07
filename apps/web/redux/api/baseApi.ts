@@ -190,7 +190,7 @@ const baseQueryWithHandling: BaseQueryFn<
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: baseQueryWithHandling,
-  tagTypes: ["Store", "Category", "Item", "Addon", "Notification", "Order", "Kitchen", "Ingredient", "PublicOrder", "Member", "OptionGroup", "AccountSession", "TwoFactor"],
+  tagTypes: ["Store", "Category", "Item", "Addon", "Notification", "Order", "Kitchen", "Ingredient", "PublicOrder", "Member", "OptionGroup", "AccountSession", "TwoFactor", "NotificationPreferences"],
   endpoints: () => ({}),
 });
 
