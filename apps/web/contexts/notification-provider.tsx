@@ -65,6 +65,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const signedIn = useRef(isAuthenticated);
   const stopListening = useRef<(() => void) | null>(null);
+  const subscribing = useRef(false);
 
   useEffect(() => {
     signedIn.current = isAuthenticated;
@@ -80,7 +81,8 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
   function listenForNewInstallations() {
     if (stopListening.current) return;
     stopListening.current = onRegistered(getMessaging(getFirebaseApp()), (fid) => {
-      if (!signedIn.current) return;
+      // While turning push on, subscribe() registers this FID itself.
+      if (!signedIn.current || subscribing.current) return;
       void dispatch(notificationApi.endpoints.registerPush.initiate({ fid }))
         .unwrap()
         .then(() => setIsSubscribed(true))
@@ -140,6 +142,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
 
     setLoading(true);
     setError(null);
+    subscribing.current = true;
 
     try {
       const serviceWorkerRegistration =
@@ -165,6 +168,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       console.warn("push subscribe failed", error);
       setError(pushErrorMessage(error));
     } finally {
+      subscribing.current = false;
       setLoading(false);
     }
   }

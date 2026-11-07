@@ -1,3 +1,4 @@
+import db from '@adonisjs/lucid/services/db'
 import type { BatchResponse } from 'firebase-admin/messaging'
 import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
@@ -44,8 +45,21 @@ export default class PushService {
    * An installation belongs to one browser; registering it again from another
    * account moves it to the current user.
    */
+  /**
+   * One row per FID, owned by the last user who registered it. An atomic
+   * upsert: the browser may send the same FID twice at once (the explicit
+   * call and Firebase's onRegistered), and find-then-insert raced into a
+   * unique violation.
+   */
   async register(userId: string, fid: string) {
-    return await PushRegistration.updateOrCreate({ fid }, { userId })
+    const now = new Date()
+    await db
+      .knexQuery()
+      .table('push_registrations')
+      .insert({ user_id: userId, fid, created_at: now, updated_at: now })
+      .onConflict('fid')
+      .merge({ user_id: userId, updated_at: now })
+    return await PushRegistration.findByOrFail('fid', fid)
   }
 
   async unregister(userId: string, fid: string) {
