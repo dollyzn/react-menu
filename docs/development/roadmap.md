@@ -28,11 +28,10 @@ picked from Product below, one PR at a time.
 - **Enforce the Content-Security-Policy.** The web sends it as
   `Content-Security-Policy-Report-Only` (`apps/web/lib/csp.ts`, nonce from
   `proxy.ts`); reports are logged by `/csp-report` (`docker compose logs web
-  | grep csp-report`). After a few weeks of real traffic without unexpected
-  reports (Mercado Pago Brick, 3-D Secure, push), switch the header to
-  `Content-Security-Policy`.
-- **HSTS `includeSubDomains`/`preload`** in `docker/caddy/Caddyfile`, once
-  every subdomain of the production domain is on HTTPS.
+  | grep csp-report`). Zod's `eval` probe, the only report so far, is gone
+  since v1.0.1 (2026-11-07). After a few weeks of real traffic without
+  unexpected reports (Mercado Pago Brick, 3-D Secure, push), switch the
+  header to `Content-Security-Policy`.
 - `@adonisjs/shield` and `@adonisjs/session` were looked at and left out:
   Shield's CSRF and CSP target pages the Adonis app renders (ours are the
   Next app's), and the login is an access token in an httpOnly cookie

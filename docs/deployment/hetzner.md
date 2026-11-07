@@ -226,5 +226,5 @@ release ran a migration that has to be undone, restore the dump it saved:
 
 - Watch the CSP reports (`docker compose logs web | grep csp-report`):
   when nothing unexpected shows up, enforce the policy (roadmap).
-- Once every subdomain is on HTTPS, add `includeSubDomains` to HSTS
-  (`docker/caddy/Caddyfile`).
+- HSTS covers the domain's subdomains (`includeSubDomains`): any new
+  subdomain (e.g. a webmail) must be served over HTTPS from the start.
