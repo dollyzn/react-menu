@@ -282,3 +282,46 @@ test("orders board: the order's menu fits its items on one line", async ({ page 
     expect(box!.height).toBeLessThan(40);
   }
 });
+
+test("kitchen: after \"Fiz 1\" the card comes back without flashing the other side's color", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [{ itemId: menu.categories[0].items[2].id, quantity: 3 }],
+      customer: { name: "Fiz um", phone: "11900000001" },
+      paymentMethod: "counter",
+    },
+  });
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(page.url().replace(/\/[^/]+$/, "/kitchen"));
+  const card = page.getByRole("region", { name: "Fazer agora" });
+  await expect(card).toBeVisible();
+
+  // Every frame, the highest opacity the green ("Fiz todos") side reached.
+  await page.evaluate(() => {
+    const w = window as unknown as { maxGreen: number };
+    w.maxGreen = 0;
+    const tick = () => {
+      for (const panel of document.querySelectorAll<HTMLElement>("[aria-hidden] > .bg-success")) {
+        w.maxGreen = Math.max(w.maxGreen, Number(getComputedStyle(panel).opacity));
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+
+  const box = (await card.boundingBox())!;
+  await page.mouse.move(box.x + box.width / 2, box.y + 80);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step++) await page.mouse.move(box.x + box.width / 2 - step * 30, box.y + 80);
+  await page.mouse.up();
+
+  await expect(page.getByText(/1× .* pronto/)).toBeVisible();
+  await page.waitForTimeout(800);
+  expect(await page.evaluate(() => (window as unknown as { maxGreen: number }).maxGreen)).toBeLessThan(0.05);
+});
