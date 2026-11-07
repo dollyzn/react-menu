@@ -145,6 +145,9 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       const serviceWorkerRegistration =
         await navigator.serviceWorker.getRegistration("/");
 
+      // Firebase refuses register() until an onRegistered handler exists
+      // (messaging/invalid-on-registered-handler).
+      listenForNewInstallations();
       await withTimeout(
         register(getMessaging(getFirebaseApp()), {
           vapidKey: env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
@@ -157,7 +160,6 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
       ).unwrap();
 
       setIsSubscribed(true);
-      listenForNewInstallations();
     } catch (error) {
       // Logged for support: the reasons are in the browser, not the API.
       console.warn("push subscribe failed", error);
