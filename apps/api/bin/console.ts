@@ -11,6 +11,9 @@
 |
 */
 
+// The queue worker is traced like the server (otel.ts is a no-op without an
+// endpoint); other Ace commands skip it.
+if (process.argv.includes('queue:work')) await import('../otel.js')
 import 'reflect-metadata'
 import { Ignitor, prettyPrintError } from '@adonisjs/core'
 

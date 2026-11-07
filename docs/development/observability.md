@@ -59,26 +59,20 @@ docker compose -f docker-compose.dev.yml --profile observability up -d lgtm
 with Tempo, Loki and Prometheus behind it, and Grafana at
 <http://localhost:3005> (admin / admin).
 
-**The API only sends from the compiled build.** `otel.ts` must be preloaded
-(`node --import ./otel.js …`), which the Dockerfile and `docker-compose.yml`
-do; `pnpm dev` doesn't, because the OpenTelemetry loader hook breaks
-`node ace serve` ("Cannot resolve binding server",
-[adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27)). To try it
-with the local Grafana:
+With the local Grafana up, `pnpm dev` sends too: the endpoint must be in the
+process environment (a value only in `.env` is read too late, after the
+loader hook should be in place):
 
 ```bash
-cd apps/api && node ace build && cd build
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 \
-  node --env-file=../.env --import ./otel.js bin/server.js        # API
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_SERVICE_NAME=react-menu-worker \
-  node --env-file=../.env --import ./otel.js ace queue:work       # worker
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm dev
 ```
 
-(The endpoint must be in the process environment before `otel.js` runs:
-`--env-file` loads `.env` early enough, a value only read by Adonis is too
-late.) Uploaded photos are read from `build/storage`, so copy or link
-`apps/api/storage` there if you need them. The web app sends from `pnpm dev`
-too: `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 pnpm dev:web`.
+The API (`node ace serve`, HMR included), the worker (`queue:work`) and the
+web all send then; without the variable nothing does. `otel.ts` is imported
+first by `bin/server.ts` and, for `queue:work`, `bin/console.ts`; production
+also preloads it (`node --import ./otel.js`), and it runs once either way.
+(It used to break `node ace serve`: a `@poppinss/ts-exec` regression,
+fixed in 1.5.2; see [adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27).)
 
 Or run the whole production stack (`docker compose up -d --build`) with
 `OTEL_EXPORTER_OTLP_ENDPOINT=http://host.docker.internal:4318`. On Linux
@@ -87,8 +81,9 @@ the `api`, `worker` and `web` services (Docker Desktop has it built in).
 
 ## Where it lives
 
-- API: `apps/api/otel.ts` (preloaded with `--import`; starts the SDK only
-  with an endpoint), `app/helpers/otel.ts` (`otelRunning()`, `redactUrl`),
+- API: `apps/api/otel.ts` (imported first by `bin/server.ts` and, for
+  `queue:work`, `bin/console.ts`; preloaded with `--import` in production;
+  starts the SDK only with an endpoint), `app/helpers/otel.ts` (`otelRunning()`, `redactUrl`),
   `providers/otel_provider.ts` and `start/kernel.ts` (provider and middleware
   only when it runs), `config/otel.ts` (service names, sampling, ignored
   URLs, URL masking, the queue instrumentation), `AuthMiddleware` /

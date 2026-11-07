@@ -37,23 +37,6 @@ picked from Product below, one PR at a time.
   Next app's), and the login is an access token in an httpOnly cookie
   (cross-origin writes are refused by `#helpers/trusted_origin`).
 
-- The API's OpenTelemetry only runs from the compiled build. Under
-  `node ace serve` (TypeScript through `@poppinss/ts-exec`, with or without
-  `--hmr`), the import-in-the-middle loader hook that `@adonisjs/otel`'s
-  `init()` registers breaks the boot ("Cannot resolve binding "server" from
-  the container"), and imported by `bin/console.ts` it breaks Ace's command
-  loading ("Missing "export default" in module "mail_preview.js""), even with
-  `enabled: false`. So `otel.ts` is preloaded only by the production commands
-  (`node --import ./otel.js bin/server.js` / `ace queue:work` in the
-  Dockerfile and compose) and `pnpm dev` sends nothing
-  (docs/development/observability.md). Reported in
-  [adonisjs/otel#27](https://github.com/adonisjs/otel/issues/27): it's a
-  `@poppinss/ts-exec` regression since 1.5.0
-  ([poppinss/ts-exec#12](https://github.com/poppinss/ts-exec/issues/12)),
-  fixed in ts-exec **1.5.2** (2026-11-06). From ~2026-11-20 (our two-week
-  rule for new versions): bump `@poppinss/ts-exec` to `^1.5.2`, check that
-  `node ace serve` boots with `--import ./otel.js` and Ace commands load,
-  then the dev scripts can preload it too (optional) and this note goes.
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in
