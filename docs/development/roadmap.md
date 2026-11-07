@@ -29,14 +29,10 @@ picked from Product below, one PR at a time.
   `Content-Security-Policy-Report-Only` (`apps/web/lib/csp.ts`, nonce from
   `proxy.ts`); reports are logged by `/csp-report` (`docker compose logs web
   | grep csp-report`). Zod's `eval` probe, the only report so far, is gone
-  since v1.0.1 (2026-11-07). After a few weeks of real traffic without
-  unexpected reports (Mercado Pago Brick, 3-D Secure, push), switch the
-  header to `Content-Security-Policy`.
-- `@adonisjs/shield` and `@adonisjs/session` were looked at and left out:
-  Shield's CSRF and CSP target pages the Adonis app renders (ours are the
-  Next app's), and the login is an access token in an httpOnly cookie
-  (cross-origin writes are refused by `#helpers/trusted_origin`).
-
+  since v1.0.1 (2026-11-07). Once Mercado Pago is set up in production and
+  a Pix and a card payment (Brick, 3-D Secure) went through without
+  reports, plus a few weeks of real traffic, switch the header to
+  `Content-Security-Policy`.
 - Ace commands that end before Redis connects (e.g. `--help`) crash with
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in
