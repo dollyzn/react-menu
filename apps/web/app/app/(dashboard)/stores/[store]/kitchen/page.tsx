@@ -137,9 +137,7 @@ export default function KitchenPage() {
         <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
           <AnimatePresence mode="popLayout">
             <motion.div
-              key={current.key + current.units.map((u) => u.lineId).join()}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
+              key={batchId(current)}
               exit={{ opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="lg:col-span-2 lg:min-h-0"
@@ -152,9 +150,23 @@ export default function KitchenPage() {
               leftLabel="Fiz 1"
               onSwipeLeft={() => markDone(current, false)}
             >
-            <section
+            {/* Shares its layoutId with the batch's card in "Próximos": the small
+                card grows into this one. Its content fades in as the box grows, so
+                the text is never seen stretched. */}
+            <motion.section
+              layoutId={batchId(current)}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={LAYOUT_SPRING}
+              style={{ borderRadius: 24 }}
               aria-label="Fazer agora"
-              className="flex h-full flex-col rounded-3xl border-2 border-primary/40 bg-card p-5 shadow-lg lg:min-h-0 lg:overflow-y-auto lg:p-8"
+              className="flex h-full flex-col border-2 border-primary/40 bg-card shadow-lg lg:min-h-0 lg:overflow-y-auto"
+            >
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.2, delay: 0.15 }}
+              className="flex flex-1 flex-col p-5 lg:p-8"
             >
               <p className="flex items-center justify-between gap-2 text-sm font-semibold tracking-wider text-primary uppercase">
                 Fazer agora
@@ -246,7 +258,8 @@ export default function KitchenPage() {
                   {current.quantity > 1 ? `Fiz todos (${current.quantity})` : "Pronto"}
                 </Button>
               </div>
-            </section>
+            </motion.div>
+            </motion.section>
             </SwipeCard>
             </motion.div>
           </AnimatePresence>
@@ -260,16 +273,19 @@ export default function KitchenPage() {
                 Nada depois deste lote.
               </p>
             )}
-            <ul className="flex flex-col gap-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y">
+            {/* overflow-x-hidden: entering and leaving cards must not scroll it sideways. */}
+            <motion.ul layoutScroll className="flex flex-col gap-2 overflow-x-hidden lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y">
               <AnimatePresence initial={false}>
                 {next.map((batch, index) => (
                   <motion.li
-                    key={batch.key + batch.units.map((u) => u.lineId).join()}
-                    layout
-                    initial={{ opacity: 0, x: 24 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -24 }}
-                    className={cn("rounded-2xl border bg-card p-4", index === 0 && "border-primary/30")}
+                    key={batchId(batch)}
+                    layoutId={batchId(batch)}
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={LAYOUT_SPRING}
+                    style={{ borderRadius: 16 }}
+                    className={cn("border bg-card p-4", index === 0 && "border-primary/30")}
                   >
                     <div className="flex items-baseline gap-2">
                       <span className="text-2xl font-black tabular-nums">{batch.quantity}×</span>
@@ -292,13 +308,20 @@ export default function KitchenPage() {
                   </motion.li>
                 ))}
               </AnimatePresence>
-            </ul>
+            </motion.ul>
           </aside>
         </div>
       )}
     </div>
   );
 }
+
+/** One batch's identity across the queue and "Fazer agora" (its layoutId too). */
+function batchId(batch: ProductionBatch) {
+  return batch.key + batch.units.map((unit) => unit.lineId).join();
+}
+
+const LAYOUT_SPRING = { type: "spring", stiffness: 300, damping: 32 } as const;
 
 /** The filling at a glance: ingredient emoji except the dough every pastry has. */
 function fillingIcons(batch: ProductionBatch) {
