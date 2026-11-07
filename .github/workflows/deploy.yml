@@ -59,6 +59,9 @@ jobs:
 
             echo "::group::Build and start"
             BUILD_VERSION="$REF" docker compose up -d --build --remove-orphans </dev/null
+            # The Caddyfile is a mounted file: a checkout replaces it, and the
+            # running Caddy keeps the old one until it restarts.
+            docker compose restart caddy </dev/null
             echo "::endgroup::"
 
             # The API migrates before listening: wait until it answers (a 404
