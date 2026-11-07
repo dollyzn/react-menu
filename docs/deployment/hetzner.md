@@ -115,6 +115,45 @@ Not needed in production: `TRUSTED_ORIGINS` (web and API share one origin),
 `PAYMENTS_FAKE_GATEWAY`, `E2E_TEST_HOOKS` (the API refuses to boot with it).
 Uploads stay on the server's `uploads` volume (`DRIVE_DISK=fs`).
 
+### A server that already runs other sites
+
+When something else already listens on 80/443 (nginx, Traefik, another
+Caddy), React Menu's Caddy serves plain HTTP on an inner port and the
+existing proxy handles the domain and its certificate:
+
+```env
+SITE_ADDRESS=:80
+HTTP_PORT=8080
+HTTPS_PORT=8443
+PUBLIC_URL=https://pedidos.jjpasteis.com.br
+```
+
+The existing proxy forwards the domain to `http://127.0.0.1:8080`, passing
+`Host`, `X-Forwarded-For` and `X-Forwarded-Proto`, without buffering (the
+panel's live updates are Server-Sent Events) and allowing uploads of 10 MB.
+nginx:
+
+```nginx
+server {
+    server_name pedidos.jjpasteis.com.br;
+    client_max_body_size 10m;
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_buffering off;
+        proxy_read_timeout 1h;
+    }
+    # listen 443 ssl + certificates: as the other sites (certbot --nginx -d ...)
+}
+```
+
+React Menu's Caddy trusts private addresses for `X-Forwarded-For`, so the
+API still sees each visitor's IP (its limits are per IP). Keep port 8080
+closed in the firewall: only the proxy on the same machine uses it.
+
 ## 4. First boot
 
 ```bash

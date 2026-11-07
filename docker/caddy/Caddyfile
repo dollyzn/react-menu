@@ -2,6 +2,15 @@
 # SameSite=Strict, so both must be served from the same host.
 # SITE_ADDRESS=:80 serves plain HTTP; a domain (menu.example.com) gets HTTPS
 # certificates automatically.
+{
+	servers {
+		# Behind another proxy on the same server (nginx, Traefik…), keep the
+		# visitor's IP it sends in X-Forwarded-For: the API limits per IP.
+		# Only private addresses are trusted, so visitors can't fake it.
+		trusted_proxies static private_ranges
+	}
+}
+
 {$SITE_ADDRESS::80} {
 	encode zstd gzip
 
