@@ -22,45 +22,57 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
     await expect(page.getByText(/Maquininha ativada/).first()).toBeVisible();
     await expect(card.getByText("No PDV")).toBeVisible();
 
-    // POS: send a ticket and charge it on the machine.
+    // POS: "Enviar e cobrar" opens on the ticket; nothing is created until it is sent.
     await page.goto(`/app/stores/${storeId}/pos`);
-    const sendCharged = async (customer: string) => {
+    const ticket = async (customer: string) => {
       await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
       await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
       await page.getByLabel("Nome do cliente").fill(customer);
-      await page.getByRole("button", { name: "Enviar e cobrar na maquininha" }).click();
-      const dialog = page.getByRole("dialog", { name: /Cobrar pedido #\d+/ });
-      const number = (await dialog.getByRole("heading").first().textContent())!.match(/#(\d+)/)![1];
-      return { dialog, number };
     };
-    const first = await sendCharged("Maquininha");
-    await first.dialog.getByRole("radio", { name: "Débito" }).click();
-    await first.dialog.getByRole("button", { name: /Enviar para a maquininha/ }).click();
-    await expect(first.dialog.getByText("Aguardando pagamento na maquininha")).toBeVisible();
+    const charging = page.getByRole("dialog", { name: /Cobrar/ });
+    const sendToMachine = async () => {
+      await charging.getByRole("button", { name: /Enviar para a maquininha/ }).click();
+      await expect(charging).toHaveAccessibleName(/Cobrar pedido #\d+/);
+      return (await charging.getByRole("heading").first().textContent())!.match(/#(\d+)/)![1];
+    };
 
-    // Closed by mistake: the charge goes on, and the bar opens it again.
-    await page.keyboard.press("Escape");
-    await expect(first.dialog).toBeHidden();
+    await ticket("Maquininha");
+    await page.getByRole("button", { name: "Enviar e cobrar na maquininha" }).click();
+    await expect(charging).toHaveAccessibleName("Cobrar na maquininha");
+    await charging.getByRole("button", { name: "Voltar ao ticket" }).click();
+    await expect(charging).toBeHidden();
+    // The ticket is intact: the dialog closed before anything was sent.
+    await expect(page.getByLabel("Nome do cliente")).toHaveValue("Maquininha");
+
+    await page.getByRole("button", { name: "Enviar e cobrar na maquininha" }).click();
+    await charging.getByRole("radio", { name: "Débito" }).click();
+    const first = await sendToMachine();
+    await expect(charging.getByText("Aguardando pagamento na maquininha")).toBeVisible();
+
+    // A stray tap outside doesn't close it; "Continuar depois" does, and the charge goes on.
+    await page.mouse.click(5, 5);
+    await expect(charging).toBeVisible();
+    await charging.getByRole("button", { name: "Continuar depois" }).click();
+    await expect(charging).toBeHidden();
     const bar = page.getByRole("region", { name: "Na maquininha" });
-    await expect(bar.getByText(`Pedido #${first.number}`)).toBeVisible();
+    await expect(bar.getByText(`Pedido #${first}`)).toBeVisible();
 
-    // The machine is busy with it: another order is told which one, and can't go.
-    const second = await sendCharged("Outro");
-    await second.dialog.getByRole("button", { name: /Enviar para a maquininha/ }).click();
-    await expect(second.dialog.getByText(new RegExp(`cobrança do pedido #${first.number} em aberto`))).toBeVisible();
-    await expect(
-      second.dialog.getByRole("button", { name: `Cancelar a cobrança do pedido #${first.number}` })
-    ).toBeVisible();
-    await page.keyboard.press("Escape");
+    // The machine is busy with it: another order is told which one.
+    await ticket("Outro");
+    await page.getByRole("button", { name: "Enviar e cobrar na maquininha" }).click();
+    await sendToMachine();
+    await expect(charging.getByText(new RegExp(`cobrança do pedido #${first} em aberto`))).toBeVisible();
+    await expect(charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` })).toBeVisible();
+    await charging.getByRole("button", { name: "Cobrar depois" }).click();
 
     await bar.getByRole("button", { name: "Abrir" }).click();
-    const resumed = page.getByRole("dialog", { name: `Cobrar pedido #${first.number}` });
+    const resumed = page.getByRole("dialog", { name: `Cobrar pedido #${first}` });
     await expect(resumed.getByText("Aguardando pagamento na maquininha")).toBeVisible();
     await resumed.getByRole("button", { name: "Simular aprovação" }).click();
     await expect(resumed.getByText("Pagamento aprovado")).toBeVisible();
     await resumed.getByRole("button", { name: "Concluir" }).click();
     await expect(bar).toBeHidden();
-    const number = first.number;
+    const number = first;
 
     // The board shows it paid on the machine.
     await page.goto(`/app/stores/${storeId}/orders`);

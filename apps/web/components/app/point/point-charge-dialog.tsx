@@ -57,10 +57,17 @@ const POLL_MS = 2000;
 /** Every this many polls, ask Mercado Pago too (the webhook may be slow or blocked). */
 const CHECK_EVERY = 5;
 
+type ChargeOrder = { id: string; number: number; total: number };
+
+/** A ticket not sent yet: the order is created only on "Enviar para a maquininha". */
+type Prepare = { total: number; create: () => Promise<ChargeOrder> };
+
 interface PointChargeDialogProps {
   storeId: string;
-  /** The order to charge; null closes the dialog. */
-  order: { id: string; number: number; total: number } | null;
+  /** The order to charge (null and no `prepare`: closed). */
+  order: ChargeOrder | null;
+  /** The POS ticket: nothing is created until the charge is sent. */
+  prepare?: Prepare | null;
   /** A charge already waiting on the machine: open straight on it. */
   resume?: PointCharge | null;
   onClose: () => void;
@@ -73,23 +80,40 @@ interface PointChargeDialogProps {
  * the store's Mercado Pago Point machine, and follows it until the customer
  * pays, the card is refused or the charge is cancelled.
  */
-export function PointChargeDialog({ storeId, order: current, resume, onClose, onPaid }: PointChargeDialogProps) {
-  const order = useLastValue(current);
+export function PointChargeDialog({
+  storeId,
+  order: current,
+  prepare: currentPrepare,
+  resume,
+  onClose,
+  onPaid,
+}: PointChargeDialogProps) {
+  const open = Boolean(current || currentPrepare);
+  const order = useLastValue(current, () => open);
+  const prepare = useLastValue(currentPrepare ?? null, () => open);
   const resumed = useLastValue(resume ?? null);
+  // From the POS ticket: the order the dialog created (for the title).
+  const [created, setCreated] = useState<ChargeOrder | null>(null);
+  const titled = order ?? created;
   return (
     <ResponsiveModal
-      open={Boolean(current)}
-      onOpenChange={(open) => !open && onClose()}
-      title={order ? `Cobrar pedido #${order.number}` : "Cobrar na maquininha"}
+      open={open}
+      onOpenChange={(next) => !next && onClose()}
+      onOpenChangeComplete={(next) => !next && setCreated(null)}
+      title={titled ? `Cobrar pedido #${titled.number}` : "Cobrar na maquininha"}
       description="Envie o valor para a maquininha do Mercado Pago."
+      // A stray tap outside must not lose the charge: only its buttons close it.
+      dismissible={false}
       className="sm:max-w-md"
     >
-      {order && (
+      {(order || prepare) && (
         <ChargeFlow
-          key={order.id}
+          key={order?.id ?? "new"}
           storeId={storeId}
-          order={order}
-          resume={resumed?.order.id === order.id ? resumed : null}
+          given={order ?? null}
+          prepare={order ? null : prepare}
+          resume={order && resumed?.order.id === order.id ? resumed : null}
+          onCreated={setCreated}
           onClose={onClose}
           onPaid={onPaid}
         />
@@ -100,18 +124,27 @@ export function PointChargeDialog({ storeId, order: current, resume, onClose, on
 
 function ChargeFlow({
   storeId,
-  order,
+  given,
+  prepare,
   resume,
+  onCreated,
   onClose,
   onPaid,
 }: {
   storeId: string;
-  order: { id: string; number: number; total: number };
+  onCreated: (order: ChargeOrder) => void;
+  given: ChargeOrder | null;
+  prepare: Prepare | null;
   resume: PointCharge | null;
   onClose: () => void;
   onPaid?: () => void;
 }) {
   const dispatch = useAppDispatch();
+  // From the POS ticket, the order exists once "Enviar para a maquininha" created it.
+  const [created, setCreated] = useState<ChargeOrder | null>(null);
+  const order = given ?? created;
+  const total = order?.total ?? prepare?.total ?? 0;
+  const [creating, setCreating] = useState(false);
   const { data: config } = useGetPointConfigQuery(storeId);
   const [send, { isLoading: sending }] = useChargeOnPointMutation();
   const [follow] = useLazyGetPointChargeQuery();
@@ -135,18 +168,19 @@ function ChargeFlow({
 
   // Opened on an order whose charge is already on the machine: follow that one.
   const { data: waiting } = useGetPendingPointChargesQuery({ storeId });
-  const waitingHere = waiting?.find((candidate) => candidate.order.id === order.id) ?? null;
+  const waitingHere = (order && waiting?.find((candidate) => candidate.order.id === order.id)) ?? null;
   const charge = own ?? waitingHere;
 
   // Follow the charge while it waits on the machine.
   const polls = useRef(0);
   useEffect(() => {
     if (charge?.status !== "pending") return;
+    const orderId = charge.order.id;
     const timer = setInterval(async () => {
       polls.current += 1;
       const result = await follow({
         storeId,
-        orderId: order.id,
+        orderId,
         paymentId: charge.id,
         check: polls.current % CHECK_EVERY === 0,
       });
@@ -156,35 +190,51 @@ function ChargeFlow({
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [charge?.id, charge?.status, dispatch, follow, order.id, storeId]);
+  }, [charge?.id, charge?.order.id, charge?.status, dispatch, follow, storeId]);
 
   // Paid: the board and the order show it at once.
   const settled = charge?.status;
+  const settledOrder = charge?.order.id;
   useEffect(() => {
-    if (settled !== "approved") return;
+    if (settled !== "approved" || !settledOrder) return;
     dispatch(
       baseApi.util.invalidateTags([
         { type: "Order", id: `store-${storeId}` },
-        { type: "Order", id: order.id },
+        { type: "Order", id: settledOrder },
       ])
     );
     onPaid?.();
-  }, [dispatch, onPaid, order.id, settled, storeId]);
+  }, [dispatch, onPaid, settled, settledOrder, storeId]);
 
   const start = async () => {
     setError(null);
     setBusy(null);
+    let target = order;
+    if (!target) {
+      // The ticket becomes an order now (it goes to the kitchen, as "Enviar" does).
+      setCreating(true);
+      try {
+        target = await prepare!.create();
+        setCreated(target);
+        onCreated(target);
+      } catch (err) {
+        setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível criar o pedido."));
+        return;
+      } finally {
+        setCreating(false);
+      }
+    }
     const input = {
       terminalId: terminal ?? undefined,
       paymentType: picked === "any" ? null : picked,
       installments: picked === "credit_card" ? installments : undefined,
     };
     // A dropped connection resent with the same key never charges twice.
-    const scope = `point:${order.id}`;
+    const scope = `point:${target.id}`;
     try {
       const sent = await send({
         storeId,
-        orderId: order.id,
+        orderId: target.id,
         input,
         idempotencyKey: stableIdempotencyKey(scope, input),
       }).unwrap();
@@ -214,7 +264,7 @@ function ChargeFlow({
     if (!charge) return;
     setError(null);
     try {
-      setCharge(await cancel({ storeId, orderId: order.id, paymentId: charge.id }).unwrap());
+      setCharge(await cancel({ storeId, orderId: charge.order.id, paymentId: charge.id }).unwrap());
     } catch (err) {
       setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível cancelar a cobrança."));
     }
@@ -222,7 +272,7 @@ function ChargeFlow({
 
   const answer = async (approve: boolean) => {
     if (!charge) return;
-    setCharge(await simulate({ storeId, orderId: order.id, paymentId: charge.id, approve }).unwrap());
+    setCharge(await simulate({ storeId, orderId: charge.order.id, paymentId: charge.id, approve }).unwrap());
   };
 
   const step = !charge ? "choose" : charge.status;
@@ -230,8 +280,10 @@ function ChargeFlow({
   return (
     <div className="flex flex-col gap-5 p-4">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-sm text-muted-foreground">Total do pedido #{order.number}</span>
-        <span className="text-2xl font-bold tabular-nums">{formatCurrencyBRL(order.total)}</span>
+        <span className="text-sm text-muted-foreground">
+          {order ? `Total do pedido #${order.number}` : "Total do ticket"}
+        </span>
+        <span className="text-2xl font-bold tabular-nums">{formatCurrencyBRL(total)}</span>
       </div>
 
       <AnimatePresence mode="wait" initial={false}>
@@ -318,8 +370,16 @@ function ChargeFlow({
                   Cancelar a cobrança do pedido #{busy.orderNumber}
                 </Button>
               )}
-              <Button size="lg" className="h-12 rounded-xl text-base" loading={sending} onClick={() => void start()}>
+              <Button
+                size="lg"
+                className="h-12 rounded-xl text-base"
+                loading={sending || creating}
+                onClick={() => void start()}
+              >
                 <CreditCard /> Enviar para a maquininha{terminalName ? ` (${terminalName})` : ""}
+              </Button>
+              <Button variant="ghost" disabled={sending || creating} onClick={onClose}>
+                {order ? "Cobrar depois" : "Voltar ao ticket"}
               </Button>
             </>
           )}
@@ -347,9 +407,15 @@ function ChargeFlow({
                 </div>
               )}
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-              <Button variant="outline" loading={cancelling} onClick={() => void stop()}>
-                Cancelar cobrança
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" loading={cancelling} onClick={() => void stop()}>
+                  Cancelar cobrança
+                </Button>
+                {/* The charge goes on: it stays in the "Na maquininha" bar. */}
+                <Button variant="ghost" className="flex-1" onClick={onClose}>
+                  Continuar depois
+                </Button>
+              </div>
             </>
           )}
 
@@ -358,7 +424,7 @@ function ChargeFlow({
               <div role="status" className="flex flex-col items-center gap-2 py-4 text-center">
                 <CircleCheck className="size-12 text-success" aria-hidden />
                 <p className="text-lg font-semibold">Pagamento aprovado</p>
-                <p className="text-sm text-muted-foreground">O pedido #{order.number} está pago.</p>
+                <p className="text-sm text-muted-foreground">O pedido #{charge?.order.number} está pago.</p>
               </div>
               <Button size="lg" className="h-12 rounded-xl" onClick={onClose}>
                 Concluir

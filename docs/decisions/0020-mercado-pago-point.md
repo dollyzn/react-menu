@@ -34,7 +34,10 @@ so no second application is needed.
   `point_max_installments` and `point_print_ticket`.
 - **The charge is an action on an order**, not a payment method chosen when
   it is created. A POS order goes to the kitchen at once, as before. "Enviar
-  e cobrar na maquininha" sends it and then the charge, and the orders board
+  e cobrar na maquininha" opens the charge dialog on the ticket. The order is
+  created only when the charge is sent, so closing the dialog before that
+  leaves the ticket as it was. The dialog doesn't close on a tap outside,
+  only by its own buttons, and the orders board
   can charge any unpaid order later ("Cobrar na maquininha"). A refused or
   cancelled charge leaves the order to be paid, so the staff can try again
   or take cash. An approved one marks the order paid with
@@ -73,5 +76,12 @@ so no second application is needed.
 - Printing custom receipts (Terminals API) only exists on Point Smart and is
   not used. The machine prints its own receipt when `point_print_ticket` is
   on.
+- **Paid twice**: an approved attempt on an order that was already paid by
+  something else (cash, another charge, a late Pix) is refunded by the
+  `RefundDuplicatePayment` job. The order's `mercado_pago_payment_id` says
+  which attempt paid it, so the same approval notified twice is kept.
+- The `orders.payment_method` check constraint lists `point` (migration
+  1792531273411). The first version built it from the enum when it ran, so
+  older databases refused `point`.
 - Production needs the "Order (Mercado Pago)" webhook event, which the online
   checkout already requires.

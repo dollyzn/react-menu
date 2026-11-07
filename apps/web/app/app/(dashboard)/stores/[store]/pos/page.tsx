@@ -150,7 +150,11 @@ export default function PosPage() {
     setQuery("");
   };
 
-  const send = async ({ charge = false }: { charge?: boolean } = {}) => {
+  /**
+   * The ticket becomes an order (it goes to the kitchen) and the ticket
+   * empties. Re-sending after a dropped connection never creates a second.
+   */
+  const createFromTicket = async () => {
     const input = {
       customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       lines: lines.map((line) => ({
@@ -160,22 +164,24 @@ export default function PosPage() {
         notes: line.notes || undefined,
       })),
     };
-    // Re-sending the same ticket after a dropped connection never creates a second order.
     const keyScope = `pos:${storeId}`;
+    const order = await createOrder({
+      storeId,
+      input,
+      idempotencyKey: stableIdempotencyKey(keyScope, input),
+    }).unwrap();
+    releaseIdempotencyKey(keyScope);
+    setLines([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setTicketOpen(false);
+    return order;
+  };
+
+  const send = async () => {
     try {
-      const order = await createOrder({
-        storeId,
-        input,
-        idempotencyKey: stableIdempotencyKey(keyScope, input),
-      }).unwrap();
-      releaseIdempotencyKey(keyScope);
+      const order = await createFromTicket();
       toast.success(`Pedido #${order.number} enviado para a cozinha`, POS_TOAST);
-      // The order is in the kitchen; the machine takes the payment now.
-      if (charge) setCharging({ id: order.id, number: order.number, total: order.total });
-      setLines([]);
-      setCustomerName("");
-      setCustomerPhone("");
-      setTicketOpen(false);
     } catch (error) {
       toast.error(
         isConnectionError(error)
@@ -185,6 +191,24 @@ export default function PosPage() {
       );
     }
   };
+
+  /**
+   * "Enviar e cobrar na maquininha": the dialog opens on the ticket as it
+   * is; the order is created only when the charge is sent, so closing the
+   * dialog before that leaves the ticket untouched.
+   */
+  const [chargingTicket, setChargingTicket] = useState<{
+    total: number;
+    create: () => Promise<{ id: string; number: number; total: number }>;
+  } | null>(null);
+  const sendAndCharge = () =>
+    setChargingTicket({
+      total,
+      create: async () => {
+        const order = await createFromTicket();
+        return { id: order.id, number: order.number, total: order.total };
+      },
+    });
 
   // The drawer keeps showing the ticket while it slides down after "Limpar"
   // or "Enviar" (both empty it at once).
@@ -205,7 +229,7 @@ export default function PosPage() {
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
     onSend: () => void send(),
-    onSendAndCharge: canCharge ? () => void send({ charge: true }) : undefined,
+    onSendAndCharge: canCharge ? sendAndCharge : undefined,
     sending,
   };
 
@@ -379,9 +403,11 @@ export default function PosPage() {
       <PointChargeDialog
         storeId={storeId}
         order={charging}
+        prepare={charging ? null : chargingTicket}
         resume={resuming}
         onClose={() => {
           setCharging(null);
+          setChargingTicket(null);
           setResuming(null);
         }}
       />

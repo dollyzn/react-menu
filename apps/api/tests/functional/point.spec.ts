@@ -13,6 +13,7 @@ import type { MercadoPagoTerminal, PointOrderInput } from '#payments/point'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import RefundOrder from '#jobs/refund_order'
+import RefundDuplicatePayment from '#jobs/refund_duplicate_payment'
 
 const TOKEN = 'TEST-1234567890-abcdef' // gitleaks:allow (fake test credential)
 const SECRET = 'webhook-secret-123'
@@ -342,6 +343,37 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     freed.assertStatus(200)
     const paidFirst = await Order.findOrFail(first.id)
     assert.equal(paidFirst.paymentStatus, 'paid')
+  })
+
+  test('a charge approved after the order was paid another way is refunded', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const order = await posOrder(client, store, carne.id, attendant)
+    const charge = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    // Paid in cash meanwhile, then the customer also pays on the machine.
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`).loginAs(attendant)
+    fake.set('ORD2001', 'processed', 'accredited')
+    for (const requestId of ['req-1', 'req-2']) {
+      await client
+        .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+        .header('x-signature', signature('ORD2001', requestId))
+        .header('x-request-id', requestId)
+        .json({ type: 'order', action: 'order.processed', data: { id: 'ORD2001' } })
+    }
+    await runJob(RefundDuplicatePayment, { paymentId: charge.body().data.id })
+
+    assert.deepEqual(fake.refunds, ['ORD2001'])
+    const payment = await Payment.findOrFail(charge.body().data.id)
+    assert.equal(payment.status, 'refunded')
+    const paid = await Order.findOrFail(order.id)
+    assert.equal(paid.paymentStatus, 'paid')
+    assert.equal(paid.paymentMethod, 'counter')
   })
 
   test('the store settings bound what the POS may send', async ({ client }) => {
