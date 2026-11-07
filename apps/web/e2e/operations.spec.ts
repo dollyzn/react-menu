@@ -262,3 +262,23 @@ test("POS on a phone: clearing the ticket closes its drawer", async ({ page }) =
   await page.getByRole("button", { name: "Desfazer" }).click();
   await expect(page.getByRole("button", { name: /Comanda \(1\)/ })).toBeVisible();
 });
+
+test("orders board: the order's menu fits its items on one line", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const item = menu.categories[0].items[0];
+  const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: { lines: [{ itemId: item.id, quantity: 1 }], customer: { name: "Menu largo", phone: "11955553333" }, paymentMethod: "counter" },
+  });
+  const number = (await placed.json()).data.number as number;
+  await api.dispose();
+
+  await login(page);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  await page.getByRole("button", { name: `Mais ações do pedido ${number}` }).click();
+  for (const name of ["Marcar como pago", "Cancelar pedido"]) {
+    const box = await page.getByRole("menuitem", { name }).boundingBox();
+    // One line of text (a wrapped label doubles the height).
+    expect(box!.height).toBeLessThan(40);
+  }
+});
