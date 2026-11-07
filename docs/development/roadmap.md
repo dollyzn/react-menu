@@ -5,23 +5,25 @@ they are picked up; done items leave this file (see the git history).
 
 ## Next up (in order)
 
-Manual testing of the current build comes first; then the next item is
-picked from Product below, one PR at a time.
+1. **Notification preferences** (in progress): per notification type, push
+   and e-mail on/off for the whole account, and each store can be muted;
+   a daily summary e-mail for managers (opt-in, per store: yesterday's
+   sales and orders, best sellers, low stock); the notifications popover
+   redesigned.
 
 ## Standby (decided not to do for now)
 
 - **A second payment gateway** (Asaas, Pagar.me, Stripe…): we stay with
   Mercado Pago. `PaymentGateway` keeps the door open.
+- **Customer verification**: customers identify with name + phone only;
+  consider WhatsApp/SMS OTP if fake orders become a problem.
+- **Delivery and table service**: only pickup at the counter, by design;
+  not planned for this project.
 
 ## Product
 
-- **Customer verification**: customers identify with name + phone only;
-  consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an
   intentional placeholder for a future review system (not backed by data).
-- **Notification preferences** (per category, email digest).
-- **Delivery and table service**: only pickup at the counter is supported
-  by design for now.
 
 ## Technical
 

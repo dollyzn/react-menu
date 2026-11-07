@@ -666,7 +666,7 @@ export const JJ_PASTEIS: Catalog = { ingredients, addons, groups, categories }
 export const JJ_PASTEIS_PROFILE: CatalogStoreProfile = {
   description: 'Pastéis feitos na hora, crocantes e bem recheados desde 2021.',
   address: 'Praia do Boqueirão - Santos / SP',
-  instagramUrl: 'https://www.instagram.com/jjpasteis',
+  instagramUrl: 'https://www.instagram.com/pasteisjjofc/',
   banner: 'jj-banner.jpg',
   logo: 'jj-logo.png',
 }
