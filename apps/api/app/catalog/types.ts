@@ -52,6 +52,8 @@ export type Catalog = {
     optionPrice?: number
     /** Price by pick order (see OptionGroup.pickPrices). */
     pickPrices?: number[]
+    /** The same option may be picked more than once. */
+    allowRepeat?: boolean
     options: string[]
   }[]
   categories: {

@@ -457,9 +457,15 @@ export default class OrderService {
 
       // Each pick knows its group: the group sets the price and the label
       // ("Recheio extra: Carne"), and the same add-on may sit in two groups.
+      // A group that allows repeats keeps each pick ("Queijo" twice).
       const picks = new Map<string, { addon: Addon; group: OptionGroup | null }>()
-      const pick = (addon: Addon, group: OptionGroup | null) =>
-        picks.set(`${group?.id ?? ''}:${addon.id}`, { addon, group })
+      const pick = (addon: Addon, group: OptionGroup | null) => {
+        const key = `${group?.id ?? ''}:${addon.id}`
+        if (!group?.allowRepeat) return picks.set(key, { addon, group })
+        let n = 0
+        while (picks.has(`${key}#${n}`)) n++
+        return picks.set(`${key}#${n}`, { addon, group })
+      }
       for (const choice of line.choices ?? []) {
         const group = item.optionGroups.find((candidate) => candidate.id === choice.groupId)
         const addon = group?.options.find((option) => option.id === choice.addonId)

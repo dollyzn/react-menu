@@ -39,6 +39,8 @@ const Schema = z
     name: z.string().trim().min(1, "Dê um nome ao grupo, ex.: Escolha o queijo.").max(120),
     minChoices: z.number({ message: "Informe um número." }).int().min(0, "No mínimo 0.").max(20),
     maxChoices: z.number({ message: "Informe um número." }).int().min(1, "Pelo menos 1.").max(20),
+    /** The same option may be picked more than once. */
+    allowRepeat: z.boolean(),
     /** Price by pick order (one per pick up to the maximum); null = each option's price. */
     pickPrices: z.array(z.number().min(0)).nullable(),
     /** In display order; price null = the add-on's own price. */
@@ -51,7 +53,7 @@ const Schema = z
       ctx.addIssue({ code: "custom", path: ["minChoices"], message: "O mínimo não pode passar do máximo." });
     }
     const count = values.options.length;
-    if (count > 0 && values.maxChoices > count) {
+    if (count > 0 && !values.allowRepeat && values.maxChoices > count) {
       ctx.addIssue({
         code: "custom",
         path: ["maxChoices"],
@@ -63,10 +65,11 @@ const Schema = z
 type Values = z.infer<typeof Schema>;
 
 /** Rule of a group in words: "Obrigatório · escolha 1", "Opcional · até 2". */
-export function groupRule(group: Pick<OptionGroup, "minChoices" | "maxChoices">) {
-  if (group.minChoices === 0) return `Opcional · até ${group.maxChoices}`;
-  if (group.minChoices === group.maxChoices) return `Obrigatório · escolha ${group.minChoices}`;
-  return `Obrigatório · de ${group.minChoices} a ${group.maxChoices}`;
+export function groupRule(group: Pick<OptionGroup, "minChoices" | "maxChoices"> & { allowRepeat?: boolean }) {
+  const repeat = group.allowRepeat ? " · pode repetir" : "";
+  if (group.minChoices === 0) return `Opcional · até ${group.maxChoices}${repeat}`;
+  if (group.minChoices === group.maxChoices) return `Obrigatório · escolha ${group.minChoices}${repeat}`;
+  return `Obrigatório · de ${group.minChoices} a ${group.maxChoices}${repeat}`;
 }
 
 /** One price per pick up to `max`: missing ones repeat the last (or 0). */
@@ -100,6 +103,7 @@ export function OptionGroupDialog({
       name: group?.name ?? "",
       minChoices: group?.minChoices ?? 1,
       maxChoices: group?.maxChoices ?? 1,
+      allowRepeat: group?.allowRepeat ?? false,
       pickPrices: group?.pickPrices ?? null,
       options: group?.options?.map((option) => ({ addonId: option.id, price: option.groupPrice })) ?? [],
     },
@@ -321,6 +325,28 @@ export function OptionGroupDialog({
                   )}
                 />
               </div>
+              {values.maxChoices > 1 && (
+                <Controller
+                  name="allowRepeat"
+                  control={form.control}
+                  render={({ field }) => (
+                    <Field orientation="horizontal" className="rounded-lg border p-3">
+                      <Switch
+                        id="group-allow-repeat"
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                        disabled={busy}
+                      />
+                      <FieldContent>
+                        <FieldLabel htmlFor="group-allow-repeat">Pode escolher a mesma opção mais de uma vez</FieldLabel>
+                        <FieldDescription>
+                          Ex.: em &quot;Escolha 2 sabores&quot;, queijo duas vezes. O cliente usa − e + em cada opção.
+                        </FieldDescription>
+                      </FieldContent>
+                    </Field>
+                  )}
+                />
+              )}
               {values.maxChoices >= 1 && (
                 <Controller
                   name="pickPrices"

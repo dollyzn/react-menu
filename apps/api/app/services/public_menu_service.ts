@@ -106,6 +106,7 @@ export default class PublicMenuService {
               name: group.name,
               minChoices: group.minChoices,
               maxChoices: group.maxChoices,
+              allowRepeat: group.allowRepeat,
               pickPrices: group.pickPrices?.length ? group.pickPrices.map(Number) : null,
               // The group's price for each option (null there = the add-on's own).
               options: group.options.map((option) => ({

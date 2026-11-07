@@ -12,15 +12,15 @@ picked from Product below, one PR at a time.
 
 - **A second payment gateway** (Asaas, Pagar.me, Stripe…): we stay with
   Mercado Pago. `PaymentGateway` keeps the door open.
+- **Customer verification**: customers identify with name + phone only;
+  consider WhatsApp/SMS OTP if fake orders become a problem.
+- **Delivery and table service**: only pickup at the counter, by design;
+  not planned for this project.
 
 ## Product
 
-- **Customer verification**: customers identify with name + phone only;
-  consider WhatsApp/SMS OTP if fake orders become a problem.
 - **Reviews**: the 5-star rating on the menu and store page is an
   intentional placeholder for a future review system (not backed by data).
-- **Delivery and table service**: only pickup at the counter is supported
-  by design for now.
 
 ## Technical
 

@@ -252,6 +252,8 @@ const groups: Catalog['groups'] = [
     name: `Escolha ${flavors} sabores`,
     minChoices: flavors,
     maxChoices: flavors,
+    // Queijo twice = 8 minis of cheese.
+    allowRepeat: true,
     options: MINI_FLAVORS.map(([key]) => key),
   })),
 ]
@@ -666,7 +668,7 @@ export const JJ_PASTEIS: Catalog = { ingredients, addons, groups, categories }
 export const JJ_PASTEIS_PROFILE: CatalogStoreProfile = {
   description: 'Pastéis feitos na hora, crocantes e bem recheados desde 2021.',
   address: 'Praia do Boqueirão - Santos / SP',
-  instagramUrl: 'https://www.instagram.com/jjpasteis',
+  instagramUrl: 'https://www.instagram.com/pasteisjjofc/',
   banner: 'jj-banner.jpg',
   logo: 'jj-logo.png',
 }

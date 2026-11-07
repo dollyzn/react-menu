@@ -401,6 +401,95 @@ test.group('Choice groups', (group) => {
     perOption.assertBodyContains({ data: { pickPrices: null } })
   })
 
+  test('a group that allows repeats takes the same option twice', async ({ client, assert }) => {
+    const { store, manager, carne, mussarela, cheddar } = await storeWithCheeseChoice()
+    const groups = `/api/v1/stores/${store.id}/option-groups`
+    // Two options, up to 3 picks: only possible with repeats.
+    const repeatable = await client
+      .post(groups)
+      .json({
+        name: 'Escolha 3 sabores',
+        minChoices: 3,
+        maxChoices: 3,
+        allowRepeat: true,
+        options: options([mussarela, cheddar]),
+      })
+      .loginAs(manager)
+    const withoutRepeat = await client
+      .post(groups)
+      .json({
+        name: 'Sem repetir',
+        minChoices: 0,
+        maxChoices: 3,
+        options: options([mussarela, cheddar]),
+      })
+      .loginAs(manager)
+    repeatable.assertStatus(200)
+    repeatable.assertBodyContains({ data: { allowRepeat: true } })
+    withoutRepeat.assertStatus(422)
+    const groupId = repeatable.body().data.id
+    await client
+      .put(`/api/v1/stores/${store.id}/items/${carne.id}`)
+      .json({ optionGroupIds: [groupId] })
+      .loginAs(manager)
+
+    const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [
+        {
+          itemId: carne.id,
+          quantity: 1,
+          choices: [
+            { groupId, addonId: mussarela.id },
+            { groupId, addonId: mussarela.id },
+            { groupId, addonId: cheddar.id },
+          ],
+        },
+      ],
+    })
+    placed.assertStatus(200)
+    const order = await Order.query()
+      .where('publicToken', placed.body().data.publicToken)
+      .preload('items', (items) => items.preload('addons'))
+      .firstOrFail()
+    assert.equal(order.total, carne.price + 0 + 0 + 2)
+    assert.equal(order.items[0].addons.filter((addon) => addon.name === 'Mussarela').length, 2)
+    const kitchen = await client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(manager)
+    assert.sameMembers(kitchen.body().data[0].addons, [
+      'Escolha 3 sabores: 2× Mussarela',
+      'Escolha 3 sabores: Cheddar',
+    ])
+
+    // Without repeats a twice-sent option counts once (and misses the minimum).
+    await client
+      .put(`${groups}/${groupId}`)
+      .json({
+        name: 'Escolha 2 sabores',
+        minChoices: 2,
+        maxChoices: 2,
+        allowRepeat: false,
+        options: options([mussarela, cheddar]),
+      })
+      .loginAs(manager)
+    const twice = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [
+        {
+          itemId: carne.id,
+          quantity: 1,
+          choices: [
+            { groupId, addonId: mussarela.id },
+            { groupId, addonId: mussarela.id },
+          ],
+        },
+      ],
+    })
+    twice.assertStatus(422)
+    twice.assertBodyContains({ code: 'E_CHOICE_REQUIRED' })
+  })
+
   test('older bags (ids only): a group option counts for its group, in the item order', async ({
     client,
     assert,

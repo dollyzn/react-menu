@@ -9,6 +9,8 @@ export const optionGroupValidator = vine.create(
     name: vine.string().trim().minLength(1).maxLength(120),
     minChoices: vine.number().withoutDecimals().min(0).max(20),
     maxChoices: vine.number().withoutDecimals().min(1).max(20),
+    /** The same option may be picked more than once. */
+    allowRepeat: vine.boolean().optional(),
     /** Price by pick order (the last value repeats); null = each option's price. */
     pickPrices: vine
       .array(vine.number().min(0).max(99999.99).decimal([0, 2]))
