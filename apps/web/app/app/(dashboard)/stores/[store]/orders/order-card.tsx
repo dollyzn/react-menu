@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, CircleCheck, Clock, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
@@ -17,12 +17,12 @@ import {
 import { Progress } from "@/components/ui/progress";
 import {
   useCancelOrderMutation,
-  useCompleteOrderMutation,
   useMarkOrderPaidMutation,
 } from "@/redux/features/order/orderApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { addonLabels } from "@/lib/addon-label";
+import { DeliverOrderButton } from "./deliver-order-button";
 
 interface OrderCardProps {
   order: Order;
@@ -36,7 +36,6 @@ interface OrderCardProps {
 }
 
 export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen }: OrderCardProps) {
-  const [complete, { isLoading: completing }] = useCompleteOrderMutation();
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
   const [markPaid] = useMarkOrderPaidMutation();
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -47,11 +46,6 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const totalUnits = prepLines.reduce((sum, line) => sum + line.quantity, 0);
   const doneUnits = prepLines.reduce((sum, line) => sum + line.preparedQuantity, 0);
   const paid = order.paymentStatus === "paid";
-
-  const handleComplete = async () => {
-    await complete({ storeId, orderId: order.id }).unwrap();
-    toast.success(`Pedido #${order.number} entregue`);
-  };
 
   return (
     <motion.article
@@ -123,9 +117,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         {canOperate && order.status !== "completed" && order.status !== "cancelled" && (
           <div className="flex items-center gap-1">
             {order.status === "ready" && (
-              <Button onClick={handleComplete} loading={completing}>
-                <CircleCheck /> Entregar
-              </Button>
+              <DeliverOrderButton order={order} storeId={storeId} />
             )}
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Mais ações do pedido ${order.number}`} />}>

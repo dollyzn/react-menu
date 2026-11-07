@@ -325,3 +325,37 @@ test("kitchen: after \"Fiz 1\" the card comes back without flashing the other si
   await page.waitForTimeout(800);
   expect(await page.evaluate(() => (window as unknown as { maxGreen: number }).maxGreen)).toBeLessThan(0.05);
 });
+
+test("orders board: \"Entregar\" reminds of the items that skip the kitchen", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+  const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [
+        { itemId: menu.categories[0].items[2].id, quantity: 1 },
+        { itemId: drink.id, quantity: 2 },
+      ],
+      customer: { name: "Com bebida", phone: "11900000003" },
+      paymentMethod: "counter",
+    },
+  });
+  const number = (await placed.json()).data.number as number;
+  await api.dispose();
+  // The kitchen finishes the pastry: the order is ready.
+  await clearKitchen();
+
+  await login(page, DEMO_STAFF.attendant);
+  const card = page.getByRole("article", { name: new RegExp(`Pedido ${number} de`) });
+  await card.getByRole("button", { name: "Entregar" }).click();
+  const reminder = page.getByRole("alertdialog");
+  await expect(reminder).toContainText(`Separou tudo do pedido #${number}?`);
+  await expect(reminder.getByRole("list", { name: "Itens sem preparo" })).toContainText(`2×${drink.name}`);
+  await reminder.getByRole("button", { name: "Voltar" }).click();
+  await expect(card).toBeVisible();
+
+  await card.getByRole("button", { name: "Entregar" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Sim, entregar" }).click();
+  await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
+});
