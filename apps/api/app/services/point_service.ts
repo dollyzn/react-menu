@@ -13,6 +13,7 @@ import PointTerminal from '#models/point_terminal'
 import type Store from '#models/store'
 import MercadoPagoClient, { type MercadoPagoOrder } from '#payments/mercado_pago_client'
 import {
+  SANDBOX_TERMINAL,
   describeTerminal,
   pointReference,
   type MercadoPagoTerminal,
@@ -27,6 +28,9 @@ const CHARGE_TTL_MINUTES = 10
 const FAKE_TERMINAL_ID = 'FAKE_POINT__TESTE'
 const fakeEnabled = () =>
   env.get('NODE_ENV') !== 'production' && env.get('PAYMENTS_FAKE_GATEWAY') === true
+/** Mercado Pago test credentials: the virtual machine (never in production). */
+const sandboxEnabled = () =>
+  env.get('NODE_ENV') !== 'production' && env.get('MERCADO_PAGO_POINT_SANDBOX') === true
 
 export type PointChargeInput = {
   terminalId?: string
@@ -62,6 +66,13 @@ export default class PointService {
       : fakeEnabled()
         ? [{ id: FAKE_TERMINAL_ID, operating_mode: 'PDV' }]
         : []
+    if (
+      store.mercadoPagoAccessToken &&
+      sandboxEnabled() &&
+      !listed.some((terminal) => terminal.id === SANDBOX_TERMINAL)
+    ) {
+      listed.push({ id: SANDBOX_TERMINAL, operating_mode: 'PDV' })
+    }
     const byId = new Map(enabled.map((terminal) => [terminal.terminalId, terminal]))
     return listed.map((terminal) => {
       const mine = byId.get(terminal.id)
@@ -90,7 +101,8 @@ export default class PointService {
     if (!listed.some((terminal) => terminal.id === terminalId)) {
       throw new AppException('Maquininha não encontrada nesta conta do Mercado Pago.', 404)
     }
-    if (store.mercadoPagoAccessToken) {
+    // The virtual machine has no mode to set.
+    if (store.mercadoPagoAccessToken && terminalId !== SANDBOX_TERMINAL) {
       await this.client.setTerminalMode(store.mercadoPagoAccessToken, terminalId, 'PDV')
     }
     const terminal = await PointTerminal.updateOrCreate(
@@ -105,7 +117,7 @@ export default class PointService {
     const terminal = await PointTerminal.query()
       .where({ storeId: store.id, terminalId })
       .firstOrFail()
-    if (store.mercadoPagoAccessToken) {
+    if (store.mercadoPagoAccessToken && terminalId !== SANDBOX_TERMINAL) {
       await this.client.setTerminalMode(store.mercadoPagoAccessToken, terminalId, 'STANDALONE')
     }
     await terminal.delete()
@@ -251,10 +263,39 @@ export default class PointService {
     return payment
   }
 
-  /** Development: the pretend machine approves (or refuses) the charge. */
-  async simulate(order: Order, payment: Payment, approve: boolean) {
-    if (!fakeEnabled() || payment.gateway !== 'fake') {
+  /** The POS may offer "Simular": the dev fake, or the virtual machine on test credentials. */
+  simulatable(payment: Payment) {
+    return (
+      (payment.gateway === 'fake' && fakeEnabled()) ||
+      (payment.pointTerminalId === SANDBOX_TERMINAL && sandboxEnabled())
+    )
+  }
+
+  /**
+   * Development: the machine approves (or refuses) the charge. The dev fake
+   * settles it here; the virtual machine asks Mercado Pago to report the
+   * result, which arrives like a real one (webhook, or the POS's check).
+   */
+  async simulate(order: Order, store: Store, payment: Payment, approve: boolean) {
+    if (!this.simulatable(payment)) {
       throw new AppException('Simulação disponível só no modo de teste.', 404)
+    }
+    if (payment.gateway === 'mercado_pago') {
+      if (payment.status !== PaymentAttemptStatus.PENDING) return payment
+      await this.client.simulatePointEvent(
+        store.mercadoPagoAccessToken!,
+        payment.gatewayPaymentId!,
+        approve
+          ? {
+              status: 'processed',
+              payment_method_type: 'credit_card',
+              payment_method_id: 'master',
+              installments: 1,
+              status_detail: 'accredited',
+            }
+          : { status: 'failed', status_detail: 'insufficient_amount' }
+      )
+      return payment
     }
     if (payment.status !== PaymentAttemptStatus.PENDING) return payment
     payment.status = approve ? PaymentAttemptStatus.APPROVED : PaymentAttemptStatus.REJECTED

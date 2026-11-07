@@ -51,8 +51,11 @@ so no second application is needed.
   machines, and the POS says to cancel on the machine (hold the red button).
 - **Development**: with `PAYMENTS_FAKE_GATEWAY` and no credentials there is
   one pretend machine, and the POS offers "Simular aprovação/recusa".
-  Mercado Pago's own test path (test credentials, a virtual machine and
-  `POST /v1/orders/{id}/events`) is documented for manual checks.
+  With Mercado Pago test credentials, `MERCADO_PAGO_POINT_SANDBOX=true`
+  (ignored in production) adds Mercado Pago's virtual machine
+  (`NEWLAND_N950__SBX0000001`) to the store page. On it the POS's "Simular"
+  posts `POST /v1/orders/{id}/events`, and the result comes back like a real
+  one (the POS's check, or the webhook).
 
 ## Consequences
 

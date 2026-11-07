@@ -1,3 +1,9 @@
+/**
+ * Mercado Pago's virtual machine for test credentials: serial SBX0000001 on
+ * a model's id. Its results are simulated with POST /v1/orders/{id}/events.
+ */
+export const SANDBOX_TERMINAL = 'NEWLAND_N950__SBX0000001'
+
 /** How the card machine charges (Mercado Pago's `default_type`). */
 export const POINT_PAYMENT_TYPES = ['credit_card', 'debit_card', 'qr'] as const
 export type PointPaymentType = (typeof POINT_PAYMENT_TYPES)[number]

@@ -18,7 +18,7 @@ import {
 const terminalParam = vine.create(terminalIdRule)
 
 /** What the POS shows while a charge waits on the machine. */
-function charge(payment: Payment) {
+function charge(payment: Payment, simulated: boolean) {
   return {
     id: payment.id,
     status: payment.status,
@@ -27,7 +27,8 @@ function charge(payment: Payment) {
     amount: payment.amount,
     expiresAt: payment.expiresAt?.toISO() ?? null,
     createdAt: payment.createdAt.toISO(),
-    simulated: payment.gateway === 'fake',
+    /** "Simular" in the POS: the dev fake or the virtual machine (test credentials). */
+    simulated,
   }
 }
 
@@ -89,7 +90,10 @@ export default class PointController {
       ...input,
       idempotencyKey: request.header('idempotency-key'),
     })
-    return created(charge(payment), 'Cobrança enviada para a maquininha')
+    return created(
+      charge(payment, this.point.simulatable(payment)),
+      'Cobrança enviada para a maquininha'
+    )
   }
 
   /** The POS follows the charge; `?check=1` also asks Mercado Pago. */
@@ -98,28 +102,29 @@ export default class PointController {
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.find(order, paymentId)
     if (request.qs().check) await this.point.check(order, store, payment)
-    return ok(charge(payment))
+    return ok(charge(payment, this.point.simulatable(payment)))
   }
 
   async cancelCharge({ params }: HttpContext) {
     const { store, order } = await this.order(params)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.cancel(store, await this.point.find(order, paymentId))
-    return updated(charge(payment), 'Cobrança cancelada')
+    return updated(charge(payment, this.point.simulatable(payment)), 'Cobrança cancelada')
   }
 
-  /** Development only: the pretend machine answers. */
+  /** Development only: the pretend or virtual machine answers. */
   async simulate({ params, request }: HttpContext) {
-    const { order } = await this.order(params)
+    const { store, order } = await this.order(params)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const { approve } = await request.validateUsing(pointSimulateValidator)
     const payment = await this.point.simulate(
       order,
+      store,
       await this.point.find(order, paymentId),
       approve
     )
     return updated(
-      charge(payment),
+      charge(payment, this.point.simulatable(payment)),
       approve ? 'Pagamento aprovado (simulado)' : 'Pagamento recusado (simulado)'
     )
   }

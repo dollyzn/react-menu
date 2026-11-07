@@ -170,6 +170,19 @@ export default class MercadoPagoClient {
     )
   }
 
+  /**
+   * Test credentials only: makes the virtual machine report a result
+   * (processed, failed…), as if the customer had paid or been refused.
+   */
+  async simulatePointEvent(accessToken: string, orderId: string, event: Record<string, unknown>) {
+    await this.request(
+      accessToken,
+      'POST',
+      `/v1/orders/${encodeURIComponent(orderId)}/events`,
+      event
+    )
+  }
+
   /** The account's card machines (Point). */
   async listTerminals(accessToken: string): Promise<MercadoPagoTerminal[]> {
     const result = await this.request<{ data?: { terminals?: MercadoPagoTerminal[] } }>(
