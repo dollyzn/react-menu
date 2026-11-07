@@ -8,7 +8,7 @@ export type OrderStatus =
   | 'cancelled';
 export type OrderChannel = 'online' | 'pos';
 /** `mercado_pago` is legacy (Checkout Pro redirect); new orders use pix/card/counter. */
-export type PaymentMethod = 'pix' | 'card' | 'counter' | 'mercado_pago';
+export type PaymentMethod = 'pix' | 'card' | 'point' | 'counter' | 'mercado_pago';
 /** Methods a customer can pick at checkout. */
 export type CheckoutPaymentMethod = 'pix' | 'card' | 'counter';
 /** Online methods paid on the order page. */
@@ -344,3 +344,65 @@ export type CustomerSuggestion = {
   ordersCount: number;
   lastOrderAt: string | null;
 };
+
+/* ---------------------- Mercado Pago Point (ADR 0020) ---------------------- */
+
+/** How the card machine charges. */
+export type PointPaymentType = 'credit_card' | 'debit_card' | 'qr';
+
+/** GET /stores/:id/point: what the POS needs. */
+export interface PointConfig {
+  /** Mercado Pago is set up (or the development fake). */
+  available: boolean;
+  /** Machines turned on for this store. */
+  terminals: { id: string; name: string }[];
+  paymentTypes: PointPaymentType[];
+  maxInstallments: number;
+  printTicket: boolean;
+}
+
+/** GET /stores/:id/point/terminals: every machine of the Mercado Pago account. */
+export interface PointTerminalListing {
+  id: string;
+  /** "NEWLAND N950" */
+  model: string;
+  serial: string;
+  /** PDV: takes charges from the system; STANDALONE: amounts typed on it. */
+  operatingMode: 'PDV' | 'STANDALONE' | 'UNDEFINED' | string;
+  posId: number | null;
+  enabled: boolean;
+  name: string | null;
+}
+
+export interface PointSettingsInput {
+  paymentTypes: PointPaymentType[];
+  maxInstallments: number;
+  printTicket: boolean;
+}
+
+export interface PointChargeInput {
+  terminalId?: string;
+  /** How the machine charges (the store's types and limits hold). */
+  paymentType: PointPaymentType;
+  installments?: number;
+}
+
+/** A charge sent to a machine; the POS follows it until it settles. */
+export interface PointCharge {
+  id: string;
+  /** The order it charges (the POS lists waiting charges by order). */
+  order: { id: string; number: number; total: number; customerName: string };
+  /** The store's name for the machine ("Balcão"). */
+  terminalName: string | null;
+  /** The order already had this charge waiting: picked up again, nothing new sent. */
+  resumed: boolean;
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'refunded';
+  /** Mercado Pago's reason (canceled_on_terminal, insufficient_amount…). */
+  statusDetail: string | null;
+  terminalId: string | null;
+  amount: number;
+  expiresAt: string | null;
+  createdAt: string;
+  /** The development fake: the POS shows "Simular". */
+  simulated: boolean;
+}

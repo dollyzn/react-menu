@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
 import { ClipboardList, History, Plus, Radio } from "lucide-react";
-import type { Order, OrderStatus } from "@react-menu/contracts";
+import type { Order, OrderStatus, PointCharge } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,6 +17,8 @@ import { OrderCard } from "./order-card";
 import { OrderDetailSheet } from "./order-detail-sheet";
 import { OrderHistory } from "./order-history";
 import { cn } from "@/lib/utils";
+import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
+import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
 
 /** `tab` is the short label for the phone tabs. */
 const COLUMNS: { status: OrderStatus; title: string; tab: string; empty: string }[] = [
@@ -48,6 +50,8 @@ export default function OrdersPage() {
   const history = view === "historico";
   const role = useStoreRole(storeId);
   const canOperate = role === "manager" || role === "attendant";
+  /** A charge on the card machine, opened from the "Na maquininha" bar. */
+  const [resuming, setResuming] = useState<PointCharge | null>(null);
 
   return (
     <div className="flex flex-col gap-4 p-4 lg:p-6">
@@ -89,6 +93,8 @@ export default function OrdersPage() {
         </div>
       </header>
 
+      {canOperate && <PendingChargesBar storeId={storeId} onOpen={setResuming} />}
+
       {history ? (
         <OrderHistory storeId={storeId} onOpen={setOpenOrderId} />
       ) : (
@@ -100,6 +106,13 @@ export default function OrdersPage() {
         orderId={openOrderId}
         canOperate={canOperate}
         onClose={() => setOpenOrderId(null)}
+      />
+
+      <PointChargeDialog
+        storeId={storeId}
+        order={resuming?.order ?? null}
+        resume={resuming}
+        onClose={() => setResuming(null)}
       />
     </div>
   );

@@ -32,6 +32,7 @@ const orderCount = (value: number) => (value === 1 ? "1 pedido" : `${value} pedi
 const PAYMENT_LABELS: Record<SalesReport["payments"][number]["method"], string> = {
   pix: CHECKOUT_METHODS.pix.label,
   card: CHECKOUT_METHODS.card.label,
+  point: "Maquininha",
   counter: "No balcão",
   mercado_pago: "Mercado Pago",
 };

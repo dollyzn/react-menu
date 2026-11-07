@@ -49,6 +49,10 @@ export default class Payment extends BaseModel {
   @column()
   declare challengeUrl: string | null
 
+  /** Card machine (Point) the attempt was sent to. */
+  @column()
+  declare pointTerminalId: string | null
+
   /** Typed by the customer at the payment step; receipts are sent there. */
   @column()
   declare payerEmail: string | null

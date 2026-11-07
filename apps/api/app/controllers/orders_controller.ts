@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
@@ -130,6 +131,10 @@ export default class OrdersController {
     const orderId = await uuidValidator.validate(params.orderId)
 
     const order = await this.orders.cancel(storeId, orderId, auth.getUserOrFail())
+    // A charge still waiting on the card machine leaves it.
+    const { default: PointService } = await import('#services/point_service')
+    const point = await app.container.make(PointService)
+    await point.cancelWaiting(order, await Store.findOrFail(storeId))
     // A paid online order gives the money back (job with retries).
     if (order.paymentStatus === PaymentStatus.PAID && isOnlinePayment(order.paymentMethod)) {
       await RefundOrder.dispatchFor(order)

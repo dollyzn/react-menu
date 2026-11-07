@@ -369,7 +369,7 @@ export default class PaymentService {
     })
   }
 
-  private async update(payment: Payment, result: GatewayPayment) {
+  async update(payment: Payment, result: GatewayPayment) {
     payment.status = result.status
     payment.statusDetail = result.statusDetail
     // The challenge page only matters while the payer still has to confirm.
@@ -383,13 +383,46 @@ export default class PaymentService {
     await payment.save()
   }
 
+  /**
+   * Gives back an approved payment the order didn't need: it was already
+   * paid by another one. Throws when the gateway fails (the job retries).
+   */
+  async refundDuplicate(payment: Payment, store: Store) {
+    if (payment.status !== PaymentAttemptStatus.APPROVED || !payment.gatewayPaymentId) return
+    const gateway = payment.gateway === 'fake' ? new FakeGateway() : this.gatewayFor(store)
+    if (!gateway) throw new Error('no gateway to refund the payment')
+    const current = await gateway.fetch(payment.gatewayPaymentId).catch(() => null)
+    if (current?.status !== PaymentAttemptStatus.REFUNDED) {
+      await gateway.refund(payment.gatewayPaymentId, `refund-${payment.gatewayPaymentId}`)
+    }
+    payment.status = PaymentAttemptStatus.REFUNDED
+    payment.statusDetail = 'duplicate_refunded'
+    await payment.save()
+    logger.warn(
+      { orderId: payment.orderId, paymentId: payment.id },
+      'order paid twice: the extra payment was refunded'
+    )
+  }
+
   /** Mirrors the attempt on the order (only the latest attempt decides). */
-  private async settle(order: Order, payment: Payment) {
+  async settle(order: Order, payment: Payment) {
     if (payment.status === PaymentAttemptStatus.APPROVED) {
       await this.orders.markPaid(order, {
         mercadoPagoPaymentId:
           payment.gateway === 'mercado_pago' ? (payment.gatewayPaymentId ?? undefined) : undefined,
+        paymentMethod: payment.method === PaymentMethod.POINT ? PaymentMethod.POINT : undefined,
       })
+      // markPaid records, under the order's lock, which approval paid it. One
+      // that isn't it came second (cash first, another charge, a late Pix):
+      // it goes back. The same approval notified twice finds its own id.
+      if (payment.gateway === 'mercado_pago') {
+        await order.refresh()
+        if (order.mercadoPagoPaymentId !== payment.gatewayPaymentId) {
+          const { default: RefundDuplicatePayment } = await import('#jobs/refund_duplicate_payment')
+          await RefundDuplicatePayment.dispatchFor(payment)
+          return
+        }
+      }
       await SendOrderReceipt.dispatchFor(payment)
       // Paid after it expired (a late Pix): give the money back.
       if (order.status === OrderStatus.CANCELLED) {
@@ -398,6 +431,9 @@ export default class PaymentService {
       }
       return
     }
+    // A card machine charge that didn't go through leaves the order as it
+    // was (in the kitchen, to be paid): try again or take it another way.
+    if (payment.method === PaymentMethod.POINT) return
     const latest = await this.latestFor(order)
     if (latest?.id !== payment.id) return
     if (payment.status === PaymentAttemptStatus.PENDING) await this.orders.markPaymentPending(order)

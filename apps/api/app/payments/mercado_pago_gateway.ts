@@ -10,6 +10,7 @@ import type {
   OrderInput,
 } from '#payments/mercado_pago_client'
 import type { CardRequest, GatewayPayment, PaymentGateway, PixRequest } from '#payments/gateway'
+import { orderIdOf } from '#payments/point'
 
 /** Orders API ids ("ORD01…"); attempts made before it have numeric Payments API ids. */
 const isOrderId = (id: string) => id.startsWith('ORD')
@@ -44,7 +45,8 @@ function fromOrder(order: MercadoPagoOrder, fallbackExpiry?: DateTime): GatewayP
     status: orderStatus(order),
     // The transaction says why a card failed (rejected_by_issuer…); the order only "failed".
     statusDetail: transaction?.status_detail ?? order.status_detail ?? null,
-    orderId: order.external_reference ?? null,
+    // Card machine charges carry a suffix ("<order id>_<attempt>").
+    orderId: orderIdOf(order.external_reference),
     pix: qrCode
       ? {
           qrCode,

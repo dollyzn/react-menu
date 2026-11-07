@@ -7,6 +7,8 @@ import AppException from '#exceptions/app_exception'
 import OrderChannel from '#enums/order_channel'
 import OrderStatus from '#enums/order_status'
 import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
+import Payment from '#models/payment'
+import PaymentAttemptStatus from '#enums/payment_attempt_status'
 import PaymentStatus from '#enums/payment_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
 import { broadcastOrderTracking, broadcastStoreEvent } from '#helpers/realtime'
@@ -181,7 +183,11 @@ export default class OrderService {
    * sync). The row lock makes the second call wait and find it paid, so the
    * stock is consumed and the staff notified once.
    */
-  async markPaid(order: Order, meta: { mercadoPagoPaymentId?: string } = {}, actor?: User) {
+  async markPaid(
+    order: Order,
+    meta: { mercadoPagoPaymentId?: string; paymentMethod?: PaymentMethod } = {},
+    actor?: User
+  ) {
     if (order.paymentStatus === PaymentStatus.PAID) return order
     let wasAwaitingPayment = false
 
@@ -191,6 +197,8 @@ export default class OrderService {
       wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
       order.paymentStatus = PaymentStatus.PAID
       if (meta.mercadoPagoPaymentId) order.mercadoPagoPaymentId = meta.mercadoPagoPaymentId
+      // Paid on the card machine: refunded by itself if the order is cancelled.
+      if (meta.paymentMethod) order.paymentMethod = meta.paymentMethod
       if (order.status === OrderStatus.PENDING_PAYMENT) {
         await this.enterKitchen(order, trx, actor)
       }
@@ -281,7 +289,14 @@ export default class OrderService {
       await this.lock(order, trx)
       if (order.status === OrderStatus.COMPLETED) return false
       await this.transition(order, OrderStatus.COMPLETED, trx, actor)
-      if (order.paymentMethod === PaymentMethod.COUNTER) {
+      // Paid at the counter on hand-over, unless the card machine is still
+      // charging it: then the machine's answer says whether it was paid
+      // (marking it paid here would make that approval look like a second
+      // payment and refund it).
+      if (
+        order.paymentMethod === PaymentMethod.COUNTER &&
+        !(await this.chargeOnMachine(order, trx))
+      ) {
         order.paymentStatus = PaymentStatus.PAID
       }
       await order.save()
@@ -289,6 +304,18 @@ export default class OrderService {
     })
     if (changed) await this.afterChange(order)
     return order
+  }
+
+  /** A card machine charge of the order still waiting for the customer. */
+  private async chargeOnMachine(order: Order, trx: TransactionClientContract) {
+    const waiting = await Payment.query({ client: trx })
+      .where({
+        orderId: order.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+      })
+      .first()
+    return Boolean(waiting)
   }
 
   async cancel(storeId: string, orderId: string, actor?: User) {

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, Clock, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, CreditCard, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
@@ -23,6 +23,8 @@ import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { addonLabels } from "@/lib/addon-label";
 import { DeliverOrderButton } from "./deliver-order-button";
+import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
+import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
 
 interface OrderCardProps {
   order: Order;
@@ -39,6 +41,9 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
   const [markPaid] = useMarkOrderPaidMutation();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const { data: point } = useGetPointConfigQuery(storeId, { skip: !canOperate });
+  const canCharge = Boolean(point?.available && point.terminals.length > 0);
+  const [charging, setCharging] = useState(false);
 
   const waiting = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60_000));
   const late = waiting >= etaMinutes && order.status !== "ready";
@@ -124,6 +129,11 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {!paid && canCharge && (
+                  <DropdownMenuItem onClick={() => setCharging(true)}>
+                    <CreditCard /> Cobrar na maquininha
+                  </DropdownMenuItem>
+                )}
                 {!paid && (
                   <DropdownMenuItem onClick={() => markPaid({ storeId, orderId: order.id })}>
                     <Banknote /> Marcar como pago
@@ -137,6 +147,12 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
           </div>
         )}
       </footer>
+
+      <PointChargeDialog
+        storeId={storeId}
+        order={charging ? { id: order.id, number: order.number, total: order.total } : null}
+        onClose={() => setCharging(false)}
+      />
 
       <AlertDialogDestructive
         open={confirmCancel}

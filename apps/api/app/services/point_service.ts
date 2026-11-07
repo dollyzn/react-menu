@@ -1,0 +1,408 @@
+import { createHash, randomUUID } from 'node:crypto'
+import { inject } from '@adonisjs/core'
+import { DateTime } from 'luxon'
+import env from '#start/env'
+import AppException from '#exceptions/app_exception'
+import OrderStatus from '#enums/order_status'
+import PaymentAttemptStatus from '#enums/payment_attempt_status'
+import PaymentMethod from '#enums/payment_method'
+import PaymentStatus from '#enums/payment_status'
+import Order from '#models/order'
+import Payment from '#models/payment'
+import PointTerminal from '#models/point_terminal'
+import type Store from '#models/store'
+import MercadoPagoClient, { type MercadoPagoOrder } from '#payments/mercado_pago_client'
+import {
+  SANDBOX_TERMINAL,
+  describeTerminal,
+  pointReference,
+  type MercadoPagoTerminal,
+  type PointPaymentType,
+} from '#payments/point'
+import PaymentService from '#services/payment_service'
+
+/** How long a charge waits on the machine before Mercado Pago drops it. */
+const CHARGE_TTL_MINUTES = 10
+
+/** Development only: one pretend machine, approved from the POS. */
+const FAKE_TERMINAL_ID = 'FAKE_POINT__TESTE'
+const fakeEnabled = () =>
+  env.get('NODE_ENV') !== 'production' && env.get('PAYMENTS_FAKE_GATEWAY') === true
+/** Mercado Pago test credentials: the virtual machine (never in production). */
+const sandboxEnabled = () =>
+  env.get('NODE_ENV') !== 'production' && env.get('MERCADO_PAGO_POINT_SANDBOX') === true
+
+export type PointChargeInput = {
+  terminalId?: string
+  /**
+   * Always set: the machine is told how to charge, so the store's types and
+   * installment limit hold (left open, it would offer everything).
+   */
+  paymentType: PointPaymentType
+  installments?: number
+  idempotencyKey?: string
+}
+
+/**
+ * Mercado Pago Point (ADR 0020): the store's card machines, charged from
+ * the POS on the same Orders API and account as the online checkout. The
+ * charge waits on the machine; the "order" webhook (or a check from the POS)
+ * settles it like any other attempt.
+ */
+@inject()
+export default class PointService {
+  constructor(
+    private client: MercadoPagoClient,
+    private payments: PaymentService
+  ) {}
+
+  /** Charging on a machine is possible: Mercado Pago set up (or the dev fake). */
+  available(store: Store) {
+    return Boolean(store.mercadoPagoAccessToken) || fakeEnabled()
+  }
+
+  /** The account's machines, with the ones this store charges from. */
+  async terminals(store: Store) {
+    const enabled = await PointTerminal.query().where('storeId', store.id).orderBy('name')
+    const listed: MercadoPagoTerminal[] = store.mercadoPagoAccessToken
+      ? await this.client.listTerminals(store.mercadoPagoAccessToken)
+      : fakeEnabled()
+        ? [{ id: FAKE_TERMINAL_ID, operating_mode: 'PDV' }]
+        : []
+    if (
+      store.mercadoPagoAccessToken &&
+      sandboxEnabled() &&
+      !listed.some((terminal) => terminal.id === SANDBOX_TERMINAL)
+    ) {
+      listed.push({ id: SANDBOX_TERMINAL, operating_mode: 'PDV' })
+    }
+    const byId = new Map(enabled.map((terminal) => [terminal.terminalId, terminal]))
+    return listed.map((terminal) => {
+      const mine = byId.get(terminal.id)
+      return {
+        id: terminal.id,
+        ...describeTerminal(terminal.id),
+        operatingMode: terminal.operating_mode ?? 'UNDEFINED',
+        posId: terminal.pos_id ?? null,
+        enabled: Boolean(mine),
+        name: mine?.name ?? null,
+      }
+    })
+  }
+
+  /** Machines the POS can charge on (no call to Mercado Pago). */
+  async enabledTerminals(store: Store) {
+    return await PointTerminal.query().where('storeId', store.id).orderBy('name')
+  }
+
+  /**
+   * Turns a machine on for this store and puts it in PDV mode (charges
+   * come from the system). The machine must be restarted afterwards.
+   */
+  async enable(store: Store, terminalId: string, name: string) {
+    const listed = await this.terminals(store)
+    if (!listed.some((terminal) => terminal.id === terminalId)) {
+      throw new AppException('Maquininha não encontrada nesta conta do Mercado Pago.', 404)
+    }
+    // The virtual machine has no mode to set.
+    if (store.mercadoPagoAccessToken && terminalId !== SANDBOX_TERMINAL) {
+      await this.client.setTerminalMode(store.mercadoPagoAccessToken, terminalId, 'PDV')
+    }
+    const terminal = await PointTerminal.updateOrCreate(
+      { storeId: store.id, terminalId },
+      { storeId: store.id, terminalId, name }
+    )
+    return terminal
+  }
+
+  /** Stops charging on it here; back to taking typed amounts on the machine. */
+  async disable(store: Store, terminalId: string) {
+    const terminal = await PointTerminal.query()
+      .where({ storeId: store.id, terminalId })
+      .firstOrFail()
+    if (store.mercadoPagoAccessToken && terminalId !== SANDBOX_TERMINAL) {
+      await this.client.setTerminalMode(store.mercadoPagoAccessToken, terminalId, 'STANDALONE')
+    }
+    await terminal.delete()
+  }
+
+  /**
+   * Sends the order's amount to a machine. An order with a charge still
+   * waiting gets that charge back (`resumed`): closing the POS dialog never
+   * loses it. A machine busy with another order's charge refuses a second.
+   */
+  async charge(
+    order: Order,
+    store: Store,
+    input: PointChargeInput
+  ): Promise<{ payment: Payment; resumed: boolean }> {
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new AppException('Este pedido foi cancelado.', 409, 'E_NOT_PAYABLE')
+    }
+    if (order.paymentStatus === PaymentStatus.PAID) {
+      throw new AppException('Este pedido já está pago.', 409, 'E_NOT_PAYABLE')
+    }
+    const mine = await this.pending(order)
+    if (mine && (await this.stillPending(order, store, mine))) {
+      return { payment: mine, resumed: true }
+    }
+    // Reading that charge may have just found it paid (settle updates `order`).
+    if ((order.paymentStatus as PaymentStatus) === PaymentStatus.PAID) {
+      throw new AppException('Este pedido já está pago.', 409, 'E_NOT_PAYABLE')
+    }
+    if (!store.pointPaymentTypes.includes(input.paymentType)) {
+      throw new AppException('Esta forma de pagamento não está ativa na maquininha.', 422)
+    }
+    const installments = input.paymentType === 'credit_card' ? (input.installments ?? 1) : 1
+    if (installments > store.pointMaxInstallments) {
+      throw new AppException(
+        store.pointMaxInstallments === 1
+          ? 'Esta loja cobra só à vista na maquininha.'
+          : `Esta loja parcela em até ${store.pointMaxInstallments}x na maquininha.`,
+        422
+      )
+    }
+
+    const terminals = await this.enabledTerminals(store)
+    const terminal = input.terminalId
+      ? terminals.find((candidate) => candidate.terminalId === input.terminalId)
+      : terminals.length === 1
+        ? terminals[0]
+        : undefined
+    if (!terminal) {
+      throw new AppException(
+        terminals.length === 0
+          ? 'Nenhuma maquininha ativa nesta loja. Ative uma em Configurações > Pagamentos.'
+          : 'Escolha a maquininha.',
+        422,
+        'E_NO_TERMINAL'
+      )
+    }
+
+    // The machine takes one charge at a time (Mercado Pago refuses a second).
+    const busy = await Payment.query()
+      .where({
+        storeId: store.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+        pointTerminalId: terminal.terminalId,
+      })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .preload('order')
+      .first()
+    if (busy && (await this.stillPending(busy.order, store, busy))) {
+      throw new AppException(
+        `A maquininha ${terminal.name} está com a cobrança do pedido #${busy.order.number} em aberto. Termine ou cancele essa cobrança antes.`,
+        409,
+        'E_TERMINAL_BUSY',
+        { orderId: busy.orderId, orderNumber: busy.order.number, paymentId: busy.id }
+      )
+    }
+
+    // The same key (a retry after a lost answer) sends the very same charge.
+    const idempotencyKey = input.idempotencyKey ?? randomUUID()
+    const attempt = createHash('sha256').update(idempotencyKey).digest('hex').slice(0, 8)
+    const result = store.mercadoPagoAccessToken
+      ? await this.client.createPointOrder(
+          store.mercadoPagoAccessToken,
+          {
+            type: 'point',
+            external_reference: pointReference(order.id, attempt),
+            expiration_time: `PT${CHARGE_TTL_MINUTES}M`,
+            description: `Pedido #${order.number} · ${store.name}`.slice(0, 150),
+            transactions: { payments: [{ amount: order.total.toFixed(2) }] },
+            config: {
+              point: {
+                terminal_id: terminal.terminalId,
+                print_on_terminal: store.pointPrintTicket ? 'seller_ticket' : 'no_ticket',
+              },
+              payment_method: {
+                default_type: input.paymentType,
+                ...(input.paymentType === 'credit_card' && {
+                  default_installments: installments,
+                  installments_cost: 'seller' as const,
+                }),
+              },
+            },
+          },
+          idempotencyKey
+        )
+      : this.fakeCharge(order, attempt)
+
+    const existing = await Payment.query()
+      .where({
+        gateway: store.mercadoPagoAccessToken ? 'mercado_pago' : 'fake',
+        gatewayPaymentId: result.id,
+      })
+      .first()
+    if (existing) return { payment: existing, resumed: true }
+    const payment = await Payment.create({
+      orderId: order.id,
+      storeId: store.id,
+      gateway: store.mercadoPagoAccessToken ? 'mercado_pago' : 'fake',
+      method: PaymentMethod.POINT,
+      gatewayPaymentId: result.id,
+      status: PaymentAttemptStatus.PENDING,
+      statusDetail: result.status_detail ?? 'created',
+      amount: order.total,
+      pointTerminalId: terminal.terminalId,
+      expiresAt: DateTime.now().plus({ minutes: CHARGE_TTL_MINUTES }),
+    })
+    // Mercado Pago drops it when its time is up; read it then, in case no
+    // webhook told us how it ended.
+    const { default: SettlePointCharge } = await import('#jobs/settle_point_charge')
+    await SettlePointCharge.scheduleFor(payment)
+    return { payment, resumed: false }
+  }
+
+  /**
+   * The charge's time is up (or nearly): read it from Mercado Pago once more;
+   * still waiting, it is over (the machine drops it too).
+   */
+  async settleExpired(payment: Payment) {
+    if (payment.status !== PaymentAttemptStatus.PENDING) return
+    const order = await Order.query().where('id', payment.orderId).preload('store').firstOrFail()
+    await this.check(order, order.store, payment)
+    if (payment.status !== PaymentAttemptStatus.PENDING) return
+    payment.status = PaymentAttemptStatus.EXPIRED
+    payment.statusDetail = 'expired'
+    await payment.save()
+  }
+
+  /**
+   * The order was cancelled: its charge leaves the machine. One already on
+   * the machine's screen can't be taken back from here (Point Pro); if the
+   * customer pays it anyway, the cancelled order is refunded.
+   */
+  async cancelWaiting(order: Order, store: Store) {
+    const waiting = await this.pending(order)
+    if (!waiting) return
+    await this.cancel(store, waiting).catch(() => undefined)
+  }
+
+  /**
+   * The store's charges waiting on a machine, oldest first (the POS shows
+   * them so a closed dialog can be opened again). `check` asks Mercado Pago
+   * about each one first.
+   */
+  async pendingCharges(store: Store, { check = false } = {}) {
+    const charges = await Payment.query()
+      .where({
+        storeId: store.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+      })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .preload('order')
+      .orderBy('createdAt', 'asc')
+    if (!check) return charges
+    const open: Payment[] = []
+    for (const charge of charges) {
+      if (await this.stillPending(charge.order, store, charge)) open.push(charge)
+    }
+    return open
+  }
+
+  /** Read again from Mercado Pago: a charge settled without a webhook frees the machine. */
+  private async stillPending(order: Order, store: Store, payment: Payment) {
+    await this.check(order, store, payment)
+    return payment.status === PaymentAttemptStatus.PENDING
+  }
+
+  /** The order's charge still waiting on a machine, if any. */
+  async pending(order: Order) {
+    return await Payment.query()
+      .where({
+        orderId: order.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+      })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .orderBy('createdAt', 'desc')
+      .first()
+  }
+
+  /** One of the order's machine charges (the POS follows it). */
+  async find(order: Order, paymentId: string) {
+    return await Payment.query()
+      .where({ id: paymentId, orderId: order.id, method: PaymentMethod.POINT })
+      .firstOrFail()
+  }
+
+  /**
+   * Reads the charge from Mercado Pago now (the POS asks while it waits, in
+   * case the webhook is slow or can't reach this server).
+   */
+  async check(order: Order, store: Store, payment: Payment) {
+    if (payment.status !== PaymentAttemptStatus.PENDING) return payment
+    if (payment.gateway === 'fake' || !payment.gatewayPaymentId) return payment
+    const gateway = this.payments.gatewayFor(store)
+    if (!gateway || gateway.name !== payment.gateway) return payment
+    await this.payments.update(payment, await gateway.fetch(payment.gatewayPaymentId))
+    await this.payments.settle(order, payment)
+    return payment
+  }
+
+  /** Takes a charge back before it is paid. */
+  async cancel(store: Store, payment: Payment) {
+    if (payment.status !== PaymentAttemptStatus.PENDING) return payment
+    if (payment.gateway === 'mercado_pago' && store.mercadoPagoAccessToken) {
+      await this.client.cancelOrder(
+        store.mercadoPagoAccessToken,
+        payment.gatewayPaymentId!,
+        `cancel-${payment.gatewayPaymentId}`
+      )
+    }
+    payment.status = PaymentAttemptStatus.EXPIRED
+    payment.statusDetail = 'canceled_by_api'
+    await payment.save()
+    return payment
+  }
+
+  /** The POS may offer "Simular": the dev fake, or the virtual machine on test credentials. */
+  simulatable(payment: Payment) {
+    return (
+      (payment.gateway === 'fake' && fakeEnabled()) ||
+      (payment.pointTerminalId === SANDBOX_TERMINAL && sandboxEnabled())
+    )
+  }
+
+  /**
+   * Development: the machine approves (or refuses) the charge. The dev fake
+   * settles it here; the virtual machine asks Mercado Pago to report the
+   * result, which arrives like a real one (webhook, or the POS's check).
+   */
+  async simulate(order: Order, store: Store, payment: Payment, approve: boolean) {
+    if (!this.simulatable(payment)) {
+      throw new AppException('Simulação disponível só no modo de teste.', 404)
+    }
+    if (payment.gateway === 'mercado_pago') {
+      if (payment.status !== PaymentAttemptStatus.PENDING) return payment
+      await this.client.simulatePointEvent(
+        store.mercadoPagoAccessToken!,
+        payment.gatewayPaymentId!,
+        approve
+          ? {
+              status: 'processed',
+              payment_method_type: 'credit_card',
+              payment_method_id: 'master',
+              installments: 1,
+              status_detail: 'accredited',
+            }
+          : { status: 'failed', status_detail: 'insufficient_amount' }
+      )
+      return payment
+    }
+    if (payment.status !== PaymentAttemptStatus.PENDING) return payment
+    payment.status = approve ? PaymentAttemptStatus.APPROVED : PaymentAttemptStatus.REJECTED
+    payment.statusDetail = approve ? 'accredited' : 'rejected_other_reason'
+    await payment.save()
+    await this.payments.settle(order, payment)
+    return payment
+  }
+
+  private fakeCharge(order: Order, attempt: string): MercadoPagoOrder {
+    if (!fakeEnabled()) throw new AppException('Maquininha indisponível nesta loja.', 422)
+    return { id: `fake-point-${order.id}-${attempt}`, status: 'created', status_detail: 'created' }
+  }
+}

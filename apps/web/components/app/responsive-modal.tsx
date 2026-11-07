@@ -30,6 +30,11 @@ interface ResponsiveModalProps {
   description?: React.ReactNode;
   /** Visually hide the header (it stays available to screen readers). */
   hideHeader?: boolean;
+  /**
+   * false: a press outside (or dragging the drawer down) doesn't close it;
+   * only its own buttons do. For flows a stray tap must not lose.
+   */
+  dismissible?: boolean;
   className?: string;
   children: React.ReactNode;
 }
@@ -42,6 +47,7 @@ export function ResponsiveModal({
   title,
   description,
   hideHeader,
+  dismissible = true,
   className,
   children,
 }: ResponsiveModalProps) {
@@ -49,7 +55,12 @@ export function ResponsiveModal({
 
   if (isMobile) {
     return (
-      <Drawer open={open} onOpenChange={onOpenChange} onAnimationEnd={onOpenChangeComplete}>
+      <Drawer
+        open={open}
+        onOpenChange={onOpenChange}
+        onAnimationEnd={onOpenChangeComplete}
+        dismissible={dismissible}
+      >
         <DrawerContent className={cn("max-h-[92svh]", className)}>
           <DrawerHeader className={cn(hideHeader && "sr-only")}>
             <DrawerTitle>{title}</DrawerTitle>
@@ -62,7 +73,12 @@ export function ResponsiveModal({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={onOpenChangeComplete}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+      disablePointerDismissal={!dismissible}
+    >
       <DialogContent
         showCloseButton={false}
         className={cn("gap-0 overflow-hidden p-0 sm:max-w-lg", className)}

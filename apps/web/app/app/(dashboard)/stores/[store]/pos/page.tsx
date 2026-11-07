@@ -7,8 +7,8 @@ import Image from "@/components/app/image";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
-import type { PublicMenuItem } from "@react-menu/contracts";
+import { CreditCard, Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
+import type { PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
@@ -28,6 +28,9 @@ import { CustomerAutocomplete } from "./customer-autocomplete";
 import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
 import { useLastValue } from "@/hooks/use-last-value";
+import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
+import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
+import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
 
 type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>
@@ -53,6 +56,12 @@ export default function PosPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [ticketOpen, setTicketOpen] = useState(false);
+  // Mercado Pago Point: a machine on lets the ticket be charged right after it is sent.
+  const { data: point } = useGetPointConfigQuery(storeId);
+  const canCharge = Boolean(point?.available && point.terminals.length > 0);
+  const [charging, setCharging] = useState<{ id: string; number: number; total: number } | null>(null);
+  /** A charge already on the machine, opened from the "Na maquininha" bar. */
+  const [resuming, setResuming] = useState<PointCharge | null>(null);
 
   const categories = menu?.categories ?? [];
   const totalItems = categories.reduce((sum, category) => sum + category.items.length, 0);
@@ -141,7 +150,11 @@ export default function PosPage() {
     setQuery("");
   };
 
-  const send = async () => {
+  /**
+   * The ticket becomes an order (it goes to the kitchen) and the ticket
+   * empties. Re-sending after a dropped connection never creates a second.
+   */
+  const createFromTicket = async () => {
     const input = {
       customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       lines: lines.map((line) => ({
@@ -151,20 +164,24 @@ export default function PosPage() {
         notes: line.notes || undefined,
       })),
     };
-    // Re-sending the same ticket after a dropped connection never creates a second order.
     const keyScope = `pos:${storeId}`;
+    const order = await createOrder({
+      storeId,
+      input,
+      idempotencyKey: stableIdempotencyKey(keyScope, input),
+    }).unwrap();
+    releaseIdempotencyKey(keyScope);
+    setLines([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setTicketOpen(false);
+    return order;
+  };
+
+  const send = async () => {
     try {
-      const order = await createOrder({
-        storeId,
-        input,
-        idempotencyKey: stableIdempotencyKey(keyScope, input),
-      }).unwrap();
-      releaseIdempotencyKey(keyScope);
+      const order = await createFromTicket();
       toast.success(`Pedido #${order.number} enviado para a cozinha`, POS_TOAST);
-      setLines([]);
-      setCustomerName("");
-      setCustomerPhone("");
-      setTicketOpen(false);
     } catch (error) {
       toast.error(
         isConnectionError(error)
@@ -174,6 +191,24 @@ export default function PosPage() {
       );
     }
   };
+
+  /**
+   * "Enviar e cobrar na maquininha": the dialog opens on the ticket as it
+   * is; the order is created only when the charge is sent, so closing the
+   * dialog before that leaves the ticket untouched.
+   */
+  const [chargingTicket, setChargingTicket] = useState<{
+    total: number;
+    create: () => Promise<{ id: string; number: number; total: number }>;
+  } | null>(null);
+  const sendAndCharge = () =>
+    setChargingTicket({
+      total,
+      create: async () => {
+        const order = await createFromTicket();
+        return { id: order.id, number: order.number, total: order.total };
+      },
+    });
 
   // The drawer keeps showing the ticket while it slides down after "Limpar"
   // or "Enviar" (both empty it at once).
@@ -193,7 +228,8 @@ export default function PosPage() {
     onQuantity: changeQuantity,
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
-    onSend: send,
+    onSend: () => void send(),
+    onSendAndCharge: canCharge ? sendAndCharge : undefined,
     sending,
   };
 
@@ -201,6 +237,13 @@ export default function PosPage() {
     <div className="grid min-h-[calc(100svh-3rem)] grid-cols-1 lg:h-[calc(100svh-3rem)] lg:grid-cols-[1fr_400px] lg:overflow-hidden">
       <section aria-label="Produtos" className="flex min-w-0 min-h-0 flex-col lg:overflow-y-auto">
         <div className="sticky top-12 z-10 flex flex-col gap-2 border-b bg-background/90 p-4 pb-3 backdrop-blur-md lg:top-0">
+          <PendingChargesBar
+            storeId={storeId}
+            onOpen={(charge) => {
+              setResuming(charge);
+              setCharging(charge.order);
+            }}
+          />
           <SearchInput
             value={query}
             onValueChange={setQuery}
@@ -356,6 +399,18 @@ export default function PosPage() {
           />
         )}
       </ResponsiveModal>
+
+      <PointChargeDialog
+        storeId={storeId}
+        order={charging}
+        prepare={charging ? null : chargingTicket}
+        resume={resuming}
+        onClose={() => {
+          setCharging(null);
+          setChargingTicket(null);
+          setResuming(null);
+        }}
+      />
     </div>
   );
 }
@@ -479,6 +534,7 @@ function Ticket({
   canIncrease,
   onClear,
   onSend,
+  onSendAndCharge,
   sending,
   inModal,
 }: {
@@ -495,6 +551,8 @@ function Ticket({
   canIncrease: (itemId: string) => boolean;
   onClear: () => void;
   onSend: () => void;
+  /** With a card machine on: send, then charge it there. */
+  onSendAndCharge?: () => void;
   sending: boolean;
   /** In the phone drawer/dialog the parent scrolls, so the footer sticks. */
   inModal?: boolean;
@@ -612,8 +670,20 @@ function Ticket({
           <span>Total</span>
           <AnimatedPrice value={total} className="text-xl" />
         </div>
-        <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0} loading={sending} onClick={onSend}>
-          <Send /> Enviar para a cozinha
+        {onSendAndCharge && (
+          <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0 || sending} onClick={onSendAndCharge}>
+            <CreditCard /> Enviar e cobrar na maquininha
+          </Button>
+        )}
+        <Button
+          size="lg"
+          variant={onSendAndCharge ? "outline" : "default"}
+          className="h-12 w-full rounded-xl text-base"
+          disabled={lines.length === 0}
+          loading={sending}
+          onClick={onSend}
+        >
+          <Send /> {onSendAndCharge ? "Enviar e receber depois" : "Enviar para a cozinha"}
         </Button>
       </div>
     </div>
