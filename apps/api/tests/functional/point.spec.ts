@@ -197,7 +197,9 @@ test.group('Mercado Pago Point (card machine)', (group) => {
 
     charged.assertStatus(200)
     charged.assertBodyContains({ data: { status: 'pending', terminalId: BALCAO } })
-    again.assertStatus(409)
+    // Charging the same order again picks the waiting charge back up.
+    again.assertBodyContains({ data: { id: charged.body().data.id, resumed: true } })
+    assert.lengthOf(fake.charges, 1)
     const [sent] = fake.charges
     assert.equal(sent.idempotencyKey, 'pos-key-1')
     assert.equal(sent.input.type, 'point')
@@ -300,6 +302,46 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     refused.assertBodyContains({ code: 'E_CANCEL_ON_TERMINAL' })
     const stillWaiting = await Payment.findOrFail(onMachine.body().data.id)
     assert.equal(stillWaiting.status, 'pending')
+  })
+
+  test('the machine takes one charge at a time; the POS lists the waiting ones', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, queijo, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const first = await posOrder(client, store, carne.id, attendant)
+    const second = await posOrder(client, store, queijo.id, attendant)
+    const charge = await client
+      .post(`/api/v1/stores/${store.id}/orders/${first.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+
+    const busy = await client
+      .post(`/api/v1/stores/${store.id}/orders/${second.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    const waiting = await client.get(`/api/v1/stores/${store.id}/point/charges`).loginAs(attendant)
+
+    busy.assertStatus(409)
+    busy.assertBodyContains({
+      code: 'E_TERMINAL_BUSY',
+      details: { orderId: first.id, paymentId: charge.body().data.id },
+    })
+    waiting.assertBodyContains({
+      data: [{ id: charge.body().data.id, terminalName: 'Balcão', order: { id: first.id } }],
+    })
+    assert.lengthOf(waiting.body().data, 1)
+
+    // Paid on the machine without a webhook: the next charge reads it and goes through.
+    fake.set('ORD2001', 'processed', 'accredited')
+    const freed = await client
+      .post(`/api/v1/stores/${store.id}/orders/${second.id}/point-charges`)
+      .json({ paymentType: 'credit_card' })
+      .loginAs(attendant)
+    freed.assertStatus(200)
+    const paidFirst = await Order.findOrFail(first.id)
+    assert.equal(paidFirst.paymentStatus, 'paid')
   })
 
   test('the store settings bound what the POS may send', async ({ client }) => {

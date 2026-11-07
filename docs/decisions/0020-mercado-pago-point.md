@@ -40,8 +40,14 @@ so no second application is needed.
   or take cash. An approved one marks the order paid with
   `payment_method = point`, so cancelling the order refunds it
   automatically like an online payment.
-- **One charge at a time per order**, with an idempotency key the POS keeps
-  across retries. The external reference is `<order id>_<attempt>`, because
+- **One charge at a time per order and per machine.** Charging an order that
+  already has a charge waiting picks that charge up again (`resumed`). A
+  machine busy with another order's charge answers 409 `E_TERMINAL_BUSY`
+  with that order, and the POS offers to cancel it. Both checks first read
+  the waiting charge from Mercado Pago, so one settled without a webhook
+  never blocks. The POS and the orders board show the "Na maquininha" bar
+  (`GET /point/charges`) with every waiting charge, so a closed dialog is
+  opened again from there. The POS keeps an idempotency key across retries. The external reference is `<order id>_<attempt>`, because
   Mercado Pago wants it unique per charge.
 - **Following the charge**: the POS polls our API every 2 s. Every 10 s it
   also asks Mercado Pago (`?check=1`), so a slow or unreachable webhook

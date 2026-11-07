@@ -18,6 +18,7 @@ import { useAppDispatch } from "@/redux/hooks";
 import {
   useCancelPointChargeMutation,
   useChargeOnPointMutation,
+  useGetPendingPointChargesQuery,
   useGetPointConfigQuery,
   useLazyGetPointChargeQuery,
   useSimulatePointChargeMutation,
@@ -60,6 +61,8 @@ interface PointChargeDialogProps {
   storeId: string;
   /** The order to charge; null closes the dialog. */
   order: { id: string; number: number; total: number } | null;
+  /** A charge already waiting on the machine: open straight on it. */
+  resume?: PointCharge | null;
   onClose: () => void;
   /** After the machine approved it. */
   onPaid?: () => void;
@@ -70,8 +73,9 @@ interface PointChargeDialogProps {
  * the store's Mercado Pago Point machine, and follows it until the customer
  * pays, the card is refused or the charge is cancelled.
  */
-export function PointChargeDialog({ storeId, order: current, onClose, onPaid }: PointChargeDialogProps) {
+export function PointChargeDialog({ storeId, order: current, resume, onClose, onPaid }: PointChargeDialogProps) {
   const order = useLastValue(current);
+  const resumed = useLastValue(resume ?? null);
   return (
     <ResponsiveModal
       open={Boolean(current)}
@@ -80,7 +84,16 @@ export function PointChargeDialog({ storeId, order: current, onClose, onPaid }: 
       description="Envie o valor para a maquininha do Mercado Pago."
       className="sm:max-w-md"
     >
-      {order && <ChargeFlow key={order.id} storeId={storeId} order={order} onClose={onClose} onPaid={onPaid} />}
+      {order && (
+        <ChargeFlow
+          key={order.id}
+          storeId={storeId}
+          order={order}
+          resume={resumed?.order.id === order.id ? resumed : null}
+          onClose={onClose}
+          onPaid={onPaid}
+        />
+      )}
     </ResponsiveModal>
   );
 }
@@ -88,11 +101,13 @@ export function PointChargeDialog({ storeId, order: current, onClose, onPaid }: 
 function ChargeFlow({
   storeId,
   order,
+  resume,
   onClose,
   onPaid,
 }: {
   storeId: string;
   order: { id: string; number: number; total: number };
+  resume: PointCharge | null;
   onClose: () => void;
   onPaid?: () => void;
 }) {
@@ -113,8 +128,15 @@ function ChargeFlow({
   const terminal = terminalId ?? terminals[0]?.id ?? null;
   const terminalName = terminals.find((candidate) => candidate.id === terminal)?.name;
 
-  const [charge, setCharge] = useState<PointCharge | null>(null);
+  const [own, setCharge] = useState<PointCharge | null>(resume);
   const [error, setError] = useState<string | null>(null);
+  /** The machine is busy with another order's charge. */
+  const [busy, setBusy] = useState<{ orderId: string; orderNumber: number; paymentId: string } | null>(null);
+
+  // Opened on an order whose charge is already on the machine: follow that one.
+  const { data: waiting } = useGetPendingPointChargesQuery({ storeId });
+  const waitingHere = waiting?.find((candidate) => candidate.order.id === order.id) ?? null;
+  const charge = own ?? waitingHere;
 
   // Follow the charge while it waits on the machine.
   const polls = useRef(0);
@@ -128,10 +150,13 @@ function ChargeFlow({
         paymentId: charge.id,
         check: polls.current % CHECK_EVERY === 0,
       });
-      if (result.data && result.data.status !== "pending") setCharge(result.data);
+      if (result.data && result.data.status !== "pending") {
+        setCharge(result.data);
+        dispatch(baseApi.util.invalidateTags([{ type: "PointConfig", id: `charges-${storeId}` }]));
+      }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [charge?.id, charge?.status, follow, order.id, storeId]);
+  }, [charge?.id, charge?.status, dispatch, follow, order.id, storeId]);
 
   // Paid: the board and the order show it at once.
   const settled = charge?.status;
@@ -148,6 +173,7 @@ function ChargeFlow({
 
   const start = async () => {
     setError(null);
+    setBusy(null);
     const input = {
       terminalId: terminal ?? undefined,
       paymentType: picked === "any" ? null : picked,
@@ -166,7 +192,21 @@ function ChargeFlow({
       polls.current = 0;
       setCharge(sent);
     } catch (err) {
+      const data = (err as { data?: { code?: string; details?: typeof busy } }).data;
+      if (data?.code === "E_TERMINAL_BUSY" && data.details) setBusy(data.details);
       setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível enviar para a maquininha."));
+    }
+  };
+
+  /** Frees the machine: cancels the other order's charge (only while it isn't on its screen). */
+  const freeMachine = async () => {
+    if (!busy) return;
+    try {
+      await cancel({ storeId, orderId: busy.orderId, paymentId: busy.paymentId }).unwrap();
+      setBusy(null);
+      setError(null);
+    } catch (err) {
+      setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível cancelar aquela cobrança."));
     }
   };
 
@@ -273,6 +313,11 @@ function ChargeFlow({
               )}
 
               {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+              {busy && (
+                <Button variant="outline" loading={cancelling} onClick={() => void freeMachine()}>
+                  Cancelar a cobrança do pedido #{busy.orderNumber}
+                </Button>
+              )}
               <Button size="lg" className="h-12 rounded-xl text-base" loading={sending} onClick={() => void start()}>
                 <CreditCard /> Enviar para a maquininha{terminalName ? ` (${terminalName})` : ""}
               </Button>
@@ -285,8 +330,9 @@ function ChargeFlow({
                 <Spinner className="size-8 text-primary" aria-hidden />
                 <p className="font-semibold">Aguardando pagamento na maquininha</p>
                 <p className="text-sm text-muted-foreground">
-                  {terminalName ? `${terminalName}: ` : ""}o cliente passa ou aproxima o cartão. Esta tela atualiza
-                  sozinha.
+                  {(charge?.terminalName ?? terminalName) ? `${charge?.terminalName ?? terminalName}: ` : ""}o cliente
+                  passa ou aproxima o cartão. Pode fechar esta janela: a cobrança continua e fica na barra
+                  “Na maquininha” do PDV.
                 </p>
               </div>
               {charge?.simulated && (

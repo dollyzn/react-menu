@@ -123,13 +123,25 @@ export default class PointService {
     await terminal.delete()
   }
 
-  /** Sends the order's amount to a machine. One charge at a time per order. */
-  async charge(order: Order, store: Store, input: PointChargeInput) {
+  /**
+   * Sends the order's amount to a machine. An order with a charge still
+   * waiting gets that charge back (`resumed`): closing the POS dialog never
+   * loses it. A machine busy with another order's charge refuses a second.
+   */
+  async charge(
+    order: Order,
+    store: Store,
+    input: PointChargeInput
+  ): Promise<{ payment: Payment; resumed: boolean }> {
     if (order.status === OrderStatus.CANCELLED) {
       throw new AppException('Este pedido foi cancelado.', 409, 'E_NOT_PAYABLE')
     }
     if (order.paymentStatus === PaymentStatus.PAID) {
       throw new AppException('Este pedido já está pago.', 409, 'E_NOT_PAYABLE')
+    }
+    const mine = await this.pending(order)
+    if (mine && (await this.stillPending(order, store, mine))) {
+      return { payment: mine, resumed: true }
     }
     if (input.paymentType && !store.pointPaymentTypes.includes(input.paymentType)) {
       throw new AppException('Esta forma de pagamento não está ativa na maquininha.', 422)
@@ -160,12 +172,23 @@ export default class PointService {
       )
     }
 
-    const open = await this.pending(order)
-    if (open) {
+    // The machine takes one charge at a time (Mercado Pago refuses a second).
+    const busy = await Payment.query()
+      .where({
+        storeId: store.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+        pointTerminalId: terminal.terminalId,
+      })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .preload('order')
+      .first()
+    if (busy && (await this.stillPending(busy.order, store, busy))) {
       throw new AppException(
-        'Já tem uma cobrança deste pedido na maquininha. Cancele ou espere ela terminar.',
+        `A maquininha ${terminal.name} está com a cobrança do pedido #${busy.order.number} em aberto. Termine ou cancele essa cobrança antes.`,
         409,
-        'E_CHARGE_IN_PROGRESS'
+        'E_TERMINAL_BUSY',
+        { orderId: busy.orderId, orderNumber: busy.order.number, paymentId: busy.id }
       )
     }
 
@@ -199,7 +222,7 @@ export default class PointService {
         )
       : this.fakeCharge(order, attempt)
 
-    return await Payment.create({
+    const payment = await Payment.create({
       orderId: order.id,
       storeId: store.id,
       gateway: store.mercadoPagoAccessToken ? 'mercado_pago' : 'fake',
@@ -211,6 +234,36 @@ export default class PointService {
       pointTerminalId: terminal.terminalId,
       expiresAt: DateTime.now().plus({ minutes: CHARGE_TTL_MINUTES }),
     })
+    return { payment, resumed: false }
+  }
+
+  /**
+   * The store's charges waiting on a machine, oldest first (the POS shows
+   * them so a closed dialog can be opened again). `check` asks Mercado Pago
+   * about each one first.
+   */
+  async pendingCharges(store: Store, { check = false } = {}) {
+    const charges = await Payment.query()
+      .where({
+        storeId: store.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+      })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .preload('order')
+      .orderBy('createdAt', 'asc')
+    if (!check) return charges
+    const open: Payment[] = []
+    for (const charge of charges) {
+      if (await this.stillPending(charge.order, store, charge)) open.push(charge)
+    }
+    return open
+  }
+
+  /** Read again from Mercado Pago: a charge settled without a webhook frees the machine. */
+  private async stillPending(order: Order, store: Store, payment: Payment) {
+    await this.check(order, store, payment)
+    return payment.status === PaymentAttemptStatus.PENDING
   }
 
   /** The order's charge still waiting on a machine, if any. */

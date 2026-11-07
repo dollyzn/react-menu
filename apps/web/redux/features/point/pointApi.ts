@@ -60,7 +60,14 @@ export const pointApi = baseApi.injectEndpoints({
         body: input,
         headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
       }),
+      invalidatesTags: (_res, _err, { storeId }) => [{ type: "PointConfig" as const, id: `charges-${storeId}` }],
       extraOptions: { quiet: true },
+    }),
+    /** Charges waiting on the store's machines; `check` asks Mercado Pago about each. */
+    getPendingPointCharges: build.query<PointCharge[], { storeId: string; check?: boolean }>({
+      query: ({ storeId, check }) => `stores/${storeId}/point/charges${check ? "?check=1" : ""}`,
+      providesTags: (_res, _err, { storeId }) => [{ type: "PointConfig" as const, id: `charges-${storeId}` }],
+      extraOptions: { quiet: true, background: true },
     }),
     /** The charge while it waits; `check` also asks Mercado Pago. */
     getPointCharge: build.query<PointCharge, ChargeArg & { check?: boolean }>({
@@ -75,6 +82,7 @@ export const pointApi = baseApi.injectEndpoints({
         url: `stores/${storeId}/orders/${orderId}/point-charges/${paymentId}/cancel`,
         method: "POST",
       }),
+      invalidatesTags: (_res, _err, { storeId }) => [{ type: "PointConfig" as const, id: `charges-${storeId}` }],
       extraOptions: { quiet: true },
     }),
     simulatePointCharge: build.mutation<PointCharge, ChargeArg & { approve: boolean }>({
@@ -83,7 +91,11 @@ export const pointApi = baseApi.injectEndpoints({
         method: "POST",
         body: { approve },
       }),
-      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId)],
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [
+        ordersTag(storeId),
+        orderTag(orderId),
+        { type: "PointConfig" as const, id: `charges-${storeId}` },
+      ],
     }),
   }),
 });
@@ -96,6 +108,7 @@ export const {
   useDisablePointTerminalMutation,
   useChargeOnPointMutation,
   useLazyGetPointChargeQuery,
+  useGetPendingPointChargesQuery,
   useCancelPointChargeMutation,
   useSimulatePointChargeMutation,
 } = pointApi;

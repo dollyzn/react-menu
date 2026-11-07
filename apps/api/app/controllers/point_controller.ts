@@ -4,6 +4,7 @@ import vine from '@vinejs/vine'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
 import Store from '#models/store'
 import type Payment from '#models/payment'
+import type Order from '#models/order'
 import OrderService from '#services/order_service'
 import PointService from '#services/point_service'
 import { storeExistValidator, uuidValidator } from '#validators/common'
@@ -18,9 +19,19 @@ import {
 const terminalParam = vine.create(terminalIdRule)
 
 /** What the POS shows while a charge waits on the machine. */
-function charge(payment: Payment, simulated: boolean) {
+function charge(
+  payment: Payment,
+  order: Order,
+  extra: { simulated: boolean; terminalName: string | null; resumed?: boolean }
+) {
   return {
     id: payment.id,
+    order: {
+      id: order.id,
+      number: order.number,
+      total: order.total,
+      customerName: order.customerName,
+    },
     status: payment.status,
     statusDetail: payment.statusDetail,
     terminalId: payment.pointTerminalId,
@@ -28,7 +39,10 @@ function charge(payment: Payment, simulated: boolean) {
     expiresAt: payment.expiresAt?.toISO() ?? null,
     createdAt: payment.createdAt.toISO(),
     /** "Simular" in the POS: the dev fake or the virtual machine (test credentials). */
-    simulated,
+    simulated: extra.simulated,
+    terminalName: extra.terminalName,
+    /** The order already had this charge waiting: the POS picks it up again. */
+    resumed: extra.resumed ?? false,
   }
 }
 
@@ -86,14 +100,21 @@ export default class PointController {
   async charge({ params, request }: HttpContext) {
     const { store, order } = await this.order(params)
     const input = await request.validateUsing(pointChargeValidator)
-    const payment = await this.point.charge(order, store, {
+    const { payment, resumed } = await this.point.charge(order, store, {
       ...input,
       idempotencyKey: request.header('idempotency-key'),
     })
     return created(
-      charge(payment, this.point.simulatable(payment)),
-      'Cobrança enviada para a maquininha'
+      await this.view(store, payment, order, resumed),
+      resumed ? 'Esta cobrança já estava na maquininha' : 'Cobrança enviada para a maquininha'
     )
+  }
+
+  /** Charges waiting on the store's machines (the POS lists them to open again). */
+  async pendingCharges({ params, request }: HttpContext) {
+    const store = await this.store(params)
+    const charges = await this.point.pendingCharges(store, { check: Boolean(request.qs().check) })
+    return ok(await Promise.all(charges.map((payment) => this.view(store, payment, payment.order))))
   }
 
   /** The POS follows the charge; `?check=1` also asks Mercado Pago. */
@@ -102,14 +123,14 @@ export default class PointController {
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.find(order, paymentId)
     if (request.qs().check) await this.point.check(order, store, payment)
-    return ok(charge(payment, this.point.simulatable(payment)))
+    return ok(await this.view(store, payment, order))
   }
 
   async cancelCharge({ params }: HttpContext) {
     const { store, order } = await this.order(params)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.cancel(store, await this.point.find(order, paymentId))
-    return updated(charge(payment, this.point.simulatable(payment)), 'Cobrança cancelada')
+    return updated(await this.view(store, payment, order), 'Cobrança cancelada')
   }
 
   /** Development only: the pretend or virtual machine answers. */
@@ -124,9 +145,20 @@ export default class PointController {
       approve
     )
     return updated(
-      charge(payment, this.point.simulatable(payment)),
+      await this.view(store, payment, order),
       approve ? 'Pagamento aprovado (simulado)' : 'Pagamento recusado (simulado)'
     )
+  }
+
+  private async view(store: Store, payment: Payment, order: Order, resumed = false) {
+    const terminals = await this.point.enabledTerminals(store)
+    const terminalName =
+      terminals.find((terminal) => terminal.terminalId === payment.pointTerminalId)?.name ?? null
+    return charge(payment, order, {
+      simulated: this.point.simulatable(payment),
+      terminalName,
+      resumed,
+    })
   }
 
   private config(store: Store, terminals: { terminalId: string; name: string }[]) {

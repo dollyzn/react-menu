@@ -8,7 +8,7 @@ import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
 import { CreditCard, Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
-import type { PublicMenuItem } from "@react-menu/contracts";
+import type { PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
@@ -29,6 +29,7 @@ import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
 import { useLastValue } from "@/hooks/use-last-value";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
+import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
 import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
 
 type TicketLine = CustomizedLine & { key: string };
@@ -59,6 +60,8 @@ export default function PosPage() {
   const { data: point } = useGetPointConfigQuery(storeId);
   const canCharge = Boolean(point?.available && point.terminals.length > 0);
   const [charging, setCharging] = useState<{ id: string; number: number; total: number } | null>(null);
+  /** A charge already on the machine, opened from the "Na maquininha" bar. */
+  const [resuming, setResuming] = useState<PointCharge | null>(null);
 
   const categories = menu?.categories ?? [];
   const totalItems = categories.reduce((sum, category) => sum + category.items.length, 0);
@@ -210,6 +213,13 @@ export default function PosPage() {
     <div className="grid min-h-[calc(100svh-3rem)] grid-cols-1 lg:h-[calc(100svh-3rem)] lg:grid-cols-[1fr_400px] lg:overflow-hidden">
       <section aria-label="Produtos" className="flex min-w-0 min-h-0 flex-col lg:overflow-y-auto">
         <div className="sticky top-12 z-10 flex flex-col gap-2 border-b bg-background/90 p-4 pb-3 backdrop-blur-md lg:top-0">
+          <PendingChargesBar
+            storeId={storeId}
+            onOpen={(charge) => {
+              setResuming(charge);
+              setCharging(charge.order);
+            }}
+          />
           <SearchInput
             value={query}
             onValueChange={setQuery}
@@ -366,7 +376,15 @@ export default function PosPage() {
         )}
       </ResponsiveModal>
 
-      <PointChargeDialog storeId={storeId} order={charging} onClose={() => setCharging(null)} />
+      <PointChargeDialog
+        storeId={storeId}
+        order={charging}
+        resume={resuming}
+        onClose={() => {
+          setCharging(null);
+          setResuming(null);
+        }}
+      />
     </div>
   );
 }

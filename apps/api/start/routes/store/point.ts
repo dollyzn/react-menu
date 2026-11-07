@@ -21,6 +21,10 @@ export default function registerStorePointRoutes() {
     .use(managersOnly)
 
   router
+    .get('/point/charges', [PointController, 'pendingCharges'])
+    .as('point.pendingCharges')
+    .use(frontOfHouse)
+  router
     .post('/orders/:orderId/point-charges', [PointController, 'charge'])
     .as('point.charge')
     .use(frontOfHouse)

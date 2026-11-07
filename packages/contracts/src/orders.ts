@@ -390,6 +390,12 @@ export interface PointChargeInput {
 /** A charge sent to a machine; the POS follows it until it settles. */
 export interface PointCharge {
   id: string;
+  /** The order it charges (the POS lists waiting charges by order). */
+  order: { id: string; number: number; total: number; customerName: string };
+  /** The store's name for the machine ("Balcão"). */
+  terminalName: string | null;
+  /** The order already had this charge waiting: picked up again, nothing new sent. */
+  resumed: boolean;
   status: 'pending' | 'approved' | 'rejected' | 'expired' | 'refunded';
   /** Mercado Pago's reason (canceled_on_terminal, insufficient_amount…). */
   statusDetail: string | null;
