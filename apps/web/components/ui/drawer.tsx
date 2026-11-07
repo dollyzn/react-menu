@@ -5,10 +5,32 @@ import { Drawer as DrawerPrimitive } from "vaul"
 
 import { cn } from "@/lib/utils"
 
+/**
+ * iOS Safari keeps the page size when the keyboard opens, so vaul moves the
+ * drawer above it. Everywhere else the page itself shrinks with the keyboard
+ * (viewport `interactive-widget=resizes-content`, app/layout.tsx) and the
+ * drawer, pinned to the bottom, follows on its own; vaul's repositioning
+ * there left the drawer stuck up high after the keyboard closed.
+ */
+function isIOS() {
+  if (typeof navigator === "undefined") return false
+  return (
+    /iP(hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  )
+}
+
 function Drawer({
+  repositionInputs,
   ...props
 }: React.ComponentProps<typeof DrawerPrimitive.Root>) {
-  return <DrawerPrimitive.Root data-slot="drawer" {...props} />
+  return (
+    <DrawerPrimitive.Root
+      data-slot="drawer"
+      repositionInputs={repositionInputs ?? isIOS()}
+      {...props}
+    />
+  )
 }
 
 function DrawerTrigger({
