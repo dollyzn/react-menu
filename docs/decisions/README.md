@@ -25,6 +25,7 @@ an accepted ADR, supersede it with a new one.
 | [0017](0017-mercado-pago-orders-api.md) | Mercado Pago payments on the Orders API | Accepted |
 | [0018](0018-card-3d-secure.md) | 3-D Secure on card payments | Accepted |
 | [0019](0019-csrf-and-csp-without-shield.md) | CSRF and CSP without @adonisjs/shield and @adonisjs/session | Accepted |
+| [0020](0020-mercado-pago-point.md) | Card machines (Mercado Pago Point) charged from the POS | Accepted |
 
 ## Template
 

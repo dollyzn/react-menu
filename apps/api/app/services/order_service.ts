@@ -181,7 +181,11 @@ export default class OrderService {
    * sync). The row lock makes the second call wait and find it paid, so the
    * stock is consumed and the staff notified once.
    */
-  async markPaid(order: Order, meta: { mercadoPagoPaymentId?: string } = {}, actor?: User) {
+  async markPaid(
+    order: Order,
+    meta: { mercadoPagoPaymentId?: string; paymentMethod?: PaymentMethod } = {},
+    actor?: User
+  ) {
     if (order.paymentStatus === PaymentStatus.PAID) return order
     let wasAwaitingPayment = false
 
@@ -191,6 +195,8 @@ export default class OrderService {
       wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
       order.paymentStatus = PaymentStatus.PAID
       if (meta.mercadoPagoPaymentId) order.mercadoPagoPaymentId = meta.mercadoPagoPaymentId
+      // Paid on the card machine: refunded by itself if the order is cancelled.
+      if (meta.paymentMethod) order.paymentMethod = meta.paymentMethod
       if (order.status === OrderStatus.PENDING_PAYMENT) {
         await this.enterKitchen(order, trx, actor)
       }

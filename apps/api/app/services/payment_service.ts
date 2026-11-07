@@ -355,7 +355,7 @@ export default class PaymentService {
     })
   }
 
-  private async update(payment: Payment, result: GatewayPayment) {
+  async update(payment: Payment, result: GatewayPayment) {
     payment.status = result.status
     payment.statusDetail = result.statusDetail
     // The challenge page only matters while the payer still has to confirm.
@@ -370,11 +370,12 @@ export default class PaymentService {
   }
 
   /** Mirrors the attempt on the order (only the latest attempt decides). */
-  private async settle(order: Order, payment: Payment) {
+  async settle(order: Order, payment: Payment) {
     if (payment.status === PaymentAttemptStatus.APPROVED) {
       await this.orders.markPaid(order, {
         mercadoPagoPaymentId:
           payment.gateway === 'mercado_pago' ? (payment.gatewayPaymentId ?? undefined) : undefined,
+        paymentMethod: payment.method === PaymentMethod.POINT ? PaymentMethod.POINT : undefined,
       })
       await SendOrderReceipt.dispatchFor(payment)
       // Paid after it expired (a late Pix): give the money back.
@@ -384,6 +385,9 @@ export default class PaymentService {
       }
       return
     }
+    // A card machine charge that didn't go through leaves the order as it
+    // was (in the kitchen, to be paid): try again or take it another way.
+    if (payment.method === PaymentMethod.POINT) return
     const latest = await this.latestFor(order)
     if (latest?.id !== payment.id) return
     if (payment.status === PaymentAttemptStatus.PENDING) await this.orders.markPaymentPending(order)

@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
 import AppException from '#exceptions/app_exception'
+import type { MercadoPagoTerminal, PointOrderInput } from '#payments/point'
 
 const API = 'https://api.mercadopago.com'
 
@@ -138,6 +139,54 @@ export default class MercadoPagoClient {
     return await this.request(accessToken, 'POST', '/v1/orders', input, idempotencyKey, [402])
   }
 
+  /** A charge sent to a card machine (Point); it waits there for the card. */
+  async createPointOrder(
+    accessToken: string,
+    input: PointOrderInput,
+    idempotencyKey: string
+  ): Promise<MercadoPagoOrder> {
+    return await this.request(accessToken, 'POST', '/v1/orders', input, idempotencyKey)
+  }
+
+  /**
+   * Cancels a charge not paid yet. One already on the machine's screen
+   * answers 409: only the machine can cancel it then.
+   */
+  async cancelOrder(accessToken: string, orderId: string, idempotencyKey: string) {
+    return await this.request<MercadoPagoOrder>(
+      accessToken,
+      'POST',
+      `/v1/orders/${encodeURIComponent(orderId)}/cancel`,
+      undefined,
+      idempotencyKey,
+      [],
+      {
+        409: new AppException(
+          'A cobrança já está na maquininha: cancele por lá (segure o botão vermelho e confirme).',
+          409,
+          'E_CANCEL_ON_TERMINAL'
+        ),
+      }
+    )
+  }
+
+  /** The account's card machines (Point). */
+  async listTerminals(accessToken: string): Promise<MercadoPagoTerminal[]> {
+    const result = await this.request<{ data?: { terminals?: MercadoPagoTerminal[] } }>(
+      accessToken,
+      'GET',
+      '/terminals/v1/list?limit=50'
+    )
+    return result.data?.terminals ?? []
+  }
+
+  /** PDV: the machine takes charges from the system (restart it afterwards). */
+  async setTerminalMode(accessToken: string, terminalId: string, mode: 'PDV' | 'STANDALONE') {
+    await this.request(accessToken, 'PATCH', '/terminals/v1/setup', {
+      terminals: [{ id: terminalId, operating_mode: mode }],
+    })
+  }
+
   async getOrder(accessToken: string, orderId: string): Promise<MercadoPagoOrder> {
     return await this.request(accessToken, 'GET', `/v1/orders/${encodeURIComponent(orderId)}`)
   }
@@ -175,7 +224,9 @@ export default class MercadoPagoClient {
     body?: unknown,
     idempotencyKey?: string,
     /** Non-2xx statuses whose body is still the resource. */
-    resultStatuses: number[] = []
+    resultStatuses: number[] = [],
+    /** Statuses that mean something to the caller, answered as these errors. */
+    errors: Record<number, AppException> = {}
   ) {
     const response = await fetch(`${API}${path}`, {
       method,
@@ -191,6 +242,7 @@ export default class MercadoPagoClient {
       const result = (await response.json().catch(() => null)) as T | null
       if (result && typeof result === 'object' && 'id' in result) return result
     }
+    if (errors[response.status]) throw errors[response.status]
     if (!response.ok) {
       throw new AppException(
         'Não foi possível falar com o Mercado Pago. Tente novamente.',

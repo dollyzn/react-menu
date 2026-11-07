@@ -8,6 +8,7 @@ import Addon from './addon.js'
 import User from './user.js'
 import db from '@adonisjs/lucid/services/db'
 import { availability, type OpeningInterval } from '#helpers/opening_hours'
+import type { PointPaymentType } from '#payments/point'
 
 /** Same as #services/order_service (a model can't import a service). */
 const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
@@ -80,6 +81,18 @@ export default class Store extends BaseModel {
   /** Public key for the card form (Card Payment Brick); safe to expose. */
   @column()
   declare mercadoPagoPublicKey: string | null
+
+  /** Card machine (Point): what it offers (credit_card, debit_card, qr). */
+  @column({ prepare: (value: PointPaymentType[]) => JSON.stringify(value ?? []) })
+  declare pointPaymentTypes: PointPaymentType[]
+
+  /** Card machine: credit installments the POS may pick (1 = à vista). */
+  @column()
+  declare pointMaxInstallments: number
+
+  /** Card machine: prints the receipt. */
+  @column()
+  declare pointPrintTicket: boolean
 
   /** Opens and closes by itself following `openingHours`. */
   @column()

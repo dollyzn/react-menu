@@ -20,6 +20,7 @@ export const PAYMENT: Record<PaymentMethod, string> = {
   counter: "Na retirada",
   pix: "Pix",
   card: "Cartão",
+  point: "Maquininha",
   mercado_pago: "Mercado Pago (antigo)",
 };
 

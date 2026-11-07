@@ -7,7 +7,7 @@ import Image from "@/components/app/image";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
+import { CreditCard, Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
 import type { PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
@@ -28,6 +28,8 @@ import { CustomerAutocomplete } from "./customer-autocomplete";
 import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
 import { useLastValue } from "@/hooks/use-last-value";
+import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
+import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
 
 type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>
@@ -53,6 +55,10 @@ export default function PosPage() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [ticketOpen, setTicketOpen] = useState(false);
+  // Mercado Pago Point: a machine on lets the ticket be charged right after it is sent.
+  const { data: point } = useGetPointConfigQuery(storeId);
+  const canCharge = Boolean(point?.available && point.terminals.length > 0);
+  const [charging, setCharging] = useState<{ id: string; number: number; total: number } | null>(null);
 
   const categories = menu?.categories ?? [];
   const totalItems = categories.reduce((sum, category) => sum + category.items.length, 0);
@@ -141,7 +147,7 @@ export default function PosPage() {
     setQuery("");
   };
 
-  const send = async () => {
+  const send = async ({ charge = false }: { charge?: boolean } = {}) => {
     const input = {
       customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       lines: lines.map((line) => ({
@@ -161,6 +167,8 @@ export default function PosPage() {
       }).unwrap();
       releaseIdempotencyKey(keyScope);
       toast.success(`Pedido #${order.number} enviado para a cozinha`, POS_TOAST);
+      // The order is in the kitchen; the machine takes the payment now.
+      if (charge) setCharging({ id: order.id, number: order.number, total: order.total });
       setLines([]);
       setCustomerName("");
       setCustomerPhone("");
@@ -193,7 +201,8 @@ export default function PosPage() {
     onQuantity: changeQuantity,
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
-    onSend: send,
+    onSend: () => void send(),
+    onSendAndCharge: canCharge ? () => void send({ charge: true }) : undefined,
     sending,
   };
 
@@ -356,6 +365,8 @@ export default function PosPage() {
           />
         )}
       </ResponsiveModal>
+
+      <PointChargeDialog storeId={storeId} order={charging} onClose={() => setCharging(null)} />
     </div>
   );
 }
@@ -479,6 +490,7 @@ function Ticket({
   canIncrease,
   onClear,
   onSend,
+  onSendAndCharge,
   sending,
   inModal,
 }: {
@@ -495,6 +507,8 @@ function Ticket({
   canIncrease: (itemId: string) => boolean;
   onClear: () => void;
   onSend: () => void;
+  /** With a card machine on: send, then charge it there. */
+  onSendAndCharge?: () => void;
   sending: boolean;
   /** In the phone drawer/dialog the parent scrolls, so the footer sticks. */
   inModal?: boolean;
@@ -612,8 +626,20 @@ function Ticket({
           <span>Total</span>
           <AnimatedPrice value={total} className="text-xl" />
         </div>
-        <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0} loading={sending} onClick={onSend}>
-          <Send /> Enviar para a cozinha
+        {onSendAndCharge && (
+          <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0 || sending} onClick={onSendAndCharge}>
+            <CreditCard /> Enviar e cobrar na maquininha
+          </Button>
+        )}
+        <Button
+          size="lg"
+          variant={onSendAndCharge ? "outline" : "default"}
+          className="h-12 w-full rounded-xl text-base"
+          disabled={lines.length === 0}
+          loading={sending}
+          onClick={onSend}
+        >
+          <Send /> {onSendAndCharge ? "Enviar e receber depois" : "Enviar para a cozinha"}
         </Button>
       </div>
     </div>

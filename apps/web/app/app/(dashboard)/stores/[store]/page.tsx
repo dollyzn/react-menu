@@ -28,6 +28,7 @@ import { copyToClipboard } from "@/utils/copy-to-clipboard";
 import { EditStoreDialog } from "./components/edit-store-dialog";
 import { OpeningHoursCard } from "./components/opening-hours-card";
 import { PaymentSettingsCard } from "./components/payment-settings-card";
+import { PointSettingsCard } from "./components/point-settings-card";
 import { CommentRatings } from "./components/rating";
 import { SortingTabs } from "./components/sorting-tabs";
 import { StoreStatusDropdown } from "./components/store-status-dropdown";
@@ -191,6 +192,7 @@ export default function Store() {
 
       {data && <OpeningHoursCard key={data.updatedAt} store={data} />}
       {data && <PaymentSettingsCard store={data} />}
+      {data && <PointSettingsCard store={data} />}
     </div>
   );
 }
