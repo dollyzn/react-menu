@@ -27,8 +27,8 @@ picked from Product below, one PR at a time.
 
 - **Enforce the Content-Security-Policy.** The web sends it as
   `Content-Security-Policy-Report-Only` (`apps/web/lib/csp.ts`, nonce from
-  `proxy.ts`); reports are logged by `/csp-report` (in Grafana/Loki with
-  OpenTelemetry). After a few weeks of real traffic without unexpected
+  `proxy.ts`); reports are logged by `/csp-report` (`docker compose logs web
+  | grep csp-report`). After a few weeks of real traffic without unexpected
   reports (Mercado Pago Brick, 3-D Secure, push), switch the header to
   `Content-Security-Policy`.
 - **HSTS `includeSubDomains`/`preload`** in `docker/caddy/Caddyfile`, once

@@ -106,7 +106,7 @@ committed. Generate secrets with `openssl rand -base64 32` (passwords:
 | `FIREBASE_PROJECT_ID` / `FIREBASE_CLIENT_EMAIL` / `FIREBASE_PRIVATE_KEY` | Web push from the API: Firebase → Project settings → Service accounts → Generate key (the JSON's fields). The private key in double quotes with `\n` for line breaks. |
 | `NEXT_PUBLIC_FIREBASE_API_KEY` / `_PROJECT_ID` / `_MESSAGING_SENDER_ID` / `_APP_ID` | Web push in the browser: Firebase → Project settings → General → Web app config. Baked into the web build. |
 | `NEXT_PUBLIC_FIREBASE_VAPID_KEY` | Firebase → Cloud Messaging → Web Push certificates → key pair. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS` | Traces, logs and metrics to Grafana Cloud (docs/development/observability.md). Also where the web's CSP reports show up. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` / `OTEL_EXPORTER_OTLP_HEADERS` | Traces, logs and metrics to Grafana Cloud (docs/development/observability.md). |
 | `OTEL_TRACES_SAMPLE_RATIO` | `1` (all); lower if the free tier fills up. |
 | `APP_ENV` | `production` (shown in Grafana). |
 | `LOG_LEVEL` | `info` (default). |
@@ -224,7 +224,7 @@ release ran a migration that has to be undone, restore the dump it saved:
 
 ## 7. After the first days
 
-- Watch the CSP reports (`csp-report` lines in the web logs, or in Loki):
+- Watch the CSP reports (`docker compose logs web | grep csp-report`):
   when nothing unexpected shows up, enforce the policy (roadmap).
 - Once every subdomain is on HTTPS, add `includeSubDomains` to HSTS
   (`docker/caddy/Caddyfile`).
