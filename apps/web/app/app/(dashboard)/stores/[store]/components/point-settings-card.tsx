@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CreditCard, RefreshCw, Smartphone, TriangleAlert } from "lucide-react";
+import { CreditCard, QrCode, RefreshCw, Smartphone, SmartphoneNfc, TriangleAlert, Wallet } from "lucide-react";
 import { toast } from "sonner";
 import type { PointPaymentType, PointSettingsInput, PointTerminalListing } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
@@ -32,11 +32,12 @@ import {
   useUpdatePointSettingsMutation,
 } from "@/redux/features/point/pointApi";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { cn } from "@/lib/utils";
 
-const TYPES: { value: PointPaymentType; label: string; hint: string }[] = [
-  { value: "credit_card", label: "Crédito", hint: "" },
-  { value: "debit_card", label: "Débito", hint: "" },
-  { value: "qr", label: "Pix / QR na maquininha", hint: "Confirme se o seu modelo aceita." },
+const TYPES: { value: PointPaymentType; label: string; hint: string; icon: typeof CreditCard }[] = [
+  { value: "credit_card", label: "Crédito", hint: "", icon: CreditCard },
+  { value: "debit_card", label: "Débito", hint: "", icon: Wallet },
+  { value: "qr", label: "Pix / QR", hint: "Confira se o modelo aceita", icon: QrCode },
 ];
 
 const INSTALLMENTS = Array.from({ length: 12 }, (_, index) => ({
@@ -88,57 +89,76 @@ export function PointSettingsCard({ store }: { store: Store }) {
           cartão. Pedidos pagos na maquininha e cancelados são estornados automaticamente.
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+      <CardContent>
         {!config ? (
-          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-40 w-full" />
         ) : !config.available ? (
-          <p className="text-sm text-muted-foreground">
+          <p className="rounded-xl bg-muted/60 p-4 text-sm text-muted-foreground">
             Configure o Mercado Pago em “Pagamentos online” para usar as maquininhas da mesma conta.
           </p>
         ) : (
-          <>
-            <section aria-labelledby="point-terminals" className="flex flex-col gap-2">
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+            <section aria-labelledby="point-terminals" className="flex flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 id="point-terminals" className="text-sm font-medium">
+                <h3 id="point-terminals" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   Maquininhas da conta
                 </h3>
-                <Button variant="ghost" size="sm" onClick={() => void refetch()} loading={isFetching}>
+                <Button variant="ghost" size="xs" onClick={() => void refetch()} loading={isFetching}>
                   <RefreshCw /> Atualizar
                 </Button>
               </div>
               {isLoading ? (
-                <Skeleton className="h-20 w-full" />
+                <Skeleton className="h-24 w-full" />
               ) : isError ? (
-                <p className="text-sm text-destructive">Não foi possível listar as maquininhas no Mercado Pago.</p>
+                <p className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive">
+                  Não foi possível listar as maquininhas no Mercado Pago.
+                </p>
               ) : !terminals?.length ? (
-                <p className="text-sm text-muted-foreground">
+                <p className="rounded-xl border border-dashed p-4 text-center text-sm text-muted-foreground">
                   Nenhuma maquininha nesta conta do Mercado Pago. Vincule uma pelo app do Mercado Pago.
                 </p>
               ) : (
-                <ul className="divide-y rounded-xl border">
+                <ul className="flex flex-col gap-2">
                   {terminals.map((terminal) => (
-                    <li key={terminal.id} className="flex flex-wrap items-center gap-3 p-3">
-                      <CreditCard className="size-4 shrink-0 text-muted-foreground" />
+                    <li
+                      key={terminal.id}
+                      className={cn(
+                        "flex items-center gap-3 rounded-2xl border p-3 transition-colors",
+                        terminal.enabled && "border-primary/30 bg-primary/5"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "flex size-11 shrink-0 items-center justify-center rounded-xl",
+                          terminal.enabled ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        <SmartphoneNfc className="size-5" />
+                      </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-medium">
-                          {terminal.name ?? terminal.model}
-                          {terminal.enabled && (
-                            <Badge variant="outline" className="ml-2 align-middle">
-                              No PDV
-                            </Badge>
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span className="text-sm font-semibold">{terminal.name ?? terminal.model}</span>
+                          {terminal.enabled ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success">
+                              <span className="size-1.5 rounded-full bg-success" /> No PDV
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+                              {terminal.operatingMode === "PDV" ? "Modo PDV" : "Modo normal"}
+                            </span>
                           )}
                         </span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {terminal.model} · {terminal.serial} ·{" "}
-                          {terminal.operatingMode === "PDV" ? "modo PDV" : "modo normal"}
+                        <span className="block truncate font-mono text-[11px] text-muted-foreground">
+                          {terminal.name ? `${terminal.model} · ` : ""}
+                          {terminal.serial}
                         </span>
                       </span>
                       {terminal.enabled ? (
-                        <Button variant="outline" size="sm" onClick={() => setRemoving(terminal)}>
+                        <Button variant="ghost" size="sm" onClick={() => setRemoving(terminal)}>
                           Desativar
                         </Button>
                       ) : (
-                        <Button size="sm" onClick={() => setNaming(terminal)}>
+                        <Button variant="outline" size="sm" onClick={() => setNaming(terminal)}>
                           Usar no PDV
                         </Button>
                       )}
@@ -149,60 +169,90 @@ export function PointSettingsCard({ store }: { store: Store }) {
             </section>
 
             <section aria-labelledby="point-how" className="flex flex-col gap-3">
-              <h3 id="point-how" className="text-sm font-medium">
+              <h3 id="point-how" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Como cobrar
               </h3>
-              <div className="flex flex-col gap-2">
-                {TYPES.map((type) => (
-                  <label key={type.value} className="flex items-start gap-3 text-sm">
-                    <Checkbox
-                      checked={config.paymentTypes.includes(type.value)}
-                      // At least one way to pay stays on.
-                      disabled={config.paymentTypes.length === 1 && config.paymentTypes.includes(type.value)}
-                      onCheckedChange={(checked) =>
-                        change({
-                          paymentTypes: checked
-                            ? [...config.paymentTypes, type.value]
-                            : config.paymentTypes.filter((value) => value !== type.value),
-                        })
-                      }
-                    />
+              <div className="grid grid-cols-3 gap-2">
+                {TYPES.map((type) => {
+                  const Icon = type.icon;
+                  const checked = config.paymentTypes.includes(type.value);
+                  // At least one way to pay stays on.
+                  const locked = checked && config.paymentTypes.length === 1;
+                  return (
+                    <label
+                      key={type.value}
+                      className={cn(
+                        "relative flex cursor-pointer flex-col items-center gap-1.5 rounded-2xl border p-3 text-center transition-colors has-focus-visible:ring-3 has-focus-visible:ring-ring/50",
+                        checked ? "border-primary bg-primary/5" : "hover:bg-muted/50",
+                        locked && "cursor-not-allowed"
+                      )}
+                    >
+                      <Checkbox
+                        className="absolute top-2 right-2"
+                        checked={checked}
+                        disabled={locked}
+                        aria-label={type.label}
+                        onCheckedChange={(on) =>
+                          change({
+                            paymentTypes: on
+                              ? [...config.paymentTypes, type.value]
+                              : config.paymentTypes.filter((value) => value !== type.value),
+                          })
+                        }
+                      />
+                      <span
+                        className={cn(
+                          "flex size-10 items-center justify-center rounded-xl",
+                          checked ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        <Icon className="size-5" />
+                      </span>
+                      <span className="text-sm font-semibold">{type.label}</span>
+                      {type.hint && <span className="text-[11px] leading-tight text-muted-foreground">{type.hint}</span>}
+                    </label>
+                  );
+                })}
+              </div>
+              <ul className="divide-y rounded-2xl border">
+                <li className="flex items-center justify-between gap-3 p-3">
+                  <span>
+                    <span className="block text-sm font-medium">Parcelamento no crédito</span>
+                    <span className="block text-xs text-muted-foreground">Sem juros para o cliente</span>
+                  </span>
+                  <Select
+                    items={INSTALLMENTS}
+                    value={String(config.maxInstallments)}
+                    onValueChange={(value) => change({ maxInstallments: Number(value) })}
+                  >
+                    <SelectTrigger className="w-32" aria-label="Parcelamento no crédito">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {INSTALLMENTS.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </li>
+                <li>
+                  <label className="flex items-center justify-between gap-3 p-3">
                     <span>
-                      {type.label}
-                      {type.hint && <span className="block text-xs text-muted-foreground">{type.hint}</span>}
+                      <span className="block text-sm font-medium">Comprovante impresso</span>
+                      <span className="block text-xs text-muted-foreground">A maquininha imprime a via da loja</span>
                     </span>
+                    <Switch
+                      checked={config.printTicket}
+                      onCheckedChange={(checked) => change({ printTicket: checked })}
+                      aria-label="Imprimir o comprovante na maquininha"
+                    />
                   </label>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
-                <span>Parcelamento no crédito</span>
-                <Select
-                  items={INSTALLMENTS}
-                  value={String(config.maxInstallments)}
-                  onValueChange={(value) => change({ maxInstallments: Number(value) })}
-                >
-                  <SelectTrigger className="w-36" aria-label="Parcelamento no crédito">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {INSTALLMENTS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <label className="flex items-center justify-between gap-3 text-sm">
-                Imprimir o comprovante na maquininha
-                <Switch
-                  checked={config.printTicket}
-                  onCheckedChange={(checked) => change({ printTicket: checked })}
-                  aria-label="Imprimir o comprovante na maquininha"
-                />
-              </label>
+                </li>
+              </ul>
             </section>
-          </>
+          </div>
         )}
       </CardContent>
 

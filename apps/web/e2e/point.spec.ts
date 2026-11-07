@@ -31,7 +31,7 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
     };
     const charging = page.getByRole("dialog", { name: /Cobrar/ });
     const sendToMachine = async () => {
-      await charging.getByRole("button", { name: /Enviar para a maquininha/ }).click();
+      await charging.getByRole("button", { name: /^Cobrar R\$/ }).click();
       await expect(charging).toHaveAccessibleName(/Cobrar pedido #\d+/);
       return (await charging.getByRole("heading").first().textContent())!.match(/#(\d+)/)![1];
     };
