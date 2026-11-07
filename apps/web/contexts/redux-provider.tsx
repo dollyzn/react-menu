@@ -1,5 +1,8 @@
 "use client";
 
+// Before any form validates: no eval under the CSP.
+import "@/lib/zod-config";
+
 import store from "@/redux/store";
 import { Provider } from "react-redux";
 import { PersistGate } from "redux-persist/integration/react";
