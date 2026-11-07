@@ -21,6 +21,8 @@ export default class SendEmail extends AppJob<Payload> {
     retry: { backoff: exponentialBackoff({ baseDelay: '30s', maxDelay: '30m' }) },
   }
 
+  protected notifyFailureByEmail = false
+
   async execute() {
     await mail.use(this.payload.mailer).sendCompiled(this.payload.mail, this.payload.config)
   }

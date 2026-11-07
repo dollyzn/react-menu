@@ -12,7 +12,10 @@ import DailySummaryMail from '#mails/daily_summary_mail'
 import { sendDailySummaries } from '#jobs/send_daily_summaries'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
 import { createMenuStore, createStore, createUser, linkUser } from '#tests/helpers/fixtures'
-import { fakeQueue } from '#tests/helpers/queue'
+import { failJob, fakeQueue } from '#tests/helpers/queue'
+import SendEmail from '#jobs/send_email'
+import Notification from '#models/notification'
+import StoreAccessNotification from '#mails/store_access_notification'
 
 /** Push "configured", so notify() decides per person whether to queue it. */
 class ConfiguredFcm extends FcmClient {
@@ -153,15 +156,63 @@ test.group('Notification preferences', (group) => {
       .loginAs(manager)
     const at = (hour: number) => DateTime.now().setZone(BUSINESS_TIMEZONE).set({ hour, minute: 0 })
 
-    const otherHour = await sendDailySummaries(at(6))
-    const sent = await sendDailySummaries(at(7))
-    const again = await sendDailySummaries(at(7))
+    const early = await sendDailySummaries(at(6))
+    // 07:00 was missed (API down, a failed run): the next run catches up.
+    const late = await sendDailySummaries(at(9))
+    const again = await sendDailySummaries(at(10))
 
-    assert.equal(otherHour, 0)
-    assert.equal(sent, 1)
+    assert.equal(early, 0)
+    assert.equal(late, 1)
     assert.equal(again, 0)
     const [summary] = fakeMail.mails.queued((message) => message instanceof DailySummaryMail)
     assert.include((summary as DailySummaryMail).subject, store.name)
+    mail.restore()
+  })
+
+  test('a failed e-mail job tells the admins in the bell, never by e-mail', async ({ assert }) => {
+    const fakeMail = mail.fake()
+    await createUser({ superUser: true })
+    await failJob(SendEmail, { mailer: 'smtp', mail: {} as never }, new Error('SMTP down'))
+
+    assert.lengthOf(
+      fakeMail.mails.queued((message) => message instanceof NotificationMail),
+      0
+    )
+    const [notice] = await Notification.query().where('type', 'system.job_failed')
+    assert.exists(notice)
+    mail.restore()
+  })
+
+  test('joining a team sends one e-mail, and none when switched off', async ({
+    client,
+    assert,
+  }) => {
+    const fakeMail = mail.fake()
+    const store = await createStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const [wants, declined] = [await createUser(), await createUser()]
+    await client
+      .put(preferences)
+      .json({
+        channels: { 'store.member_added': { push: true, email: false } },
+        mutedStoreIds: [],
+        dailySummary: { enabled: false, hour: 8 },
+      })
+      .loginAs(declined)
+
+    for (const user of [wants, declined]) {
+      const added = await client
+        .post(`/api/v1/stores/${store.id}/members`)
+        .json({ email: user.email, role: StoreRole.ATTENDANT })
+        .loginAs(manager)
+      added.assertStatus(200)
+    }
+
+    const queued = fakeMail.mails.queued()
+    assert.lengthOf(queued, 1)
+    assert.instanceOf(queued[0], StoreAccessNotification)
+    assert.notInstanceOf(queued[0], NotificationMail)
     mail.restore()
   })
 })

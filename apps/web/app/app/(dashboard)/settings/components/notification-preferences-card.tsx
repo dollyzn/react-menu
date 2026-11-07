@@ -1,7 +1,8 @@
 "use client";
 
-import { Bell, BellOff, BellRing, Mail, Megaphone, ShoppingBag, Smartphone, Store as StoreIcon, Sunrise } from "lucide-react";
+import { Bell, BellOff, BellRing, Mail, Megaphone, RotateCw, ShoppingBag, Smartphone, Store as StoreIcon, Sunrise } from "lucide-react";
 import type { NotificationCategory, NotificationPreferences, NotificationPreferencesInput } from "@react-menu/contracts";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,7 +41,7 @@ function toInput(preferences: NotificationPreferences): NotificationPreferencesI
  */
 export function NotificationPreferencesCard() {
   const push = useNotification();
-  const { data, isLoading } = useGetNotificationPreferencesQuery();
+  const { data, isLoading, isError, refetch } = useGetNotificationPreferencesQuery();
   const [save] = useUpdateNotificationPreferencesMutation();
 
   const change = (edit: (input: NotificationPreferencesInput) => void) => {
@@ -98,7 +99,14 @@ export function NotificationPreferencesCard() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-5">
-          {isLoading || !data ? (
+          {isError && !data ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-center">
+              <p className="text-sm text-muted-foreground">Não foi possível carregar suas preferências.</p>
+              <Button variant="outline" size="sm" onClick={() => refetch()}>
+                <RotateCw /> Tentar novamente
+              </Button>
+            </div>
+          ) : isLoading || !data ? (
             <Skeleton className="h-40 w-full" />
           ) : (
             byCategory.map(({ category, types }) => {

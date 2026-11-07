@@ -75,9 +75,15 @@ export default class NotificationPreferenceService {
     }
     const stores = await this.storesOf(user.id)
     const mine = new Set(stores.map((store) => store.id))
-    const preference =
-      (await NotificationPreference.findBy('userId', user.id)) ??
-      new NotificationPreference().merge({ userId: user.id })
+    // The row is created once even when two saves arrive together (the
+    // switches save on every change).
+    const now = new Date()
+    await db
+      .table('notification_preferences')
+      .insert({ user_id: user.id, created_at: now, updated_at: now })
+      .onConflict('user_id')
+      .ignore()
+    const preference = await NotificationPreference.findByOrFail('userId', user.id)
     preference.merge({
       channels,
       mutedStoreIds: [...new Set(input.mutedStoreIds)].filter((id) => mine.has(id)),

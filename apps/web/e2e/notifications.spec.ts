@@ -47,12 +47,16 @@ test("store members are notified in realtime when the status changes", async ({ 
 });
 
 test("the popover filters and marks as read; preferences save per type and store", async ({ page }) => {
-  await createStoreViaApi(page, "Preferências");
+  const store = await createStoreViaApi(page, "Preferências");
   await page.goto("/app/settings#notificacoes");
   const orders = page.getByRole("switch", { name: "Novos pedidos: e-mail" });
+  const status = page.getByRole("switch", { name: "Loja aberta ou fechada: e-mail" });
   await expect(orders).not.toBeChecked();
+  // Two changes in a row, without waiting: both must be kept.
   await orders.click();
+  await status.click();
   await expect(orders).toBeChecked();
+  await expect(status).toBeChecked();
   const mute = page.getByRole("switch", { name: "Notificações da Preferências" });
   await expect(mute).toBeChecked();
   await mute.click();
@@ -62,6 +66,7 @@ test("the popover filters and marks as read; preferences save per type and store
   await page.waitForLoadState("networkidle");
   await page.reload();
   await expect(page.getByRole("switch", { name: "Novos pedidos: e-mail" })).toBeChecked();
+  await expect(page.getByRole("switch", { name: "Loja aberta ou fechada: e-mail" })).toBeChecked();
   await expect(page.getByRole("switch", { name: "Notificações da Preferências" })).not.toBeChecked();
 
   await page.getByRole("button", { name: /Notificações/ }).first().click();
@@ -72,4 +77,11 @@ test("the popover filters and marks as read; preferences save per type and store
   await expect(popover.getByText("Tudo em dia").first()).toBeVisible();
   await popover.getByRole("button", { name: "Todas", exact: true }).click();
   await expect(popover.getByRole("switch", { name: "Notificações push neste aparelho" })).toBeVisible();
+
+  // The footer's link goes to the preferences and closes the popover.
+  await page.goto(`/app/stores/${store.id}`);
+  await page.getByRole("button", { name: /Notificações/ }).first().click();
+  await page.getByRole("dialog").getByRole("link", { name: "Preferências" }).click();
+  await expect(page).toHaveURL(/\/app\/settings#notificacoes$/);
+  await expect(page.getByRole("dialog")).toBeHidden();
 });

@@ -25,6 +25,11 @@ type Recipients = {
   userIds: string[]
   /** Store the notification is about; scopes it and cascades on delete. */
   storeId?: string | null
+  /**
+   * false: never by e-mail, whatever the preferences (failures of the mail
+   * job itself; types whose e-mail the caller sends in its own template).
+   */
+  email?: boolean
 }
 
 type ListOptions = {
@@ -69,14 +74,7 @@ export default class NotificationService {
       }))
     )
 
-    const deliveries = await this.preferences.deliveries(userIds, type, recipients.storeId ?? null)
-    await this.email(
-      type,
-      rendered,
-      recipients.storeId ?? null,
-      [...deliveries].filter(([, delivery]) => delivery.email).map(([userId]) => userId)
-    )
-
+    // The bell first: realtime doesn't wait for preferences or the queue.
     for (const notification of notifications) {
       broadcastUserEvent({
         type: 'notification.created',
@@ -84,7 +82,19 @@ export default class NotificationService {
         // The model serializes to the Notification contract (camelCase, ISO dates).
         notification: notification.serialize() as NotificationDto,
       })
+    }
 
+    const deliveries = await this.preferences.deliveries(userIds, type, recipients.storeId ?? null)
+    if (recipients.email !== false) {
+      await this.email(
+        type,
+        rendered,
+        recipients.storeId ?? null,
+        [...deliveries].filter(([, delivery]) => delivery.email).map(([userId]) => userId)
+      )
+    }
+
+    for (const notification of notifications) {
       // Off the request, retried by the queue; the stored row is the truth.
       if (this.push.isEnabled && deliveries.get(notification.userId)?.push) {
         await SendPushNotification.dispatch({
@@ -112,26 +122,27 @@ export default class NotificationService {
     userIds: string[]
   ) {
     if (userIds.length === 0) return
-    const [users, store] = await Promise.all([
-      User.query().whereIn('id', userIds).select('id', 'email', 'name'),
-      storeId ? Store.find(storeId) : null,
-    ])
-    for (const user of users) {
-      await mail
-        .sendLater(
-          new NotificationMail(
-            { email: user.email, name: user.name },
-            {
-              label: notificationTemplates[type].label,
-              title: rendered.title,
-              body: rendered.body,
-              url: rendered.url ?? null,
-              brand: store ? storeBrand(store) : null,
-            }
+    // In sequence: notify may run inside a caller's transaction (one connection).
+    const users = await User.query().whereIn('id', userIds).select('id', 'email', 'name')
+    const store = storeId ? await Store.find(storeId) : null
+    await Promise.all(
+      users.map((user) =>
+        mail
+          .sendLater(
+            new NotificationMail(
+              { email: user.email, name: user.name },
+              {
+                label: notificationTemplates[type].label,
+                title: rendered.title,
+                body: rendered.body,
+                url: rendered.url ?? null,
+                brand: store ? storeBrand(store) : null,
+              }
+            )
           )
-        )
-        .catch((error) => logger.error({ err: error }, 'could not queue a notification e-mail'))
-    }
+          .catch((error) => logger.error({ err: error }, 'could not queue a notification e-mail'))
+      )
+    )
   }
 
   /** Notifies every member of a store, optionally skipping the actor. */
@@ -156,9 +167,13 @@ export default class NotificationService {
   }
 
   /** Platform admins (super users), e.g. for background job failures. */
-  async notifySuperUsers<Type extends NotificationType>(type: Type, data: NotificationData<Type>) {
+  async notifySuperUsers<Type extends NotificationType>(
+    type: Type,
+    data: NotificationData<Type>,
+    options: { email?: boolean } = {}
+  ) {
     const admins = await db.from('users').where('super_user', true).select('id')
-    return await this.notify(type, data, { userIds: admins.map((admin) => admin.id) })
+    return await this.notify(type, data, { userIds: admins.map((admin) => admin.id), ...options })
   }
 
   async list(userId: string, { page = 1, perPage = 20, unreadOnly = false }: ListOptions = {}) {

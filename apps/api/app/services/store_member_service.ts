@@ -13,6 +13,7 @@ import StaffInviteNotification from '#mails/staff_invite_notification'
 import StoreAccessNotification from '#mails/store_access_notification'
 import { storeBrand } from '#mails/layout'
 import NotificationService from '#services/notification_service'
+import NotificationPreferenceService from '#services/notification_preference_service'
 import PasswordResetService from '#services/password_reset_service'
 import { ONLINE_WINDOW_MS, forgetLastSeen } from '#helpers/user_activity'
 import { hasActiveStore } from '#helpers/membership'
@@ -54,7 +55,8 @@ const INVITE_TTL = { days: 7 }
 export default class StoreMemberService {
   constructor(
     private passwords: PasswordResetService,
-    private notifications: NotificationService
+    private notifications: NotificationService,
+    private preferences: NotificationPreferenceService
   ) {}
 
   async list(storeId: string): Promise<StoreMember[]> {
@@ -171,15 +173,20 @@ export default class StoreMemberService {
           role: input.role,
           addedBy: actor.name ?? actor.email,
         },
-        { userIds: [user.id] }
+        // The e-mail is StoreAccessNotification below (store's look, role),
+        // not the generic one: one e-mail, still as the person chose.
+        { userIds: [user.id], storeId, email: false }
       )
-      await mail.sendLater(
-        new StoreAccessNotification(
-          { email: user.email, name: user.name },
-          { store: storeBrand(store), role: input.role, addedBy: actor.name },
-          `${env.get('FRONTEND_URL')}/app/stores/${storeId}`
+      const deliveries = await this.preferences.deliveries([user.id], 'store.member_added', storeId)
+      if (deliveries.get(user.id)?.email) {
+        await mail.sendLater(
+          new StoreAccessNotification(
+            { email: user.email, name: user.name },
+            { store: storeBrand(store), role: input.role, addedBy: actor.name },
+            `${env.get('FRONTEND_URL')}/app/stores/${storeId}`
+          )
         )
-      )
+      }
     }
 
     const members = await this.list(storeId)

@@ -8,6 +8,13 @@ import { Job } from '@adonisjs/queue'
  * (instead of only a log line nobody reads).
  */
 export default abstract class AppJob<Payload> extends Job<Payload> {
+  /**
+   * Whether the failure notice may also go by e-mail (the admins'
+   * preferences decide). SendEmail turns it off: a mail outage would
+   * otherwise queue a failure e-mail per admin, which fails too, and so on.
+   */
+  protected notifyFailureByEmail = true
+
   async failed(error: Error) {
     const job = this.constructor.name
     // No payload in the log: an e-mail's carries links such as password resets.
@@ -15,10 +22,11 @@ export default abstract class AppJob<Payload> extends Job<Payload> {
     try {
       const { default: NotificationService } = await import('#services/notification_service')
       const notifications = await app.container.make(NotificationService)
-      await notifications.notifySuperUsers('system.job_failed', {
-        job,
-        detail: error.message.slice(0, 200),
-      })
+      await notifications.notifySuperUsers(
+        'system.job_failed',
+        { job, detail: error.message.slice(0, 200) },
+        { email: this.notifyFailureByEmail }
+      )
     } catch (notifyError) {
       logger.error({ err: notifyError, job }, 'could not notify the job failure')
     }

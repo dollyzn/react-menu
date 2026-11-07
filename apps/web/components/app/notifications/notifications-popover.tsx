@@ -30,7 +30,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -232,7 +231,8 @@ export function NotificationsPopover() {
               </Button>
             </div>
           ) : visible.length > 0 ? (
-            <ScrollArea className="max-h-[min(26rem,60svh)]">
+            // A plain scroller: a ScrollArea needs a fixed height, and the list grows up to a max.
+            <div className="max-h-[min(26rem,60svh)] overflow-y-auto overscroll-contain">
               <div className="pb-2">
                 {groups.map((group) => (
                   <section key={group.label} aria-label={group.label}>
@@ -253,12 +253,12 @@ export function NotificationsPopover() {
                   </section>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           ) : (
             <EmptyState filter={filter} />
           )}
 
-          <PushFooter />
+          <PushFooter onNavigate={() => setOpen(false)} />
         </PopoverContent>
       </Popover>
 
@@ -375,7 +375,7 @@ function EmptyState({ filter }: { filter: Filter }) {
 }
 
 /** This device's push, at hand; the rest in Configurações > Notificações. */
-function PushFooter() {
+function PushFooter({ onNavigate }: { onNavigate: () => void }) {
   const { isSupported, isSubscribed, subscribe, unsubscribe, loading, error } = useNotification();
   return (
     <footer className="flex flex-col gap-1 border-t bg-muted/30 px-4 py-2.5">
@@ -386,6 +386,7 @@ function PushFooter() {
             <span className="font-medium">Push neste aparelho</span>
             <Link
               href="/app/settings#notificacoes"
+              onClick={onNavigate}
               className={cn(buttonVariants({ variant: "link", size: "xs" }), "ml-1 h-auto p-0 text-xs")}
             >
               Preferências

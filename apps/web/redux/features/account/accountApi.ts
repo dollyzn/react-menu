@@ -1,3 +1,4 @@
+import type { FetchBaseQueryError, QueryReturnValue } from "@reduxjs/toolkit/query";
 import type {
   AccountSession,
   NotificationPreferences,
@@ -21,16 +22,37 @@ const updatesSessionUser = {
 };
 
 /** The signed-in user's own account: sessions, profile, photo and password. */
+/** Preference saves in flight, in order, and how many were started. */
+let preferenceSaves: Promise<unknown> = Promise.resolve();
+let preferenceSaveCount = 0;
+
 export const accountApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     getNotificationPreferences: build.query<NotificationPreferences, void>({
       query: () => "account/notification-preferences",
       providesTags: ["NotificationPreferences"],
     }),
-    /** Saves on every change; the screen shows the choice right away. */
+    /**
+     * Saves on every change; the screen shows the choice right away. Each
+     * change sends the whole choice, so saves go one after another (the
+     * server keeps the last) and only the latest answer reaches the screen.
+     */
     updateNotificationPreferences: build.mutation<NotificationPreferences, NotificationPreferencesInput>({
-      query: (body) => ({ url: "account/notification-preferences", method: "PUT", body }),
+      queryFn: (body, _api, _extra, baseQuery) => {
+        const run = preferenceSaves.then(
+          // The base query already unwraps the envelope.
+          async () =>
+            (await baseQuery({ url: "account/notification-preferences", method: "PUT", body })) as QueryReturnValue<
+              NotificationPreferences,
+              FetchBaseQueryError,
+              NonNullable<unknown> | undefined
+            >
+        );
+        preferenceSaves = run.catch(() => undefined);
+        return run;
+      },
       async onQueryStarted(input, { dispatch, queryFulfilled }) {
+        const save = ++preferenceSaveCount;
         const patch = dispatch(
           accountApi.util.updateQueryData("getNotificationPreferences", undefined, (draft) => {
             for (const type of draft.types) {
@@ -44,9 +66,12 @@ export const accountApi = baseApi.injectEndpoints({
         );
         try {
           const { data } = await queryFulfilled;
-          dispatch(accountApi.util.upsertQueryData("getNotificationPreferences", undefined, data));
+          if (save === preferenceSaveCount) {
+            dispatch(accountApi.util.upsertQueryData("getNotificationPreferences", undefined, data));
+          }
         } catch {
-          patch.undo();
+          if (save === preferenceSaveCount) patch.undo();
+          else dispatch(accountApi.util.invalidateTags(["NotificationPreferences"]));
         }
       },
     }),
