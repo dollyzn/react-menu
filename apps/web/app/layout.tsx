@@ -16,6 +16,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { ServiceWorkerRegistrar } from "@/components/app/pwa/service-worker-registrar";
 import { HeadScripts } from "@/components/app/head-scripts";
 import { PendingWritesGuard } from "@/components/app/pending-writes-guard";
+import { ThemeColorSync } from "@/components/app/theme-color-sync";
+import { THEME_COLORS } from "@/lib/theme-colors";
 
 const DESCRIPTION =
   "Cardápio digital e pedidos para restaurantes: pedido pelo celular, retirada no balcão, PDV e tela da cozinha.";
@@ -83,9 +85,11 @@ export const viewport: Viewport = {
   // The on-screen keyboard shrinks the page (Android): bottom drawers and
   // bars stay above it and come back down when it closes.
   interactiveWidget: "resizes-content",
+  // The page's background, by the system's scheme until the site's theme is
+  // known; ThemeColorSync then follows the theme chosen on the site.
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#c46014" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+    { media: "(prefers-color-scheme: light)", color: THEME_COLORS.light },
+    { media: "(prefers-color-scheme: dark)", color: THEME_COLORS.dark },
   ],
 };
 
@@ -126,6 +130,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
                 <Toaster closeButton richColors mobileOffset={{ bottom: "6rem" }} />
                 <ServiceWorkerRegistrar />
                 <PendingWritesGuard />
+                <ThemeColorSync />
               </SessionProvider>
             </NotificationProvider>
           </ReduxProvider>

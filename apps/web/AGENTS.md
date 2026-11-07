@@ -32,6 +32,7 @@ Read the root `AGENTS.md` first. This file only covers the web app.
 | Server-side API calls (SSR, metadata, icons) | `lib/server-api.ts`: `serverApiBase()` (internal URL in Docker) and `visitorHeaders()` (forwards the visitor's IP so the API's per-IP limit counts them, not the server) |
 | Panel shortcut on customer pages | `app/(menu)/_components/panel-shortcut.tsx` (staff signed in on the device; after rehydration) |
 | Session / push | `contexts/session-provider.tsx`, `contexts/notification-provider.tsx` |
+| Phone bar color (`theme-color`) | the page's background per theme (`lib/theme-colors.ts`); `components/app/theme-color-sync.tsx` (root layout) makes every `theme-color` tag follow the theme chosen on the site, not the system's (it reapplies when Next rewrites the head) |
 | PWA (manifests, service worker, install prompt) | `app/manifest.ts` (default store), `app/(menu)/[slug]/manifest.webmanifest/` (other stores), `app/app/manifest.webmanifest/` (`?store=` from a store's panel), all via `customerManifest`/`lib/pwa-manifest.ts`; `public/sw.js`, `components/app/pwa/`, `hooks/use-pwa-install.ts` (ADR 0012) |
 | Store icons (favicon, PWA) | `app/icons/store/[slug]/[file]/route.ts` renders the logo (sharp, on a white tile; no logo → the app's icons); URLs and metadata in `lib/store-icons.ts`, used by the menu pages (`_lib/store-metadata.ts`) and the store's panel layout |
 | Realtime | `lib/transmit.ts`, `hooks/use-store-realtime.ts`, `hooks/use-notifications-realtime.ts` |
