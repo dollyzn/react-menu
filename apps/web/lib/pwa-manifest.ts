@@ -1,10 +1,16 @@
 import type { MetadataRoute } from "next";
 import type { PublicMenu } from "@react-menu/contracts";
 import { storeManifestIcons } from "@/lib/store-icons";
+import { THEME_COLORS } from "@/lib/theme-colors";
 
 /** Shared by the customer app (/manifest.webmanifest) and the staff app (/app/manifest.webmanifest). */
 export const PWA_THEME = {
-  theme_color: "#c46014",
+  // The installed app's system bars (Android's gesture bar) take this, and a
+  // manifest has one color for both themes: the dark page background, which
+  // disappears under the dark theme and stays quiet under the light one. The
+  // page's own theme-color (components/app/theme-color-sync.tsx) still sets
+  // the bar on top while the app runs.
+  theme_color: THEME_COLORS.dark,
   background_color: "#ffffff",
 } satisfies Partial<MetadataRoute.Manifest>;
 

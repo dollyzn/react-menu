@@ -20,7 +20,7 @@ async function signIn(page: Page) {
 test("signed out: a panel link goes to the login and then back to it", async ({ page }) => {
   const link = await panelLink(page);
   await page.goto(link);
-  await expect(page).toHaveURL(/\/app\/login\?voltar=/);
+  await expect(page).toHaveURL(/\/app\/login\?next=/);
 
   await signIn(page);
   await page.waitForURL(/\/orders\?view=historico$/);
@@ -40,9 +40,23 @@ test("signed in: a link from another site (an e-mail) opens the page, not the lo
   await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
 });
 
-test("the login never leaves the panel through ?voltar", async ({ page }) => {
-  await page.goto("/app/login?voltar=https://evil.test/");
+test("the login never leaves the panel through ?next", async ({ page }) => {
+  await page.goto("/app/login?next=https://evil.test/");
   await signIn(page);
   await page.waitForURL(/\/app\/stores/);
   expect(new URL(page.url()).host).not.toBe("evil.test");
+});
+
+test("signing out and in again lands in the panel, not back on the logout", async ({ page }) => {
+  await login(page);
+  await page.goto("/app/logout");
+  await page.waitForURL(/\/app\/login/, { timeout: 15_000 });
+  // Never the logout page as the destination (it would sign out again).
+  expect(new URL(page.url()).searchParams.get("next") ?? "").not.toContain("/app/logout");
+
+  await signIn(page);
+  await page.waitForURL(/\/app\/stores\/[^/]+/);
+  // Settled there: no second sign-out sending it back to the login.
+  await page.waitForTimeout(3000);
+  await expect(page).toHaveURL(/\/app\/stores\/[^/]+/);
 });
