@@ -16,6 +16,7 @@ import {
   prefersFullPageLogin,
   type SocialAuthMessage,
 } from "@/lib/social-auth";
+import { takeReturnPath } from "@/lib/return-to";
 
 const START_URL = "/app/social?provider=google";
 /** A sign-in left open this long frees the form again (the popup may be long gone). */
@@ -87,7 +88,7 @@ function GoogleLogin({
     for (const wait of VERIFY_RETRIES_MS) {
       if (wait) await sleep(wait);
       if (await verify()) {
-        router.push("/app/stores");
+        router.push(takeReturnPath());
         return;
       }
     }

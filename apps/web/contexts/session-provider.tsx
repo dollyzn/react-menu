@@ -2,7 +2,7 @@
 
 import type { LoginProps, SessionContextType, SessionProviderProps, TwoFactorInput } from "@/types/session";
 
-import { createContext, useCallback, useContext, useRef } from "react";
+import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
 
@@ -143,6 +143,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
   }
 
   /** Loads the session (and renews it when it is past half its life). */
+  const [confirmedUser, setConfirmedUser] = useState<SessionContextType["confirmedUser"]>(null);
   const verify = useCallback(async () => {
     try {
       const { user } = await dispatch(
@@ -150,6 +151,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
       ).unwrap();
       dispatch(setIsSessionExpired(false));
       dispatch(setUser(user));
+      setConfirmedUser(user);
       return user;
     } catch (error) {
       // Only a 401 means the session is gone. Rate limiting, server errors
@@ -178,7 +180,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
 
   return (
     <SessionContext.Provider
-      value={{ isAuthenticated, user, login, completeTwoFactor, logout, verify }}
+      value={{ isAuthenticated, user, login, completeTwoFactor, logout, verify, confirmedUser }}
     >
       {children}
     </SessionContext.Provider>

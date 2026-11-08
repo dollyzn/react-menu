@@ -12,6 +12,11 @@ export interface SessionContextType {
   completeTwoFactor: (input: TwoFactorInput) => Promise<{ error?: string; attemptsLeft?: number; expired?: boolean }>;
   logout: () => Promise<void>;
   verify: () => Promise<User | null>;
+  /**
+   * The API confirmed a session on this page load (not the user remembered
+   * in the browser, which may be stale). The login page moves on with it.
+   */
+  confirmedUser: User | null;
 }
 
 export interface SessionProviderProps {

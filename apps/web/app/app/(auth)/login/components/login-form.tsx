@@ -32,6 +32,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { useLoggingOut } from "@/lib/logout-state";
 import { Spinner } from "@/components/ui/spinner";
+import { rememberReturnPath, takeReturnPath } from "@/lib/return-to";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -43,7 +44,22 @@ export type LoginValues = z.infer<typeof LoginSchema>;
 export function LoginForm() {
   const router = useRouter();
 
-  const { login } = useSession();
+  const { login, confirmedUser } = useSession();
+
+  // A link to the panel opened from another site (an e-mail) lands here even
+  // when signed in: the SameSite=Strict cookie isn't sent on that first
+  // request. The session check from this page carries it, so a session found
+  // goes on to where the link pointed (`confirmedUser`: asked to the API,
+  // never the user remembered in the browser). The target is kept for the
+  // tab first (Google leaves the page and comes back without the parameter).
+  useEffect(() => {
+    rememberReturnPath();
+  }, []);
+  useEffect(() => {
+    if (confirmedUser && !new URLSearchParams(window.location.search).has("etapa")) {
+      router.replace(takeReturnPath());
+    }
+  }, [confirmedUser, router]);
 
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
@@ -77,6 +93,7 @@ export function LoginForm() {
   useEffect(() => {
     if (cameFromGoogle) window.history.replaceState(null, "", "/app/login");
   }, [cameFromGoogle]);
+
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -132,7 +149,7 @@ export function LoginForm() {
         message: error,
       });
     } else {
-      router.push("/app/stores");
+      router.push(takeReturnPath());
     }
   }
 

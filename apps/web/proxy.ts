@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "./lib/env";
 import { contentSecurityPolicy, cspNonce } from "./lib/csp";
+import { RETURN_PARAM, safeReturnPath } from "./lib/return-to";
 
 /** Staff pages that work without a session. */
 const AUTH_PAGES = ["/app/login"];
@@ -56,11 +57,19 @@ export async function proxy(req: NextRequest) {
   const isAuthPage = AUTH_PAGES.includes(path);
 
   if (!isAuthPage && !isLogged) {
-    return NextResponse.redirect(new URL("/app/login", req.url));
+    // Keep where the link pointed: the login goes there afterwards. A link
+    // from another site (an e-mail) also lands here signed in, since the
+    // SameSite=Strict cookie isn't sent on that first request; the login
+    // page then finds the session and moves on (lib/return-to.ts).
+    const login = new URL("/app/login", req.url);
+    const target = safeReturnPath(`${path}${req.nextUrl.search}`);
+    if (target) login.searchParams.set(RETURN_PARAM, target);
+    return NextResponse.redirect(login);
   }
 
   if (isAuthPage && isLogged) {
-    return NextResponse.redirect(new URL("/app/stores", req.url));
+    const target = safeReturnPath(req.nextUrl.searchParams.get(RETURN_PARAM));
+    return NextResponse.redirect(new URL(target ?? "/app/stores", req.url));
   }
 
   return withCsp(req);

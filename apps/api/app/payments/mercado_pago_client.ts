@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto'
+import logger from '@adonisjs/core/services/logger'
 import AppException from '#exceptions/app_exception'
 import type { MercadoPagoTerminal, PointOrderInput } from '#payments/point'
 
@@ -257,6 +258,15 @@ export default class MercadoPagoClient {
     }
     if (errors[response.status]) throw errors[response.status]
     if (!response.ok) {
+      // Mercado Pago's reason (its error code and message), for the logs and
+      // the traces: without it a refused refund or charge can't be told apart
+      // from an outage. Only its answer is kept, never our request or token.
+      const answer = await response.text().catch(() => '')
+      const reason = answer.slice(0, 500)
+      logger.warn(
+        { status: response.status, method, path: path.split('?')[0], reason },
+        'Mercado Pago refused a request'
+      )
       throw new AppException(
         'Não foi possível falar com o Mercado Pago. Tente novamente.',
         502,

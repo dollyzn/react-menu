@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { useSession } from "@/contexts/session-provider";
 import { useResendTwoFactorMutation } from "@/redux/features/auth/authApi";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { takeReturnPath } from "@/lib/return-to";
 
 /** Seconds until `iso` (0 once it passed), ticking every second. */
 function useSecondsUntil(iso: string | null) {
@@ -52,7 +53,7 @@ export function TwoFactorStep({ challenge: initial, onBack }: { challenge: TwoFa
     const result = await completeTwoFactor({ code: value, recovery: asRecovery, remember });
     if (!result.error) {
       setState("success");
-      router.push("/app/stores");
+      router.push(takeReturnPath());
       return;
     }
     setState("error");
