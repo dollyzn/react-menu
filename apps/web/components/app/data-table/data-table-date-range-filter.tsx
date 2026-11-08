@@ -1,5 +1,5 @@
 import type { RowData } from "@tanstack/react-table";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { cloneElement, useCallback, useEffect, useState } from "react";
 import { CalendarIcon, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Column } from "@/components/app/data-table/features";
@@ -13,7 +13,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
-import { format, isEqual } from "date-fns";
+import { format, isEqual, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange, Matcher } from "react-day-picker";
 import {
@@ -27,17 +27,7 @@ import {
   DrawerDescription,
   DrawerHeader,
   DrawerTitle,
-  DrawerTrigger,
 } from "@/components/ui/drawer";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectGroup,
-  SelectLabel,
-  SelectItem,
-} from "@/components/ui/select";
 import { FilterSummary, filterTriggerClassName } from "./data-table-filter-parts";
 
 interface DataTableDateRangeFilterProps<TData extends RowData, TValue> {
@@ -133,7 +123,6 @@ export function DateRangePicker({
   const dateRange: DateRange = value ?? { from: undefined, to: undefined };
 
   const Wrapper = isMobile ? Drawer : Popover;
-  const WrapperTrigger = isMobile ? DrawerTrigger : PopoverTrigger;
   const WrapperContent = isMobile ? DrawerContent : PopoverContent;
 
   const handleDateRangeChange = useCallback(
@@ -147,9 +136,7 @@ export function DateRangePicker({
 
       const preset = presets.find((preset) => preset.shortcut === e.key);
       if (preset) {
-        const isSameRange =
-          value?.from?.getTime() === preset.from.getTime() &&
-          value?.to?.getTime() === preset.to.getTime();
+        const isSameRange = samePeriod(value, preset.from, preset.to);
 
         if (isSameRange && clearable) {
           handleDateRangeChange({ from: undefined, to: undefined });
@@ -175,65 +162,96 @@ export function DateRangePicker({
 
   return (
     <Wrapper open={open} onOpenChange={setOpen}>
-      <WrapperTrigger render={trigger}>{children}</WrapperTrigger>
+      {/* vaul's DrawerTrigger doesn't take Base UI's `render` (it would drop
+          the Button and its styles): on phones the same button opens the
+          controlled drawer itself. */}
+      {isMobile ? (
+        cloneElement(
+          trigger as React.ReactElement<{ onClick?: () => void; "aria-haspopup"?: string }>,
+          { onClick: () => setOpen(true), "aria-haspopup": "dialog" },
+          children
+        )
+      ) : (
+        <PopoverTrigger render={trigger}>{children}</PopoverTrigger>
+      )}
       <WrapperContent
         className={
           isMobile
             ? "flex flex-col p-0 gap-0 overflow-hidden max-h-screen"
             : "w-auto p-0"
         }
-        align="start"
-        sideOffset={8}
+        // Placement is the popover's; the drawer would put them on a DOM node.
+        {...(isMobile ? {} : { align: "start" as const, sideOffset: 8 })}
       >
-        {isMobile && (
-          <DrawerHeader>
-            <DrawerTitle>{title}</DrawerTitle>
-            <DrawerDescription>{description}</DrawerDescription>
-          </DrawerHeader>
-        )}
-        <div className="overflow-auto">
-          <div className="flex flex-col justify-between sm:flex-row">
-            <div className="hidden md:block">
-              <DatePresets
+        {isMobile ? (
+          <>
+            <DrawerHeader className="pb-2">
+              <DrawerTitle>{title}</DrawerTitle>
+              <DrawerDescription>{description}</DrawerDescription>
+            </DrawerHeader>
+            <div className="flex flex-col gap-3 overflow-auto pb-2">
+              <PresetChips
                 onSelect={handleDateRangeChange}
                 selected={dateRange}
                 presets={presets}
+                clearable={clearable}
               />
-            </div>
-            <div className="block md:hidden px-3">
-              <DatePresetsSelect
-                onSelect={handleDateRangeChange}
+              <Calendar
+                mode="range"
+                defaultMonth={dateRange.from}
                 selected={dateRange}
-                presets={presets}
+                onSelect={handleCalendarSelect}
+                numberOfMonths={1}
+                locale={ptBR}
+                disabled={disabled}
+                // Bigger days to tap, the width of the phone.
+                className="mx-auto bg-transparent [--cell-size:clamp(2.5rem,11.5vw,3rem)]"
               />
             </div>
-
-            <Separator orientation="vertical" className="h-auto!" />
-
-            {/* Calendar */}
-            <Calendar
-              mode="range"
-              defaultMonth={dateRange.from}
+            <footer className="flex items-center gap-2 border-t bg-muted/30 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs text-muted-foreground">Período</span>
+                <span className="block truncate text-sm font-semibold">
+                  {rangeSummary(dateRange) ?? "Nenhum período"}
+                </span>
+              </span>
+              {clearable && (
+                <Button variant="ghost" disabled={!hasSelectedValues} onClick={() => onChange(undefined)}>
+                  Limpar
+                </Button>
+              )}
+              <Button onClick={() => setOpen(false)}>Aplicar</Button>
+            </footer>
+          </>
+        ) : (
+          <div className="overflow-auto">
+            <div className="flex flex-row justify-between">
+              <DatePresets onSelect={handleDateRangeChange} selected={dateRange} presets={presets} />
+              <Separator orientation="vertical" className="h-auto!" />
+              <Calendar
+                mode="range"
+                defaultMonth={dateRange.from}
+                selected={dateRange}
+                onSelect={handleCalendarSelect}
+                numberOfMonths={2}
+                locale={ptBR}
+                disabled={disabled}
+                className="rounded-md"
+                autoFocus
+              />
+            </div>
+            <Separator />
+            <CustomDateRange
+              onSelect={handleDateRangeChange}
               selected={dateRange}
-              onSelect={handleCalendarSelect}
-              numberOfMonths={isMobile ? 1 : 2}
-              locale={ptBR}
+              hasSelectedValues={hasSelectedValues}
+              clearable={clearable}
               disabled={disabled}
-              className="rounded-md mx-auto md:mx-0"
-              autoFocus
+              onClear={() => onChange(undefined)}
+              onApply={() => setOpen(false)}
             />
           </div>
-          <Separator />
-          <CustomDateRange
-            onSelect={handleDateRangeChange}
-            selected={dateRange}
-            hasSelectedValues={hasSelectedValues}
-            clearable={clearable}
-            disabled={disabled}
-            onClear={() => onChange(undefined)}
-            onApply={() => setOpen(false)}
-          />
-        </div>
+        )}
       </WrapperContent>
     </Wrapper>
   );
@@ -255,9 +273,7 @@ function DatePresets({
       </h3>
       <div className="flex flex-col gap-1">
         {presets.map(({ label, shortcut, from, to }) => {
-          const isActive =
-            selected?.from?.getTime() === from.getTime() &&
-            selected?.to?.getTime() === to.getTime();
+          const isActive = samePeriod(selected, from, to);
           return (
             <Button
               key={label}
@@ -278,59 +294,65 @@ function DatePresets({
   );
 }
 
-export function DatePresetsSelect({
+/**
+ * A range is a preset when the days match: the one read back from the URL is
+ * at midnight, the preset's ends at the end of the day.
+ */
+function samePeriod(range: DateRange | undefined, from: Date, to: Date) {
+  return Boolean(range?.from && range.to && isSameDay(range.from, from) && isSameDay(range.to, to));
+}
+
+/** "8 – 14 de nov." / "8 de nov." / "A partir de 8 de nov.": the footer's summary. */
+function rangeSummary(range: DateRange) {
+  const day = (date: Date) => format(date, "d 'de' MMM", { locale: ptBR });
+  if (range.from && range.to) {
+    if (isEqual(range.from, range.to)) return day(range.from);
+    return range.from.getMonth() === range.to.getMonth() && range.from.getFullYear() === range.to.getFullYear()
+      ? `${format(range.from, "d")} – ${day(range.to)}`
+      : `${day(range.from)} – ${day(range.to)}`;
+  }
+  if (range.from) return `A partir de ${day(range.from)}`;
+  if (range.to) return `Até ${day(range.to)}`;
+  return null;
+}
+
+/**
+ * Phones: the quick periods as chips in a row that scrolls. (A Select opened
+ * its list outside the drawer, where vaul swallows the taps.)
+ */
+function PresetChips({
   selected,
   onSelect,
   presets,
+  clearable,
 }: {
   selected: DateRange | undefined;
   onSelect: (date: DateRange | undefined) => void;
   presets: DatePreset[];
+  clearable: boolean;
 }) {
-  const value = useMemo(() => {
-    const from = selected?.from;
-    const to = selected?.to;
-    if (!from || !to) return undefined;
-    return presets.find(
-      (p) =>
-        p.from.getTime() === from.getTime() && p.to.getTime() === to.getTime()
-    )?.shortcut;
-  }, [selected, presets]);
-
   return (
-    <Select
-      value={value}
-      items={presets.map(({ label, shortcut }) => ({ value: shortcut, label }))}
-      onValueChange={(v) => {
-        const preset = presets.find((p) => p.shortcut === v);
-        if (preset) {
-          onSelect({ from: preset.from, to: preset.to });
-        } else {
-          onSelect(undefined);
-        }
-      }}
+    <div
+      role="group"
+      aria-label="Períodos rápidos"
+      className="flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] scroll-fade-x"
     >
-      <SelectTrigger className="w-full">
-        <SelectValue placeholder="Períodos rápidos" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectGroup>
-          <SelectLabel>Períodos rápidos</SelectLabel>
-          {presets.map(({ label, shortcut }) => (
-            <SelectItem
-              key={shortcut}
-              value={shortcut}
-              className="flex items-center justify-between [&>span:last-child]:flex [&>span:last-child]:w-full [&>span:last-child]:justify-between"
-            >
-              <span>{label}</span>
-              <Kbd>
-                {shortcut}
-              </Kbd>
-            </SelectItem>
-          ))}
-        </SelectGroup>
-      </SelectContent>
-    </Select>
+      {presets.map(({ label, from, to }) => {
+        const active = samePeriod(selected, from, to);
+        return (
+          <Button
+            key={label}
+            size="sm"
+            variant={active ? "default" : "outline"}
+            aria-pressed={active}
+            className="h-9 shrink-0 rounded-full px-4"
+            onClick={() => onSelect(active && clearable ? undefined : { from, to })}
+          >
+            {label}
+          </Button>
+        );
+      })}
+    </div>
   );
 }
 

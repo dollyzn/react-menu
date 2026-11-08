@@ -149,6 +149,34 @@ test("orders history: the period filter picks days on the calendar", async ({ pa
   );
 });
 
+test("orders history on a phone: the period filter is a button like the others and opens the dates", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  const storePath = new URL(page.url()).pathname.match(/^\/app\/stores\/[^/]+/)![0];
+  await page.goto(`${storePath}/orders?view=historico`);
+
+  const period = page.getByRole("button", { name: "Filtrar por período" });
+  const status = page.getByRole("button", { name: "Filtrar por status" });
+  await expect(period).toBeVisible();
+  // Same height as its neighbours (it used to render unstyled, stacked).
+  const [periodBox, statusBox] = [await period.boundingBox(), await status.boundingBox()];
+  expect(Math.abs(periodBox!.height - statusBox!.height)).toBeLessThan(2);
+  await page.screenshot({ path: process.env.SHOT ?? "test-results/period-filter-phone.png" });
+
+  await period.click();
+  const drawer = page.getByRole("dialog", { name: "Filtrar por Período" });
+  await expect(drawer.getByRole("grid").first()).toBeVisible();
+  // Quick periods are chips (a Select's list opened outside the drawer and swallowed the taps).
+  await drawer.getByRole("group", { name: "Períodos rápidos" }).getByRole("button", { name: "Hoje" }).click();
+  const iso = new Date().toLocaleDateString("sv-SE");
+  await expect(page).toHaveURL(new RegExp(`f\\.createdAt=${iso}(~|%7E)${iso}`));
+  await expect(drawer.getByRole("button", { name: "Hoje" })).toHaveAttribute("aria-pressed", "true");
+  await page.screenshot({ path: (process.env.SHOT ?? "test-results/period-filter-phone.png").replace(".png", "-open.png") });
+  await drawer.getByRole("button", { name: "Aplicar" }).click();
+  await expect(drawer).toBeHidden();
+  await expect(period).toContainText(new Date().toLocaleDateString("pt-BR"));
+});
+
 test("kitchen: swipe right finishes the batch", async ({ page }) => {
   await clearKitchen();
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
