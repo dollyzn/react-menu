@@ -5,7 +5,7 @@ import { API_URL } from "../playwright.config";
 test.describe("Authentication and session", () => {
   test("protected pages redirect to login when signed out", async ({ page }) => {
     await page.goto("/app/stores");
-    await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/);
+    await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/);
   });
 
   test("invalid credentials show an error and keep the user signed out", async ({ page }) => {
@@ -15,7 +15,7 @@ test.describe("Authentication and session", () => {
     await page.getByRole("button", { name: "Entrar", exact: true }).click();
 
     await expect(page.getByText("Email ou senha inválidos.")).toBeVisible();
-    await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/);
+    await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/);
   });
 
   test("login, reload keeps the session, logout ends it", async ({ page }) => {
@@ -30,10 +30,10 @@ test.describe("Authentication and session", () => {
 
     await page.getByRole("button", { name: "Menu do usuário" }).click();
     await page.getByRole("menuitem", { name: "Sair" }).click();
-    await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/, { timeout: 15_000 });
+    await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/, { timeout: 15_000 });
 
     await page.goto(`/app/stores/${store.id}`);
-    await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/);
+    await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/);
   });
 });
 
@@ -52,7 +52,7 @@ test("a user without any store can't sign in, and is told why", async ({ page })
   // Refused after the password, before any code is sent.
   await expect(page.getByText(/Você não tem acesso a nenhuma loja/)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Confirme que é você" })).toHaveCount(0);
-  await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/);
+  await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/);
 });
 
 test("Google sign-in: the button shows and a refused login comes back as a message", async ({ page }) => {
@@ -173,7 +173,7 @@ test("logging out after the session already ended on the server is quiet and cle
   await expect(page).toHaveURL(/\/app\/login/, { timeout: 15_000 });
   // The dead cookie is gone, so the guard doesn't send us back into the panel.
   await page.goto("/app/stores");
-  await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/);
+  await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/);
 });
 
 test("a session cookie the API refuses (another project on localhost) leads to the login page", async ({ page }) => {
@@ -182,6 +182,6 @@ test("a session cookie the API refuses (another project on localhost) leads to t
   ]);
 
   await page.goto("/app/stores");
-  await expect(page).toHaveURL(/\/app\/login(\?voltar=[^&]+)?$/, { timeout: 15_000 });
+  await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
 });

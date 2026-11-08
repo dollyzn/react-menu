@@ -3,6 +3,7 @@
 import type { LoginProps, SessionContextType, SessionProviderProps, TwoFactorInput } from "@/types/session";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
+import { forgetReturnPath } from "@/lib/return-to";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
 
@@ -132,6 +133,7 @@ export function SessionProvider({ children }: SessionProviderProps) {
         }
       }
       await clearSessionCookie().catch(() => undefined);
+      forgetReturnPath();
       closeTransmit();
       dispatch(setUser(null));
       // Awaited: the purge resets the stored session, and must not land after
