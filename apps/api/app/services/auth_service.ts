@@ -56,7 +56,11 @@ export default class AuthService {
     if (this.sendCookie && serializedToken.token) {
       ctx.response.cookie(this.cookieName, serializedToken.token, {
         httpOnly: true,
-        sameSite: 'strict',
+        // Lax (ADR 0019): links from other sites (an e-mail, the installed
+        // app's launch) open the panel signed in. Writes from other sites are
+        // still refused: Lax never sends it on them, and the origin check
+        // (#helpers/trusted_origin) refuses any that carries it.
+        sameSite: 'lax',
         secure: app.inProduction,
         maxAge: SESSION_TTL,
       })

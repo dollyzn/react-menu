@@ -33,11 +33,37 @@ test("signed in: a link from another site (an e-mail) opens the page, not the lo
   await page.route("http://email.test/**", (route) =>
     route.fulfill({ contentType: "text/html", body: `<a href="${target}">Abrir no painel</a>` })
   );
+  // With the SameSite=Lax cookie the link goes straight in: the login is never shown.
+  const visited: string[] = [];
+  page.on("framenavigated", (frame) => frame === page.mainFrame() && visited.push(frame.url()));
   await page.goto("http://email.test/inbox");
   await page.getByRole("link", { name: "Abrir no painel" }).click();
 
   await page.waitForURL(/\/orders\?view=historico$/);
   await expect(page.getByRole("heading", { name: "Pedidos" })).toBeVisible();
+  expect(visited.some((url) => url.includes("/app/login"))).toBe(false);
+});
+
+test("a link from another site to the logout page asks instead of signing out", async ({ page }) => {
+  await login(page);
+  const logout = new URL("/app/logout", page.url()).toString();
+  await page.route("http://email.test/**", (route) =>
+    route.fulfill({ contentType: "text/html", body: `<a href="${logout}">Ver oferta</a>` })
+  );
+  await page.goto("http://email.test/inbox");
+  await page.getByRole("link", { name: "Ver oferta" }).click();
+
+  await expect(page.getByRole("heading", { name: "Sair da conta?" })).toBeVisible();
+  await page.getByRole("link", { name: "Voltar ao painel" }).click();
+  await page.waitForURL(/\/app\/stores\/[^/]+/);
+});
+
+test("the panel's own Sair signs out without asking", async ({ page }) => {
+  await login(page);
+  await page.goto("/app/settings");
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await expect(page.getByText("Encerrando sessão")).toBeVisible();
+  await page.waitForURL(/\/app\/login/, { timeout: 15_000 });
 });
 
 test("the login never leaves the panel through ?next", async ({ page }) => {
@@ -50,6 +76,7 @@ test("the login never leaves the panel through ?next", async ({ page }) => {
 test("signing out and in again lands in the panel, not back on the logout", async ({ page }) => {
   await login(page);
   await page.goto("/app/logout");
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
   await page.waitForURL(/\/app\/login/, { timeout: 15_000 });
   // Never the logout page as the destination (it would sign out again).
   expect(new URL(page.url()).searchParams.get("next") ?? "").not.toContain("/app/logout");

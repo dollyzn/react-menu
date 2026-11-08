@@ -170,6 +170,8 @@ test("logging out after the session already ended on the server is quiet and cle
   await elsewhere.dispose();
 
   await page.goto("/app/logout");
+  // Opened by URL (not the panel's "Sair"): it asks first.
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
   await expect(page).toHaveURL(/\/app\/login/, { timeout: 15_000 });
   // The dead cookie is gone, so the guard doesn't send us back into the panel.
   await page.goto("/app/stores");
