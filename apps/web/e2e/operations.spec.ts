@@ -453,3 +453,23 @@ test("orders board: today's finished orders, in a collapsed list that opens them
   await row.click();
   await expect(page).toHaveURL(new RegExp(`pedido=${order.id}`));
 });
+
+test("orders history on a phone: the view toggle switches to the table and stays", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  const storePath = new URL(page.url()).pathname.match(/^\/app\/stores\/[^/]+/)![0];
+  await page.goto(`${storePath}/orders?view=historico`);
+
+  // Phones start on cards.
+  await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
+  await page.getByRole("button", { name: "Exibir como tabela" }).click();
+  // It used to snap back to cards at once.
+  await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
+  await expect(page.getByRole("table")).toBeVisible();
+
+  // Kept on this device.
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
+  await page.getByRole("button", { name: "Exibir como cartões" }).click();
+  await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
+});
