@@ -426,3 +426,23 @@ test("kitchen: swiping a card off never makes the page scroll sideways", async (
   }
   expect(await page.evaluate(() => (window as unknown as { sideways: number }).sideways)).toBe(0);
 });
+
+test("orders history on a phone: the view toggle switches to the table and stays", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page);
+  const storePath = new URL(page.url()).pathname.match(/^\/app\/stores\/[^/]+/)![0];
+  await page.goto(`${storePath}/orders?view=historico`);
+
+  // Phones start on cards.
+  await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
+  await page.getByRole("button", { name: "Exibir como tabela" }).click();
+  // It used to snap back to cards at once.
+  await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
+  await expect(page.getByRole("table")).toBeVisible();
+
+  // Kept on this device.
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
+  await page.getByRole("button", { name: "Exibir como cartões" }).click();
+  await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
+});
