@@ -427,6 +427,33 @@ test("kitchen: swiping a card off never makes the page scroll sideways", async (
   expect(await page.evaluate(() => (window as unknown as { sideways: number }).sideways)).toBe(0);
 });
 
+test("orders board: today's finished orders, in a collapsed list that opens them", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+  // A drink-only order is ready at once: hand it over.
+  const placed = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: "Já entregue" }, lines: [{ itemId: drink.id, quantity: 1 }] },
+  });
+  const order = (await placed.json()).data as { id: string; number: number };
+  expect((await api.post(`/api/v1/stores/${menu.store.id}/orders/${order.id}/complete`)).ok()).toBeTruthy();
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  const toggle = page.getByRole("button", { name: /Concluídos e cancelados hoje/ });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
+  const row = page.getByRole("button", { name: new RegExp(`#${order.number}.*Já entregue.*Entregue`) });
+  await expect(row).toBeVisible();
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/finished-light.png` });
+  await row.click();
+  await expect(page).toHaveURL(new RegExp(`pedido=${order.id}`));
+});
+
 test("orders history on a phone: the view toggle switches to the table and stays", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);

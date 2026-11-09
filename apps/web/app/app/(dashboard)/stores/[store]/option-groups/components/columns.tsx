@@ -5,7 +5,7 @@ import dayjs from "dayjs";
 import { Calendar } from "lucide-react";
 import type { OptionGroup } from "@react-menu/contracts";
 import { ColumnsConfig } from "@/components/data-table";
-import { DataTableColumnHeader } from "@/components/app/data-table/data-table-column-header";
+import { COLUMN_TITLE, DataTableColumnHeader } from "@/components/app/data-table/data-table-column-header";
 import DataTableColumnCell from "@/components/app/data-table/data-table-column-cell";
 import { cellButtonSize } from "@/components/app/data-table/density";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +15,6 @@ import { RowActions } from "./table-row-actions";
 import { OptionGroupCard } from "./option-group-card";
 import { pickPricesLabel } from "@/lib/choice-pricing";
 
-const headerClass = "text-xs uppercase tracking-wider text-muted-foreground";
 
 /**
  * "Mussarela · incluso", "Cheddar · + R$ 2,00" as chips (shared with the
@@ -50,7 +49,7 @@ export const columns: ColumnDef<OptionGroup>[] = [
   {
     id: "name",
     accessorKey: "name",
-    header: ({ column }) => <DataTableColumnHeader titleClassName={headerClass} column={column} title="Nome" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Nome" />,
     cell: ({ row }) => (
       <DataTableColumnCell>
         <span className="block min-w-37.5 font-medium">{row.original.name}</span>
@@ -60,7 +59,7 @@ export const columns: ColumnDef<OptionGroup>[] = [
   },
   {
     id: "rule",
-    header: () => <span className={headerClass}>Regra</span>,
+    header: () => <span className={COLUMN_TITLE}>Regra</span>,
     cell: ({ row }) => (
       <DataTableColumnCell>
         <Badge variant={row.original.minChoices > 0 ? "default" : "secondary"}>{groupRule(row.original)}</Badge>
@@ -71,7 +70,7 @@ export const columns: ColumnDef<OptionGroup>[] = [
   },
   {
     id: "options",
-    header: () => <span className={headerClass}>Opções</span>,
+    header: () => <span className={COLUMN_TITLE}>Opções</span>,
     cell: ({ row }) => (
       <DataTableColumnCell>
         <OptionChips group={row.original} max={4} />
@@ -82,7 +81,7 @@ export const columns: ColumnDef<OptionGroup>[] = [
   },
   {
     id: "items",
-    header: () => <span className={headerClass}>Usado em</span>,
+    header: () => <span className={COLUMN_TITLE}>Usado em</span>,
     cell: ({ row }) => {
       const count = row.original.itemsCount ?? 0;
       return (
@@ -99,7 +98,7 @@ export const columns: ColumnDef<OptionGroup>[] = [
   {
     id: "updatedAt",
     accessorKey: "updatedAt",
-    header: ({ column }) => <DataTableColumnHeader titleClassName={headerClass} column={column} title="Atualizado em" />,
+    header: ({ column }) => <DataTableColumnHeader column={column} title="Atualizado em" />,
     cell: ({ row }) => (
       <DataTableColumnCell>
         <span className="flex items-center gap-1.5 text-muted-foreground">

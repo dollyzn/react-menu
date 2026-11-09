@@ -27,6 +27,12 @@ interface DataTableColumnHeaderProps<
   titleClassName?: string;
 }
 
+/**
+ * Every column title looks the same, sortable or not (small caps in the muted
+ * color); `titleClassName` only adds to it.
+ */
+export const COLUMN_TITLE = "text-xs font-medium uppercase tracking-wider text-muted-foreground";
+
 export function DataTableColumnHeader<TData extends RowData, TValue>({
   column,
   title,
@@ -34,7 +40,12 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
   titleClassName,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
+    // Same height as the sortable ones' button, so the titles line up.
+    return (
+      <div className={cn("flex h-8 items-center", className)}>
+        <span className={cn(COLUMN_TITLE, titleClassName)}>{title}</span>
+      </div>
+    );
   }
 
   return (
@@ -50,7 +61,7 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
               />
             }
           >
-            <span className={titleClassName}>{title}</span>
+            <span className={cn(COLUMN_TITLE, titleClassName)}>{title}</span>
             {column.getIsSorted() === "desc" ? (
               <ArrowDown />
             ) : column.getIsSorted() === "asc" ? (

@@ -17,7 +17,7 @@ const header =
   // eslint-disable-next-line react/display-name
   ({ column }: HeaderContext<Ingredient, unknown>) => (
     <DataTableColumnHeader
-      titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
       column={column}
       title={title}
     />

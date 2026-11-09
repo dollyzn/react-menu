@@ -47,7 +47,7 @@ export const columns: ColumnDef<Category>[] = [
 
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Nome"
       />
@@ -69,7 +69,7 @@ export const columns: ColumnDef<Category>[] = [
     accessorKey: "description",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Descrição"
       />
@@ -92,7 +92,7 @@ export const columns: ColumnDef<Category>[] = [
     accessorKey: "itemsCount",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Itens"
       />
@@ -113,7 +113,7 @@ export const columns: ColumnDef<Category>[] = [
     accessorKey: "createdAt",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Criado em"
       />
@@ -135,7 +135,7 @@ export const columns: ColumnDef<Category>[] = [
     accessorKey: "updatedAt",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Atualizado em"
       />
