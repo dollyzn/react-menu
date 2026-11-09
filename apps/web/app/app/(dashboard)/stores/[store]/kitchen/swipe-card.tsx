@@ -1,7 +1,15 @@
 "use client";
 
-import { useRef } from "react";
-import { animate, motion, useMotionValue, useMotionValueEvent, useTransform, type PanInfo } from "motion/react";
+import { useEffect, useRef } from "react";
+import {
+  animate,
+  motion,
+  useIsPresent,
+  useMotionValue,
+  useMotionValueEvent,
+  useTransform,
+  type PanInfo,
+} from "motion/react";
 import { Check, CheckCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +23,12 @@ interface SwipeCardProps {
   /** Swipe left: the small action ("Fiz 1"). */
   onSwipeLeft: () => Promise<unknown>;
   leftLabel: string;
+  /**
+   * Whether the batch is still on screen after that swipe ("Fiz 1" of 3):
+   * the card slides back in from that side. Otherwise it stays gone (a card that came
+   * back for an instant before leaving read as a glitch).
+   */
+  staysAfter: (direction: 1 | -1) => boolean;
   disabled?: boolean;
   className?: string;
   children: React.ReactNode;
@@ -22,8 +36,8 @@ interface SwipeCardProps {
 
 /**
  * Tinder-style card: drag right or left past the threshold (or flick) and
- * it flies off that side and runs the action (a batch still on screen rises
- * back from the pile in place); otherwise it springs back. The colored
+ * it flies off that side and runs the action (a batch still on screen slides
+ * back in from that same side); otherwise it springs back. The colored
  * panel and icon behind it grow with the drag, and the phone ticks when the
  * action arms. Vertical scrolling keeps working (touch-action: pan-y).
  */
@@ -35,12 +49,22 @@ export function SwipeCard({
   disabled,
   className,
   children,
+  staysAfter,
 }: SwipeCardProps) {
+  // Leaving (AnimatePresence exit) or gone: never rise back.
+  const isPresent = useIsPresent();
+  const present = useRef(isPresent);
+  const mounted = useRef(true);
+  useEffect(() => {
+    present.current = isPresent;
+  }, [isPresent]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const x = useMotionValue(0);
-  // The card that comes back after an action (same batch, one fewer) rises
-  // from the pile in place, instead of sliding across the screen.
-  const scale = useMotionValue(1);
-  const opacity = useMotionValue(1);
   const rotate = useTransform(x, [-300, 0, 300], [-6, 0, 6]);
   const rightOpacity = useTransform(x, [0, THRESHOLD], [0, 1]);
   const leftOpacity = useTransform(x, [-THRESHOLD, 0], [1, 0]);
@@ -54,20 +78,32 @@ export function SwipeCard({
     armed.current = next;
   });
 
+  // Same batch still on screen ("Fiz 1" of 3, or an error): the card slides
+  // back in from the side it left by (never across: it would pass the other
+  // action's color).
+  const slideBack = () => {
+    void animate(x, 0, { type: "spring", stiffness: 260, damping: 30 });
+  };
+
   const run = async (direction: 1 | -1) => {
     const width = window.innerWidth;
     await animate(x, direction * width, { duration: 0.22, ease: "easeIn" });
+    let done = false;
     try {
       await (direction === 1 ? onSwipeRight() : onSwipeLeft());
-    } finally {
-      // Same batch still on screen ("Fiz 1" of 3, or an error): the next one
-      // comes up from the pile where the card was.
-      opacity.set(0);
-      scale.set(0.9);
-      x.set(0);
-      void animate(opacity, 1, { duration: 0.18 });
-      void animate(scale, 1, { type: "spring", stiffness: 380, damping: 26 });
+      done = true;
+    } catch {
+      // The request failed (its toast says why): the card comes back.
     }
+    if (done && !staysAfter(direction)) {
+      // Gone with its batch. Should the screen not move on (a slow refresh),
+      // the card comes back rather than leave an empty spot.
+      window.setTimeout(() => {
+        if (mounted.current && present.current) slideBack();
+      }, 1500);
+      return;
+    }
+    slideBack();
   };
 
   const onDragEnd = (_event: unknown, info: PanInfo) => {
@@ -105,7 +141,7 @@ export function SwipeCard({
         dragConstraints={{ left: 0, right: 0 }}
         dragSnapToOrigin={false}
         onDragEnd={onDragEnd}
-        style={{ x, rotate, scale, opacity, touchAction: "pan-y" }}
+        style={{ x, rotate, touchAction: "pan-y" }}
         className="relative h-full cursor-grab active:cursor-grabbing"
       >
         {children}

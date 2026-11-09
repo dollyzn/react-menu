@@ -48,6 +48,8 @@ export default function KitchenPage() {
   // side (large screens); on phones the queue is below, off screen, and the
   // morph would only cost frames.
   const morph = !useIsMobile(1024);
+  /** "Fazer agora" growing out of its queue card (overflow hidden, on top). */
+  const [growing, setGrowing] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   useNewBatchChime(batches, soundOn);
 
@@ -99,7 +101,18 @@ export default function KitchenPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-    <div className="flex min-h-[calc(100svh-3rem)] flex-col gap-4 p-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:p-6">
+    {/* A card flying off to the side (swipe) or growing out of its queue
+        card passes the page's edges for a moment: clipped, so the page never
+        scrolls. `clip` makes no scroll container (sticky parts keep working);
+        `relative` makes it the containing block of the leaving card, which
+        AnimatePresence's popLayout positions absolutely (else the clip
+        wouldn't reach it). */}
+    <div
+      className={cn(
+        "relative flex min-h-[calc(100svh-3rem)] flex-col gap-4 overflow-x-clip p-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:p-6",
+        growing && "overflow-hidden"
+      )}
+    >
       <header className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <ChefHat className="size-6 text-primary" />
@@ -144,7 +157,11 @@ export default function KitchenPage() {
           <AnimatePresence mode="popLayout">
             <motion.div
               key={batchId(current)}
-              exit={{ opacity: 0, scale: 0.98 }}
+              // Above the queue column while it grows out of it.
+              style={{ zIndex: growing ? 10 : undefined, position: "relative" }}
+              // The finished card steps aside at once when the next one morphs
+              // over it (two animations at the same spot read as a flicker).
+              exit={morph ? { opacity: 0, transition: { duration: 0.08 } } : { opacity: 0, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
               className="lg:col-span-2 lg:min-h-0"
             >
@@ -155,23 +172,36 @@ export default function KitchenPage() {
               onSwipeRight={() => markDone(current, true)}
               leftLabel="Fiz 1"
               onSwipeLeft={() => markDone(current, false)}
+              staysAfter={(direction) => direction === -1 && current.quantity > 1}
             >
             {/* Shares its layoutId with the batch's card in "Próximos": the small
                 card grows into this one. Its content fades in as the box grows, so
                 the text is never seen stretched. */}
             <motion.section
               layoutId={morph ? batchId(current) : undefined}
-              initial={{ opacity: 0 }}
+              // Morphing from the queue card: no fade on top of it (phones fade in instead).
+              initial={morph ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={LAYOUT_SPRING}
+              // While it grows: the content is revealed by the box (no
+              // scrollbars from content bigger than the box yet).
+              onLayoutAnimationStart={() => setGrowing(true)}
+              onLayoutAnimationComplete={() => setGrowing(false)}
               style={{ borderRadius: 24 }}
               aria-label="Fazer agora"
-              className="flex h-full flex-col border-2 border-primary/40 bg-card shadow-lg lg:min-h-0 lg:overflow-y-auto"
+              className={cn(
+                "flex h-full flex-col border-2 border-primary/40 bg-card shadow-lg lg:min-h-0",
+                growing ? "overflow-hidden" : "lg:overflow-y-auto"
+              )}
             >
             <motion.div
-              initial={{ opacity: 0 }}
+              // With the morph the content rides along with `layout` (the
+              // scale is corrected, so the text never looks stretched); on
+              // phones it fades in.
+              layout={morph}
+              initial={morph ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.2, delay: 0.15 }}
+              transition={morph ? LAYOUT_SPRING : { duration: 0.2, delay: 0.15 }}
               className="flex flex-1 flex-col p-5 lg:p-8"
             >
               <p className="flex items-center justify-between gap-2 text-sm font-semibold tracking-wider text-primary uppercase">
@@ -289,7 +319,8 @@ export default function KitchenPage() {
                     layout={morph}
                     initial={{ opacity: 0, scale: 0.96 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0 }}
+                    // The card that becomes "Fazer agora" hands over to the morph at once.
+                    exit={morph ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0 }}
                     transition={LAYOUT_SPRING}
                     style={{ borderRadius: 16 }}
                     className={cn("border bg-card p-4", index === 0 && "border-primary/30")}
