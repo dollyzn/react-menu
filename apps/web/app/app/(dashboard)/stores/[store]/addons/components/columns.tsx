@@ -44,7 +44,7 @@ export const columns: ColumnDef<Addon>[] = [
 
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Nome"
       />
@@ -65,7 +65,7 @@ export const columns: ColumnDef<Addon>[] = [
     accessorKey: "description",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Descrição"
       />
@@ -86,7 +86,7 @@ export const columns: ColumnDef<Addon>[] = [
     accessorKey: "price",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Preço"
       />
@@ -105,7 +105,7 @@ export const columns: ColumnDef<Addon>[] = [
     accessorKey: "createdAt",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Criado em"
       />
@@ -127,7 +127,7 @@ export const columns: ColumnDef<Addon>[] = [
     accessorKey: "updatedAt",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Atualizado em"
       />

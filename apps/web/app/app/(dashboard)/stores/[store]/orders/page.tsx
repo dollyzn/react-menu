@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence } from "motion/react";
-import { ClipboardList, History, Plus, Radio } from "lucide-react";
+import { History, Plus, Radio } from "lucide-react";
 import type { Order, OrderStatus, PointCharge } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,6 +16,7 @@ import { useNow } from "@/hooks/use-now";
 import { OrderCard } from "./order-card";
 import { OrderDetailSheet } from "./order-detail-sheet";
 import { OrderHistory } from "./order-history";
+import { FinishedOrders } from "./finished-orders";
 import { cn } from "@/lib/utils";
 import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
@@ -207,31 +208,7 @@ function LiveBoard({
         })}
       </div>
 
-      {finished.length > 0 && (
-        <details className="group rounded-2xl border p-4">
-          <summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold">
-            <ClipboardList className="size-4" /> Concluídos e cancelados hoje ({finished.length})
-          </summary>
-          <ul className="mt-3 divide-y text-sm">
-            {finished.map((order) => (
-              <li key={order.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpen(order.id)}
-                  className="flex w-full justify-between rounded-lg px-1 py-2 text-left hover:bg-muted/50"
-                >
-                  <span>
-                    <span className="font-semibold tabular-nums">#{order.number}</span> {order.customerName}
-                  </span>
-                  <span className={cn("tabular-nums", order.status === "cancelled" && "text-muted-foreground line-through")}>
-                    {order.status === "cancelled" ? "Cancelado" : "Entregue"}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
+      {finished.length > 0 && <FinishedOrders orders={finished} onOpen={onOpen} />}
     </>
   );
 }

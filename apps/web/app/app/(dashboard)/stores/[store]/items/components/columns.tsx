@@ -47,7 +47,7 @@ export const columns: ColumnDef<Item>[] = [
 
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Nome"
       />
@@ -68,7 +68,7 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "description",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Descrição"
       />
@@ -89,7 +89,7 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "price",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Preço"
       />
@@ -110,7 +110,7 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "category.name",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Categoria"
       />
@@ -136,7 +136,7 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "addonsCount",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Adicionais"
       />
@@ -157,7 +157,7 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "createdAt",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Criado em"
       />
@@ -179,7 +179,7 @@ export const columns: ColumnDef<Item>[] = [
     accessorKey: "updatedAt",
     header: ({ column }) => (
       <DataTableColumnHeader
-        titleClassName="text-xs uppercase tracking-wider text-muted-foreground"
+
         column={column}
         title="Atualizado em"
       />

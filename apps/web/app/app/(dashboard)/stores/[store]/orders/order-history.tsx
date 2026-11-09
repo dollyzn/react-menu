@@ -18,7 +18,7 @@ const header =
   (title: string) =>
   // eslint-disable-next-line react/display-name
   ({ column }: HeaderContext<Order, unknown>) => (
-    <DataTableColumnHeader titleClassName="text-xs uppercase tracking-wider text-muted-foreground" column={column} title={title} />
+    <DataTableColumnHeader column={column} title={title} />
   );
 
 const itemsSummary = (order: Order) => order.items.map((line) => `${line.quantity}× ${line.name}`).join(", ");
