@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Spinner } from "@/components/ui/spinner";
 import { flexRender, useTable, type ReactTable, type RowData } from "@tanstack/react-table";
 import {
@@ -150,6 +150,18 @@ export function DataTable<TData extends RowData>({
     `${storageBaseName}:${tableId}:viewMode`,
     defaultViewMode || "table"
   );
+  /** The person picked a view with the toggle: phones stop defaulting to cards. */
+  const [viewModeChosen, setViewModeChosen] = useLocalStorage<boolean>(
+    `${storageBaseName}:${tableId}:viewModeChosen`,
+    false
+  );
+  const chooseViewMode = useCallback(
+    (mode: ViewMode) => {
+      setViewModeChosen(true);
+      setViewMode(mode);
+    },
+    [setViewMode, setViewModeChosen]
+  );
 
   const [sorting, setSorting] = useState<SortingState>(externalSorting || []);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>(
@@ -191,13 +203,15 @@ export function DataTable<TData extends RowData>({
     }
   }, [defaultVisibility, setColumnVisibility]);
 
+  // Phones start on cards, until the toggle is used: forcing them on every
+  // change undid "Exibir como tabela" at once.
   useEffect(() => {
-    if (!renderCard || !defaultCardsOnMobile || typeof window === "undefined")
+    if (!renderCard || !defaultCardsOnMobile || viewModeChosen || typeof window === "undefined")
       return;
     if (window.innerWidth < 768 && viewMode !== "cards") {
       setViewMode("cards");
     }
-  }, [defaultCardsOnMobile, renderCard, setViewMode, viewMode]);
+  }, [defaultCardsOnMobile, renderCard, setViewMode, viewMode, viewModeChosen]);
 
   const table = useTable({
     features: dataTableFeatures,
@@ -245,7 +259,7 @@ export function DataTable<TData extends RowData>({
         currentDensity={density}
         hasCardView={!!renderCard}
         viewMode={viewMode}
-        setViewMode={setViewMode}
+        setViewMode={chooseViewMode}
       />
 
       <div className="flex flex-col gap-4 relative">
