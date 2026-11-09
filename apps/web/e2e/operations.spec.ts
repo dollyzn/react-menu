@@ -387,3 +387,42 @@ test("orders board: \"Entregar\" reminds of the items that skip the kitchen", as
   await page.getByRole("alertdialog").getByRole("button", { name: "Sim, entregar" }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
 });
+
+test("kitchen: swiping a card off never makes the page scroll sideways", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  for (const [i, q] of [[2, 2], [3, 1]] as const) {
+    await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+      data: { customer: { name: "Sem rolagem" }, lines: [{ itemId: menu.categories[0].items[i].id, quantity: q }] },
+    });
+  }
+  await api.dispose();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(page.url().replace(/\/[^/]+$/, "/kitchen"));
+  const card = page.getByRole("region", { name: "Fazer agora" });
+  await expect(card).toBeVisible();
+
+  // Every frame: did the document get wider than the screen?
+  await page.evaluate(() => {
+    const w = window as unknown as { sideways: number };
+    w.sideways = 0;
+    const tick = () => {
+      const d = document.documentElement;
+      if (d.scrollWidth > d.clientWidth + 1) w.sideways++;
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const box = (await card.boundingBox())!;
+  for (const direction of [-1, 1]) {
+    await page.mouse.move(box.x + box.width / 2, box.y + 120);
+    await page.mouse.down();
+    for (let step = 1; step <= 12; step++) await page.mouse.move(box.x + box.width / 2 + direction * step * 30, box.y + 120);
+    await page.mouse.up();
+    await page.waitForTimeout(1500);
+  }
+  expect(await page.evaluate(() => (window as unknown as { sideways: number }).sideways)).toBe(0);
+});
