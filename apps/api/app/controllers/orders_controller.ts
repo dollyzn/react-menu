@@ -11,6 +11,7 @@ import PaymentService from '#services/payment_service'
 import Store from '#models/store'
 import type Order from '#models/order'
 import OrderStatus from '#enums/order_status'
+import StoreRole from '#enums/store_role'
 import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { orderListValidator, posOrderValidator } from '#validators/order'
@@ -23,7 +24,7 @@ export default class OrdersController {
   ) {}
 
   /** Orders of a business day (today by default), optionally by status. */
-  async index({ params, request }: HttpContext) {
+  async index({ params, request, bouncer }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const qs = request.qs()
     const list = (value: unknown) => (value === undefined ? undefined : [value].flat())
@@ -36,6 +37,20 @@ export default class OrdersController {
       // A comma in the search ("Silva, Ana") arrives split (`comma: true`).
       customerName: qs.customerName === undefined ? undefined : [qs.customerName].flat().join(','),
     })
+
+    // This endpoint serves two screens of the panel's "Pedidos" page:
+    // - "Ao vivo" (no `page`): today's orders in the Na fila / Em preparo /
+    //   Prontos columns. Every member needs it (attendants hand orders over).
+    // - "Histórico" (`page`, filters, any period): sales and customer data,
+    //   managers only. Asking "Ao vivo" for another day (`date`) is the same
+    //   as looking at the history, so it is managers only too.
+    const today = DateTime.now().setZone(BUSINESS_TIMEZONE).toISODate()
+    const otherDay =
+      filters.date !== undefined &&
+      DateTime.fromJSDate(filters.date, { zone: BUSINESS_TIMEZONE }).toISODate() !== today
+    if (filters.page || otherDay) {
+      await bouncer.authorize('hasStoreRole', storeId, [StoreRole.MANAGER])
+    }
 
     // History (paginated, any period) or the live board (one business day).
     if (filters.page) {

@@ -468,7 +468,7 @@ test.group('Mercado Pago Point (card machine)', (group) => {
       .json({ paymentType: 'credit_card' })
       .loginAs(attendant)
 
-    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(attendant)
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
 
     const cancelled = await Payment.findOrFail(charge.body().data.id)
     assert.equal(cancelled.status, 'expired')

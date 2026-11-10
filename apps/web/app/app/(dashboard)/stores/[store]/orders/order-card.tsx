@@ -23,6 +23,7 @@ import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { addonLabels } from "@/lib/addon-label";
 import { DeliverOrderButton } from "./deliver-order-button";
+import { useStoreRole } from "@/hooks/use-store-role";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
 import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
 
@@ -33,8 +34,8 @@ interface OrderCardProps {
   /** Minutes after which the waiting time turns red. */
   etaMinutes: number;
   canOperate: boolean;
-  /** Opens the order detail. */
-  onOpen: (orderId: string) => void;
+  /** Opens the order detail (managers; without it the card doesn't open). */
+  onOpen?: (orderId: string) => void;
 }
 
 export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen }: OrderCardProps) {
@@ -44,6 +45,8 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const { data: point } = useGetPointConfigQuery(storeId, { skip: !canOperate });
   const canCharge = Boolean(point?.available && point.terminals.length > 0);
   const [charging, setCharging] = useState(false);
+  // Cancelling refunds a paid order: managers only (the API refuses the rest).
+  const canCancel = useStoreRole(storeId) === "manager";
 
   const waiting = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60_000));
   const late = waiting >= etaMinutes && order.status !== "ready";
@@ -65,15 +68,22 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       )}
     >
       <header className="flex items-start justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => onOpen(order.id)}
-          aria-label={`Ver detalhes do pedido ${order.number}`}
-          className="-m-1 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
-          <p className="text-2xl font-black tabular-nums">#{order.number}</p>
-          <p className="font-medium">{order.customerName}</p>
-        </button>
+        {onOpen ? (
+          <button
+            type="button"
+            onClick={() => onOpen(order.id)}
+            aria-label={`Ver detalhes do pedido ${order.number}`}
+            className="-m-1 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <p className="text-2xl font-black tabular-nums">#{order.number}</p>
+            <p className="font-medium">{order.customerName}</p>
+          </button>
+        ) : (
+          <div>
+            <p className="text-2xl font-black tabular-nums">#{order.number}</p>
+            <p className="font-medium">{order.customerName}</p>
+          </div>
+        )}
         <div className="flex flex-col items-end gap-1">
           <span
             className={cn(
@@ -124,6 +134,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
             {order.status === "ready" && (
               <DeliverOrderButton order={order} storeId={storeId} />
             )}
+            {(!paid || canCancel) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Mais ações do pedido ${order.number}`} />}>
                 <MoreHorizontal />
@@ -139,11 +150,14 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                     <Banknote /> Marcar como pago
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem variant="destructive" onClick={() => setConfirmCancel(true)}>
-                  <Ban /> Cancelar pedido
-                </DropdownMenuItem>
+                {canCancel && (
+                  <DropdownMenuItem variant="destructive" onClick={() => setConfirmCancel(true)}>
+                    <Ban /> Cancelar pedido
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
+            )}
           </div>
         )}
       </footer>

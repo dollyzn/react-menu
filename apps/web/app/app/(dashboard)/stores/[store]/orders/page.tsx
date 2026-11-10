@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { History, Plus, Radio } from "lucide-react";
 import type { Order, OrderStatus, PointCharge } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
@@ -48,9 +48,15 @@ export default function OrdersPage() {
   const { store: storeId } = useParams<{ store: string }>();
   const [view, setView] = useQueryParam("view");
   const [openOrderId, setOpenOrderId] = useQueryParam("pedido");
-  const history = view === "historico";
   const role = useStoreRole(storeId);
   const canOperate = role === "manager" || role === "attendant";
+  /**
+   * The history, cancelling and the day's totals are for managers (the API
+   * refuses the rest of the team). Unknown role while loading: keep the view
+   * asked for, so a manager's history doesn't flash the board first.
+   */
+  const isManager = role === "manager" || role === null;
+  const history = view === "historico" && isManager;
   /** A charge on the card machine, opened from the "Na maquininha" bar. */
   const [resuming, setResuming] = useState<PointCharge | null>(null);
 
@@ -66,6 +72,7 @@ export default function OrdersPage() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {isManager && (
           <Tabs
             value={history ? "historico" : "ao-vivo"}
             onValueChange={(value) =>
@@ -86,6 +93,7 @@ export default function OrdersPage() {
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          )}
           {canOperate && (
             <Button render={<Link href={`/app/stores/${storeId}/pos`} />} nativeButton={false}>
               <Plus /> Novo pedido
@@ -99,12 +107,18 @@ export default function OrdersPage() {
       {history ? (
         <OrderHistory storeId={storeId} onOpen={setOpenOrderId} />
       ) : (
-        <LiveBoard storeId={storeId} canOperate={canOperate} onOpen={setOpenOrderId} />
+        <LiveBoard
+          storeId={storeId}
+          canOperate={canOperate}
+          isManager={role === "manager"}
+          // The order's detail (timeline, cancelling) is for managers.
+          onOpen={role === "manager" ? setOpenOrderId : undefined}
+        />
       )}
 
       <OrderDetailSheet
         storeId={storeId}
-        orderId={openOrderId}
+        orderId={role === "manager" ? openOrderId : null}
         canOperate={canOperate}
         onClose={() => setOpenOrderId(null)}
       />
@@ -123,11 +137,13 @@ export default function OrdersPage() {
 function LiveBoard({
   storeId,
   canOperate,
+  isManager,
   onOpen,
 }: {
   storeId: string;
   canOperate: boolean;
-  onOpen: (orderId: string) => void;
+  isManager: boolean;
+  onOpen?: (orderId: string) => void;
 }) {
   const { data: orders = [], isLoading } = useGetOrdersQuery({ storeId }, { pollingInterval: 30_000 });
   const { data: store } = useGetStoreByIdQuery(storeId);
@@ -148,16 +164,22 @@ function LiveBoard({
       {awaitingPayment.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed px-3 py-2 text-sm text-muted-foreground">
           {awaitingPayment.length} pedido(s) online aguardando a confirmação do pagamento:
-          {awaitingPayment.map((order) => (
-            <button
-              key={order.id}
-              type="button"
-              onClick={() => onOpen(order.id)}
-              className="rounded-full border bg-card px-2 py-0.5 font-semibold text-foreground tabular-nums hover:bg-muted"
-            >
-              #{order.number}
-            </button>
-          ))}
+          {awaitingPayment.map((order) =>
+            onOpen ? (
+              <button
+                key={order.id}
+                type="button"
+                onClick={() => onOpen(order.id)}
+                className="rounded-full border bg-card px-2 py-0.5 font-semibold text-foreground tabular-nums hover:bg-muted"
+              >
+                #{order.number}
+              </button>
+            ) : (
+              <span key={order.id} className="rounded-full border bg-card px-2 py-0.5 font-semibold text-foreground tabular-nums">
+                #{order.number}
+              </span>
+            )
+          )}
         </div>
       )}
 
@@ -208,7 +230,21 @@ function LiveBoard({
         })}
       </div>
 
-      {finished.length > 0 && <FinishedOrders orders={finished} onOpen={onOpen} />}
+      {/* Follows the columns as delivered cards leave them, instead of jumping up. */}
+      <AnimatePresence initial={false}>
+        {isManager && finished.length > 0 && (
+          <motion.div
+            key="finished"
+            layout="position"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ layout: { type: "spring", bounce: 0, duration: 0.35 } }}
+          >
+            <FinishedOrders orders={finished} onOpen={(orderId) => onOpen?.(orderId)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
