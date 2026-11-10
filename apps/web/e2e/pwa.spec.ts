@@ -16,14 +16,18 @@ async function shot(browser: Browser, url: string, file: string, width: number, 
   await context.close();
 }
 
-async function installability(page: Page) {
+async function installability(page: Page, manifestUrl: RegExp) {
   const cdp = await page.context().newCDPSession(page);
   // After a client-side navigation the browser fetches the new manifest a
-  // moment after its <link> lands (metadata is streamed), so wait for it.
+  // moment after its <link> lands (metadata is streamed), so wait for the
+  // one expected (the page signing in lands on can hand over another first).
   let result: Awaited<ReturnType<typeof cdp.send<"Page.getAppManifest">>> | undefined;
   await expect
-    .poll(async () => (result = await cdp.send("Page.getAppManifest")).data ?? "", { timeout: 10_000 })
-    .not.toBe("");
+    .poll(async () => {
+      result = await cdp.send("Page.getAppManifest");
+      return result.data ? result.url : "";
+    }, { timeout: 10_000 })
+    .toMatch(manifestUrl);
   const { installabilityErrors } = await cdp.send("Page.getInstallabilityErrors");
   const { url, errors, data } = result!;
   return { installabilityErrors, url, errors, manifest: JSON.parse(data ?? "{}") };
@@ -38,14 +42,12 @@ test("customer and staff apps are installable", async ({ page, browser }) => {
   test.setTimeout(180_000);
   await page.goto("/");
   await page.evaluate(() => navigator.serviceWorker.ready);
-  const customer = await installability(page);
-  expect(customer.url).toMatch(/\/manifest\.webmanifest$/);
+  const customer = await installability(page, /\/manifest\.webmanifest$/);
   expect(customer.manifest.name).toBe("JJ Pastéis · Cardápio");
 
   await login(page);
-  const staff = await installability(page);
   // Inside a store, the panel's manifest carries its name and logo (?store=).
-  expect(staff.url).toMatch(/\/app\/manifest\.webmanifest\?store=[\w-]+$/);
+  const staff = await installability(page, /\/app\/manifest\.webmanifest\?store=[\w-]+$/);
   expect(staff.manifest.scope).toBe("/app/");
   const storePath = new URL(page.url()).pathname.replace(/\/$/, "");
 

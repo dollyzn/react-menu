@@ -6,12 +6,12 @@
  */
 export const RETURN_PARAM = "next";
 const STORAGE_KEY = "react-menu:next";
-const DEFAULT = "/app/stores";
+export const DEFAULT_RETURN_PATH = "/app/stores";
 /**
  * Pages that are no destination: going back to /app/logout after signing in
  * would sign out again (a loop), and the others are the sign-in itself.
  */
-const AUTH_PAGES = ["/app/login", "/app/logout", "/app/social", "/app/esqueci-minha-senha", "/app/redefinir-senha"];
+const AUTH_PAGES = ["/app/login", "/app/logout", "/app/social", "/app/forgot-password", "/app/reset-password"];
 
 export function safeReturnPath(raw: string | null | undefined) {
   if (!raw) return null;
@@ -51,5 +51,6 @@ export function takeReturnPath() {
   } catch {
     // Storage blocked.
   }
-  return fromUrl ?? stored ?? DEFAULT;
+  return fromUrl ?? stored ?? DEFAULT_RETURN_PATH;
 }
+

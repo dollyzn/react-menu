@@ -50,8 +50,8 @@ export default class PasswordResetService {
         { client: trx }
       )
     })
-    const query = new URLSearchParams({ token, ...(options.invite ? { convite: '1' } : {}) })
-    return `${env.get('FRONTEND_URL')}/app/redefinir-senha?${query}`
+    const query = new URLSearchParams({ token, ...(options.invite ? { invite: '1' } : {}) })
+    return `${env.get('FRONTEND_URL')}/app/reset-password?${query}`
   }
 
   /** Sets the new password and ends every session of the user. */
