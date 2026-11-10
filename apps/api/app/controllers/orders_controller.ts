@@ -16,6 +16,19 @@ import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { orderListValidator, posOrderValidator } from '#validators/order'
 
+/**
+ * The calendar day a `YYYY-MM-DD` query asked for, in the business timezone.
+ * Vine parses it as midnight in the server's own timezone (UTC in
+ * production), so it is read by its date parts, not converted (which made
+ * "2026-11-10" the 9th in São Paulo).
+ */
+function businessDay(date: Date) {
+  return DateTime.fromObject(
+    { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() },
+    { zone: BUSINESS_TIMEZONE }
+  )
+}
+
 @inject()
 export default class OrdersController {
   constructor(
@@ -45,9 +58,8 @@ export default class OrdersController {
     //   managers only. Asking "Ao vivo" for another day (`date`) is the same
     //   as looking at the history, so it is managers only too.
     const today = DateTime.now().setZone(BUSINESS_TIMEZONE).toISODate()
-    const otherDay =
-      filters.date !== undefined &&
-      DateTime.fromJSDate(filters.date, { zone: BUSINESS_TIMEZONE }).toISODate() !== today
+    const day = filters.date ? businessDay(filters.date) : undefined
+    const otherDay = day !== undefined && day.toISODate() !== today
     if (filters.page || otherDay) {
       await bouncer.authorize('hasStoreRole', storeId, [StoreRole.MANAGER])
     }
@@ -60,9 +72,7 @@ export default class OrdersController {
     return ok(
       await this.orders.list(storeId, {
         statuses: filters.status,
-        date: filters.date
-          ? DateTime.fromJSDate(filters.date, { zone: BUSINESS_TIMEZONE })
-          : undefined,
+        date: day,
       })
     )
   }

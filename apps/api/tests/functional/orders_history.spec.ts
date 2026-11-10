@@ -112,7 +112,10 @@ test.group('Orders history', (group) => {
     const board = await client.get(orders).loginAs(attendant)
     board.assertStatus(200)
     assert.lengthOf(board.body().data, 3)
-    assert.equal(await status(client.get(orders).qs({ date: today }).loginAs(attendant)), 200)
+    // `date` is a calendar day in São Paulo, whatever the server's timezone.
+    const todays = await client.get(orders).qs({ date: today }).loginAs(attendant)
+    todays.assertStatus(200)
+    assert.lengthOf(todays.body().data, 3)
 
     assert.equal(await status(client.get(orders).qs({ page: 1 }).loginAs(attendant)), 403)
     assert.equal(
