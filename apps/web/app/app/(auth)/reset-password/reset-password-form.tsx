@@ -95,7 +95,7 @@ export function ResetPasswordForm() {
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="absolute top-1/2 right-1 -translate-y-1/2"
+            className="absolute inset-y-0 right-1 my-auto"
             aria-label={visible ? "Esconder senha" : "Mostrar senha"}
             onClick={() => setVisible((value) => !value)}
           >

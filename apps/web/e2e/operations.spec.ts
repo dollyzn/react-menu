@@ -1,5 +1,5 @@
 import { request as playwrightRequest } from "@playwright/test";
-import { test, expect, login, DEMO_STAFF, apiSignIn } from "./fixtures";
+import { test, expect, login, DEMO_STAFF, apiSignIn, slowClick } from "./fixtures";
 import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 /** Marks every pending kitchen unit as done so this test owns the queue. */
@@ -267,7 +267,8 @@ test("POS: customer autocomplete fills name and phone", async ({ page }) => {
   await input.fill("joaquim brandao");
   await option.click();
   await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("(11) 97777-6666");
-  await page.getByRole("button", { name: "Limpar cliente" }).click();
+  // Pressed near its top edge: the press effect used to move it out from under the pointer.
+  await slowClick(page.getByRole("button", { name: "Limpar cliente" }), { x: 12, y: 2 });
   await expect(input).toHaveValue("");
   await expect(page.getByLabel("Celular do cliente (opcional)")).toHaveValue("");
 });

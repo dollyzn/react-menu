@@ -128,7 +128,7 @@ export function CustomerAutocomplete({
             variant="ghost"
             size="icon-xs"
             aria-label="Limpar cliente"
-            className="absolute top-1/2 right-1 -translate-y-1/2 rounded-full text-muted-foreground"
+            className="absolute inset-y-0 right-1 my-auto rounded-full text-muted-foreground"
             onClick={clear}
           >
             <X />

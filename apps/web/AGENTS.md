@@ -106,6 +106,9 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   with `table.state` (reactive), never a snapshot (`table.store.state`,
   `atoms.*.get()`), and call row/column methods (`() => column.clearSorting()`):
   they live on prototypes and lose `this` when passed bare.
+- Don't center a `Button` with `-translate-y-1/2`: its press effect
+  (`active:translate-y-px`) replaces that translate, the button jumps from
+  under the pointer and the click is lost. Use `absolute inset-y-0 my-auto`.
 - Column headers use `DataTableColumnHeader`, sortable or not: it applies
   `COLUMN_TITLE` (small uppercase, muted). Don't restyle titles per column;
   a custom header (a span) uses `COLUMN_TITLE` too.
