@@ -26,13 +26,15 @@ import * as z from "zod";
 import { AnimatePresence, motion } from "motion/react";
 import type { TwoFactorChallenge } from "@react-menu/contracts";
 import { useLazyTwoFactorChallengeQuery, useTwoFactorChallengeQuery } from "@/redux/features/auth/authApi";
+import type { SocialProvider } from "@react-menu/contracts";
 import { SocialLogin, type SocialLoginStatus } from "./social-login";
 import { TwoFactorStep } from "./two-factor-step";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { useLoggingOut } from "@/lib/logout-state";
 import { Spinner } from "@/components/ui/spinner";
-import { rememberReturnPath, takeReturnPath } from "@/lib/return-to";
+import { rememberReturnPath } from "@/lib/return-to";
+import { enterPanel } from "@/lib/enter-panel";
 
 export const LoginSchema = z.object({
   email: z.email("Insira um e-mail válido").min(1, "Preencha com seu e-mail"),
@@ -41,7 +43,7 @@ export const LoginSchema = z.object({
 
 export type LoginValues = z.infer<typeof LoginSchema>;
 
-export function LoginForm() {
+export function LoginForm({ socialProviders }: { socialProviders: SocialProvider[] | null }) {
   const router = useRouter();
 
   const { login, confirmedUser } = useSession();
@@ -57,7 +59,7 @@ export function LoginForm() {
   }, []);
   useEffect(() => {
     if (confirmedUser && !new URLSearchParams(window.location.search).has("etapa")) {
-      router.replace(takeReturnPath());
+      enterPanel({ replace: true });
     }
   }, [confirmedUser, router]);
 
@@ -149,7 +151,7 @@ export function LoginForm() {
         message: error,
       });
     } else {
-      router.push(takeReturnPath());
+      enterPanel();
     }
   }
 
@@ -230,7 +232,7 @@ export function LoginForm() {
                 <div className="flex w-full items-center justify-between gap-2">
                   <FieldLabel htmlFor="login-password">Senha</FieldLabel>
                   <Link
-                    href="/app/esqueci-minha-senha"
+                    href="/app/forgot-password"
                     className="text-xs text-primary underline-offset-4 hover:underline"
                   >
                     Esqueceu a senha?
@@ -308,6 +310,7 @@ export function LoginForm() {
       </form>
 
       <SocialLogin
+        providers={socialProviders}
         disabled={isSubmitting || loggingOut}
         onStatusChange={setSocialStatus}
         onTwoFactor={() => void continueWithCode()}

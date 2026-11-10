@@ -10,7 +10,7 @@ const AUTH_PAGES = ["/app/login"];
  * phone, and the social login popup lands on /app/social right after the
  * API set the session cookie.
  */
-const PUBLIC_PAGES = ["/app/esqueci-minha-senha", "/app/redefinir-senha", "/app/social"];
+const PUBLIC_PAGES = ["/app/forgot-password", "/app/reset-password", "/app/social"];
 /** Fetched by the browser without cookies when installing the staff app. */
 const PUBLIC_FILES = ["/app/manifest.webmanifest"];
 

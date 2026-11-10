@@ -187,3 +187,8 @@ test("a session cookie the API refuses (another project on localhost) leads to t
   await expect(page).toHaveURL(/\/app\/login(\?next=[^&]+)?$/, { timeout: 15_000 });
   await expect(page.getByRole("button", { name: "Entrar", exact: true })).toBeVisible();
 });
+
+test("the Google button is in the login page as the server sends it (no pop-in)", async ({ page }) => {
+  const html = await (await page.request.get("/app/login")).text();
+  expect(html).toContain("Entrar com Google");
+});

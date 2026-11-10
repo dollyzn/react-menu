@@ -4,6 +4,7 @@ import { Suspense, useEffect, useEffectEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { ShieldAlert } from "lucide-react";
+import type { SocialProvider } from "@react-menu/contracts";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { FieldSeparator } from "@/components/ui/field";
@@ -16,7 +17,7 @@ import {
   prefersFullPageLogin,
   type SocialAuthMessage,
 } from "@/lib/social-auth";
-import { takeReturnPath } from "@/lib/return-to";
+import { enterPanel } from "@/lib/enter-panel";
 
 const START_URL = "/app/social?provider=google";
 /** A sign-in left open this long frees the form again (the popup may be long gone). */
@@ -35,6 +36,8 @@ export type SocialLoginStatus = "idle" | "waiting" | "finishing";
  * to a full-page redirect when popups are blocked or in the installed app.
  */
 export function SocialLogin(props: {
+  /** From the server render; null: ask the API from the browser. */
+  providers: SocialProvider[] | null;
   /** The e-mail login is running. */
   disabled?: boolean;
   onStatusChange?: (status: SocialLoginStatus) => void;
@@ -50,10 +53,12 @@ export function SocialLogin(props: {
 }
 
 function GoogleLogin({
+  providers,
   disabled,
   onStatusChange,
   onTwoFactor,
 }: {
+  providers: SocialProvider[] | null;
   disabled?: boolean;
   onStatusChange?: (status: SocialLoginStatus) => void;
   /** Google passed and the second step is due (its cookie is set). */
@@ -63,7 +68,7 @@ function GoogleLogin({
   // Errors of the full-page flow come back as ?erro=.
   const redirectError = useSearchParams().get("erro");
   const { verify } = useSession();
-  const { data } = useSocialProvidersQuery();
+  const { data } = useSocialProvidersQuery(undefined, { skip: providers !== null });
   const [status, setStatusState] = useState<SocialLoginStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -88,7 +93,7 @@ function GoogleLogin({
     for (const wait of VERIFY_RETRIES_MS) {
       if (wait) await sleep(wait);
       if (await verify()) {
-        router.push(takeReturnPath());
+        enterPanel();
         return;
       }
     }
@@ -114,7 +119,7 @@ function GoogleLogin({
     return () => window.clearTimeout(timer);
   }, [status]);
 
-  if (!data?.providers.includes("google")) return null;
+  if (!(providers ?? data?.providers)?.includes("google")) return null;
   const shownError = error ?? redirectError;
 
   const start = () => {

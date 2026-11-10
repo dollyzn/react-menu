@@ -55,7 +55,7 @@ export default class MailPreview extends BaseCommand {
       ],
       totals: [{ label: 'Total', value: 'R$ 51,00', strong: true }],
     }
-    const link = 'https://menu.example.com/app/redefinir-senha?token=exemplo'
+    const link = 'https://menu.example.com/app/reset-password?token=exemplo'
 
     const mails: Record<string, BaseMail> = {
       'reset-password': new ResetPasswordNotification(person, link),
@@ -67,7 +67,7 @@ export default class MailPreview extends BaseCommand {
       'staff-invite': new StaffInviteNotification(
         person,
         { store, role: StoreRole.ATTENDANT, invitedBy: 'Carlos' },
-        `${link}&convite=1`
+        `${link}&invite=1`
       ),
       'store-access': new StoreAccessNotification(
         person,

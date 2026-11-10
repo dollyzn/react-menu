@@ -88,7 +88,7 @@ test.group('Store members', (group) => {
     assert.equal(added.type, 'store.member_added')
     const [invite] = fake.mails.queued((sent) => sent instanceof StaffInviteNotification)
     const url = new URL((invite as unknown as { setPasswordUrl: string }).setPasswordUrl)
-    assert.equal(url.searchParams.get('convite'), '1')
+    assert.equal(url.searchParams.get('invite'), '1')
 
     const setPassword = await client
       .post('/api/v1/auth/reset-password')

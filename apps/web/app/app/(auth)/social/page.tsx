@@ -8,7 +8,7 @@ import { useSession } from "@/contexts/session-provider";
 import { Icons } from "@/components/app/icons";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { SOCIAL_AUTH_CHANNEL, SOCIAL_AUTH_MODE_KEY, type SocialAuthMessage } from "@/lib/social-auth";
-import { takeReturnPath } from "@/lib/return-to";
+import { enterPanel } from "@/lib/enter-panel";
 
 /** useSearchParams needs a Suspense boundary for static prerendering. */
 export default function AuthSocialPage() {
@@ -56,7 +56,7 @@ function AuthSocial() {
         window.close();
         return;
       }
-      if (message.type === "success") router.replace(takeReturnPath());
+      if (message.type === "success") enterPanel({ replace: true });
       else if (message.type === "two-factor") router.replace("/app/login?etapa=codigo");
       else router.replace(`/app/login?erro=${encodeURIComponent(message.error)}`);
     };

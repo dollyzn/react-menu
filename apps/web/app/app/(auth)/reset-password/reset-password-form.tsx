@@ -13,7 +13,7 @@ import { useResetPasswordMutation } from "@/redux/features/auth/authApi";
 export function ResetPasswordForm() {
   const params = useSearchParams();
   const token = params.get("token");
-  const invite = params.get("convite") === "1";
+  const invite = params.get("invite") === "1";
   const [password, setPassword] = useState("");
   const [confirmation, setConfirmation] = useState("");
   const [visible, setVisible] = useState(false);
@@ -68,7 +68,7 @@ export function ResetPasswordForm() {
             {invite ? "Peça um novo convite à gerência da loja, ou" : ""} peça um novo link para definir a senha.
           </AlertDescription>
         </Alert>
-        <Link href="/app/esqueci-minha-senha" className={buttonVariants({ className: "w-full" })}>
+        <Link href="/app/forgot-password" className={buttonVariants({ className: "w-full" })}>
           Pedir novo link
         </Link>
       </div>
