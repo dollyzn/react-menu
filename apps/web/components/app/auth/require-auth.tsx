@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { useSession } from "@/contexts/session-provider";
 import { useRehydrated } from "@/hooks/use-rehydrated";
@@ -13,7 +12,6 @@ interface RequireAuthProps {
 export default function RequireAuth({ children }: RequireAuthProps) {
   const { user, verify } = useSession();
   const rehydrated = useRehydrated();
-  const router = useRouter();
 
   useEffect(() => {
     // Before rehydration the persisted user isn't loaded yet.
@@ -22,12 +20,12 @@ export default function RequireAuth({ children }: RequireAuthProps) {
     // one is cleared by verify(), so the login page isn't bounced back.
     let active = true;
     void verify().then((current) => {
-      if (active && !current) redirectToLogin(router);
+      if (active && !current) redirectToLogin();
     });
     return () => {
       active = false;
     };
-  }, [rehydrated, user, router, verify]);
+  }, [rehydrated, user, verify]);
 
   if (!rehydrated || !user) return null;
 

@@ -5,13 +5,13 @@ import { ResetPasswordForm } from "./reset-password-form";
 
 export const metadata: Metadata = { title: "Redefinir senha" };
 
-/** Also the landing page of staff invites (`?convite=1`). */
+/** Also the landing page of staff invites (`?invite=1`). */
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ convite?: string }>;
+  searchParams: Promise<{ invite?: string }>;
 }) {
-  const invite = (await searchParams).convite === "1";
+  const invite = (await searchParams).invite === "1";
   return (
     <AuthShell
       title={invite ? "Crie sua senha" : "Escolha uma nova senha"}

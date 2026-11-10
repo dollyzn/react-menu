@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AnimatePresence, delay, motion } from "motion/react";
 import { LayoutDashboard, LogOut } from "lucide-react";
 import { useSession } from "@/contexts/session-provider";
-import { useRouter } from "next/navigation";
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
 import { redirectToLogin } from "@/utils/navigation";
 import { Icons } from "@/components/app/icons";
@@ -21,7 +20,6 @@ import { clearLogoutRequest, logoutRequested } from "@/lib/logout-intent";
  */
 export default function LogoutPage() {
   const { logout } = useSession();
-  const router = useRouter();
   const [confirmed, setConfirmed] = useState(() => logoutRequested());
   const [redirecting, setRedirecting] = useState(false);
 
@@ -32,7 +30,7 @@ export default function LogoutPage() {
         await logout();
         clearLogoutRequest();
         setRedirecting(true);
-        delay(() => redirectToLogin(router), 1500);
+        delay(() => redirectToLogin(), 1500);
       }, 1000);
     },
     [logout, confirmed],

@@ -87,3 +87,22 @@ test("signing out and in again lands in the panel, not back on the logout", asyn
   await page.waitForTimeout(3000);
   await expect(page).toHaveURL(/\/app\/stores\/[^/]+/);
 });
+
+test("signed out, a visit to the forgot-password page, then signing in goes straight into the panel", async ({ page }) => {
+  await login(page);
+  await page.goto("/app/settings");
+  await page.getByRole("button", { name: "Sair", exact: true }).click();
+  await page.waitForURL(/\/app\/login/, { timeout: 15_000 });
+  await page.getByRole("link", { name: "Esqueceu a senha?" }).click();
+  await page.waitForURL(/\/app\/forgot-password$/);
+  await page.getByRole("link", { name: /login/i }).last().click();
+  await page.waitForURL(/\/app\/login$/);
+
+  // The router used to reuse what it fetched signed out (a panel page sent
+  // back to the login) and stay on the login until a reload.
+  const visited: string[] = [];
+  page.on("framenavigated", (frame) => frame === page.mainFrame() && visited.push(frame.url()));
+  await signIn(page);
+  await page.waitForURL(/\/app\/stores\/[^/]+/);
+  expect(visited.filter((url) => url.includes("/app/login"))).toEqual([]);
+});

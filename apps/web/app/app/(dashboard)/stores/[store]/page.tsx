@@ -150,7 +150,7 @@ export default function Store() {
               <div className="flex min-w-0 items-center gap-4">
                 <div className="relative size-20 shrink-0">
                   {data.photoUrl ? (
-                    <Image src={data.photoUrl} alt={data.name} fill sizes="80px" className="rounded-lg object-contain" />
+                    <Image src={data.photoUrl} alt={data.name} fill sizes="80px" className="rounded-lg object-contain" loading="eager" />
                   ) : (
                     <ImageIcon strokeWidth={0.5} className="size-full text-muted-foreground" />
                   )}

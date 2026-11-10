@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { ArrowLeft, KeyRound, MailCheck, ShieldCheck, Smartphone } from "lucide-react";
 import type { TwoFactorChallenge } from "@react-menu/contracts";
@@ -13,7 +12,7 @@ import { Input } from "@/components/ui/input";
 import { useSession } from "@/contexts/session-provider";
 import { useResendTwoFactorMutation } from "@/redux/features/auth/authApi";
 import { getErrorMessage } from "@/utils/get-error-message";
-import { takeReturnPath } from "@/lib/return-to";
+import { enterPanel } from "@/lib/enter-panel";
 
 /** Seconds until `iso` (0 once it passed), ticking every second. */
 function useSecondsUntil(iso: string | null) {
@@ -31,7 +30,6 @@ function useSecondsUntil(iso: string | null) {
  * app's (or a recovery code). Six digits submit by themselves.
  */
 export function TwoFactorStep({ challenge: initial, onBack }: { challenge: TwoFactorChallenge; onBack: () => void }) {
-  const router = useRouter();
   const { completeTwoFactor } = useSession();
   const [resend, resending] = useResendTwoFactorMutation();
   const [challenge, setChallenge] = useState(initial);
@@ -53,7 +51,7 @@ export function TwoFactorStep({ challenge: initial, onBack }: { challenge: TwoFa
     const result = await completeTwoFactor({ code: value, recovery: asRecovery, remember });
     if (!result.error) {
       setState("success");
-      router.push(takeReturnPath());
+      enterPanel();
       return;
     }
     setState("error");
