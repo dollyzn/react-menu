@@ -383,7 +383,11 @@ test("orders board: \"Entregar\" reminds of the items that skip the kitchen", as
   // Paid at the counter: the payment comes first, with the reminder.
   const reminder = page.getByRole("dialog");
   await expect(reminder).toContainText("Confira antes de entregar");
-  await expect(reminder.getByRole("list", { name: "Itens sem preparo" })).toContainText(`2×${drink.name}`);
+  const extra = reminder.getByRole("list", { name: "Itens sem preparo" }).getByRole("listitem");
+  await expect(extra).toContainText(drink.name);
+  await expect(extra).toContainText("2×");
+  // Recognized at a glance: its category (and photo, when the item has one).
+  await expect(extra).toContainText("Bebidas");
   await reminder.getByRole("button", { name: "Voltar" }).click();
   await expect(card).toBeVisible();
 

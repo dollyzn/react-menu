@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLastValue } from "@/hooks/use-last-value";
-import { Banknote, ChevronRight, CircleCheck, PackageCheck, SmartphoneNfc, TriangleAlert } from "lucide-react";
+import { Banknote, ChevronRight, CupSoda, CircleCheck, PackageCheck, SmartphoneNfc, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
 import {
@@ -18,10 +18,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import Image from "@/components/app/image";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
 import { useCompleteOrderMutation, useMarkOrderPaidMutation } from "@/redux/features/order/orderApi";
 import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
+import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
+import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
@@ -115,7 +118,7 @@ export function DeliverOrderButton({
                 confira se {extras.length === 1 ? "ele vai" : "eles vão"} junto.
               </AlertDialogDescription>
             </AlertDialogHeader>
-            <ExtrasList extras={extras} />
+            <ExtrasList storeId={storeId} extras={extras} />
             <AlertDialogFooter>
               <AlertDialogCancel variant="outline" disabled={busy}>
                 Voltar
@@ -155,7 +158,7 @@ export function DeliverOrderButton({
                   <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                     Confira antes de entregar
                   </h3>
-                  <ExtrasList extras={extras} />
+                  <ExtrasList storeId={storeId} extras={extras} />
                 </section>
               )}
 
@@ -218,15 +221,43 @@ export function DeliverOrderButton({
   );
 }
 
-function ExtrasList({ extras }: { extras: Order["items"] }) {
+/**
+ * The items that skip the kitchen, to pick at the counter: each with its
+ * photo (from the menu the POS already loads) so it is recognized at a glance.
+ */
+function ExtrasList({ storeId, extras }: { storeId: string; extras: Order["items"] }) {
+  const { data: store } = useGetStoreByIdQuery(storeId);
+  const { data: menu } = useGetPublicMenuQuery({ slug: store?.slug, preview: true }, { skip: !store });
+  const catalog = useMemo(() => {
+    const byId = new Map<string, { photoUrl: string | null; category: string }>();
+    for (const category of menu?.categories ?? [])
+      for (const item of category.items) byId.set(item.id, { photoUrl: item.photoUrl, category: category.name });
+    return byId;
+  }, [menu]);
+
   return (
-    <ul className="flex flex-col gap-1.5 rounded-xl bg-muted/60 p-3 text-sm" aria-label="Itens sem preparo">
-      {extras.map((line) => (
-        <li key={line.id} className="flex items-baseline gap-2">
-          <span className="font-semibold tabular-nums">{line.quantity}×</span>
-          <span className="flex-1">{line.name}</span>
-        </li>
-      ))}
+    <ul className="flex flex-col gap-2" aria-label="Itens sem preparo">
+      {extras.map((line) => {
+        const known = line.itemId ? catalog.get(line.itemId) : undefined;
+        return (
+          <li key={line.id} className="flex items-center gap-3 rounded-2xl border bg-card p-2 pr-3 text-left">
+            <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
+              {known?.photoUrl ? (
+                <Image src={known.photoUrl} alt="" fill sizes="48px" className="object-cover" />
+              ) : (
+                <CupSoda className="absolute inset-0 m-auto size-5 text-muted-foreground" />
+              )}
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold">{line.name}</span>
+              {known && <span className="block truncate text-xs text-muted-foreground">{known.category}</span>}
+            </span>
+            <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-sm font-bold text-primary-foreground tabular-nums">
+              {line.quantity}×
+            </span>
+          </li>
+        );
+      })}
     </ul>
   );
 }
