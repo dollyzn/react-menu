@@ -1,4 +1,4 @@
-import { test, expect } from "./fixtures";
+import { test, expect, slowClick } from "./fixtures";
 
 /** The demo seed makes JJ Pastéis the default store (served at "/"). */
 test.describe("Customer menu", () => {
@@ -104,5 +104,16 @@ test.describe("Customer menu", () => {
     const html = await (await page.request.get("/")).text();
     expect(html).toContain('aria-label="Alternar tema"');
     expect(html).toContain('aria-label="Meus pedidos"');
+  });
+
+  test("the search's ✕ clears it, wherever it is pressed", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("searchbox", { name: "Buscar no cardápio" });
+    // The press effect used to move the button out from under the pointer: top and bottom edges.
+    for (const y of [2, 22]) {
+      await search.fill("carne");
+      await slowClick(page.getByRole("button", { name: "Limpar busca" }), { x: 12, y });
+      await expect(search).toHaveValue("");
+    }
   });
 });

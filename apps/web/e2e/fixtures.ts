@@ -1,4 +1,4 @@
-import { test as base, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test as base, expect, type APIRequestContext, type Locator, type Page } from "@playwright/test";
 import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 type ConsoleEntry = { type: string; text: string; url: string };
@@ -112,4 +112,14 @@ export function storeApi(page: Page, storeId: string) {
     post: async (path: string, data: unknown) =>
       (await (await page.request.post(url(path), { data })).json()).data,
   };
+}
+
+/** A finger-speed click: press at a point of the element, hold, release (a press effect gets to run). */
+export async function slowClick(locator: Locator, position: { x: number; y: number }) {
+  const box = (await locator.boundingBox())!;
+  const page = locator.page();
+  await page.mouse.move(box.x + position.x, box.y + position.y);
+  await page.mouse.down();
+  await page.waitForTimeout(150);
+  await page.mouse.up();
 }
