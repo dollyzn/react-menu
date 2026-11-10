@@ -62,6 +62,8 @@ test("POS → kitchen → pickup: the whole shop floor flow", async ({ page, bro
   await expect(card).toBeVisible();
   await page.screenshot({ path: "test-results/orders-board.png", caret: "initial" });
   await card.getByRole("button", { name: "Entregar" }).click();
+  // Not paid yet: received at the counter, then handed over.
+  await page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
   await expect(card).toBeHidden();
 });
@@ -378,15 +380,39 @@ test("orders board: \"Entregar\" reminds of the items that skip the kitchen", as
   await login(page, DEMO_STAFF.attendant);
   const card = page.getByRole("article", { name: new RegExp(`Pedido ${number} de`) });
   await card.getByRole("button", { name: "Entregar" }).click();
-  const reminder = page.getByRole("alertdialog");
-  await expect(reminder).toContainText(`Separou tudo do pedido #${number}?`);
-  await expect(reminder.getByRole("list", { name: "Itens sem preparo" })).toContainText(`2×${drink.name}`);
+  // Paid at the counter: the payment comes first, with the reminder.
+  const reminder = page.getByRole("dialog");
+  await expect(reminder).toContainText("Confira antes de entregar");
+  const extra = reminder.getByRole("list", { name: "Itens sem preparo" }).getByRole("listitem");
+  await expect(extra).toContainText(drink.name);
+  await expect(extra).toContainText("2×");
+  // Recognized at a glance: its category (and photo, when the item has one).
+  await expect(extra).toContainText("Bebidas");
   await reminder.getByRole("button", { name: "Voltar" }).click();
   await expect(card).toBeVisible();
 
   await card.getByRole("button", { name: "Entregar" }).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Sim, entregar" }).click();
+  await expect(page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ })).toBeVisible();
+  if (process.env.SHOTS) {
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${process.env.SHOTS}/deliver-light.png` });
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.waitForTimeout(200);
+    await page.screenshot({ path: `${process.env.SHOTS}/deliver-dark.png` });
+    await page.emulateMedia({ colorScheme: "light" });
+  }
+  // While it closes, the dialog keeps showing what it showed: the order turns
+  // paid under it, and it used to swap to the "Separou tudo?" dialog.
+  await page.evaluate(() => {
+    const flags = window as unknown as { swapped?: boolean };
+    new MutationObserver(() => {
+      if (document.body.textContent?.includes("Separou tudo")) flags.swapped = true;
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
+  await page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { swapped?: boolean }).swapped ?? false)).toBe(false);
 });
 
 test("kitchen: swiping a card off never makes the page scroll sideways", async ({ page }) => {
@@ -473,4 +499,78 @@ test("orders history on a phone: the view toggle switches to the table and stays
   await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
   await page.getByRole("button", { name: "Exibir como cartões" }).click();
   await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
+});
+
+test("attendants: today's board only, no cancelling, and Entregar takes the payment first", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+  // A drink-only POS order is ready at once and not paid yet.
+  const placed = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: "Paga na entrega" }, lines: [{ itemId: drink.id, quantity: 1 }] },
+  });
+  const order = (await placed.json()).data as { id: string; number: number };
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(`/app/stores/${menu.store.id}/orders?view=historico`);
+  // No history: the board, without the tabs or the day's finished list.
+  await expect(page.getByText("Hoje, ao vivo.")).toBeVisible();
+  await expect(page.getByRole("tab", { name: /Histórico/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: /Concluídos e cancelados hoje/ })).toHaveCount(0);
+
+  const card = page.getByRole("article").filter({ hasText: `#${order.number}` });
+  // The detail (timeline, cancelling) is for managers: the card doesn't open it.
+  await expect(card.getByRole("button", { name: `Ver detalhes do pedido ${order.number}` })).toHaveCount(0);
+  await card.getByRole("button", { name: `Mais ações do pedido ${order.number}` }).click();
+  await expect(page.getByRole("menuitem", { name: "Marcar como pago" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Cancelar pedido" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  await card.getByRole("button", { name: "Entregar" }).click();
+  const dialog = page.getByRole("dialog", { name: `Receber e entregar o pedido #${order.number}` });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: /Recebi no balcão/ }).click();
+  await expect(page.getByText(`Pedido #${order.number} entregue`)).toBeVisible();
+  await expect(card).toHaveCount(0);
+
+  // The order is paid and delivered.
+  const check = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(check, E2E_ADMIN);
+  const saved = (await (await check.get(`/api/v1/stores/${menu.store.id}/orders/${order.id}`)).json()).data;
+  expect(saved.status).toBe("completed");
+  expect(saved.paymentStatus).toBe("paid");
+  await check.dispose();
+});
+
+test("orders board: a paid order's \"Separou tudo?\" keeps a long item name inside the dialog", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drinks: { id: string; name: string }[] = menu.categories.find(
+    (category: { name: string }) => category.name === "Bebidas"
+  ).items;
+  const longest = drinks.reduce((a, b) => (b.name.length > a.name.length ? b : a));
+  const placed = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: "Já pago" }, lines: [{ itemId: longest.id, quantity: 1 }] },
+  });
+  const order = (await placed.json()).data as { id: string; number: number };
+  await api.post(`/api/v1/stores/${menu.store.id}/orders/${order.id}/payment`, { data: {} });
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  await page.getByRole("article").filter({ hasText: `#${order.number}` }).getByRole("button", { name: "Entregar" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(`Separou tudo do pedido #${order.number}?`);
+  await page.waitForTimeout(300);
+  // The item's row used to widen the dialog's grid past its edge.
+  const outer = (await dialog.boundingBox())!;
+  const list = (await dialog.getByRole("list", { name: "Itens sem preparo" }).boundingBox())!;
+  expect(list.x + list.width).toBeLessThanOrEqual(outer.x + outer.width - 8);
+  await dialog.getByRole("button", { name: "Sim, entregar" }).click();
+  await expect(page.getByText(`Pedido #${order.number} entregue`)).toBeVisible();
 });

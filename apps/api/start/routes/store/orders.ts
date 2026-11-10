@@ -13,10 +13,11 @@ export default function registerStoreOrderRoutes() {
     .post('/orders/:orderId/complete', [OrdersController, 'complete'])
     .as('orders.complete')
     .use(frontOfHouse)
+  // Managers only: cancelling a paid order refunds it.
   router
     .post('/orders/:orderId/cancel', [OrdersController, 'cancel'])
     .as('orders.cancel')
-    .use(frontOfHouse)
+    .use(managersOnly)
   // Retry of an automatic refund that didn't go through (managers).
   router
     .post('/orders/:orderId/refund', [OrdersController, 'refund'])

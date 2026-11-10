@@ -11,9 +11,23 @@ import PaymentService from '#services/payment_service'
 import Store from '#models/store'
 import type Order from '#models/order'
 import OrderStatus from '#enums/order_status'
+import StoreRole from '#enums/store_role'
 import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { orderListValidator, posOrderValidator } from '#validators/order'
+
+/**
+ * The calendar day a `YYYY-MM-DD` query asked for, in the business timezone.
+ * Vine parses it as midnight in the server's own timezone (UTC in
+ * production), so it is read by its date parts, not converted (which made
+ * "2026-11-10" the 9th in São Paulo).
+ */
+function businessDay(date: Date) {
+  return DateTime.fromObject(
+    { year: date.getFullYear(), month: date.getMonth() + 1, day: date.getDate() },
+    { zone: BUSINESS_TIMEZONE }
+  )
+}
 
 @inject()
 export default class OrdersController {
@@ -23,7 +37,7 @@ export default class OrdersController {
   ) {}
 
   /** Orders of a business day (today by default), optionally by status. */
-  async index({ params, request }: HttpContext) {
+  async index({ params, request, bouncer }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const qs = request.qs()
     const list = (value: unknown) => (value === undefined ? undefined : [value].flat())
@@ -37,6 +51,19 @@ export default class OrdersController {
       customerName: qs.customerName === undefined ? undefined : [qs.customerName].flat().join(','),
     })
 
+    // This endpoint serves two screens of the panel's "Pedidos" page:
+    // - "Ao vivo" (no `page`): today's orders in the Na fila / Em preparo /
+    //   Prontos columns. Every member needs it (attendants hand orders over).
+    // - "Histórico" (`page`, filters, any period): sales and customer data,
+    //   managers only. Asking "Ao vivo" for another day (`date`) is the same
+    //   as looking at the history, so it is managers only too.
+    const today = DateTime.now().setZone(BUSINESS_TIMEZONE).toISODate()
+    const day = filters.date ? businessDay(filters.date) : undefined
+    const otherDay = day !== undefined && day.toISODate() !== today
+    if (filters.page || otherDay) {
+      await bouncer.authorize('hasStoreRole', storeId, [StoreRole.MANAGER])
+    }
+
     // History (paginated, any period) or the live board (one business day).
     if (filters.page) {
       const page = await this.orders.listHistory(storeId, filters)
@@ -45,9 +72,7 @@ export default class OrdersController {
     return ok(
       await this.orders.list(storeId, {
         statuses: filters.status,
-        date: filters.date
-          ? DateTime.fromJSDate(filters.date, { zone: BUSINESS_TIMEZONE })
-          : undefined,
+        date: day,
       })
     )
   }

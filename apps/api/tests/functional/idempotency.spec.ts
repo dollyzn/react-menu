@@ -116,8 +116,10 @@ test.group('Idempotency', (group) => {
     const attendant = await createUser()
     const cook = await createUser()
     const { store, carne } = await createMenuStore()
+    const manager = await createUser()
     await linkUser(store, attendant, StoreRole.ATTENDANT)
     await linkUser(store, cook, StoreRole.KITCHEN)
+    await linkUser(store, manager, StoreRole.MANAGER)
     const create = () =>
       client
         .post(`/api/v1/stores/${store.id}/orders`)
@@ -140,7 +142,7 @@ test.group('Idempotency', (group) => {
       complete.assertStatus(200)
       const cancel = await client
         .post(`/api/v1/stores/${store.id}/orders/${cancelled}/cancel`)
-        .loginAs(attendant)
+        .loginAs(manager)
       cancel.assertStatus(200)
     }
   })
