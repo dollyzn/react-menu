@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { useLastValue } from "@/hooks/use-last-value";
 import { Banknote, ChevronRight, CircleCheck, PackageCheck, SmartphoneNfc, TriangleAlert } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
@@ -44,15 +45,22 @@ export function DeliverOrderButton({
   const [markPaid, { isLoading: paying }] = useMarkOrderPaidMutation();
   const { data: point } = useGetPointConfigQuery(storeId);
   const canCharge = Boolean(point?.available && point.terminals.length > 0);
-  const [confirming, setConfirming] = useState(false);
+  /**
+   * The order as it was when "Entregar" was pressed. The dialog renders from
+   * it until it has closed: receiving marks the order paid, and rendering
+   * from the live order would swap the dialog for another while it closes.
+   */
+  const [opened, setOpened] = useState<Order | null>(null);
+  const shown = useLastValue(opened) ?? order;
+  const confirming = opened !== null;
   const [charging, setCharging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const delivered = useRef(false);
   /** The machine approved: delivered when its dialog closes ("Concluir"), not under it. */
   const paidOnMachine = useRef(false);
 
-  const paid = order.paymentStatus === "paid";
-  const extras = order.items.filter((line) => !line.requiresPreparation);
+  const paid = shown.paymentStatus === "paid";
+  const extras = shown.items.filter((line) => !line.requiresPreparation);
   const busy = completing || paying;
 
   const deliver = async () => {
@@ -64,7 +72,7 @@ export function DeliverOrderButton({
       delivered.current = false;
       throw err;
     }
-    setConfirming(false);
+    setOpened(null);
     toast.success(`Pedido #${order.number} entregue`);
   };
 
@@ -79,9 +87,13 @@ export function DeliverOrderButton({
   };
 
   const open = () => {
-    setError(null);
-    if (paid && extras.length === 0) void deliver();
-    else setConfirming(true);
+    const nothingToAsk = order.paymentStatus === "paid" && order.items.every((line) => line.requiresPreparation);
+    if (nothingToAsk) void deliver();
+    else setOpened(order);
+  };
+  /** Local state goes when the dialog has finished closing, never before. */
+  const closed = (next: boolean) => {
+    if (!next) setError(null);
   };
 
   return (
@@ -91,13 +103,13 @@ export function DeliverOrderButton({
       </Button>
 
       {paid ? (
-        <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialog open={confirming} onOpenChange={(next) => !next && setOpened(null)} onOpenChangeComplete={closed}>
           <AlertDialogContent size="sm">
             <AlertDialogHeader>
               <AlertDialogMedia className="bg-primary/10 text-primary">
                 <PackageCheck />
               </AlertDialogMedia>
-              <AlertDialogTitle>Separou tudo do pedido #{order.number}?</AlertDialogTitle>
+              <AlertDialogTitle>Separou tudo do pedido #{shown.number}?</AlertDialogTitle>
               <AlertDialogDescription>
                 {extras.length === 1 ? "Este item não passa pela cozinha" : "Estes itens não passam pela cozinha"}:
                 confira se {extras.length === 1 ? "ele vai" : "eles vão"} junto.
@@ -117,8 +129,9 @@ export function DeliverOrderButton({
       ) : (
         <ResponsiveModal
           open={confirming}
-          onOpenChange={(next) => !busy && setConfirming(next)}
-          title={`Receber e entregar o pedido #${order.number}`}
+          onOpenChange={(next) => !next && !busy && setOpened(null)}
+          onOpenChangeComplete={closed}
+          title={`Receber e entregar o pedido #${shown.number}`}
           description="Receba o pagamento antes de entregar."
           hideHeader
           className="sm:max-w-md"
@@ -129,10 +142,10 @@ export function DeliverOrderButton({
               <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
                 <PackageCheck className="size-3.5 shrink-0" />
                 <span className="truncate">
-                  Pedido #{order.number} · {order.customerName}
+                  Pedido #{shown.number} · {shown.customerName}
                 </span>
               </span>
-              <p className="text-4xl font-black tracking-tight tabular-nums">{formatCurrencyBRL(order.total)}</p>
+              <p className="text-4xl font-black tracking-tight tabular-nums">{formatCurrencyBRL(shown.total)}</p>
               <p className="text-sm text-muted-foreground">a receber na entrega</p>
             </header>
 
@@ -158,7 +171,7 @@ export function DeliverOrderButton({
                       hint="Envia o valor; entrega quando o pagamento for aprovado"
                       disabled={busy}
                       onClick={() => {
-                        setConfirming(false);
+                        setOpened(null);
                         setCharging(true);
                       }}
                     />
@@ -182,7 +195,7 @@ export function DeliverOrderButton({
             </div>
 
             <div className="flex flex-col items-center gap-2 border-t bg-muted/30 p-4">
-              <Button variant="ghost" className="w-full" disabled={busy} onClick={() => setConfirming(false)}>
+              <Button variant="ghost" className="w-full" disabled={busy} onClick={() => setOpened(null)}>
                 Voltar
               </Button>
             </div>

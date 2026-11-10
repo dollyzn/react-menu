@@ -397,8 +397,18 @@ test("orders board: \"Entregar\" reminds of the items that skip the kitchen", as
     await page.screenshot({ path: `${process.env.SHOTS}/deliver-dark.png` });
     await page.emulateMedia({ colorScheme: "light" });
   }
+  // While it closes, the dialog keeps showing what it showed: the order turns
+  // paid under it, and it used to swap to the "Separou tudo?" dialog.
+  await page.evaluate(() => {
+    const flags = window as unknown as { swapped?: boolean };
+    new MutationObserver(() => {
+      if (document.body.textContent?.includes("Separou tudo")) flags.swapped = true;
+    }).observe(document.body, { childList: true, subtree: true, characterData: true });
+  });
   await page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { swapped?: boolean }).swapped ?? false)).toBe(false);
 });
 
 test("kitchen: swiping a card off never makes the page scroll sideways", async ({ page }) => {
