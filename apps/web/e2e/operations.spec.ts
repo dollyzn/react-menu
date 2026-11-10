@@ -544,3 +544,33 @@ test("attendants: today's board only, no cancelling, and Entregar takes the paym
   expect(saved.paymentStatus).toBe("paid");
   await check.dispose();
 });
+
+test("orders board: a paid order's \"Separou tudo?\" keeps a long item name inside the dialog", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drinks: { id: string; name: string }[] = menu.categories.find(
+    (category: { name: string }) => category.name === "Bebidas"
+  ).items;
+  const longest = drinks.reduce((a, b) => (b.name.length > a.name.length ? b : a));
+  const placed = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: "Já pago" }, lines: [{ itemId: longest.id, quantity: 1 }] },
+  });
+  const order = (await placed.json()).data as { id: string; number: number };
+  await api.post(`/api/v1/stores/${menu.store.id}/orders/${order.id}/payment`, { data: {} });
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await login(page);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  await page.getByRole("article").filter({ hasText: `#${order.number}` }).getByRole("button", { name: "Entregar" }).click();
+  const dialog = page.getByRole("alertdialog");
+  await expect(dialog).toContainText(`Separou tudo do pedido #${order.number}?`);
+  await page.waitForTimeout(300);
+  // The item's row used to widen the dialog's grid past its edge.
+  const outer = (await dialog.boundingBox())!;
+  const list = (await dialog.getByRole("list", { name: "Itens sem preparo" }).boundingBox())!;
+  expect(list.x + list.width).toBeLessThanOrEqual(outer.x + outer.width - 8);
+  await dialog.getByRole("button", { name: "Sim, entregar" }).click();
+  await expect(page.getByText(`Pedido #${order.number} entregue`)).toBeVisible();
+});

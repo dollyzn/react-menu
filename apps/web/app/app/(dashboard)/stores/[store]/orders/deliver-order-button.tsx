@@ -236,7 +236,7 @@ function ExtrasList({ storeId, extras }: { storeId: string; extras: Order["items
   }, [menu]);
 
   return (
-    <ul className="flex flex-col gap-2" aria-label="Itens sem preparo">
+    <ul className="flex min-w-0 flex-col gap-2" aria-label="Itens sem preparo">
       {extras.map((line) => {
         const known = line.itemId ? catalog.get(line.itemId) : undefined;
         return (
@@ -249,7 +249,7 @@ function ExtrasList({ storeId, extras }: { storeId: string; extras: Order["items
               )}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold">{line.name}</span>
+              <span className="line-clamp-2 text-sm leading-tight font-semibold">{line.name}</span>
               {known && <span className="block truncate text-xs text-muted-foreground">{known.category}</span>}
             </span>
             <span className="shrink-0 rounded-full bg-primary px-2.5 py-0.5 text-sm font-bold text-primary-foreground tabular-nums">
