@@ -174,7 +174,7 @@ export default class CatalogImportService {
               price,
               order: itemOrder + 1,
               photoUrl: source.photo && photos ? await photos.url(source.photo) : null,
-              photoBlur: source.photo && photos ? photos.blur(source.photo) : null,
+              photoBlur: source.photo && photos ? await photos.blur(source.photo) : null,
             },
             { client: trx }
           )
@@ -274,7 +274,7 @@ export default class CatalogImportService {
         `menu/local-${photoSlug(record.name)}-${hash}${extname(file).toLowerCase()}`,
         join(dir, file)
       )
-      // Add-on photos aren't shown yet: no preview for them (roadmap).
+      // Add-ons have no preview yet (roadmap: their photos are only in the panel's add-on screens).
       if (record instanceof Item) record.photoBlur = await blurPlaceholder(content)
       await record.save()
       applied.push(record.name)
@@ -307,16 +307,19 @@ class PhotoStore {
   async url(file: string) {
     const cached = this.urls.get(file)
     if (cached) return cached
-    const path = app.makePath('database/data/menu-photos', file)
-    const url = await storeFile(`menu/catalog-${file}`, path)
+    const url = await storeFile(`menu/catalog-${file}`, this.path(file))
     this.urls.set(file, url)
-    this.blurs.set(file, await blurPlaceholder(path))
     return url
   }
 
-  /** The blurred preview of a photo already stored with `url()`. */
-  blur(file: string) {
+  /** The blurred preview of a photo, made on first use (only items have one). */
+  async blur(file: string) {
+    if (!this.blurs.has(file)) this.blurs.set(file, await blurPlaceholder(this.path(file)))
     return this.blurs.get(file) ?? null
+  }
+
+  private path(file: string) {
+    return app.makePath('database/data/menu-photos', file)
   }
 }
 

@@ -75,9 +75,10 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   directly). Pass the API's blurred preview as `blurDataURL`
   (`item.photoBlur`, `store.bannerBlur`/`photoBlur`): it turns on
   `placeholder="blur"`, so the image shows its colors while it loads.
-  Avatars: spread `avatarPlaceholder(user, initials, className)`
-  (`lib/avatar.ts`) on `AvatarFallback`, which shows the uploaded photo's
-  blur instead of the initials while it loads.
+  Next's blur is sized by `style.objectFit`, so a contained image (logos)
+  passes `style={{ objectFit: "contain" }}`, not the class. Avatars are
+  `UserAvatar` / `PhotoAvatar` (`components/app/photo-avatar.tsx`): the
+  photo's blur while it loads, the initials if it fails.
 - Dialogs never change while they animate closed (it reads as a flicker).
   One opened from a piece of state (`open={Boolean(item)}`) renders from
   `useLastValue(item)` (`hooks/use-last-value.ts`), which keeps the last

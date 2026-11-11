@@ -22,11 +22,13 @@ picked from Product below, one PR at a time.
 - **Reviews**: the 5-star rating on the menu and store page is an
   intentional placeholder for a future review system (not backed by data).
 - **Add-on photos**: add-ons have a `photo_url` (the JJ catalog and
-  `jj:photos` fill it), but no screen shows it and the panel can't upload
-  one. When they are shown (item detail, POS customizer), add the upload
-  like the items' (`PUT/DELETE …/addons/:id/photo`) and the blurred
-  preview: an `addons.photo_blur` column filled on upload, by the catalog
-  import and by `node ace images:blur`, passed as `blurDataURL`.
+  `jj:photos` fill it), shown only in the panel's add-on screens (cards,
+  the item's add-ons dialog); customers never see them and the panel
+  can't upload one. To show them to customers (item detail, POS
+  customizer): the upload like the items' (`PUT/DELETE …/addons/:id/photo`)
+  and the blurred preview, an `addons.photo_blur` column filled on upload,
+  by the catalog import and by `node ace images:blur`, passed as
+  `blurDataURL`.
 
 ## Technical
 

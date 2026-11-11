@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrencyBRL } from "@/utils/string";
 import SortableList from "./sortable-list";
+import Image from "@/components/app/image";
 
 const notifyReorderError = () =>
   toast.error("Não foi possível salvar a nova ordem. Ela foi restaurada.", {
@@ -145,13 +146,9 @@ function ItemsOrder({ storeId, category }: { storeId: string; category: Category
       renderRow={(item) => (
         <div className="flex flex-1 items-center gap-3 overflow-hidden">
           {item.photoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element -- remote menu photos of any host
-            <img
-              src={item.photoUrl}
-              alt=""
-              className="size-9 shrink-0 rounded-md object-cover"
-              loading="lazy"
-            />
+            <span className="relative size-9 shrink-0 overflow-hidden rounded-md bg-muted">
+              <Image src={item.photoUrl} blurDataURL={item.photoBlur} alt="" fill sizes="36px" className="object-cover" />
+            </span>
           ) : (
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">
               <ImageOff className="size-4" />

@@ -45,7 +45,9 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
                 alt={`Logo ${store.name}`}
                 fill
                 sizes="64px"
-                className="object-contain p-1"
+                // In `style`, not a class: next/image fits the blurred preview by it too.
+                style={{ objectFit: "contain" }}
+                className="p-1"
               />
             ) : (
               <span className="flex size-full items-center justify-center bg-primary/10 text-xl font-black text-primary">

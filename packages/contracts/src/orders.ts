@@ -116,7 +116,6 @@ export type PublicOrder = Pick<
     phone: string | null;
     /** The store's logo (the tracking page uses it as its icon). */
     photoUrl: string | null;
-    photoBlur: string | null;
   };
   /** Status changes, oldest first. */
   timeline: { status: OrderStatus; at: string }[];

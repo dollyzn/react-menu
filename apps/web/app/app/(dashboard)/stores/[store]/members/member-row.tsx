@@ -2,7 +2,6 @@
 
 import { LogOut, MailPlus, MoreHorizontal, ShieldCheck, ShieldOff, UserMinus } from "lucide-react";
 import type { StoreMember, StoreRole } from "@react-menu/contracts";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,10 +12,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { avatarInitials, avatarPlaceholder, avatarUrl } from "@/lib/avatar";
 import { timeAgo } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { ROLE_ITEMS, ROLES } from "./roles";
+import { UserAvatar } from "@/components/app/photo-avatar";
 
 export const memberName = (member: StoreMember) => member.name ?? member.email;
 
@@ -71,10 +70,7 @@ export function MemberRow({
   return (
     <li className="flex flex-wrap items-center gap-3 p-4" aria-label={name}>
       <span className={cn("relative shrink-0", disabled && "opacity-50 grayscale")}>
-        <Avatar className="size-10 border">
-          <AvatarImage src={avatarUrl(member)} alt="" />
-          <AvatarFallback {...avatarPlaceholder(member, avatarInitials(member))} />
-        </Avatar>
+        <UserAvatar user={member} className="size-10 border" />
         {member.online && (
           <span aria-hidden className="absolute right-0 bottom-0 size-3 rounded-full bg-success ring-2 ring-card" />
         )}

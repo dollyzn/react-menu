@@ -57,7 +57,6 @@ export function publicOrder(order: Order, store: Store, checkout?: CheckoutState
       slug: store.slug,
       pickupEtaMinutes: store.pickupEtaMinutes,
       photoUrl: store.photoUrl,
-      photoBlur: store.photoBlur,
       address: store.address,
       phone: store.phone,
     },

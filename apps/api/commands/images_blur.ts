@@ -26,13 +26,16 @@ export default class ImagesBlur extends BaseCommand {
   async run() {
     let made = 0
     let failed = 0
+    // Catalog photos are shared by many items: read and encode each URL once.
+    const byUrl = new Map<string, Promise<string | null>>()
     const fill = async (
       url: string | null,
       current: string | null,
       save: (blur: string) => Promise<void>
     ) => {
       if (!url || (current && !this.force)) return
-      const blur = await blurPlaceholderOf(url)
+      if (!byUrl.has(url)) byUrl.set(url, blurPlaceholderOf(url))
+      const blur = await byUrl.get(url)!
       if (!blur) {
         failed++
         this.logger.warning(`Não foi possível ler ${url}`)
@@ -50,6 +53,7 @@ export default class ImagesBlur extends BaseCommand {
     }
 
     const items = Item.query().whereNotNull('photoUrl')
+    if (!this.force) items.whereNull('photoBlur')
     if (only) items.whereHas('category', (query) => query.where('storeId', only.id))
     for (const item of await items) {
       await fill(item.photoUrl, item.photoBlur, async (blur) => {
@@ -67,7 +71,9 @@ export default class ImagesBlur extends BaseCommand {
         await store.save()
       })
     }
-    for (const user of only ? [] : await User.query().whereNotNull('avatarUrl')) {
+    const users = User.query().whereNotNull('avatarUrl')
+    if (!this.force) users.whereNull('avatarBlur')
+    for (const user of only ? [] : await users) {
       await fill(user.avatarUrl, user.avatarBlur, async (blur) => {
         user.avatarBlur = blur
         await user.save()

@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import drive from '@adonisjs/drive/services/main'
 import logger from '@adonisjs/core/services/logger'
+import type { MultipartFile } from '@adonisjs/core/bodyparser'
 
 /** Longest side of the blurred copy: enough for a soft preview, a few hundred bytes. */
 const SIZE = 12
@@ -23,6 +24,11 @@ export async function blurPlaceholder(input: string | Buffer | Uint8Array): Prom
     logger.warn({ err: error }, 'could not make an image placeholder')
     return null
   }
+}
+
+/** The placeholder of an uploaded file, read before it is moved to the Drive disk. */
+export async function uploadPlaceholder(file: MultipartFile) {
+  return file.tmpPath ? await blurPlaceholder(file.tmpPath) : null
 }
 
 /**
