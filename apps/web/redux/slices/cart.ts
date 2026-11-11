@@ -15,6 +15,8 @@ export type CartLine = {
   itemId: string;
   name: string;
   photoUrl: string | null;
+  /** Blurred preview of the photo (missing in bags saved before it existed). */
+  photoBlur?: string | null;
   unitPrice: number;
   addons: CartAddon[];
   notes: string;

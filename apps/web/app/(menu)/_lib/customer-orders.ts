@@ -86,6 +86,7 @@ export function useReorder() {
               itemId: item.id,
               name: item.name,
               photoUrl: item.photoUrl,
+              photoBlur: item.photoBlur,
               unitPrice: item.price,
               addons: repriced,
               notes: line.notes ?? "",

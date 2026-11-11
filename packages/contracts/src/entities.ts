@@ -15,7 +15,10 @@ export type Store = {
   instagramUrl: string | null;
   ifoodUrl: string | null;
   bannerUrl: string | null;
+  /** Blurred previews (data URLs) of the banner and the logo, shown while they load. */
+  bannerBlur: string | null;
   photoUrl: string | null;
+  photoBlur: string | null;
   slug: string;
   isDefault: boolean;
   phone: string | null;
@@ -71,6 +74,8 @@ export type Item = {
   /** Decimal(10,2) serialized as a number. */
   price: number;
   photoUrl: string | null;
+  /** Blurred preview of the photo (data URL), shown while it loads. */
+  photoBlur: string | null;
   views: number;
   order: number;
   /** Manual "sold out" switch. */
@@ -117,6 +122,8 @@ export type User = {
   email: string;
   phone: string | null;
   avatarUrl: string | null;
+  /** Blurred preview of the uploaded avatar (data URL), shown while it loads. */
+  avatarBlur: string | null;
   status: UserStatus;
   superUser: boolean;
   /** An authenticator app is set up (otherwise sign-ins get an e-mail code). */
@@ -242,6 +249,7 @@ export type StoreMember = {
   /** Proved the address (accepted the invite, an e-mail code, Google). */
   emailVerified: boolean;
   avatarUrl: string | null;
+  avatarBlur: string | null;
   /** Active in the panel in the last couple of minutes. */
   online: boolean;
   lastSeenAt: string | null;

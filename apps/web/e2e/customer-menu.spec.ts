@@ -116,4 +116,10 @@ test.describe("Customer menu", () => {
       await expect(search).toHaveValue("");
     }
   });
+
+  test("photos show a blurred preview while they load, from the server's first HTML", async ({ page }) => {
+    const html = await (await page.request.get("/")).text();
+    // next/image puts the API's tiny WebP (inside an SVG blur) as the image's background.
+    expect(html).toMatch(/background-image:url\(&quot;data:image\/svg\+xml[^"]*data:image\/webp;base64/);
+  });
 });

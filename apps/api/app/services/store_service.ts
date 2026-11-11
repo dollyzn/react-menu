@@ -19,6 +19,7 @@ import StoreRepository from '#repositories/store_repository'
 import NotificationService from '#services/notification_service'
 import type User from '#models/user'
 import type { StoreFindOptions, StoreListOptions } from '#types/store_query'
+import { blurPlaceholder } from '#helpers/image_placeholder'
 
 export type StoreImagePayload = {
   banner?: MultipartFile
@@ -153,8 +154,9 @@ export default class StoreService {
       }
 
       const key = `banners/${store.id}_${randomUUID()}.${images.banner.extname}`
+      const blur = images.banner.tmpPath ? await blurPlaceholder(images.banner.tmpPath) : null
       await images.banner.moveToDisk(key)
-      store.merge({ bannerUrl: await disk.getUrl(key) })
+      store.merge({ bannerUrl: await disk.getUrl(key), bannerBlur: blur })
     }
 
     if (images.photo) {
@@ -165,8 +167,9 @@ export default class StoreService {
       }
 
       const key = `photos/${store.id}_${randomUUID()}.${images.photo.extname}`
+      const blur = images.photo.tmpPath ? await blurPlaceholder(images.photo.tmpPath) : null
       await images.photo.moveToDisk(key)
-      store.merge({ photoUrl: await disk.getUrl(key) })
+      store.merge({ photoUrl: await disk.getUrl(key), photoBlur: blur })
     }
 
     await store.save()

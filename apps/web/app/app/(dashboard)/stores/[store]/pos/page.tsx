@@ -103,6 +103,7 @@ export default function PosPage() {
       itemId: item.id,
       name: item.name,
       photoUrl: item.photoUrl,
+      photoBlur: item.photoBlur,
       unitPrice: item.price,
       addons: [],
       notes: "",
@@ -473,6 +474,7 @@ function ProductCard({
         {item.photoUrl ? (
           <Image
             src={item.photoUrl}
+            blurDataURL={item.photoBlur}
             alt=""
             fill
             sizes="56px"

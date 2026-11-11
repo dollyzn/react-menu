@@ -16,6 +16,7 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
         {store.bannerUrl ? (
           <Image
             src={store.bannerUrl}
+            blurDataURL={store.bannerBlur}
             alt=""
             fill
             priority
@@ -40,6 +41,7 @@ export function StoreHero({ store }: { store: PublicMenu["store"] }) {
             {store.photoUrl ? (
               <Image
                 src={store.photoUrl}
+                blurDataURL={store.photoBlur}
                 alt={`Logo ${store.name}`}
                 fill
                 sizes="64px"

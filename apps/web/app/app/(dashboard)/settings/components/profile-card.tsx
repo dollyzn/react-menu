@@ -16,7 +16,7 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { avatarInitials, avatarUrl } from "@/lib/avatar";
+import { avatarInitials, avatarPlaceholder, avatarUrl } from "@/lib/avatar";
 import { compressImage, ImageCompressError } from "@/lib/image-compress";
 import { useRemoveAvatarMutation, useSetAvatarMutation, useUpdateProfileMutation } from "@/redux/features/account/accountApi";
 import type { User } from "@/types/session";
@@ -107,7 +107,7 @@ export function ProfileCard({ user }: { user: User }) {
             >
               <Avatar className="size-20">
                 <AvatarImage src={avatarUrl(user)} alt="" />
-                <AvatarFallback className="text-lg">{avatarInitials(user)}</AvatarFallback>
+                <AvatarFallback {...avatarPlaceholder(user, avatarInitials(user), "text-lg")} />
               </Avatar>
               <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                 <Camera aria-hidden />

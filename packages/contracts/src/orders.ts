@@ -116,6 +116,7 @@ export type PublicOrder = Pick<
     phone: string | null;
     /** The store's logo (the tracking page uses it as its icon). */
     photoUrl: string | null;
+    photoBlur: string | null;
   };
   /** Status changes, oldest first. */
   timeline: { status: OrderStatus; at: string }[];
@@ -275,7 +276,9 @@ export type PublicMenu = {
     instagramUrl: string | null;
     ifoodUrl: string | null;
     bannerUrl: string | null;
+    bannerBlur: string | null;
     photoUrl: string | null;
+    photoBlur: string | null;
     pickupEtaMinutes: number;
     /** Served at "/"; its /<slug> page is a duplicate (canonical "/"). */
     isDefault: boolean;
@@ -315,6 +318,7 @@ export type PublicMenuItem = {
   description: string | null;
   price: number;
   photoUrl: string | null;
+  photoBlur: string | null;
   /** False when switched off or (with stock tracking) out of an ingredient. */
   isAvailable: boolean;
   /** Units the stock still makes (stores that track stock, items with a recipe); null = no limit. */

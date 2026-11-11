@@ -229,9 +229,9 @@ function ExtrasList({ storeId, extras }: { storeId: string; extras: Order["items
   const { data: store } = useGetStoreByIdQuery(storeId);
   const { data: menu } = useGetPublicMenuQuery({ slug: store?.slug, preview: true }, { skip: !store });
   const catalog = useMemo(() => {
-    const byId = new Map<string, { photoUrl: string | null; category: string }>();
+    const byId = new Map<string, { photoUrl: string | null; photoBlur: string | null; category: string }>();
     for (const category of menu?.categories ?? [])
-      for (const item of category.items) byId.set(item.id, { photoUrl: item.photoUrl, category: category.name });
+      for (const item of category.items) byId.set(item.id, { photoUrl: item.photoUrl, photoBlur: item.photoBlur, category: category.name });
     return byId;
   }, [menu]);
 
@@ -243,7 +243,7 @@ function ExtrasList({ storeId, extras }: { storeId: string; extras: Order["items
           <li key={line.id} className="flex items-center gap-3 rounded-2xl border bg-card p-2 pr-3 text-left">
             <span className="relative size-12 shrink-0 overflow-hidden rounded-xl bg-muted">
               {known?.photoUrl ? (
-                <Image src={known.photoUrl} alt="" fill sizes="48px" className="object-cover" />
+                <Image src={known.photoUrl} blurDataURL={known.photoBlur} alt="" fill sizes="48px" className="object-cover" />
               ) : (
                 <CupSoda className="absolute inset-0 m-auto size-5 text-muted-foreground" />
               )}

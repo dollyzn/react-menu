@@ -13,7 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { avatarInitials, avatarUrl } from "@/lib/avatar";
+import { avatarInitials, avatarPlaceholder, avatarUrl } from "@/lib/avatar";
 import { timeAgo } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
 import { ROLE_ITEMS, ROLES } from "./roles";
@@ -73,7 +73,7 @@ export function MemberRow({
       <span className={cn("relative shrink-0", disabled && "opacity-50 grayscale")}>
         <Avatar className="size-10 border">
           <AvatarImage src={avatarUrl(member)} alt="" />
-          <AvatarFallback>{avatarInitials(member)}</AvatarFallback>
+          <AvatarFallback {...avatarPlaceholder(member, avatarInitials(member))} />
         </Avatar>
         {member.online && (
           <span aria-hidden className="absolute right-0 bottom-0 size-3 rounded-full bg-success ring-2 ring-card" />

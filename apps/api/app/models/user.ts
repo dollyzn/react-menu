@@ -58,6 +58,10 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare avatarUrl: string | null
 
+  /** Blurred preview of the uploaded avatar (data URL), shown while it loads. */
+  @column()
+  declare avatarBlur: string | null
+
   /** TOTP secret (base32), encrypted at rest with APP_KEY; never serialized. */
   @column({ serializeAs: null, prepare: encryptNullable, consume: decryptNullable })
   declare twoFactorSecret: string | null

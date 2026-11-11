@@ -296,7 +296,7 @@ function BagStep({
               className="flex gap-3 py-3"
             >
               <div className="relative size-14 shrink-0 overflow-hidden rounded-lg bg-muted">
-                {line.photoUrl && <Image src={line.photoUrl} alt="" fill sizes="56px" className="object-cover" />}
+                {line.photoUrl && <Image src={line.photoUrl} blurDataURL={line.photoBlur} alt="" fill sizes="56px" className="object-cover" />}
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium leading-snug">{line.name}</p>

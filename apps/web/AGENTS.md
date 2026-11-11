@@ -71,6 +71,13 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `display: contents`, so header/body/footer can live inside the form).
   Never put `overflow` on `DialogContent` or use `scrollIntoView` for
   horizontal strips (it scrolls the window too; scroll the strip instead).
+- Images go through `components/app/image.tsx` (never `next/image`
+  directly). Pass the API's blurred preview as `blurDataURL`
+  (`item.photoBlur`, `store.bannerBlur`/`photoBlur`): it turns on
+  `placeholder="blur"`, so the image shows its colors while it loads.
+  Avatars: spread `avatarPlaceholder(user, initials, className)`
+  (`lib/avatar.ts`) on `AvatarFallback`, which shows the uploaded photo's
+  blur instead of the initials while it loads.
 - Dialogs never change while they animate closed (it reads as a flicker).
   One opened from a piece of state (`open={Boolean(item)}`) renders from
   `useLastValue(item)` (`hooks/use-last-value.ts`), which keeps the last

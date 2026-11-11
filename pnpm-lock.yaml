@@ -251,6 +251,9 @@ importers:
       reflect-metadata:
         specifier: ^0.2.2
         version: 0.2.2
+      sharp:
+        specifier: ^0.35.5
+        version: 0.35.5(@types/node@24.19.2)
     devDependencies:
       '@adonisjs/assembler':
         specifier: ^8.6.0

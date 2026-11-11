@@ -24,7 +24,7 @@ import { InstallAppMenuGroup, useInstallFlow } from "@/components/app/pwa/instal
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import { redirectToLogout } from "@/utils/navigation";
-import { avatarUrl } from "@/lib/avatar";
+import { avatarPlaceholder, avatarUrl } from "@/lib/avatar";
 
 /** The only account menu: settings, public menu, theme, install, sign out. */
 export function NavUser() {
@@ -120,9 +120,9 @@ function UserInfo({ user }: { user: User }) {
           src={avatarUrl(user)}
           alt={user.name ?? user.email}
         />
-        <AvatarFallback className="rounded-full">
-          {user.name?.substring(0, 2)?.toUpperCase() ?? "US"}
-        </AvatarFallback>
+        <AvatarFallback
+          {...avatarPlaceholder(user, user.name?.substring(0, 2)?.toUpperCase() ?? "US", "rounded-full")}
+        />
       </Avatar>
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium text-foreground">

@@ -27,6 +27,7 @@ export type StoreMember = {
   name: string | null
   email: string
   avatarUrl: string | null
+  avatarBlur: string | null
   role: StoreRole
   since: string
   invitePending: boolean
@@ -69,6 +70,7 @@ export default class StoreMemberService {
         'u.name',
         'u.email',
         'u.avatar_url',
+        'u.avatar_blur',
         'u.invite_pending',
         'u.email_verified_at',
         'u.last_seen_at',
@@ -98,6 +100,7 @@ export default class StoreMemberService {
         name: row.name,
         email: row.email,
         avatarUrl: row.avatar_url,
+        avatarBlur: row.avatar_blur,
         role: row.role,
         since: iso(row.created_at)!,
         invitePending: row.invite_pending,
