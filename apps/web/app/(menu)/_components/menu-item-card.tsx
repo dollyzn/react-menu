@@ -53,6 +53,7 @@ export function MenuItemCard({ item, onSelect }: MenuItemCardProps) {
         {item.photoUrl ? (
           <Image
             src={item.photoUrl}
+            blurDataURL={item.photoBlur}
             alt=""
             fill
             sizes="96px"

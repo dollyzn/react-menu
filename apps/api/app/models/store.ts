@@ -39,8 +39,15 @@ export default class Store extends BaseModel {
   @column()
   declare bannerUrl: string | null
 
+  /** Blurred previews (data URLs) of the banner and the logo, shown while they load. */
+  @column()
+  declare bannerBlur: string | null
+
   @column()
   declare photoUrl: string | null
+
+  @column()
+  declare photoBlur: string | null
 
   @column()
   declare slug: string

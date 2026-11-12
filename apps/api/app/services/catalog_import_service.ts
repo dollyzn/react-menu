@@ -18,6 +18,7 @@ import type Store from '#models/store'
 import env from '#start/env'
 import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 import type { Catalog, CatalogStoreProfile, RecipeLine } from '#catalog/types'
+import { blurPlaceholder } from '#helpers/image_placeholder'
 
 export type ImportSummary = {
   categories: number
@@ -173,6 +174,7 @@ export default class CatalogImportService {
               price,
               order: itemOrder + 1,
               photoUrl: source.photo && photos ? await photos.url(source.photo) : null,
+              photoBlur: source.photo && photos ? await photos.blur(source.photo) : null,
             },
             { client: trx }
           )
@@ -224,15 +226,14 @@ export default class CatalogImportService {
       store[field] = profile[field]
       filled.push(field)
     }
-    for (const [field, file, folder] of [
-      ['photoUrl', profile.logo, 'photos'],
-      ['bannerUrl', profile.banner, 'banners'],
+    for (const [field, blurField, file, folder] of [
+      ['photoUrl', 'photoBlur', profile.logo, 'photos'],
+      ['bannerUrl', 'bannerBlur', profile.banner, 'banners'],
     ] as const) {
       if (store[field]) continue
-      store[field] = await storeFile(
-        `${folder}/${store.id}_catalog${extname(file)}`,
-        app.makePath('database/data', file)
-      )
+      const path = app.makePath('database/data', file)
+      store[field] = await storeFile(`${folder}/${store.id}_catalog${extname(file)}`, path)
+      store[blurField] = await blurPlaceholder(path)
       filled.push(field)
     }
     await store.save()
@@ -273,6 +274,8 @@ export default class CatalogImportService {
         `menu/local-${photoSlug(record.name)}-${hash}${extname(file).toLowerCase()}`,
         join(dir, file)
       )
+      // Add-ons have no preview yet (roadmap: their photos are only in the panel's add-on screens).
+      if (record instanceof Item) record.photoBlur = await blurPlaceholder(content)
       await record.save()
       applied.push(record.name)
     }
@@ -295,6 +298,7 @@ export default class CatalogImportService {
  */
 class PhotoStore {
   private urls = new Map<string, string>()
+  private blurs = new Map<string, string | null>()
 
   get count() {
     return this.urls.size
@@ -303,12 +307,19 @@ class PhotoStore {
   async url(file: string) {
     const cached = this.urls.get(file)
     if (cached) return cached
-    const url = await storeFile(
-      `menu/catalog-${file}`,
-      app.makePath('database/data/menu-photos', file)
-    )
+    const url = await storeFile(`menu/catalog-${file}`, this.path(file))
     this.urls.set(file, url)
     return url
+  }
+
+  /** The blurred preview of a photo, made on first use (only items have one). */
+  async blur(file: string) {
+    if (!this.blurs.has(file)) this.blurs.set(file, await blurPlaceholder(this.path(file)))
+    return this.blurs.get(file) ?? null
+  }
+
+  private path(file: string) {
+    return app.makePath('database/data/menu-photos', file)
   }
 }
 

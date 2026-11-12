@@ -138,7 +138,7 @@ export default function Store() {
             <CardContent className="flex flex-col gap-4">
               <div className="relative h-48 w-full overflow-hidden rounded-lg">
                 {data.bannerUrl ? (
-                  <Image src={data.bannerUrl} alt={data.name} fill sizes="685px" className="object-cover" priority />
+                  <Image src={data.bannerUrl} blurDataURL={data.bannerBlur} alt={data.name} fill sizes="685px" className="object-cover" priority />
                 ) : (
                   <div className="flex size-full items-center justify-center rounded-lg border text-sm text-muted-foreground">
                     Nenhum banner definido
@@ -150,7 +150,7 @@ export default function Store() {
               <div className="flex min-w-0 items-center gap-4">
                 <div className="relative size-20 shrink-0">
                   {data.photoUrl ? (
-                    <Image src={data.photoUrl} alt={data.name} fill sizes="80px" className="rounded-lg object-contain" loading="eager" />
+                    <Image src={data.photoUrl} blurDataURL={data.photoBlur} alt={data.name} fill sizes="80px" className="rounded-lg" style={{ objectFit: "contain" }} loading="eager" />
                   ) : (
                     <ImageIcon strokeWidth={0.5} className="size-full text-muted-foreground" />
                   )}

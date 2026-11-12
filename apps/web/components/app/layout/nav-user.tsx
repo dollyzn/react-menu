@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronsUpDown, ExternalLink, LogOutIcon, Palette, Settings } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,7 +23,7 @@ import { InstallAppMenuGroup, useInstallFlow } from "@/components/app/pwa/instal
 import { useSession } from "@/contexts/session-provider";
 import { useRouter } from "next/navigation";
 import { redirectToLogout } from "@/utils/navigation";
-import { avatarUrl } from "@/lib/avatar";
+import { UserAvatar } from "@/components/app/photo-avatar";
 
 /** The only account menu: settings, public menu, theme, install, sign out. */
 export function NavUser() {
@@ -115,15 +114,7 @@ export function NavUser() {
 function UserInfo({ user }: { user: User }) {
   return (
     <>
-      <Avatar className="size-8 rounded-full border">
-        <AvatarImage
-          src={avatarUrl(user)}
-          alt={user.name ?? user.email}
-        />
-        <AvatarFallback className="rounded-full">
-          {user.name?.substring(0, 2)?.toUpperCase() ?? "US"}
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatar user={user} className="size-8 rounded-full border" fallbackClassName="rounded-full" />
       <div className="grid flex-1 text-left text-sm leading-tight">
         <span className="truncate font-medium text-foreground">
           {user.name}

@@ -25,6 +25,7 @@ export function ItemCard({ row }: ItemCardProps) {
         {item.photoUrl ? (
           <Image
             src={item.photoUrl}
+            blurDataURL={item.photoBlur}
             alt={item.name}
             fill
             className="object-cover"

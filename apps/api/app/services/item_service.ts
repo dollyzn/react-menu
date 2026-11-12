@@ -14,6 +14,7 @@ import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
 import CategoryRepository from '#repositories/category_repository'
 import type { ItemFindOptions, ItemListOptions } from '#types/item_query'
+import { uploadPlaceholder } from '#helpers/image_placeholder'
 
 /** Item photos live under this drive prefix (only these are ever deleted). */
 const PHOTO_PREFIX = 'items'
@@ -143,8 +144,10 @@ export default class ItemService {
     const item = await this.repo.findByIdInStore(id, storeId, { preload: false })
     const previous = item.photoUrl
     const key = `${PHOTO_PREFIX}/${item.id}_${randomUUID()}.${photo.extname}`
+    const blur = await uploadPlaceholder(photo)
     await photo.moveToDisk(key)
     item.photoUrl = await drive.use().getUrl(key)
+    item.photoBlur = blur
     await item.save()
     await deleteUpload(previous, PHOTO_PREFIX)
     return await this.withRelations(item)
@@ -156,6 +159,7 @@ export default class ItemService {
     const previous = item.photoUrl
     if (previous) {
       item.photoUrl = null
+      item.photoBlur = null
       await item.save()
       await deleteUpload(previous, PHOTO_PREFIX)
     }

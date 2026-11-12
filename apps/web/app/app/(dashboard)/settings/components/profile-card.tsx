@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { AnimatePresence, motion } from "motion/react";
 import { Camera, Lock, Trash2, UserRound } from "lucide-react";
 import type { StoreRole } from "@react-menu/contracts";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,11 +15,11 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/c
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { Spinner } from "@/components/ui/spinner";
-import { avatarInitials, avatarUrl } from "@/lib/avatar";
 import { compressImage, ImageCompressError } from "@/lib/image-compress";
 import { useRemoveAvatarMutation, useSetAvatarMutation, useUpdateProfileMutation } from "@/redux/features/account/accountApi";
 import type { User } from "@/types/session";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { UserAvatar } from "@/components/app/photo-avatar";
 
 const ROLE_LABEL: Record<StoreRole, string> = { manager: "Gerente", attendant: "Atendente", kitchen: "Cozinha" };
 
@@ -105,10 +104,7 @@ export function ProfileCard({ user }: { user: User }) {
               aria-label="Trocar foto de perfil"
               className="group relative shrink-0 rounded-full outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-wait"
             >
-              <Avatar className="size-20">
-                <AvatarImage src={avatarUrl(user)} alt="" />
-                <AvatarFallback className="text-lg">{avatarInitials(user)}</AvatarFallback>
-              </Avatar>
+              <UserAvatar user={user} className="size-20" fallbackClassName="text-lg" />
               <span className="absolute inset-0 flex items-center justify-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
                 <Camera aria-hidden />
               </span>

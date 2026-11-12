@@ -4,7 +4,6 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import type { StoreRole } from "@react-menu/contracts";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,6 +21,7 @@ import { hasPermission } from "@/lib/permissions";
 import { homeForRole } from "@/lib/menu-itens";
 import { cn } from "@/lib/utils";
 import { CreateStoreDialog } from "./create-store-dialog";
+import { PhotoAvatar } from "@/components/app/photo-avatar";
 
 const ROLE_LABEL: Record<StoreRole, string> = {
   manager: "Gerente",
@@ -29,15 +29,28 @@ const ROLE_LABEL: Record<StoreRole, string> = {
   kitchen: "Cozinha",
 };
 
-function StoreLogo({ name, photoUrl, className }: { name: string; photoUrl?: string | null; className?: string }) {
+function StoreLogo({
+  name,
+  photoUrl,
+  photoBlur,
+  className,
+}: {
+  name: string;
+  photoUrl?: string | null;
+  photoBlur?: string | null;
+  className?: string;
+}) {
   return (
     // One border only: the Avatar's own ring, made square like the logo.
-    <Avatar className={cn("size-8 rounded-lg bg-background after:rounded-lg", className)}>
-      {photoUrl && <AvatarImage src={photoUrl} alt="" className="rounded-lg object-contain p-0.5" />}
-      <AvatarFallback className="rounded-lg bg-primary/10 text-xs font-bold text-primary">
-        {name.slice(0, 2).toUpperCase()}
-      </AvatarFallback>
-    </Avatar>
+    <PhotoAvatar
+      src={photoUrl}
+      blur={photoBlur}
+      fallback={name.slice(0, 2).toUpperCase()}
+      className={cn("size-8 rounded-lg bg-background after:rounded-lg", className)}
+      imageClassName="rounded-lg object-contain p-0.5"
+      fit="contain"
+      fallbackClassName="rounded-lg bg-primary/10 text-xs font-bold text-primary"
+    />
   );
 }
 
@@ -72,7 +85,7 @@ export function StoreSwitcher() {
               }
             >
               {current ? (
-                <StoreLogo name={current.name} photoUrl={current.photoUrl} />
+                <StoreLogo name={current.name} photoUrl={current.photoUrl} photoBlur={current.photoBlur} />
               ) : (
                 <span className="size-8 rounded-lg bg-muted" />
               )}
@@ -87,7 +100,7 @@ export function StoreSwitcher() {
                 <DropdownMenuLabel className="text-xs text-muted-foreground">Lojas</DropdownMenuLabel>
                 {stores.map((s) => (
                   <DropdownMenuItem key={s.id} onClick={() => router.push(homeForRole(s.id, s.role))} className="gap-2 p-2">
-                    <StoreLogo name={s.name} photoUrl={s.photoUrl} className="size-7" />
+                    <StoreLogo name={s.name} photoUrl={s.photoUrl} photoBlur={s.photoBlur} className="size-7" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate">{s.name}</span>
                       <span className="block text-xs text-muted-foreground">{ROLE_LABEL[s.role]}</span>

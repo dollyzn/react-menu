@@ -4,7 +4,7 @@ import { API_URL } from "../playwright.config";
 
 const PHOTO = path.join(__dirname, "../public/login-marquee/pos-light.webp");
 
-test("settings: profile, photo, password and the sessions of other devices", async ({ page, browser }) => {
+test("settings: profile, photo, password and the sessions of other devices", async ({ page, browser, consoleEntries }) => {
   // A fresh account (with a store), so changing its password affects no other test.
   const store = await createStoreViaApi(page, "Conta");
   const staff = { name: "Bia Lima", email: `bia-${Date.now()}@example.com`, password: "bia-12345" };
@@ -39,6 +39,17 @@ test("settings: profile, photo, password and the sessions of other devices", asy
   const me = await (await page.request.get(`${API_URL}/api/v1/auth/me`)).json();
   expect(me.data.user.avatarUrl).toMatch(/\/uploads\/avatars\/.+\.webp$/);
   expect(me.data.user.name).toBe("Bia Lima Souza");
+  expect(me.data.user.avatarBlur).toMatch(/^data:image\/webp;base64,/);
+  // The blurred preview is only for while it loads: a photo that fails
+  // shows the initials, never the blur for good.
+  await page.route(/\/uploads\/avatars\//, (route) => route.fulfill({ status: 404, body: "" }));
+  await page.reload();
+  const trigger = page.getByRole("button", { name: "Trocar foto de perfil" });
+  await expect(trigger).toContainText("BS");
+  await page.unroute(/\/uploads\/avatars\//);
+  // That 404 was on purpose: drop it from the broken-image check.
+  const forced = consoleEntries.filter((entry) => entry.type === "image" && entry.text.includes("/uploads/avatars/"));
+  for (const entry of forced) consoleEntries.splice(consoleEntries.indexOf(entry), 1);
   await page.getByRole("button", { name: "Remover" }).click();
   await expect(page.getByText("Foto removida")).toBeVisible();
 

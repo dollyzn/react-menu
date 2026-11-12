@@ -27,7 +27,9 @@ export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
     instagramUrl: store.instagramUrl,
     ifoodUrl: store.ifoodUrl,
     bannerUrl: store.bannerUrl,
+    bannerBlur: store.bannerBlur,
     photoUrl: store.photoUrl,
+    photoBlur: store.photoBlur,
     pickupEtaMinutes: store.pickupEtaMinutes,
     /** Served at "/" (its /<slug> page points there as canonical). */
     isDefault: store.isDefault,
@@ -125,6 +127,7 @@ export default class PublicMenuService {
               description: item.description,
               price: item.price,
               photoUrl: item.photoUrl,
+              photoBlur: item.photoBlur,
               isAvailable: item.isAvailable && left.items.get(item.id) !== 0 && groupsOk,
               stockLeft: left.items.get(item.id) ?? null,
               addons: item.addons.map(addon),

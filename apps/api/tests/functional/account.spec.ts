@@ -98,6 +98,7 @@ test.group('Account', (group) => {
     first.assertStatus(200)
     const firstKey = uploadKey(first.body().data.avatarUrl, 'avatars')!
     assert.match(firstKey, new RegExp(`^avatars/${user.id}_`))
+    assert.match(first.body().data.avatarBlur, /^data:image\/webp;base64,/)
     const replaced = await client
       .put('/api/v1/account/avatar')
       .file('avatar', PNG, { filename: 'eu2.png' })
@@ -113,7 +114,7 @@ test.group('Account', (group) => {
     notImage.assertStatus(422)
 
     const removed = await client.delete('/api/v1/account/avatar').loginAs(user)
-    removed.assertBodyContains({ data: { avatarUrl: null } })
+    removed.assertBodyContains({ data: { avatarUrl: null, avatarBlur: null } })
     assert.isFalse(await drive.use().exists(secondKey))
     drive.restore()
 

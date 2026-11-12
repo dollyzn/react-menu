@@ -8,6 +8,7 @@ import AppException from '#exceptions/app_exception'
 import { deleteUpload } from '#helpers/uploads'
 import { assertOwnPassword } from '#helpers/own_password'
 import type User from '#models/user'
+import { uploadPlaceholder } from '#helpers/image_placeholder'
 
 const AVATAR_PREFIX = 'avatars'
 
@@ -163,8 +164,10 @@ export default class AccountService {
   async setAvatar(user: User, file: MultipartFile) {
     const previous = user.avatarUrl
     const key = `${AVATAR_PREFIX}/${user.id}_${randomUUID()}.${file.extname}`
+    const blur = await uploadPlaceholder(file)
     await file.moveToDisk(key)
     user.avatarUrl = await drive.use().getUrl(key)
+    user.avatarBlur = blur
     await user.save()
     await deleteUpload(previous, AVATAR_PREFIX)
     return user
@@ -175,6 +178,7 @@ export default class AccountService {
     const previous = user.avatarUrl
     if (previous) {
       user.avatarUrl = null
+      user.avatarBlur = null
       await user.save()
       await deleteUpload(previous, AVATAR_PREFIX)
     }

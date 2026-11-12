@@ -93,7 +93,7 @@ export function ItemsColumnDialog({ row, size }: ItemsColumnDialogProps) {
                 <li key={item.id} className={cn("flex items-center gap-3 p-2.5", !item.isAvailable && "bg-muted/40")}>
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {item.photoUrl ? (
-                      <Image src={item.photoUrl} alt="" fill sizes="48px" className={cn("object-cover", !item.isAvailable && "grayscale")} />
+                      <Image src={item.photoUrl} blurDataURL={item.photoBlur} alt="" fill sizes="48px" className={cn("object-cover", !item.isAvailable && "grayscale")} />
                     ) : (
                       <ImageOff className="absolute top-1/2 left-1/2 size-4 -translate-1/2 text-muted-foreground" />
                     )}

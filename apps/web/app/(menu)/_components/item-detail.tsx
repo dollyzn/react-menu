@@ -185,6 +185,7 @@ export function ItemCustomizer({
       itemId: item.id,
       name: item.name,
       photoUrl: item.photoUrl,
+      photoBlur: item.photoBlur,
       unitPrice: item.price,
       addons: selected.map(({ id, name, price, groupId, groupName }) =>
         groupId ? { id, name, price, groupId, groupName } : { id, name, price }
@@ -199,6 +200,7 @@ export function ItemCustomizer({
         <div className="relative aspect-16/10 w-full overflow-hidden bg-muted sm:rounded-t-xl">
           <Image
             src={item.photoUrl}
+            blurDataURL={item.photoBlur}
             alt={item.name}
             fill
             sizes="(max-width: 640px) 100vw, 448px"

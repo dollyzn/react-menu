@@ -44,6 +44,14 @@ test.group('Item photos', (group) => {
     assert.match(firstKey, new RegExp(`^items/${carne.id}_[\\w-]+\\.png$`))
     assert.isTrue(await disk.exists(firstKey))
     assert.properties(first.body().data, ['category', 'addons', 'optionGroups'])
+    // A blurred preview for the web to show while the photo loads.
+    assert.match(first.body().data.photoBlur, /^data:image\/webp;base64,/)
+    const menu = await client.get(`/api/v1/public/menu/${store.slug}`)
+    const listed = menu
+      .body()
+      .data.categories.flatMap((category: { items: { id: string }[] }) => category.items)
+      .find((item: { id: string }) => item.id === carne.id)
+    assert.equal(listed.photoBlur, first.body().data.photoBlur)
 
     const second = await client
       .put(url)
@@ -59,6 +67,7 @@ test.group('Item photos', (group) => {
     removed.assertStatus(200)
     again.assertStatus(200)
     assert.isNull(removed.body().data.photoUrl)
+    assert.isNull(removed.body().data.photoBlur)
     assert.isFalse(await disk.exists(secondKey))
   })
 

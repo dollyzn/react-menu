@@ -11,3 +11,4 @@ export function avatarInitials(user: { name?: string | null; email: string }) {
   const words = (user.name ?? user.email).trim().split(/\s+/);
   return ((words[0]?.[0] ?? "") + (words.length > 1 ? (words.at(-1)?.[0] ?? "") : (words[0]?.[1] ?? ""))).toUpperCase();
 }
+
