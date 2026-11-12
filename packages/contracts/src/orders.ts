@@ -9,6 +9,12 @@ export type OrderStatus =
 export type OrderChannel = 'online' | 'pos';
 /** `mercado_pago` is legacy (Checkout Pro redirect); new orders use pix/card/counter. */
 export type PaymentMethod = 'pix' | 'card' | 'point' | 'counter' | 'mercado_pago';
+/**
+ * How a counter payment was received, as the cashier recorded it. Credit and
+ * debit here were charged on a machine outside the system (the integrated one
+ * is `point`).
+ */
+export type CounterPaymentMethod = 'cash' | 'pix' | 'credit' | 'debit';
 /** Methods a customer can pick at checkout. */
 export type CheckoutPaymentMethod = 'pix' | 'card' | 'counter';
 /** Online methods paid on the order page. */
@@ -57,6 +63,12 @@ export type Order = {
   status: OrderStatus;
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
+  /** Counter orders: how it was paid (null until paid, and on orders paid before this was kept). */
+  counterMethod: CounterPaymentMethod | null;
+  /** When the payment was recorded (null on orders paid before this was kept). */
+  paidAt: string | null;
+  /** Who received a counter payment. */
+  paidById: string | null;
   subtotal: number;
   total: number;
   notes: string | null;
@@ -73,6 +85,8 @@ export type Order = {
   payments?: StaffPayment[];
   /** Only on GET /orders/:id: cancelled after an online payment that wasn't refunded yet. */
   refundPending?: boolean;
+  /** Only on GET /orders/:id: who received the counter payment. */
+  paidBy?: { id: string; name: string | null } | null;
 };
 
 /** A payment attempt as staff see it (no gateway ids). */
@@ -210,7 +224,12 @@ export type CreatePosOrderInput = {
   customer: { name: string; phone?: string };
   lines: OrderLineInput[];
   notes?: string;
+  /** Paid as it was sent; left out: paid later or on the card machine. */
+  counterMethod?: CounterPaymentMethod;
 };
+
+/** POST /orders/:id/payment ("Receber pagamento"). */
+export type ReceivePaymentInput = { method: CounterPaymentMethod };
 
 export type Ingredient = {
   id: number;

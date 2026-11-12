@@ -2,6 +2,7 @@ import vine from '@vinejs/vine'
 import PaymentMethod from '#enums/payment_method'
 import OrderStatus from '#enums/order_status'
 import OrderChannel from '#enums/order_channel'
+import { COUNTER_PAYMENT_METHODS } from '#enums/counter_payment_method'
 
 const lines = vine
   .array(
@@ -74,6 +75,15 @@ const posOrderValidator = vine.create(
     }),
     lines,
     notes,
+    /** Paid as it was sent: how. Left out: paid later (or on the card machine). */
+    counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
+  })
+)
+
+/** "Receber pagamento": how the counter was paid. */
+const receivePaymentValidator = vine.create(
+  vine.object({
+    method: vine.enum(COUNTER_PAYMENT_METHODS),
   })
 )
 
@@ -124,6 +134,7 @@ export {
   publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,
+  receivePaymentValidator,
   prepareUnitsValidator,
   orderListValidator,
   lookupTokens,

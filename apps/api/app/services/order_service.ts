@@ -7,8 +7,6 @@ import AppException from '#exceptions/app_exception'
 import OrderChannel from '#enums/order_channel'
 import OrderStatus from '#enums/order_status'
 import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
-import Payment from '#models/payment'
-import PaymentAttemptStatus from '#enums/payment_attempt_status'
 import PaymentStatus from '#enums/payment_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
 import { broadcastOrderTracking, broadcastStoreEvent } from '#helpers/realtime'
@@ -25,6 +23,7 @@ import type User from '#models/user'
 import { ACTIVE_STATUSES, canTransition } from '#orders/order_state'
 import InventoryService from '#services/inventory_service'
 import NotificationService from '#services/notification_service'
+import type CounterPaymentMethod from '#enums/counter_payment_method'
 
 /** Business day boundaries follow the restaurant, not UTC. */
 export const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
@@ -36,6 +35,8 @@ export type CreateOrderInput = {
   channel: OrderChannel
   customer: { name: string; phone?: string | null }
   paymentMethod: PaymentMethod
+  /** POS: paid at the counter as the order was sent (cash, Pix, credit, debit). */
+  counterMethod?: CounterPaymentMethod | null
   lines: OrderLineInput[]
   notes?: string | null
   /** From the Idempotency-Key header: a retry returns the same order. */
@@ -121,7 +122,14 @@ export default class OrderService {
           channel: input.channel,
           status: OrderStatus.PENDING_PAYMENT,
           paymentMethod: input.paymentMethod,
-          paymentStatus: PaymentStatus.PENDING,
+          ...(input.counterMethod
+            ? {
+                paymentStatus: PaymentStatus.PAID,
+                counterMethod: input.counterMethod,
+                paidAt: DateTime.now(),
+                paidById: actor?.id ?? null,
+              }
+            : { paymentStatus: PaymentStatus.PENDING }),
           subtotal,
           total: subtotal,
           notes: input.notes || null,
@@ -185,20 +193,35 @@ export default class OrderService {
    */
   async markPaid(
     order: Order,
-    meta: { mercadoPagoPaymentId?: string; paymentMethod?: PaymentMethod } = {},
+    meta: {
+      mercadoPagoPaymentId?: string
+      paymentMethod?: PaymentMethod
+      /** Received at the counter: how, recorded with who received it. */
+      counterMethod?: CounterPaymentMethod
+    } = {},
     actor?: User
   ) {
+    if (meta.counterMethod) this.assertReceivable(order, meta.counterMethod)
     if (order.paymentStatus === PaymentStatus.PAID) return order
     let wasAwaitingPayment = false
 
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
+      // Paid or cancelled while the cashier had it open: say so, never "received".
+      if (meta.counterMethod) this.assertReceivable(order, meta.counterMethod)
       if (order.paymentStatus === PaymentStatus.PAID) return false
       wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
       order.paymentStatus = PaymentStatus.PAID
       if (meta.mercadoPagoPaymentId) order.mercadoPagoPaymentId = meta.mercadoPagoPaymentId
       // Paid on the card machine: refunded by itself if the order is cancelled.
       if (meta.paymentMethod) order.paymentMethod = meta.paymentMethod
+      order.paidAt = DateTime.now()
+      if (meta.counterMethod) {
+        // Money taken at the counter, even on an order first meant to be paid online.
+        order.paymentMethod = PaymentMethod.COUNTER
+        order.counterMethod = meta.counterMethod
+        order.paidById = actor?.id ?? null
+      }
       if (order.status === OrderStatus.PENDING_PAYMENT) {
         await this.enterKitchen(order, trx, actor)
       }
@@ -208,6 +231,25 @@ export default class OrderService {
 
     if (changed) await this.afterChange(order, { notifyStaff: wasAwaitingPayment })
     return order
+  }
+
+  /**
+   * "Receber pagamento" at the counter: refused for a cancelled order, and
+   * for one already paid another way (the machine approved it, someone else
+   * received it), so the customer isn't charged twice without anyone noticing.
+   * The same method again is a retry: a success that changes nothing.
+   */
+  private assertReceivable(order: Order, method: CounterPaymentMethod) {
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new AppException('Este pedido foi cancelado.', 409, 'E_ORDER_CANCELLED')
+    }
+    if (order.paymentStatus === PaymentStatus.PAID && order.counterMethod !== method) {
+      throw new AppException(
+        'Este pedido já foi pago. Confira antes de receber de novo.',
+        409,
+        'E_ALREADY_PAID'
+      )
+    }
   }
 
   /** A new payment attempt started (e.g. a new Pix after a rejected card). */
@@ -280,7 +322,10 @@ export default class OrderService {
     for (const order of changed) await this.afterChange(order)
   }
 
-  /** Handed over at the counter. Counter payments are settled here. */
+  /**
+   * Handed over at the counter. Only once paid: a counter payment is
+   * recorded with how it was paid ("Receber pagamento"), never assumed here.
+   */
   async complete(storeId: string, orderId: string, actor?: User) {
     const order = await this.find(storeId, orderId)
     // Idempotent: a retried "Entregar" after a lost response is a success.
@@ -288,34 +333,19 @@ export default class OrderService {
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
       if (order.status === OrderStatus.COMPLETED) return false
-      await this.transition(order, OrderStatus.COMPLETED, trx, actor)
-      // Paid at the counter on hand-over, unless the card machine is still
-      // charging it: then the machine's answer says whether it was paid
-      // (marking it paid here would make that approval look like a second
-      // payment and refund it).
-      if (
-        order.paymentMethod === PaymentMethod.COUNTER &&
-        !(await this.chargeOnMachine(order, trx))
-      ) {
-        order.paymentStatus = PaymentStatus.PAID
+      if (order.paymentStatus !== PaymentStatus.PAID) {
+        throw new AppException(
+          'Receba o pagamento antes de entregar o pedido.',
+          409,
+          'E_PAYMENT_REQUIRED'
+        )
       }
+      await this.transition(order, OrderStatus.COMPLETED, trx, actor)
       await order.save()
       return true
     })
     if (changed) await this.afterChange(order)
     return order
-  }
-
-  /** A card machine charge of the order still waiting for the customer. */
-  private async chargeOnMachine(order: Order, trx: TransactionClientContract) {
-    const waiting = await Payment.query({ client: trx })
-      .where({
-        orderId: order.id,
-        method: PaymentMethod.POINT,
-        status: PaymentAttemptStatus.PENDING,
-      })
-      .first()
-    return Boolean(waiting)
   }
 
   async cancel(storeId: string, orderId: string, actor?: User) {

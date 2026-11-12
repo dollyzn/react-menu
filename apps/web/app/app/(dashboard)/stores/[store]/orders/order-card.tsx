@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, Clock, CreditCard, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
@@ -15,17 +15,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import {
-  useCancelOrderMutation,
-  useMarkOrderPaidMutation,
-} from "@/redux/features/order/orderApi";
+import { useCancelOrderMutation } from "@/redux/features/order/orderApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { addonLabels } from "@/lib/addon-label";
 import { DeliverOrderButton } from "./deliver-order-button";
 import { useStoreRole } from "@/hooks/use-store-role";
-import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
-import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
+import { paidWith } from "@/components/app/payments/counter-methods";
+import { ReceivePayment } from "./receive-payment";
 
 interface OrderCardProps {
   order: Order;
@@ -40,11 +37,8 @@ interface OrderCardProps {
 
 export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen }: OrderCardProps) {
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
-  const [markPaid] = useMarkOrderPaidMutation();
   const [confirmCancel, setConfirmCancel] = useState(false);
-  const { data: point } = useGetPointConfigQuery(storeId, { skip: !canOperate });
-  const canCharge = Boolean(point?.available && point.terminals.length > 0);
-  const [charging, setCharging] = useState(false);
+  const [receiving, setReceiving] = useState(false);
   // Cancelling refunds a paid order: managers only (the API refuses the rest).
   const canCancel = useStoreRole(storeId) === "manager";
 
@@ -126,7 +120,15 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         <div className="text-sm">
           <p className="font-semibold tabular-nums">{formatCurrencyBRL(order.total)}</p>
           <p className={cn("text-xs", paid ? "text-success" : "text-muted-foreground")}>
-            {paid ? "Pago" : order.paymentMethod === "counter" ? "Pagar na retirada" : "Aguardando pagamento"}
+            {paid
+              ? order.counterMethod
+                ? `Pago ${paidWith(order.counterMethod)}`
+                : order.paymentMethod === "point"
+                  ? "Pago na maquininha"
+                  : "Pago"
+              : order.paymentMethod === "counter"
+                ? "Falta receber"
+                : "Aguardando pagamento"}
           </p>
         </div>
         {canOperate && order.status !== "completed" && order.status !== "cancelled" && (
@@ -140,14 +142,9 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                {!paid && canCharge && (
-                  <DropdownMenuItem onClick={() => setCharging(true)}>
-                    <CreditCard /> Cobrar na maquininha
-                  </DropdownMenuItem>
-                )}
                 {!paid && (
-                  <DropdownMenuItem onClick={() => markPaid({ storeId, orderId: order.id })}>
-                    <Banknote /> Marcar como pago
+                  <DropdownMenuItem onClick={() => setReceiving(true)}>
+                    <Banknote /> Receber pagamento
                   </DropdownMenuItem>
                 )}
                 {canCancel && (
@@ -162,11 +159,10 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         )}
       </footer>
 
-      <PointChargeDialog
-        storeId={storeId}
-        order={charging ? { id: order.id, number: order.number, total: order.total } : null}
-        onClose={() => setCharging(false)}
-      />
+      {/* Mounted while the order turns paid, so it closes smoothly (closed, it fetches nothing). */}
+      {canOperate && (
+        <ReceivePayment order={order} storeId={storeId} open={receiving} onClose={() => setReceiving(false)} />
+      )}
 
       <AlertDialogDestructive
         open={confirmCancel}

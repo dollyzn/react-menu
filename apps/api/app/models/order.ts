@@ -4,12 +4,14 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import type OrderChannel from '#enums/order_channel'
 import type OrderStatus from '#enums/order_status'
 import type PaymentMethod from '#enums/payment_method'
+import type CounterPaymentMethod from '#enums/counter_payment_method'
 import type PaymentStatus from '#enums/payment_status'
 import { decimal } from '#helpers/columns'
 import Customer from '#models/customer'
 import OrderItem from '#models/order_item'
 import OrderStatusHistory from '#models/order_status_history'
 import Store from '#models/store'
+import User from '#models/user'
 
 export default class Order extends BaseModel {
   @column({ isPrimary: true })
@@ -45,6 +47,18 @@ export default class Order extends BaseModel {
 
   @column()
   declare paymentStatus: PaymentStatus
+
+  /** Counter orders: how the cashier recorded the payment (null until paid, and on older orders). */
+  @column()
+  declare counterMethod: CounterPaymentMethod | null
+
+  /** When the payment was recorded (null on orders paid before this was kept). */
+  @column.dateTime()
+  declare paidAt: DateTime | null
+
+  /** Who recorded a counter payment (null for online and card machine payments). */
+  @column()
+  declare paidById: string | null
 
   @column({ serializeAs: null })
   declare mercadoPagoPreferenceId: string | null
@@ -86,6 +100,9 @@ export default class Order extends BaseModel {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
+
+  @belongsTo(() => User, { foreignKey: 'paidById' })
+  declare paidBy: BelongsTo<typeof User>
 
   @belongsTo(() => Store)
   declare store: BelongsTo<typeof Store>

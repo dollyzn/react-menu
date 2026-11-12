@@ -3,6 +3,8 @@ import { IDEMPOTENCY_HEADER } from "@/lib/idempotency";
 import { buildStoreListUrl, type StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 import type {
+  CounterPaymentMethod,
+  ReceivePaymentInput,
   CreatePosOrderInput,
   CustomerSuggestion,
   Order,
@@ -79,8 +81,13 @@ export const orderApi = baseApi.injectEndpoints({
       invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId)],
     }),
 
-    markOrderPaid: build.mutation<Order, { storeId: string; orderId: string }>({
-      query: ({ storeId, orderId }) => ({ url: `stores/${storeId}/orders/${orderId}/payment`, method: "POST" }),
+    /** "Receber pagamento" at the counter: how it was paid (recorded with who received it). */
+    receiveOrderPayment: build.mutation<Order, { storeId: string; orderId: string; method: CounterPaymentMethod }>({
+      query: ({ storeId, orderId, method }) => ({
+        url: `stores/${storeId}/orders/${orderId}/payment`,
+        method: "POST",
+        body: { method } satisfies ReceivePaymentInput,
+      }),
       invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
     }),
 
@@ -108,7 +115,7 @@ export const {
   useCreatePosOrderMutation,
   useCompleteOrderMutation,
   useCancelOrderMutation,
-  useMarkOrderPaidMutation,
+  useReceiveOrderPaymentMutation,
   useRefundOrderMutation,
   useGetKitchenQueueQuery,
   usePrepareUnitsMutation,

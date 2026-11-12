@@ -32,8 +32,9 @@ test("POS → kitchen → pickup: the whole shop floor flow", async ({ page, bro
   await customizer.getByRole("button", { name: /Adicionar/ }).click();
 
   await page.getByLabel("Nome do cliente").fill("Mesa 4");
-  await page.getByRole("button", { name: "Enviar para a cozinha" }).click();
-  const toastText = await page.getByText(/Pedido #\d+ enviado para a cozinha/).textContent();
+  // Paid at pickup (the exception): received on the board below.
+  await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  const toastText = await page.getByText(/Pedido #\d+ enviado · receber depois/).textContent();
   const number = toastText!.match(/#(\d+)/)![1];
 
   // The cook sees it as the current batch, with the note and the ingredients.
@@ -62,8 +63,11 @@ test("POS → kitchen → pickup: the whole shop floor flow", async ({ page, bro
   await expect(card).toBeVisible();
   await page.screenshot({ path: "test-results/orders-board.png", caret: "initial" });
   await card.getByRole("button", { name: "Entregar" }).click();
-  // Not paid yet: received at the counter, then handed over.
-  await page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ }).click();
+  // Not paid yet: received (in cash, with the change), then handed over.
+  const receiving = page.getByRole("dialog");
+  await receiving.getByRole("button", { name: /^Dinheiro/ }).click();
+  await receiving.getByRole("button", { name: "Exato" }).click();
+  await receiving.getByRole("button", { name: /Receber e entregar · Dinheiro/ }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
   await expect(card).toBeHidden();
 });
@@ -243,8 +247,13 @@ test("POS: customer autocomplete fills name and phone", async ({ page }) => {
   if (await page.getByRole("dialog").isVisible()) await page.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
   await page.getByRole("combobox", { name: "Nome do cliente" }).fill(name);
   await page.getByLabel("Celular do cliente (opcional)").fill("11977776666");
-  await page.getByRole("button", { name: "Enviar para a cozinha" }).click();
-  await expect(page.getByText(/Pedido #\d+ enviado para a cozinha/)).toBeVisible();
+  // Confirmed before it goes (the method can't change afterwards); a wrong tap is fixed there.
+  await page.getByRole("group", { name: "Enviar pago em" }).getByRole("button", { name: "Crédito" }).click();
+  const confirm = page.getByRole("dialog", { name: "Enviar o pedido pago" });
+  await expect(confirm.getByRole("button", { name: /^Crédito/ })).toHaveAttribute("aria-pressed", "true");
+  await confirm.getByRole("button", { name: /^Pix/ }).click();
+  await confirm.getByRole("button", { name: "Enviar · Pix" }).click();
+  await expect(page.getByText(/Pedido #\d+ enviado · pago no Pix/)).toBeVisible();
 
   // Next ticket: typing part of the name (no accent) suggests them.
   const input = page.getByRole("combobox", { name: "Nome do cliente" });
@@ -307,7 +316,7 @@ test("orders board: the order's menu fits its items on one line", async ({ page 
   await login(page);
   await page.goto(`/app/stores/${menu.store.id}/orders`);
   await page.getByRole("button", { name: `Mais ações do pedido ${number}` }).click();
-  for (const name of ["Marcar como pago", "Cancelar pedido"]) {
+  for (const name of ["Receber pagamento", "Cancelar pedido"]) {
     const box = await page.getByRole("menuitem", { name }).boundingBox();
     // One line of text (a wrapped label doubles the height).
     expect(box!.height).toBeLessThan(40);
@@ -392,7 +401,7 @@ test("orders board: \"Entregar\" reminds of the items that skip the kitchen", as
   await expect(card).toBeVisible();
 
   await card.getByRole("button", { name: "Entregar" }).click();
-  await expect(page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("button", { name: /^Pix/ })).toBeVisible();
   if (process.env.SHOTS) {
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${process.env.SHOTS}/deliver-light.png` });
@@ -409,7 +418,8 @@ test("orders board: \"Entregar\" reminds of the items that skip the kitchen", as
       if (document.body.textContent?.includes("Separou tudo")) flags.swapped = true;
     }).observe(document.body, { childList: true, subtree: true, characterData: true });
   });
-  await page.getByRole("dialog").getByRole("button", { name: /Recebi no balcão/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^Pix/ }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /Receber e entregar · Pix/ }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   expect(await page.evaluate(() => (window as unknown as { swapped?: boolean }).swapped ?? false)).toBe(false);
@@ -461,7 +471,7 @@ test("orders board: today's finished orders, in a collapsed list that opens them
   const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
   // A drink-only order is ready at once: hand it over.
   const placed = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
-    data: { customer: { name: "Já entregue" }, lines: [{ itemId: drink.id, quantity: 1 }] },
+    data: { customer: { name: "Já entregue" }, lines: [{ itemId: drink.id, quantity: 1 }], counterMethod: "pix" },
   });
   const order = (await placed.json()).data as { id: string; number: number };
   expect((await api.post(`/api/v1/stores/${menu.store.id}/orders/${order.id}/complete`)).ok()).toBeTruthy();
@@ -525,14 +535,18 @@ test("attendants: today's board only, no cancelling, and Entregar takes the paym
   // The detail (timeline, cancelling) is for managers: the card doesn't open it.
   await expect(card.getByRole("button", { name: `Ver detalhes do pedido ${order.number}` })).toHaveCount(0);
   await card.getByRole("button", { name: `Mais ações do pedido ${order.number}` }).click();
-  await expect(page.getByRole("menuitem", { name: "Marcar como pago" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Receber pagamento" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Cancelar pedido" })).toHaveCount(0);
   await page.keyboard.press("Escape");
 
   await card.getByRole("button", { name: "Entregar" }).click();
   const dialog = page.getByRole("dialog", { name: `Receber e entregar o pedido #${order.number}` });
   await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: /Recebi no balcão/ }).click();
+  // Cash with the change worked out: R$ 20 for the drink.
+  await dialog.getByRole("button", { name: /^Dinheiro/ }).click();
+  await dialog.getByRole("textbox", { name: "Valor recebido em dinheiro" }).fill("2000");
+  await expect(dialog.getByRole("status")).toContainText("Troco");
+  await dialog.getByRole("button", { name: /Receber e entregar · Dinheiro · troco/ }).click();
   await expect(page.getByText(`Pedido #${order.number} entregue`)).toBeVisible();
   await expect(card).toHaveCount(0);
 
@@ -542,6 +556,8 @@ test("attendants: today's board only, no cancelling, and Entregar takes the paym
   const saved = (await (await check.get(`/api/v1/stores/${menu.store.id}/orders/${order.id}`)).json()).data;
   expect(saved.status).toBe("completed");
   expect(saved.paymentStatus).toBe("paid");
+  expect(saved.counterMethod).toBe("cash");
+  expect(saved.paidBy.name).toBeTruthy();
   await check.dispose();
 });
 
@@ -557,7 +573,7 @@ test("orders board: a paid order's \"Separou tudo?\" keeps a long item name insi
     data: { customer: { name: "Já pago" }, lines: [{ itemId: longest.id, quantity: 1 }] },
   });
   const order = (await placed.json()).data as { id: string; number: number };
-  await api.post(`/api/v1/stores/${menu.store.id}/orders/${order.id}/payment`, { data: {} });
+  await api.post(`/api/v1/stores/${menu.store.id}/orders/${order.id}/payment`, { data: { method: "cash" } });
   await api.dispose();
 
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -573,4 +589,37 @@ test("orders board: a paid order's \"Separou tudo?\" keeps a long item name insi
   expect(list.x + list.width).toBeLessThanOrEqual(outer.x + outer.width - 8);
   await dialog.getByRole("button", { name: "Sim, entregar" }).click();
   await expect(page.getByText(`Pedido #${order.number} entregue`)).toBeVisible();
+});
+
+test("POS: an order paid in cash goes with the change worked out, recording how", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(page.url().replace(/\/orders$/, "/pos"));
+
+  await page.getByRole("button", { name: /^Pastel de Carne R\$/ }).click();
+  if (await page.getByRole("dialog").isVisible()) await page.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
+  await page.getByLabel("Nome do cliente").fill("Troco certo");
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/pos-footer.png` });
+
+  await page.getByRole("group", { name: "Enviar pago em" }).getByRole("button", { name: "Dinheiro" }).click();
+  const cash = page.getByRole("dialog", { name: "Enviar o pedido pago" });
+  await cash.getByRole("textbox", { name: "Valor recebido em dinheiro" }).fill("1000");
+  // Less than the total: it can't go yet.
+  await expect(cash.getByRole("status")).toContainText("Faltam");
+  await expect(cash.getByRole("button", { name: /^Enviar · Dinheiro/ })).toBeDisabled();
+  await cash.getByRole("textbox", { name: "Valor recebido em dinheiro" }).fill("5000");
+  await expect(cash.getByRole("status")).toContainText("Troco");
+  if (process.env.SHOTS) await page.screenshot({ path: `${process.env.SHOTS}/pos-cash.png` });
+  await cash.getByRole("button", { name: /^Enviar · Dinheiro · troco/ }).click();
+
+  const toastText = await page.getByText(/Pedido #\d+ enviado · pago em dinheiro/).textContent();
+  const number = Number(toastText!.match(/#(\d+)/)![1]);
+  const orders = (await (await page.request.get(`${API_URL}/api/v1/stores/${page.url().split("/")[5]}/orders`)).json()).data as {
+    number: number;
+    paymentStatus: string;
+    counterMethod: string | null;
+  }[];
+  const sent = orders.find((order) => order.number === number)!;
+  expect(sent.paymentStatus).toBe("paid");
+  expect(sent.counterMethod).toBe("cash");
 });

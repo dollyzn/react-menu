@@ -2,7 +2,7 @@
 
 import { useMemo, useRef, useState } from "react";
 import { useLastValue } from "@/hooks/use-last-value";
-import { Banknote, ChevronRight, CupSoda, CircleCheck, PackageCheck, SmartphoneNfc, TriangleAlert } from "lucide-react";
+import { CupSoda, CircleCheck, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
 import {
@@ -17,23 +17,18 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import Image from "@/components/app/image";
-import { ResponsiveModal } from "@/components/app/responsive-modal";
-import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
-import { useCompleteOrderMutation, useMarkOrderPaidMutation } from "@/redux/features/order/orderApi";
-import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
+import { useCompleteOrderMutation } from "@/redux/features/order/orderApi";
+import { ReceivePayment } from "./receive-payment";
 import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
-import { getErrorMessage } from "@/utils/get-error-message";
-import { formatCurrencyBRL } from "@/utils/string";
-import { cn } from "@/lib/utils";
 
 /**
- * "Entregar". An order not paid yet is paid first, as in the POS: on the card
- * machine (delivered when its approval is closed) or received at the counter.
- * Items that skip the kitchen (drinks, ready-made products) never show up
- * there, so the counter is reminded of them before the order leaves.
+ * "Entregar". Most orders were paid at the POS and only go. One to be paid
+ * at pickup ("receber depois", online "pagar na retirada") is received
+ * first, with how it was paid: the card machine (delivered when its approval
+ * is closed) or cash/Pix/credit/debit. Items that skip the kitchen (drinks,
+ * ready-made products) never show up there, so they are listed to check.
  */
 export function DeliverOrderButton({
   order,
@@ -45,9 +40,6 @@ export function DeliverOrderButton({
   className?: string;
 }) {
   const [complete, { isLoading: completing }] = useCompleteOrderMutation();
-  const [markPaid, { isLoading: paying }] = useMarkOrderPaidMutation();
-  const { data: point } = useGetPointConfigQuery(storeId);
-  const canCharge = Boolean(point?.available && point.terminals.length > 0);
   /**
    * The order as it was when "Entregar" was pressed. The dialog renders from
    * it until it has closed: receiving marks the order paid, and rendering
@@ -56,15 +48,11 @@ export function DeliverOrderButton({
   const [opened, setOpened] = useState<Order | null>(null);
   const shown = useLastValue(opened) ?? order;
   const confirming = opened !== null;
-  const [charging, setCharging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const delivered = useRef(false);
-  /** The machine approved: delivered when its dialog closes ("Concluir"), not under it. */
-  const paidOnMachine = useRef(false);
 
   const paid = shown.paymentStatus === "paid";
   const extras = shown.items.filter((line) => !line.requiresPreparation);
-  const busy = completing || paying;
+  const busy = completing;
 
   const deliver = async () => {
     if (delivered.current) return;
@@ -79,24 +67,10 @@ export function DeliverOrderButton({
     toast.success(`Pedido #${order.number} entregue`);
   };
 
-  const receiveAndDeliver = async () => {
-    setError(null);
-    try {
-      await markPaid({ storeId, orderId: order.id }).unwrap();
-      await deliver();
-    } catch (err) {
-      setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível entregar o pedido."));
-    }
-  };
-
   const open = () => {
     const nothingToAsk = order.paymentStatus === "paid" && order.items.every((line) => line.requiresPreparation);
     if (nothingToAsk) void deliver();
     else setOpened(order);
-  };
-  /** Local state goes when the dialog has finished closing, never before. */
-  const closed = (next: boolean) => {
-    if (!next) setError(null);
   };
 
   return (
@@ -106,7 +80,7 @@ export function DeliverOrderButton({
       </Button>
 
       {paid ? (
-        <AlertDialog open={confirming} onOpenChange={(next) => !next && setOpened(null)} onOpenChangeComplete={closed}>
+        <AlertDialog open={confirming} onOpenChange={(next) => !next && setOpened(null)}>
           <AlertDialogContent size="sm">
             <AlertDialogHeader>
               <AlertDialogMedia className="bg-primary/10 text-primary">
@@ -130,93 +104,26 @@ export function DeliverOrderButton({
           </AlertDialogContent>
         </AlertDialog>
       ) : (
-        <ResponsiveModal
+        <ReceivePayment
+          order={shown}
+          storeId={storeId}
           open={confirming}
-          onOpenChange={(next) => !next && !busy && setOpened(null)}
-          onOpenChangeComplete={closed}
-          title={`Receber e entregar o pedido #${shown.number}`}
-          description="Receba o pagamento antes de entregar."
-          hideHeader
-          className="sm:max-w-md"
+          onClose={() => setOpened(null)}
+          verb="Receber e entregar"
+          busy={completing}
+          afterPaid={deliver}
         >
-          <div className="flex flex-col">
-            {/* The amount first, as on the card machine's dialog. */}
-            <header className="flex flex-col items-center gap-2 px-4 pt-6 pb-5 text-center">
-              <span className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
-                <PackageCheck className="size-3.5 shrink-0" />
-                <span className="truncate">
-                  Pedido #{shown.number} · {shown.customerName}
-                </span>
-              </span>
-              <p className="text-4xl font-black tracking-tight tabular-nums">{formatCurrencyBRL(shown.total)}</p>
-              <p className="text-sm text-muted-foreground">a receber na entrega</p>
-            </header>
-
-            <div className="flex flex-col gap-5 px-4 pb-4">
-              {extras.length > 0 && (
-                <section className="flex flex-col gap-2">
-                  <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                    Confira antes de entregar
-                  </h3>
-                  <ExtrasList storeId={storeId} extras={extras} />
-                </section>
-              )}
-
-              <section className="flex flex-col gap-2">
-                <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Como o cliente vai pagar
-                </h3>
-                <div className="grid gap-2">
-                  {canCharge && (
-                    <PayOption
-                      icon={SmartphoneNfc}
-                      label="Na maquininha"
-                      hint="Envia o valor; entrega quando o pagamento for aprovado"
-                      disabled={busy}
-                      onClick={() => {
-                        setOpened(null);
-                        setCharging(true);
-                      }}
-                    />
-                  )}
-                  <PayOption
-                    icon={Banknote}
-                    label="Recebi no balcão"
-                    hint="Dinheiro ou Pix: marca como pago e entrega"
-                    loading={busy}
-                    disabled={busy}
-                    onClick={() => void receiveAndDeliver()}
-                  />
-                </div>
-              </section>
-
-              {error && (
-                <p role="alert" className="flex items-start gap-2 rounded-2xl bg-destructive/10 p-3 text-sm text-destructive">
-                  <TriangleAlert className="mt-0.5 size-4 shrink-0" /> {error}
-                </p>
-              )}
-            </div>
-
-            <div className="flex flex-col items-center gap-2 border-t bg-muted/30 p-4">
-              <Button variant="ghost" className="w-full" disabled={busy} onClick={() => setOpened(null)}>
-                Voltar
-              </Button>
-            </div>
-          </div>
-        </ResponsiveModal>
+          {extras.length > 0 && (
+            <section className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Confira antes de entregar
+              </h3>
+              <ExtrasList storeId={storeId} extras={extras} />
+            </section>
+          )}
+        </ReceivePayment>
       )}
 
-      <PointChargeDialog
-        storeId={storeId}
-        order={charging ? { id: order.id, number: order.number, total: order.total } : null}
-        onClose={() => {
-          setCharging(false);
-          if (paidOnMachine.current) void deliver();
-        }}
-        onPaid={() => {
-          paidOnMachine.current = true;
-        }}
-      />
     </>
   );
 }
@@ -259,43 +166,5 @@ function ExtrasList({ storeId, extras }: { storeId: string; extras: Order["items
         );
       })}
     </ul>
-  );
-}
-
-/** A way to be paid, as the tiles of the card machine's dialog. */
-function PayOption({
-  icon: Icon,
-  label,
-  hint,
-  loading,
-  disabled,
-  onClick,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  hint: string;
-  loading?: boolean;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        "group flex w-full items-center gap-3 rounded-2xl border bg-card p-3 text-left transition-all outline-none",
-        "hover:border-primary/40 hover:bg-primary/5 focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-60"
-      )}
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-        {loading ? <Spinner className="size-5" /> : <Icon className="size-5" />}
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold">{label}</span>
-        <span className="block text-xs leading-tight text-muted-foreground">{hint}</span>
-      </span>
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
-    </button>
   );
 }

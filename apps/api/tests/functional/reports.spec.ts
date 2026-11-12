@@ -41,9 +41,14 @@ test.group('Sales reports', (group) => {
 
     // Sales: 2 meat (+catupiry) at the counter online, 1 cheese at the POS.
     await publicOrder([{ itemId: carne.id, quantity: 2, addonIds: [catupiry.id] }])
+    // Paid in Pix as it was sent from the POS.
     await client
       .post(`/api/v1/stores/${store.id}/orders`)
-      .json({ customer: { name: 'Balcão' }, lines: [{ itemId: queijo.id, quantity: 1 }] })
+      .json({
+        customer: { name: 'Balcão' },
+        lines: [{ itemId: queijo.id, quantity: 1 }],
+        counterMethod: 'pix',
+      })
       .loginAs(manager)
     // Not sales: an unpaid Pix, and a cancelled order (its dough goes back).
     await publicOrder([{ itemId: queijo.id, quantity: 5 }], 'pix')
@@ -73,7 +78,27 @@ test.group('Sales reports', (group) => {
       { channel: 'online', orders: 1, revenue: meat },
       { channel: 'pos', orders: 1, revenue: queijo.price },
     ])
-    assert.deepEqual(report.payments, [{ method: 'counter', orders: 2, revenue }])
+    // The counter split by how it was paid; the online one is still to be received.
+    type PaymentRow = {
+      method: string
+      counterMethod: string | null
+      paid: boolean
+      orders: number
+      revenue: number
+    }
+    const payments = report.payments as PaymentRow[]
+    assert.sameDeepMembers(
+      payments.map((row) => [row.method, row.counterMethod, row.paid, row.orders]),
+      [
+        ['counter', 'pix', true, 1],
+        ['counter', null, false, 1],
+      ]
+    )
+    assert.equal(payments.find((row) => row.counterMethod === 'pix')!.revenue, queijo.price)
+    assert.equal(
+      payments.reduce((sum, row) => sum + row.revenue, 0),
+      revenue
+    )
     assert.deepEqual(report.daily, [{ date: today(), orders: 2, revenue }])
     assert.lengthOf(report.hourly, 24)
     assert.equal(
