@@ -78,19 +78,20 @@ test.group('Sales reports', (group) => {
       { channel: 'online', orders: 1, revenue: meat },
       { channel: 'pos', orders: 1, revenue: queijo.price },
     ])
-    // The counter split by how it was paid (the online one not received yet).
+    // The counter split by how it was paid; the online one is still to be received.
     type PaymentRow = {
       method: string
       counterMethod: string | null
+      paid: boolean
       orders: number
       revenue: number
     }
     const payments = report.payments as PaymentRow[]
     assert.sameDeepMembers(
-      payments.map((row) => [row.method, row.counterMethod, row.orders]),
+      payments.map((row) => [row.method, row.counterMethod, row.paid, row.orders]),
       [
-        ['counter', 'pix', 1],
-        ['counter', null, 1],
+        ['counter', 'pix', true, 1],
+        ['counter', null, false, 1],
       ]
     )
     assert.equal(payments.find((row) => row.counterMethod === 'pix')!.revenue, queijo.price)

@@ -201,11 +201,14 @@ export default class OrderService {
     } = {},
     actor?: User
   ) {
+    if (meta.counterMethod) this.assertReceivable(order, meta.counterMethod)
     if (order.paymentStatus === PaymentStatus.PAID) return order
     let wasAwaitingPayment = false
 
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
+      // Paid or cancelled while the cashier had it open: say so, never "received".
+      if (meta.counterMethod) this.assertReceivable(order, meta.counterMethod)
       if (order.paymentStatus === PaymentStatus.PAID) return false
       wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
       order.paymentStatus = PaymentStatus.PAID
@@ -228,6 +231,25 @@ export default class OrderService {
 
     if (changed) await this.afterChange(order, { notifyStaff: wasAwaitingPayment })
     return order
+  }
+
+  /**
+   * "Receber pagamento" at the counter: refused for a cancelled order, and
+   * for one already paid another way (the machine approved it, someone else
+   * received it), so the customer isn't charged twice without anyone noticing.
+   * The same method again is a retry: a success that changes nothing.
+   */
+  private assertReceivable(order: Order, method: CounterPaymentMethod) {
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new AppException('Este pedido foi cancelado.', 409, 'E_ORDER_CANCELLED')
+    }
+    if (order.paymentStatus === PaymentStatus.PAID && order.counterMethod !== method) {
+      throw new AppException(
+        'Este pedido já foi pago. Confira antes de receber de novo.',
+        409,
+        'E_ALREADY_PAID'
+      )
+    }
   }
 
   /** A new payment attempt started (e.g. a new Pix after a rejected card). */

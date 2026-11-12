@@ -37,11 +37,13 @@ const PAYMENT_LABELS: Record<SalesReport["payments"][number]["method"], string> 
   counter: "No balcão",
   mercado_pago: "Mercado Pago",
 };
-/** Counter sales by how the cashier recorded them; older ones (not recorded) stay "No balcão". */
+/** Counter sales by how the cashier recorded them; older ones (not recorded) stay "No balcão", open ones are "A receber". */
 const paymentLabel = (row: SalesReport["payments"][number]) =>
-  row.method === "counter" && row.counterMethod
-    ? `${COUNTER_METHODS[row.counterMethod].label} no balcão`
-    : PAYMENT_LABELS[row.method];
+  !row.paid
+    ? "A receber no balcão"
+    : row.method === "counter" && row.counterMethod
+      ? `${COUNTER_METHODS[row.counterMethod].label} no balcão`
+      : PAYMENT_LABELS[row.method];
 const CHANNEL_LABELS: Record<SalesReport["channels"][number]["channel"], string> = {
   online: "Cardápio online",
   pos: "Balcão (PDV)",

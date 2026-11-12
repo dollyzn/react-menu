@@ -97,7 +97,8 @@ export default function PosPage() {
     return unitsLeft(item?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
   };
 
-  const total = lines.reduce((sum, line) => sum + lineTotal(line), 0);
+  // To the cent: a float sum (1.1 + 2.2) would make the exact cash amount look short.
+  const total = Math.round(lines.reduce((sum, line) => sum + lineTotal(line), 0) * 100) / 100;
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const quickAdd = (item: PublicMenuItem) => {
@@ -173,7 +174,9 @@ export default function PosPage() {
     const order = await createOrder({
       storeId,
       input,
-      idempotencyKey: stableIdempotencyKey(keyScope, input),
+      // The key follows the ticket, not how it was paid: resending after a lost
+      // response with another method (or "receber depois") finds the same order.
+      idempotencyKey: stableIdempotencyKey(keyScope, { customer: input.customer, lines: input.lines }),
     }).unwrap();
     releaseIdempotencyKey(keyScope);
     setLines([]);
@@ -192,6 +195,18 @@ export default function PosPage() {
         POS_TOAST
       );
     } catch (error) {
+      // Resent after a lost response with another method: the first send went
+      // through (same ticket, same key). The order exists; check its payment.
+      if ((error as { data?: { code?: string } }).data?.code === "E_IDEMPOTENCY_KEY_REUSED") {
+        releaseIdempotencyKey(`pos:${storeId}`);
+        setLines([]);
+        setCustomerName("");
+        setCustomerPhone("");
+        setTicketOpen(false);
+        setPaying(null);
+        toast.warning("Este pedido já tinha sido enviado. Confira a forma de pagamento no quadro de pedidos.", POS_TOAST);
+        return;
+      }
       toast.error(
         isConnectionError(error)
           ? "Sem confirmação do servidor. Envie de novo: o pedido não será duplicado."
@@ -216,6 +231,9 @@ export default function PosPage() {
    */
   const [paying, setPaying] = useState<CounterPaymentMethod | null>(null);
   const payingShown = useLastValue(paying);
+  // Sending empties the ticket: the dialog keeps its amount while it closes.
+  const payingTotal = useLastValue(total, () => paying !== null);
+  const payingCount = useLastValue(count, () => paying !== null);
 
   const sendAndCharge = () =>
     setChargingTicket({
@@ -420,8 +438,8 @@ export default function PosPage() {
         open={paying !== null}
         onClose={() => setPaying(null)}
         title="Enviar o pedido pago"
-        badge={`Novo pedido · ${count} ${count === 1 ? "item" : "itens"}`}
-        total={total}
+        badge={`Novo pedido · ${payingCount} ${payingCount === 1 ? "item" : "itens"}`}
+        total={payingTotal}
         verb="Enviar"
         canCharge={false}
         initial={payingShown}

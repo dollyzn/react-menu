@@ -28,7 +28,7 @@ export function CashChange({
   onReceived: (value: number | undefined) => void;
 }) {
   const typed = received !== undefined && received > 0;
-  const change = typed ? Math.round((received - total) * 100) / 100 : null;
+  const change = typed ? (Math.round(received * 100) - Math.round(total * 100)) / 100 : null;
 
   return (
     <div className="flex flex-col items-center gap-3 rounded-2xl border bg-muted/30 p-3 text-center">
@@ -75,7 +75,7 @@ export function CashChange({
   );
 }
 
-/** Received less than the total: the payment can't go yet. */
+/** Received less than the total (compared in cents): the payment can't go yet. */
 export function cashShort(total: number, received: number | undefined) {
-  return received !== undefined && received > 0 && received < total;
+  return received !== undefined && received > 0 && Math.round(received * 100) < Math.round(total * 100);
 }

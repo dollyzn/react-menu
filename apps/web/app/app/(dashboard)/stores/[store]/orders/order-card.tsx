@@ -159,6 +159,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         )}
       </footer>
 
+      {/* Mounted while the order turns paid, so it closes smoothly (closed, it fetches nothing). */}
       {canOperate && (
         <ReceivePayment order={order} storeId={storeId} open={receiving} onClose={() => setReceiving(false)} />
       )}

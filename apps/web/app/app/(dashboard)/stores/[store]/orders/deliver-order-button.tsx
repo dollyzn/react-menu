@@ -4,7 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useLastValue } from "@/hooks/use-last-value";
 import { CupSoda, CircleCheck, PackageCheck } from "lucide-react";
 import { toast } from "sonner";
-import type { CounterPaymentMethod, Order } from "@react-menu/contracts";
+import type { Order } from "@react-menu/contracts";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,14 +18,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import Image from "@/components/app/image";
-import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
-import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
-import { paidWith } from "@/components/app/payments/counter-methods";
-import { useCompleteOrderMutation, useReceiveOrderPaymentMutation } from "@/redux/features/order/orderApi";
-import { useGetPointConfigQuery } from "@/redux/features/point/pointApi";
+import { useCompleteOrderMutation } from "@/redux/features/order/orderApi";
+import { ReceivePayment } from "./receive-payment";
 import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
-import { getErrorMessage } from "@/utils/get-error-message";
 
 /**
  * "Entregar". Most orders were paid at the POS and only go. One to be paid
@@ -44,9 +40,6 @@ export function DeliverOrderButton({
   className?: string;
 }) {
   const [complete, { isLoading: completing }] = useCompleteOrderMutation();
-  const [receive, { isLoading: receiving }] = useReceiveOrderPaymentMutation();
-  const { data: point } = useGetPointConfigQuery(storeId);
-  const canCharge = Boolean(point?.available && point.terminals.length > 0);
   /**
    * The order as it was when "Entregar" was pressed. The dialog renders from
    * it until it has closed: receiving marks the order paid, and rendering
@@ -55,15 +48,11 @@ export function DeliverOrderButton({
   const [opened, setOpened] = useState<Order | null>(null);
   const shown = useLastValue(opened) ?? order;
   const confirming = opened !== null;
-  const [charging, setCharging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const delivered = useRef(false);
-  /** The machine approved: delivered when its dialog closes ("Concluir"), not under it. */
-  const paidOnMachine = useRef(false);
 
   const paid = shown.paymentStatus === "paid";
   const extras = shown.items.filter((line) => !line.requiresPreparation);
-  const busy = completing || receiving;
+  const busy = completing;
 
   const deliver = async () => {
     if (delivered.current) return;
@@ -78,19 +67,7 @@ export function DeliverOrderButton({
     toast.success(`Pedido #${order.number} entregue`);
   };
 
-  const receiveAndDeliver = async (method: CounterPaymentMethod) => {
-    setError(null);
-    try {
-      await receive({ storeId, orderId: order.id, method }).unwrap();
-      await deliver();
-      toast.success(`Pagamento recebido ${paidWith(method)}`);
-    } catch (err) {
-      setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível entregar o pedido."));
-    }
-  };
-
   const open = () => {
-    setError(null);
     const nothingToAsk = order.paymentStatus === "paid" && order.items.every((line) => line.requiresPreparation);
     if (nothingToAsk) void deliver();
     else setOpened(order);
@@ -127,22 +104,14 @@ export function DeliverOrderButton({
           </AlertDialogContent>
         </AlertDialog>
       ) : (
-        <ReceivePaymentDialog
+        <ReceivePayment
+          order={shown}
+          storeId={storeId}
           open={confirming}
           onClose={() => setOpened(null)}
-          title={`Receber e entregar o pedido #${shown.number}`}
-          badge={`Pedido #${shown.number} · ${shown.customerName}`}
-          total={shown.total}
           verb="Receber e entregar"
-          canCharge={canCharge}
-          busy={busy}
-          error={error}
-          onConfirm={(choice) => {
-            if (choice === "machine") {
-              setOpened(null);
-              setCharging(true);
-            } else void receiveAndDeliver(choice);
-          }}
+          busy={completing}
+          afterPaid={deliver}
         >
           {extras.length > 0 && (
             <section className="flex flex-col gap-2">
@@ -152,20 +121,9 @@ export function DeliverOrderButton({
               <ExtrasList storeId={storeId} extras={extras} />
             </section>
           )}
-        </ReceivePaymentDialog>
+        </ReceivePayment>
       )}
 
-      <PointChargeDialog
-        storeId={storeId}
-        order={charging ? { id: order.id, number: order.number, total: order.total } : null}
-        onClose={() => {
-          setCharging(false);
-          if (paidOnMachine.current) void deliver();
-        }}
-        onPaid={() => {
-          paidOnMachine.current = true;
-        }}
-      />
     </>
   );
 }

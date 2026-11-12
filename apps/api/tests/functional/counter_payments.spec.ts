@@ -81,11 +81,34 @@ test.group('Counter payments', (group) => {
     assert.equal(order.counterMethod, 'cash')
     assert.equal(order.paidById, cashier.id)
 
-    // Repeating it is a success that changes nothing.
-    const again = await client.post(url).json({ method: 'pix' }).loginAs(cashier)
+    // Repeating it (a retry) is a success that changes nothing.
+    const again = await client.post(url).json({ method: 'cash' }).loginAs(cashier)
     again.assertStatus(200)
+    // Another method on a paid order is refused: it would charge the customer twice.
+    const twice = await client.post(url).json({ method: 'pix' }).loginAs(cashier)
+    twice.assertStatus(409)
+    twice.assertBodyContains({ code: 'E_ALREADY_PAID' })
     await order.refresh()
     assert.equal(order.counterMethod, 'cash')
+  })
+
+  test('a cancelled order is not received', async ({ client }) => {
+    const { store, carne, cashier } = await setup()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const sent = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({ customer: { name: 'Desistiu' }, lines: [{ itemId: carne.id, quantity: 1 }] })
+      .loginAs(cashier)
+    const orderId = sent.body().data.id
+    await client.post(`/api/v1/stores/${store.id}/orders/${orderId}/cancel`).loginAs(manager)
+
+    const response = await client
+      .post(`/api/v1/stores/${store.id}/orders/${orderId}/payment`)
+      .json({ method: 'cash' })
+      .loginAs(cashier)
+    response.assertStatus(409)
+    response.assertBodyContains({ code: 'E_ORDER_CANCELLED' })
   })
 
   test("another store's member cannot receive its payments", async ({ client }) => {

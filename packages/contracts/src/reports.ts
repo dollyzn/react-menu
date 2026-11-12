@@ -22,8 +22,17 @@ export interface SalesReport {
   items: { name: string; quantity: number; revenue: number }[];
   /** Add-ons and choices, top 15. */
   addons: { name: string; quantity: number; revenue: number }[];
-  /** Counter payments split by `counterMethod` (null: not recorded, older orders). */
-  payments: { method: PaymentMethod; counterMethod: CounterPaymentMethod | null; orders: number; revenue: number }[];
+  /**
+   * Counter payments split by `counterMethod` (null: not recorded, older
+   * orders), and `paid: false` for what is still to be received at pickup.
+   */
+  payments: {
+    method: PaymentMethod;
+    counterMethod: CounterPaymentMethod | null;
+    paid: boolean;
+    orders: number;
+    revenue: number;
+  }[];
   channels: { channel: OrderChannel; orders: number; revenue: number }[];
   /** Net stock the sales took (cancellations put back). */
   stock: { ingredientId: string; name: string; unit: IngredientUnit; icon: string | null; consumed: number }[];

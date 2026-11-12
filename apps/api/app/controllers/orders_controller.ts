@@ -98,8 +98,7 @@ export default class OrdersController {
 
   /** Staff detail: status history with who did it, and the payment attempts. */
   private async detail(order: Order) {
-    const payments = await this.payments.listFor(order)
-    await order.load('paidBy')
+    const [payments] = await Promise.all([this.payments.listFor(order), order.load('paidBy')])
     return {
       // `paidBy` is replaced below by its name only.
       ...order.serialize(),
@@ -173,7 +172,6 @@ export default class OrdersController {
     return updated(order, `Pedido #${order.number} cancelado`)
   }
 
-  /** Payment received at the counter before pickup. */
   /** "Receber pagamento" at the counter: how it was paid, recorded with who received it. */
   async markPaid({ params, request, auth }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)

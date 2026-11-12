@@ -95,12 +95,14 @@ export default class ReportService {
         .orderBy('quantity', 'desc')
         .orderBy('order_item_addons.name', 'asc')
         .limit(15),
-      // Counter payments split by how the cashier recorded them (null: before that was kept).
+      // Counter payments split by how the cashier recorded them (null: before that was
+      // kept), and apart from what hasn't been received yet (paid at pickup, still open).
       sales(period)
         .select('payment_method as method', 'counter_method')
+        .select(db.raw(`payment_status = 'paid' as paid`))
         .count('* as orders')
         .sum('total as revenue')
-        .groupBy('payment_method', 'counter_method')
+        .groupByRaw(`payment_method, counter_method, payment_status = 'paid'`)
         .orderBy('revenue', 'desc'),
       sales(period)
         .select('channel')
@@ -161,6 +163,7 @@ export default class ReportService {
       payments: payments.map((row) => ({
         method: row.method,
         counterMethod: row.counter_method ?? null,
+        paid: Boolean(row.paid),
         orders: Number(row.orders),
         revenue: money(row.revenue),
       })),

@@ -277,7 +277,10 @@ export function OrderDetailSheet({
                 toast.success(`Pedido #${show.number} cancelado`);
               }}
             />
-            <ReceivePayment order={show} storeId={storeId} open={receiving} onClose={() => setReceiving(false)} />
+            {/* Mounted while the order turns paid, so it closes smoothly (closed, it fetches nothing). */}
+            {canOperate && (
+              <ReceivePayment order={show} storeId={storeId} open={receiving} onClose={() => setReceiving(false)} />
+            )}
           </>
         )}
       </SheetContent>
