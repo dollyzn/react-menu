@@ -2,9 +2,18 @@ import sharp from 'sharp'
 import drive from '@adonisjs/drive/services/main'
 import logger from '@adonisjs/core/services/logger'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
+import { uploadKey } from '#helpers/uploads'
 
 /** Longest side of the blurred copy: enough for a soft preview, a few hundred bytes. */
 const SIZE = 12
+/**
+ * Uploads are small in bytes but could be huge in pixels (a 16k×16k PNG of
+ * one color): decoding one would take gigabytes. Bigger than this (a 48 MP
+ * phone photo fits) gets no preview.
+ */
+const MAX_PIXELS = 50_000_000
+/** Where this app keeps the images that have previews (see `uploadKey`). */
+const PREFIXES = ['items', 'menu', 'banners', 'photos', 'avatars']
 
 /**
  * A tiny blurred copy of an image as a WebP data URL, shown by the web
@@ -14,7 +23,7 @@ const SIZE = 12
  */
 export async function blurPlaceholder(input: string | Buffer | Uint8Array): Promise<string | null> {
   try {
-    const bytes = await sharp(input)
+    const bytes = await sharp(input, { limitInputPixels: MAX_PIXELS })
       .rotate()
       .resize(SIZE, SIZE, { fit: 'inside' })
       .webp({ quality: 50 })
@@ -33,26 +42,17 @@ export async function uploadPlaceholder(file: MultipartFile) {
 
 /**
  * The placeholder of an image already stored, by its public URL: read from
- * the Drive disk when the URL ends in one of its keys (…/uploads/<key> on
- * fs, …/<key> on s3/r2), otherwise downloaded. For `node ace images:blur`.
+ * the Drive disk when it is one of this app's files (`uploadKey`: items/,
+ * menu/, banners/, photos/, avatars/), otherwise downloaded. For
+ * `node ace images:blur`.
  */
 export async function blurPlaceholderOf(url: string): Promise<string | null> {
-  const disk = drive.use()
-  let path: string | null = null
-  try {
-    path = decodeURIComponent(new URL(url, 'http://local').pathname)
-  } catch {
-    return null
-  }
-  // The key is the end of the path; how much of it depends on the disk.
-  const segments = path.split('/').filter(Boolean)
-  for (let start = 0; start < segments.length; start++) {
-    const key = segments.slice(start).join('/')
-    if (key.includes('..')) continue
+  const key = PREFIXES.map((prefix) => uploadKey(url, prefix)).find(Boolean)
+  if (key) {
     try {
-      if (await disk.exists(key)) return await blurPlaceholder(await disk.getBytes(key))
+      return await blurPlaceholder(await drive.use().getBytes(key))
     } catch {
-      // Not on this disk under that key: try the next one.
+      // Not on this disk (moved, another environment's URL): download it.
     }
   }
   try {

@@ -48,6 +48,7 @@ function StoreLogo({
       fallback={name.slice(0, 2).toUpperCase()}
       className={cn("size-8 rounded-lg bg-background after:rounded-lg", className)}
       imageClassName="rounded-lg object-contain p-0.5"
+      fit="contain"
       fallbackClassName="rounded-lg bg-primary/10 text-xs font-bold text-primary"
     />
   );

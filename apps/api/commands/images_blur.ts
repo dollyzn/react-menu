@@ -25,24 +25,21 @@ export default class ImagesBlur extends BaseCommand {
 
   async run() {
     let made = 0
-    let failed = 0
+    const unreadable = new Set<string>()
     // Catalog photos are shared by many items: read and encode each URL once.
     const byUrl = new Map<string, Promise<string | null>>()
-    const fill = async (
-      url: string | null,
-      current: string | null,
-      save: (blur: string) => Promise<void>
-    ) => {
-      if (!url || (current && !this.force)) return
+    /** The preview to store, or null to leave the field as it is. */
+    const preview = async (url: string | null, current: string | null) => {
+      if (!url || (current && !this.force)) return null
       if (!byUrl.has(url)) byUrl.set(url, blurPlaceholderOf(url))
       const blur = await byUrl.get(url)!
       if (!blur) {
-        failed++
-        this.logger.warning(`Não foi possível ler ${url}`)
-        return
+        if (!unreadable.has(url)) this.logger.warning(`Não foi possível ler ${url}`)
+        unreadable.add(url)
+        return null
       }
-      await save(blur)
       made++
+      return blur
     }
 
     const only = this.store ? await Store.findBy('slug', this.store) : null
@@ -56,31 +53,30 @@ export default class ImagesBlur extends BaseCommand {
     if (!this.force) items.whereNull('photoBlur')
     if (only) items.whereHas('category', (query) => query.where('storeId', only.id))
     for (const item of await items) {
-      await fill(item.photoUrl, item.photoBlur, async (blur) => {
+      const blur = await preview(item.photoUrl, item.photoBlur)
+      if (blur) {
         item.photoBlur = blur
         await item.save()
-      })
+      }
     }
     for (const store of only ? [only] : await Store.query()) {
-      await fill(store.bannerUrl, store.bannerBlur, async (blur) => {
-        store.bannerBlur = blur
-        await store.save()
-      })
-      await fill(store.photoUrl, store.photoBlur, async (blur) => {
-        store.photoBlur = blur
-        await store.save()
-      })
+      const banner = await preview(store.bannerUrl, store.bannerBlur)
+      const logo = await preview(store.photoUrl, store.photoBlur)
+      if (banner) store.bannerBlur = banner
+      if (logo) store.photoBlur = logo
+      if (banner || logo) await store.save()
     }
     const users = User.query().whereNotNull('avatarUrl')
     if (!this.force) users.whereNull('avatarBlur')
     for (const user of only ? [] : await users) {
-      await fill(user.avatarUrl, user.avatarBlur, async (blur) => {
+      const blur = await preview(user.avatarUrl, user.avatarBlur)
+      if (blur) {
         user.avatarBlur = blur
         await user.save()
-      })
+      }
     }
 
     this.logger.success(`${made} prévias geradas.`)
-    if (failed) this.logger.warning(`${failed} imagens não puderam ser lidas.`)
+    if (unreadable.size) this.logger.warning(`${unreadable.size} imagens não puderam ser lidas.`)
   }
 }

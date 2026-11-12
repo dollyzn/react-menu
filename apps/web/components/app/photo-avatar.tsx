@@ -21,6 +21,7 @@ export function PhotoAvatar({
   className,
   imageClassName,
   fallbackClassName,
+  fit = "cover",
 }: {
   src?: string | null;
   blur?: string | null;
@@ -29,6 +30,8 @@ export function PhotoAvatar({
   className?: string;
   imageClassName?: string;
   fallbackClassName?: string;
+  /** "contain" for logos drawn whole (with padding): the preview takes the same shape. */
+  fit?: "cover" | "contain";
 }) {
   const [status, setStatus] = useState<LoadingStatus>("idle");
   const showBlur = Boolean(src && blur) && status !== "error";
@@ -40,7 +43,10 @@ export function PhotoAvatar({
           // Blurred and slightly enlarged, like next/image's placeholder (a 12px image scaled up).
           <span
             aria-hidden
-            className="absolute inset-0 scale-125 bg-cover bg-center blur-[6px]"
+            className={cn(
+              "absolute bg-center",
+              fit === "cover" ? "inset-0 scale-125 bg-cover blur-[6px]" : "inset-0.5 bg-contain bg-no-repeat blur-[3px]"
+            )}
             style={{ backgroundImage: `url("${blur}")` }}
           />
         ) : (

@@ -14,14 +14,22 @@ export function isApiUpload(src: ImageProps["src"]) {
 /**
  * `next/image` that knows about API uploads. Use this instead of next/image.
  * With `blurDataURL` (the API's `photoBlur`/`bannerBlur`, a tiny blurred
- * copy) it shows that while the image loads.
+ * copy) it shows that while the image loads. Next fits the preview by
+ * `style.objectFit` (not the class): cover unless the caller says contain,
+ * so the preview is cropped like the photo instead of stretched.
  */
 export default function Image({ blurDataURL, ...props }: Omit<ImageProps, "blurDataURL"> & { blurDataURL?: string | null }) {
   return (
     <NextImage
       {...props}
       unoptimized={props.unoptimized ?? isApiUpload(props.src)}
-      {...(blurDataURL ? { blurDataURL, placeholder: props.placeholder ?? "blur" } : {})}
+      {...(blurDataURL
+        ? {
+            blurDataURL,
+            placeholder: props.placeholder ?? "blur",
+            style: { objectFit: "cover" as const, ...props.style },
+          }
+        : {})}
     />
   );
 }
