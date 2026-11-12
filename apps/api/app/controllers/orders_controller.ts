@@ -14,7 +14,7 @@ import OrderStatus from '#enums/order_status'
 import StoreRole from '#enums/store_role'
 import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
-import { orderListValidator, posOrderValidator } from '#validators/order'
+import { orderListValidator, posOrderValidator, receivePaymentValidator } from '#validators/order'
 
 /**
  * The calendar day a `YYYY-MM-DD` query asked for, in the business timezone.
@@ -99,7 +99,9 @@ export default class OrdersController {
   /** Staff detail: status history with who did it, and the payment attempts. */
   private async detail(order: Order) {
     const payments = await this.payments.listFor(order)
+    await order.load('paidBy')
     return {
+      // `paidBy` is replaced below by its name only.
       ...order.serialize(),
       payments: payments.map((payment) => ({
         method: payment.method,
@@ -113,6 +115,8 @@ export default class OrdersController {
         order.status === OrderStatus.CANCELLED &&
         order.paymentStatus === PaymentStatus.PAID &&
         isOnlinePayment(order.paymentMethod),
+      // Who received a counter payment: only the name leaves the API.
+      paidBy: order.paidBy ? { id: order.paidBy.id, name: order.paidBy.name } : null,
       // Who changed each status: only the name leaves the API.
       history: order.history.map((entry) => ({
         fromStatus: entry.fromStatus,
@@ -134,6 +138,7 @@ export default class OrdersController {
         ...input,
         channel: OrderChannel.POS,
         paymentMethod: PaymentMethod.COUNTER,
+        counterMethod: input.counterMethod,
         idempotencyKey: request.header('idempotency-key'),
       },
       auth.getUserOrFail()
@@ -169,13 +174,15 @@ export default class OrdersController {
   }
 
   /** Payment received at the counter before pickup. */
-  async markPaid({ params, auth }: HttpContext) {
+  /** "Receber pagamento" at the counter: how it was paid, recorded with who received it. */
+  async markPaid({ params, request, auth }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const orderId = await uuidValidator.validate(params.orderId)
+    const { method } = await request.validateUsing(receivePaymentValidator)
 
     const order = await this.orders.find(storeId, orderId)
-    await this.orders.markPaid(order, {}, auth.getUserOrFail())
+    await this.orders.markPaid(order, { counterMethod: method }, auth.getUserOrFail())
 
-    return updated(order, 'Pagamento registrado')
+    return updated(order, 'Pagamento recebido')
   }
 }

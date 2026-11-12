@@ -12,7 +12,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   useCancelOrderMutation,
   useGetOrderQuery,
-  useMarkOrderPaidMutation,
   useRefundOrderMutation,
 } from "@/redux/features/order/orderApi";
 import { useStoreRole } from "@/hooks/use-store-role";
@@ -22,6 +21,8 @@ import { ATTEMPT, CHANNEL, PAYMENT, STATUS } from "./order-labels";
 import { DeliverOrderButton } from "./deliver-order-button";
 import { addonLabels } from "@/lib/addon-label";
 import { useLastValue } from "@/hooks/use-last-value";
+import { COUNTER_METHODS } from "@/components/app/payments/counter-methods";
+import { ReceivePayment } from "./receive-payment";
 
 const ACTIVE = new Set(["pending_payment", "received", "preparing", "ready"]);
 
@@ -44,7 +45,7 @@ export function OrderDetailSheet({
     { skip: !shownId }
   );
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
-  const [markPaid, { isLoading: paying }] = useMarkOrderPaidMutation();
+  const [receiving, setReceiving] = useState(false);
   const [refund, { isLoading: refunding }] = useRefundOrderMutation();
   const isManager = useStoreRole(storeId) === "manager";
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -86,7 +87,8 @@ export function OrderDetailSheet({
                     const channel = CHANNEL[show.channel];
                     return (
                       <>
-                        <channel.icon className="size-3.5" /> {channel.label} · {PAYMENT[show.paymentMethod]} ·{" "}
+                        <channel.icon className="size-3.5" /> {channel.label} ·{" "}
+                        {show.counterMethod ? COUNTER_METHODS[show.counterMethod].label : PAYMENT[show.paymentMethod]} ·{" "}
                         <span
                           className={cn(
                             show.paymentStatus === "paid" && "text-success",
@@ -103,6 +105,12 @@ export function OrderDetailSheet({
                     );
                   })()}
                 </p>
+                {/* Who received a counter payment, and when. */}
+                {show.paidBy && show.paidAt && (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Recebido por {show.paidBy.name ?? "alguém da equipe"} às {format(parseISO(show.paidAt), "HH:mm")}
+                  </p>
+                )}
                 {phone && (
                   <div className="mt-2 flex flex-wrap gap-2">
                     <a href={`tel:+55${phone}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
@@ -242,8 +250,8 @@ export function OrderDetailSheet({
                   <DeliverOrderButton order={show} storeId={storeId} className="flex-1" />
                 )}
                 {show.paymentStatus !== "paid" && (
-                  <Button variant="outline" loading={paying} onClick={() => markPaid({ storeId, orderId: show.id })}>
-                    <Banknote /> Marcar pago
+                  <Button variant="outline" onClick={() => setReceiving(true)}>
+                    <Banknote /> Receber pagamento
                   </Button>
                 )}
                 <Button variant="ghost" className="text-destructive" onClick={() => setConfirmCancel(true)}>
@@ -269,6 +277,7 @@ export function OrderDetailSheet({
                 toast.success(`Pedido #${show.number} cancelado`);
               }}
             />
+            <ReceivePayment order={show} storeId={storeId} open={receiving} onClose={() => setReceiving(false)} />
           </>
         )}
       </SheetContent>

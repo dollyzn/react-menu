@@ -287,15 +287,29 @@ test.group('Kitchen and pickup', (group) => {
     const byCook = await client
       .post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`)
       .loginAs(cook)
+    byCook.assertStatus(403)
+    // Not paid yet: the payment is received (and recorded) before the hand-over.
+    const unpaid = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`)
+      .loginAs(attendant)
+    unpaid.assertStatus(409)
+    unpaid.assertBodyContains({ code: 'E_PAYMENT_REQUIRED' })
+    const received = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`)
+      .json({ method: 'cash' })
+      .loginAs(attendant)
+    received.assertStatus(200)
     const byAttendant = await client
       .post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`)
       .loginAs(attendant)
 
-    byCook.assertStatus(403)
     byAttendant.assertStatus(200)
     await order.refresh()
     assert.equal(order.status, 'completed')
     assert.equal(order.paymentStatus, 'paid')
+    assert.equal(order.counterMethod, 'cash')
+    assert.equal(order.paidById, attendant.id)
+    assert.isNotNull(order.paidAt)
   })
 
   test('kitchen cannot touch lines of another store', async ({ client }) => {

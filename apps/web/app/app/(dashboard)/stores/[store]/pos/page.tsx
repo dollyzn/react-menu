@@ -7,7 +7,10 @@ import Image from "@/components/app/image";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { CreditCard, Minus, Phone, Plus, ReceiptText, SearchX, Send, SlidersHorizontal, Trash2, UtensilsCrossed } from "lucide-react";
+import { Clock, Minus, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed } from "lucide-react";
+import type { CounterPaymentMethod } from "@react-menu/contracts";
+import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
+import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
 import type { PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
@@ -154,9 +157,11 @@ export default function PosPage() {
    * The ticket becomes an order (it goes to the kitchen) and the ticket
    * empties. Re-sending after a dropped connection never creates a second.
    */
-  const createFromTicket = async () => {
+  const createFromTicket = async (counterMethod?: CounterPaymentMethod) => {
     const input = {
       customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
+      // Paid as it was sent (cash, Pix, credit, debit); left out: received later.
+      ...(counterMethod ? { counterMethod } : {}),
       lines: lines.map((line) => ({
         itemId: line.itemId,
         quantity: line.quantity,
@@ -178,10 +183,14 @@ export default function PosPage() {
     return order;
   };
 
-  const send = async () => {
+  const send = async (counterMethod?: CounterPaymentMethod) => {
     try {
-      const order = await createFromTicket();
-      toast.success(`Pedido #${order.number} enviado para a cozinha`, POS_TOAST);
+      const order = await createFromTicket(counterMethod);
+      setPaying(null);
+      toast.success(
+        `Pedido #${order.number} enviado · ${counterMethod ? `pago ${paidWith(counterMethod)}` : "receber depois"}`,
+        POS_TOAST
+      );
     } catch (error) {
       toast.error(
         isConnectionError(error)
@@ -201,6 +210,13 @@ export default function PosPage() {
     total: number;
     create: () => Promise<{ id: string; number: number; total: number }>;
   } | null>(null);
+  /**
+   * "Enviar pago em": the method can't be changed once the order goes, so a
+   * tap opens the confirmation with it chosen (and, in cash, the change).
+   */
+  const [paying, setPaying] = useState<CounterPaymentMethod | null>(null);
+  const payingShown = useLastValue(paying);
+
   const sendAndCharge = () =>
     setChargingTicket({
       total,
@@ -228,7 +244,7 @@ export default function PosPage() {
     onQuantity: changeQuantity,
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
-    onSend: () => void send(),
+    onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
     onSendAndCharge: canCharge ? sendAndCharge : undefined,
     sending,
   };
@@ -400,6 +416,20 @@ export default function PosPage() {
         )}
       </ResponsiveModal>
 
+      <ReceivePaymentDialog
+        open={paying !== null}
+        onClose={() => setPaying(null)}
+        title="Enviar o pedido pago"
+        badge={`Novo pedido · ${count} ${count === 1 ? "item" : "itens"}`}
+        total={total}
+        verb="Enviar"
+        canCharge={false}
+        initial={payingShown}
+        busy={sending}
+        error={null}
+        onConfirm={(choice) => choice !== "machine" && void send(choice)}
+      />
+
       <PointChargeDialog
         storeId={storeId}
         order={charging}
@@ -551,7 +581,8 @@ function Ticket({
   /** False when the stock allows no more units of that item. */
   canIncrease: (itemId: string) => boolean;
   onClear: () => void;
-  onSend: () => void;
+  /** Sends the order paid with that method, or to be received later (none). */
+  onSend: (method?: CounterPaymentMethod) => void;
   /** With a card machine on: send, then charge it there. */
   onSendAndCharge?: () => void;
   sending: boolean;
@@ -673,18 +704,39 @@ function Ticket({
         </div>
         {onSendAndCharge && (
           <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0 || sending} onClick={onSendAndCharge}>
-            <CreditCard /> Enviar e cobrar na maquininha
+            <SmartphoneNfc /> Enviar e cobrar na maquininha
           </Button>
         )}
+        {/* Already paid another way: confirmed in a dialog (the method can't change afterwards). */}
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs font-medium text-muted-foreground">
+            {onSendAndCharge ? "Ou já recebeu? Enviar pago em" : "Enviar pago em"}
+          </span>
+          <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Enviar pago em">
+            {COUNTER_METHOD_ORDER.map((method) => {
+              const { label, icon: Icon } = COUNTER_METHODS[method];
+              return (
+                <Button
+                  key={method}
+                  variant="outline"
+                  className="h-14 flex-col gap-1 rounded-xl px-1 text-xs"
+                  disabled={lines.length === 0 || sending}
+                  onClick={() => onSend(method)}
+                >
+                  <Icon className="size-5" /> {label}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
         <Button
-          size="lg"
-          variant={onSendAndCharge ? "outline" : "default"}
-          className="h-12 w-full rounded-xl text-base"
+          variant="ghost"
+          className="w-full text-muted-foreground"
           disabled={lines.length === 0}
           loading={sending}
-          onClick={onSend}
+          onClick={() => onSend()}
         >
-          <Send /> {onSendAndCharge ? "Enviar e receber depois" : "Enviar para a cozinha"}
+          <Clock /> Enviar e receber depois
         </Button>
       </div>
     </div>

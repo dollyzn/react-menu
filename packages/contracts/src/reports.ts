@@ -1,4 +1,4 @@
-import type { IngredientUnit, OrderChannel, PaymentMethod } from './orders.ts';
+import type { CounterPaymentMethod, IngredientUnit, OrderChannel, PaymentMethod } from './orders.ts';
 
 /** `GET /stores/:id/reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD` (business days, inclusive). */
 export interface SalesReport {
@@ -22,7 +22,8 @@ export interface SalesReport {
   items: { name: string; quantity: number; revenue: number }[];
   /** Add-ons and choices, top 15. */
   addons: { name: string; quantity: number; revenue: number }[];
-  payments: { method: PaymentMethod; orders: number; revenue: number }[];
+  /** Counter payments split by `counterMethod` (null: not recorded, older orders). */
+  payments: { method: PaymentMethod; counterMethod: CounterPaymentMethod | null; orders: number; revenue: number }[];
   channels: { channel: OrderChannel; orders: number; revenue: number }[];
   /** Net stock the sales took (cancellations put back). */
   stock: { ingredientId: string; name: string; unit: IngredientUnit; icon: string | null; consumed: number }[];

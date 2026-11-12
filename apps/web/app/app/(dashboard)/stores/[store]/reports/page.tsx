@@ -25,17 +25,23 @@ import { PeriodFilter } from "./components/period-filter";
 import { RankedList, type RankedRow } from "@/components/app/ranked-list";
 import { DailyRevenueChart, HourlyOrdersChart } from "./components/sales-charts";
 import { StatTiles } from "./components/stat-tiles";
+import { COUNTER_METHODS } from "@/components/app/payments/counter-methods";
 
 const share = new Intl.NumberFormat("pt-BR", { style: "percent", maximumFractionDigits: 0 });
 const orderCount = (value: number) => (value === 1 ? "1 pedido" : `${value} pedidos`);
 
 const PAYMENT_LABELS: Record<SalesReport["payments"][number]["method"], string> = {
-  pix: CHECKOUT_METHODS.pix.label,
-  card: CHECKOUT_METHODS.card.label,
+  pix: `${CHECKOUT_METHODS.pix.label} online`,
+  card: `${CHECKOUT_METHODS.card.label} online`,
   point: "Maquininha",
   counter: "No balcão",
   mercado_pago: "Mercado Pago",
 };
+/** Counter sales by how the cashier recorded them; older ones (not recorded) stay "No balcão". */
+const paymentLabel = (row: SalesReport["payments"][number]) =>
+  row.method === "counter" && row.counterMethod
+    ? `${COUNTER_METHODS[row.counterMethod].label} no balcão`
+    : PAYMENT_LABELS[row.method];
 const CHANNEL_LABELS: Record<SalesReport["channels"][number]["channel"], string> = {
   online: "Cardápio online",
   pos: "Balcão (PDV)",
@@ -239,7 +245,7 @@ function Report({ report }: { report: SalesReport }) {
       <div className="grid gap-4 lg:grid-cols-3">
         <Section title="Formas de pagamento" description="Parte do faturamento">
           <RankedList
-            rows={mix(report.payments, (row) => PAYMENT_LABELS[row.method])}
+            rows={mix(report.payments, paymentLabel)}
             label="Faturamento por forma de pagamento"
             empty="Sem pagamentos."
           />

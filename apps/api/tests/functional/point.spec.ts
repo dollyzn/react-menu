@@ -357,7 +357,10 @@ test.group('Mercado Pago Point (card machine)', (group) => {
       .json({ paymentType: 'credit_card' })
       .loginAs(attendant)
     // Paid in cash meanwhile, then the customer also pays on the machine.
-    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`).loginAs(attendant)
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`)
+      .json({ method: 'cash' })
+      .loginAs(attendant)
     fake.set('ORD2001', 'processed', 'accredited')
     for (const requestId of ['req-1', 'req-2']) {
       await client
@@ -376,7 +379,7 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     assert.equal(paid.paymentMethod, 'counter')
   })
 
-  test('handed over while the machine charges: its answer, not the hand-over, pays it', async ({
+  test('not handed over while the machine charges: its approval pays it, then it goes', async ({
     client,
     assert,
   }) => {
@@ -388,11 +391,15 @@ test.group('Mercado Pago Point (card machine)', (group) => {
       .json({ paymentType: 'debit_card' })
       .loginAs(attendant)
 
-    // Drinks only: ready at once, handed over before the webhook arrives.
-    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`).loginAs(attendant)
-    const handedOver = await Order.findOrFail(order.id)
-    assert.equal(handedOver.status, 'completed')
-    assert.equal(handedOver.paymentStatus, 'pending')
+    // Drinks only: ready at once, but not handed over before the machine answers.
+    const early = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`)
+      .loginAs(attendant)
+    early.assertStatus(409)
+    early.assertBodyContains({ code: 'E_PAYMENT_REQUIRED' })
+    const waiting = await Order.findOrFail(order.id)
+    assert.equal(waiting.status, 'ready')
+    assert.equal(waiting.paymentStatus, 'pending')
 
     fake.set('ORD2001', 'processed', 'accredited')
     await client
@@ -405,6 +412,10 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     assert.equal(paid.paymentStatus, 'paid')
     assert.equal(paid.paymentMethod, 'point')
     assert.deepEqual(fake.refunds, [])
+    const handedOver = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`)
+      .loginAs(attendant)
+    handedOver.assertStatus(200)
   })
 
   test('a charge paid without a webhook: charging again is refused, not sent twice', async ({
@@ -554,7 +565,10 @@ test.group('Mercado Pago Point (card machine)', (group) => {
       .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
       .json({ paymentType: 'credit_card' })
       .loginAs(attendant)
-    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`).loginAs(attendant)
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`)
+      .json({ method: 'cash' })
+      .loginAs(attendant)
     const paid = await client
       .post(`/api/v1/stores/${store.id}/orders/${order.id}/point-charges`)
       .json({ paymentType: 'credit_card' })

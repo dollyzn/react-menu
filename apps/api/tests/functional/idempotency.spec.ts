@@ -135,6 +135,10 @@ test.group('Idempotency', (group) => {
       .json({ units: [{ lineId: line.id, quantity: 1 }] })
       .loginAs(cook)
 
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${delivered}/payment`)
+      .json({ method: 'cash' })
+      .loginAs(attendant)
     for (let i = 0; i < 2; i++) {
       const complete = await client
         .post(`/api/v1/stores/${store.id}/orders/${delivered}/complete`)
