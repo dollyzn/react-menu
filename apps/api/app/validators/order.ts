@@ -80,6 +80,13 @@ const posOrderValidator = vine.create(
   })
 )
 
+/** A customer's browser for "avise quando ficar pronto" (Firebase Installation ID). */
+const orderPushValidator = vine.create(
+  vine.object({
+    fid: vine.string().trim().minLength(10).maxLength(200),
+  })
+)
+
 /** "Receber pagamento": how the counter was paid. */
 const receivePaymentValidator = vine.create(
   vine.object({
@@ -135,6 +142,7 @@ export {
   publicOrderValidator,
   posOrderValidator,
   receivePaymentValidator,
+  orderPushValidator,
   prepareUnitsValidator,
   orderListValidator,
   lookupTokens,

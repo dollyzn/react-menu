@@ -27,6 +27,15 @@ export default function publicRoutes() {
         .as('public.orders.pay')
         .where('token', router.matchers.uuid())
         .use(orderThrottle)
+      // "Avise quando ficar pronto" (web push to this browser).
+      router
+        .post('/orders/:token/push', [PublicMenuController, 'subscribeReady'])
+        .as('public.orders.push.subscribe')
+        .where('token', router.matchers.uuid())
+      router
+        .delete('/orders/:token/push', [PublicMenuController, 'unsubscribeReady'])
+        .as('public.orders.push.unsubscribe')
+        .where('token', router.matchers.uuid())
       // After a 3-D Secure challenge: read the attempt from the gateway now.
       router
         .post('/orders/:token/payments/sync', [PublicMenuController, 'syncPayment'])

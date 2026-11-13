@@ -54,11 +54,16 @@ export function useStoreRealtime(storeId: string) {
 
     transmit.on("disconnected", onDisconnected);
     transmit.on("connected", onConnected);
+    // The event stream often doesn't notice a network drop (no "disconnected"),
+    // so the board would wait for its 30 s poll: catch up as soon as the
+    // device is back online.
+    window.addEventListener("online", refresh);
 
     return () => {
       stopListening();
       transmit.off("disconnected", onDisconnected);
       transmit.off("connected", onConnected);
+      window.removeEventListener("online", refresh);
       if (subscription.handlerCount === 0) void subscription.delete();
     };
   }, [storeId, dispatch]);

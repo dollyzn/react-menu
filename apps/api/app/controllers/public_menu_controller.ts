@@ -2,14 +2,20 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import OrderChannel from '#enums/order_channel'
 import PaymentService from '#services/payment_service'
-import { ok } from '#helpers/api_response'
+import { messageOnly, ok } from '#helpers/api_response'
 import { publicOrder, publicOrderSummary } from '#orders/public_order'
 import OrderService from '#services/order_service'
 import PublicMenuService from '#services/public_menu_service'
-import { lookupTokens, publicOrderValidator, publicPaymentValidator } from '#validators/order'
+import {
+  lookupTokens,
+  orderPushValidator,
+  publicOrderValidator,
+  publicPaymentValidator,
+} from '#validators/order'
 import type Order from '#models/order'
 import type Store from '#models/store'
 import CustomerAccessService from '#services/customer_access_service'
+import PushService from '#services/push_service'
 import AppException from '#exceptions/app_exception'
 import OrderStatus from '#enums/order_status'
 import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
@@ -21,7 +27,8 @@ export default class PublicMenuController {
     private menus: PublicMenuService,
     private orders: OrderService,
     private payments: PaymentService,
-    private access: CustomerAccessService
+    private access: CustomerAccessService,
+    private push: PushService
   ) {}
 
   /** `?preview=1` (staff screens such as the POS) is not counted as a customer visit. */
@@ -96,6 +103,32 @@ export default class PublicMenuController {
   async trackOrder({ params }: HttpContext) {
     const order = await this.orders.findByToken(params.token)
     return ok(publicOrder(order, order.store, await this.checkoutState(order, order.store)))
+  }
+
+  /**
+   * "Avise quando ficar pronto": this browser (its Firebase Installation ID)
+   * gets a push when the order is ready. The tracking token is the key; no
+   * account. Repeating it is harmless.
+   */
+  async subscribeReady({ params, request }: HttpContext) {
+    const { fid } = await request.validateUsing(orderPushValidator)
+    const order = await this.orders.findByToken(params.token)
+    if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED) {
+      throw new AppException('Este pedido já foi encerrado.', 409, 'E_ORDER_OVER')
+    }
+    if (!this.push.isEnabled) {
+      // 409, not 503: it is the server's configuration, not a hiccup to retry.
+      throw new AppException('Notificações indisponíveis nesta loja.', 409, 'E_PUSH_DISABLED')
+    }
+    await this.push.subscribeToOrder(order.id, fid)
+    return messageOnly('Vamos avisar quando o pedido ficar pronto.')
+  }
+
+  async unsubscribeReady({ params, request }: HttpContext) {
+    const { fid } = await request.validateUsing(orderPushValidator)
+    const order = await this.orders.findByToken(params.token)
+    await this.push.unsubscribeFromOrder(order.id, fid)
+    return messageOnly('Aviso desligado.')
   }
 
   /** Pays an order waiting for payment: Pix QR code or a tokenized card. */

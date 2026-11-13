@@ -78,9 +78,67 @@ export default class PushService {
     if (registrations.length === 0) return
 
     const fids = registrations.map((registration) => registration.fid)
+    const { gone } = await this.send(fids, message, { userId })
+    if (gone.length > 0) {
+      await PushRegistration.query().whereIn('fid', gone).delete()
+    }
+  }
 
+  /** A customer's browser asks to be told when the order is ready. Repeating it is harmless. */
+  async subscribeToOrder(orderId: string, fid: string) {
+    await db
+      .knexQuery()
+      .table('order_push_subscriptions')
+      .insert({ order_id: orderId, fid, created_at: new Date() })
+      .onConflict(['order_id', 'fid'])
+      .ignore()
+  }
+
+  async unsubscribeFromOrder(orderId: string, fid: string) {
+    await db.from('order_push_subscriptions').where({ order_id: orderId, fid }).delete()
+  }
+
+  async hasOrderSubscriptions(orderId: string) {
+    const row = await db
+      .from('order_push_subscriptions')
+      .where('order_id', orderId)
+      .select('id')
+      .first()
+    return Boolean(row)
+  }
+
+  /** The order is over (delivered, cancelled): nothing more to tell these browsers. */
+  async forgetOrder(orderId: string) {
+    await db.from('order_push_subscriptions').where('order_id', orderId).delete()
+  }
+
+  /** A customer's browsers waiting for news of their order (no account). */
+  async sendToOrder(orderId: string, message: PushMessage) {
+    if (!this.isEnabled) return
+
+    const rows = await db.from('order_push_subscriptions').where('order_id', orderId).select('fid')
+    if (rows.length === 0) return
+
+    const fids = rows.map((row) => row.fid as string)
+    const { gone, delivered } = await this.send(fids, message, { orderId })
+    // Nothing got through, and not because the browsers are gone: throw so the
+    // job retries (it is the customer's one notice).
+    if (delivered === 0 && gone.length < fids.length) {
+      throw new Error('FCM delivered the order notice to no installation')
+    }
+    if (gone.length > 0) {
+      await db
+        .from('order_push_subscriptions')
+        .where('order_id', orderId)
+        .whereIn('fid', gone)
+        .delete()
+    }
+  }
+
+  /** Sends to the installations; answers the ones FCM no longer knows and how many got it. */
+  private async send(fids: string[], message: PushMessage, context: Record<string, string>) {
     // Data-only message: public/sw.js renders it, so the app controls the
-    // notification and skips it while a tab is focused (the in-app toast shows it).
+    // notification and skips it while a tab is focused (the page shows it).
     const response = await this.fcm.send(fids, {
       title: message.title,
       body: message.body,
@@ -89,15 +147,12 @@ export default class PushService {
     })
 
     const gone = unregisteredFids(fids, response)
-    if (gone.length > 0) {
-      await PushRegistration.query().whereIn('fid', gone).delete()
-    }
-
     if (response.failureCount > gone.length) {
       logger.warn(
-        { userId, failures: response.failureCount - gone.length },
+        { ...context, failures: response.failureCount - gone.length },
         'FCM delivery failed for some installations'
       )
     }
+    return { gone, delivered: response.successCount }
   }
 }

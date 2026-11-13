@@ -623,3 +623,39 @@ test("POS: an order paid in cash goes with the change worked out, recording how"
   expect(sent.paymentStatus).toBe("paid");
   expect(sent.counterMethod).toBe("cash");
 });
+
+test("tracking page: \"Avisar quando ficar pronto\" stays on after a reload and alerts when the kitchen finishes", async ({ page, context }) => {
+  await clearKitchen();
+  await context.grantPermissions(["notifications"]);
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
+  const pastry = menu.categories[0].items[2];
+  const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
+    data: {
+      lines: [{ itemId: pastry.id, quantity: 1 }],
+      customer: { name: "Aviso pronto", phone: "11900000009" },
+      paymentMethod: "counter",
+    },
+  });
+  const { publicToken, number } = (await placed.json()).data as { publicToken: string; number: number };
+  await api.dispose();
+
+  await page.goto(`/pedido/${publicToken}`);
+  await page.getByRole("button", { name: "Avisar quando ficar pronto" }).click();
+  // No Firebase here: the page itself alerts, while it is open.
+  await expect(page.getByRole("status").filter({ hasText: "deixe esta página aberta" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Vamos te avisar por aqui")).toBeVisible();
+
+  // "Não avisar" turns it off (and stays off after a reload); on again for the rest.
+  await page.getByRole("button", { name: "Não avisar" }).click();
+  await expect(page.getByRole("button", { name: "Avisar quando ficar pronto" })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Avisar quando ficar pronto" })).toBeVisible();
+  await page.getByRole("button", { name: "Avisar quando ficar pronto" }).click();
+  await expect(page.getByText("Vamos te avisar por aqui")).toBeVisible();
+
+  await clearKitchen();
+  await expect(page.getByText("Pronto! Pode vir buscar")).toBeVisible({ timeout: 15_000 });
+  await expect.poll(() => page.title(), { timeout: 5_000 }).toContain(`Pedido #${number} pronto!`);
+});
