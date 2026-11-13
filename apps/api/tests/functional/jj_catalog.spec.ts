@@ -5,6 +5,7 @@ import { test } from '@japa/runner'
 import drive from '@adonisjs/drive/services/main'
 import testUtils from '@adonisjs/core/services/test_utils'
 import StoreStatus from '#enums/store_status'
+import Addon from '#models/addon'
 import Ingredient from '#models/ingredient'
 import Item from '#models/item'
 import Order from '#models/order'
@@ -384,5 +385,46 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
       .where('name', 'Pastel de Palmito')
       .firstOrFail()
     assert.match(palmito.photoUrl!, /\/menu\/local-pastel-de-palmito-[0-9a-f]{8}\.png$/)
+    // What is still without a photo, by the file name that would give it one
+    // (add-ons included: the cheese choices, the optionals).
+    assert.include(result.missing, 'cream-cheese')
+    assert.include(result.missing, 'oregano')
+    assert.notInclude(result.missing, 'pastel-de-palmito')
+    assert.notInclude(result.missing, 'bacon')
+  })
+
+  test('every add-on is described, so the menu says what each option is', async ({ assert }) => {
+    const undescribed = JJ_PASTEIS.addons.filter((addon) => !addon.description?.trim())
+    assert.deepEqual(
+      undescribed.map((addon) => addon.name),
+      []
+    )
+  })
+
+  test('jj:descriptions fills an existing store; typed ones stay; same-name add-ons apart by price', async ({
+    assert,
+  }) => {
+    const store = await createStore()
+    await new CatalogImportService().import(store, JJ_PASTEIS, { photos: false })
+    // A store loaded before descriptions existed, one typed in the panel.
+    await Addon.query().where('storeId', store.id).update({ description: null })
+    await Addon.query()
+      .where('storeId', store.id)
+      .where('name', 'Bacon')
+      .update({ description: 'Do jeito da casa' })
+
+    const result = await new CatalogImportService().applyAddonDescriptions(store, JJ_PASTEIS)
+    const described = async (name: string, price: number) => {
+      const addon = await Addon.query().where({ storeId: store.id, name, price }).firstOrFail()
+      return addon.description
+    }
+
+    assert.equal(await described('Calabresa', 5), 'Calabresa triturada')
+    // The mini flavor of the same name keeps its own description.
+    assert.match((await described('Calabresa', 0))!, /mini pastéis/)
+    assert.equal(await described('Bacon', 5), 'Do jeito da casa')
+    assert.include(result.kept, 'Bacon')
+    assert.deepEqual(result.ambiguous, [])
+    assert.isAbove(result.filled.length, 20)
   })
 })

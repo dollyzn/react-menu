@@ -242,6 +242,49 @@ export default class CatalogImportService {
   }
 
   /**
+   * The catalog's add-on descriptions on a store loaded before they were
+   * written ("Porção…", "Catupiry original…"). Matched by name; names shared
+   * by different add-ons (the "Escarola" extra filling and the "Escarola"
+   * mini flavor) are told apart by the catalog's price, and left alone when
+   * still ambiguous. Only empty descriptions are filled, unless `force`
+   * (what was typed in the panel stays).
+   */
+  async applyAddonDescriptions(store: Store, catalog: Catalog, options: { force?: boolean } = {}) {
+    const addons = await Addon.query().where('storeId', store.id)
+    const byName = new Map<string, Addon[]>()
+    for (const addon of addons) {
+      const key = addon.name.trim().toLowerCase()
+      byName.set(key, [...(byName.get(key) ?? []), addon])
+    }
+    const filled: string[] = []
+    const kept: string[] = []
+    const ambiguous: string[] = []
+    const done = new Set<string>()
+    for (const definition of catalog.addons) {
+      if (!definition.description) continue
+      const named = byName.get(definition.name.trim().toLowerCase()) ?? []
+      const candidates =
+        named.length > 1 ? named.filter((addon) => addon.price === definition.price) : named
+      if (candidates.length === 0) continue
+      if (candidates.length > 1) {
+        ambiguous.push(definition.name)
+        continue
+      }
+      const [addon] = candidates
+      if (done.has(addon.id)) continue
+      done.add(addon.id)
+      if (addon.description && !options.force) {
+        kept.push(addon.name)
+        continue
+      }
+      addon.description = definition.description
+      await addon.save()
+      filled.push(addon.name)
+    }
+    return { filled, kept, ambiguous }
+  }
+
+  /**
    * Photos from a local folder (outside git: the store's own or ones it
    * chose), matched by the item's or add-on's name as a slug
    * ("Pastel de Palmito" -> pastel-de-palmito.webp|jpg|jpeg|png). Replaces
@@ -281,7 +324,15 @@ export default class CatalogImportService {
     }
     const used = new Set([...items, ...addons].map((record) => photoSlug(record.name)))
     const unmatched = [...files.keys()].filter((slug) => !used.has(slug))
-    return { applied, skipped, unmatched }
+    // Still without a photo: the file names that would give them one.
+    const missing = [
+      ...new Set(
+        [...items, ...addons]
+          .filter((record) => !record.photoUrl && !files.has(photoSlug(record.name)))
+          .map((record) => photoSlug(record.name))
+      ),
+    ].sort()
+    return { applied, skipped, unmatched, missing }
   }
 
   private async enableInventory(store: Store, trx: TransactionClientContract) {
