@@ -24,6 +24,7 @@ import { ACTIVE_STATUSES, canTransition } from '#orders/order_state'
 import InventoryService from '#services/inventory_service'
 import NotificationService from '#services/notification_service'
 import type CounterPaymentMethod from '#enums/counter_payment_method'
+import NotifyOrderReady from '#jobs/notify_order_ready'
 
 /** Business day boundaries follow the restaurant, not UTC. */
 export const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
@@ -681,6 +682,25 @@ export default class OrderService {
     )
   }
 
+  /**
+   * The customer's "avise quando ficar pronto" (push on the tracking page):
+   * sent once the order is ready, forgotten once it is over.
+   */
+  private async customerAlerts(order: Order) {
+    if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED) {
+      await db.from('order_push_subscriptions').where('order_id', order.id).delete()
+      return
+    }
+    if (order.status !== OrderStatus.READY || !order.readyAt) return
+    if (order.readyNotifiedAt && order.readyNotifiedAt >= order.readyAt) return
+    const waiting = await db
+      .from('order_push_subscriptions')
+      .where('order_id', order.id)
+      .select('id')
+      .first()
+    if (waiting) await NotifyOrderReady.dispatchFor(order)
+  }
+
   /** After commit: realtime hints for staff and the customer, and staff notifications. */
   private async afterChange(
     order: Order,
@@ -693,6 +713,7 @@ export default class OrderService {
       status: order.status,
       paymentStatus: order.paymentStatus,
     })
+    await this.customerAlerts(order)
 
     // Staff are notified once an online order actually needs work (POS
     // orders were entered by the staff themselves).

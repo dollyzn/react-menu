@@ -92,6 +92,10 @@ export default class Order extends BaseModel {
   @column.dateTime()
   declare readyAt: DateTime | null
 
+  /** When the customer's browsers were told it is ready (once per `readyAt`). */
+  @column.dateTime({ serializeAs: null })
+  declare readyNotifiedAt: DateTime | null
+
   @column.dateTime()
   declare completedAt: DateTime | null
 

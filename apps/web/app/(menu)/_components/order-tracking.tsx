@@ -61,7 +61,7 @@ export function OrderTracking({ token }: { token: string }) {
     pollingInterval: 30_000,
     skipPollingIfUnfocused: true,
   });
-  const readyAlert = useReadyAlert(order?.status, order?.number);
+  const readyAlert = useReadyAlert(order?.status, order?.number, token);
   const reorder = useReorder();
 
   // Realtime hint: refetch the order whenever the store updates it.
@@ -161,11 +161,24 @@ export function OrderTracking({ token }: { token: string }) {
         {readyAlert.supported && (order.status === "received" || order.status === "preparing") && (
           <div className="mt-4">
             {readyAlert.armed ? (
-              <p className="inline-flex items-center gap-1.5 text-sm text-success">
-                <BellRing className="size-4" /> Vamos te avisar quando ficar pronto
-              </p>
+              <div className="flex flex-col items-center gap-1">
+                <p role="status" className="inline-flex items-start gap-1.5 text-left text-sm text-success">
+                  <BellRing className="mt-0.5 size-4 shrink-0" />
+                  {readyAlert.mode === "push"
+                    ? "Vamos te avisar quando ficar pronto, mesmo com o celular bloqueado."
+                    : "Vamos te avisar por aqui: deixe esta página aberta."}
+                </p>
+                <Button variant="link" size="xs" className="text-muted-foreground" onClick={() => void readyAlert.disarm()}>
+                  Não avisar
+                </Button>
+              </div>
             ) : (
-              <Button variant="outline" className="rounded-full" onClick={() => void readyAlert.arm()}>
+              <Button
+                variant="outline"
+                className="rounded-full"
+                loading={readyAlert.arming}
+                onClick={() => void readyAlert.arm()}
+              >
                 <Bell /> Avisar quando ficar pronto
               </Button>
             )}
