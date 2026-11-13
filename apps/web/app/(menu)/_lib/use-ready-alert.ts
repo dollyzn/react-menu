@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { OrderStatus } from "@react-menu/contracts";
 import { useHydrated } from "@/hooks/use-hydrated";
-import { currentFid, enableWebPush, webPushAvailable } from "@/lib/web-push";
+import { currentFid, enableWebPush, listenForFid, webPushAvailable } from "@/lib/web-push";
 import { useSubscribeOrderReadyMutation, useUnsubscribeOrderReadyMutation } from "@/redux/features/public/publicApi";
 
 /**
@@ -74,7 +74,7 @@ export function useReadyAlert(status: OrderStatus | undefined, orderNumber: numb
     void (async () => {
       try {
         if (!(await webPushAvailable())) return;
-        const fid = await enableWebPush((newFid) => void subscribe({ token, fid: newFid }));
+        const fid = await enableWebPush();
         await subscribe({ token, fid }).unwrap();
         write(storageKey(token), "push");
         setChosen("push");
@@ -85,17 +85,44 @@ export function useReadyAlert(status: OrderStatus | undefined, orderNumber: numb
     })();
   }, [hydrated, mode, subscribe, token, waiting]);
 
+  // While push is on: a new installation ID (refresh, restore) keeps this order subscribed.
+  useEffect(() => {
+    if (mode !== "push") return;
+    return listenForFid((fid) => void subscribe({ token, fid }));
+  }, [mode, subscribe, token]);
+
+  // Sound needs a gesture in this page's life: after a reload (or when it was
+  // turned on by itself), the first touch anywhere unlocks it.
+  useEffect(() => {
+    if ((mode !== "push" && mode !== "page") || audio.current) return;
+    const unlock = () => {
+      audio.current ??= new AudioContext();
+      void audio.current.resume();
+    };
+    window.addEventListener("pointerdown", unlock, { once: true });
+    window.addEventListener("keydown", unlock, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, [mode]);
+
   const arm = async () => {
+    // Asked right in the tap, before any await: Safari (iPhone) only shows the
+    // prompt during the gesture.
+    const asking =
+      "Notification" in window && Notification.permission === "default"
+        ? Notification.requestPermission().catch(() => "denied" as const)
+        : null;
     audio.current ??= new AudioContext();
     setArming(true);
     let next: ReadyAlertMode = "page";
     try {
+      await asking;
       if (await webPushAvailable()) {
-        const fid = await enableWebPush((newFid) => void subscribe({ token, fid: newFid }));
+        const fid = await enableWebPush();
         await subscribe({ token, fid }).unwrap();
         next = "push";
-      } else if ("Notification" in window && Notification.permission === "default") {
-        await Notification.requestPermission().catch(() => undefined);
       }
     } catch (error) {
       // Refused or unavailable: this page still alerts while it is open (an

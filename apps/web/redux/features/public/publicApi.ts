@@ -118,16 +118,20 @@ export const publicApi = baseApi.injectEndpoints({
       },
     }),
 
-    /** After the bank's 3-D Secure challenge: the API reads the attempt from the gateway now. */
-    /** "Avise quando ficar pronto": web push to this browser (its Firebase Installation ID). */
+    /**
+     * "Avise quando ficar pronto": web push to this browser (its Firebase
+     * Installation ID). Push registrations nobody waits for: `background`,
+     * so they never hold a navigation.
+     */
     subscribeOrderReady: build.mutation<void, { token: string; fid: string }>({
       query: ({ token, fid }) => ({ url: `public/orders/${token}/push`, method: "POST", body: { fid } }),
-      extraOptions: { quiet: true },
+      extraOptions: { quiet: true, background: true },
     }),
     unsubscribeOrderReady: build.mutation<void, { token: string; fid: string }>({
       query: ({ token, fid }) => ({ url: `public/orders/${token}/push`, method: "DELETE", body: { fid } }),
-      extraOptions: { quiet: true },
+      extraOptions: { quiet: true, background: true },
     }),
+    /** After the bank's 3-D Secure challenge: the API reads the attempt from the gateway now. */
     syncPayment: build.mutation<PublicOrder, string>({
       query: (token) => ({ url: `public/orders/${token}/payments/sync`, method: "POST" }),
       extraOptions: { quiet: true },

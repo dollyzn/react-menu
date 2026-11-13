@@ -117,7 +117,8 @@ export default class PublicMenuController {
       throw new AppException('Este pedido já foi encerrado.', 409, 'E_ORDER_OVER')
     }
     if (!this.push.isEnabled) {
-      throw new AppException('Notificações indisponíveis no momento.', 503, 'E_PUSH_DISABLED')
+      // 409, not 503: it is the server's configuration, not a hiccup to retry.
+      throw new AppException('Notificações indisponíveis nesta loja.', 409, 'E_PUSH_DISABLED')
     }
     await this.push.subscribeToOrder(order.id, fid)
     return messageOnly('Vamos avisar quando o pedido ficar pronto.')

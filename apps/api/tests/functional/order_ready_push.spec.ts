@@ -15,6 +15,8 @@ import { fakeQueue, runJob } from '#tests/helpers/queue'
 class FakeFcm extends FcmClient {
   sent: { fids: string[]; data: Record<string, string> }[] = []
   configured = true
+  /** FCM answering an internal error for every installation (a transient outage). */
+  failing = false
 
   get isConfigured() {
     return this.configured
@@ -22,6 +24,13 @@ class FakeFcm extends FcmClient {
 
   async send(fids: string[], data: Record<string, string>) {
     this.sent.push({ fids, data })
+    if (this.failing) {
+      const responses = fids.map(() => ({
+        success: false,
+        error: { code: 'messaging/internal-error' },
+      }))
+      return { responses, successCount: 0, failureCount: fids.length } as unknown as BatchResponse
+    }
     const responses = fids.map((id) => ({ success: true, messageId: `m-${id}` }))
     return { responses, successCount: fids.length, failureCount: 0 } as unknown as BatchResponse
   }
@@ -134,7 +143,39 @@ test.group('"Avise quando ficar pronto" (customer push)', (group) => {
     // A server without Firebase says so instead of pretending.
     fcm.configured = false
     const disabled = await client.post(url).json({ fid: FID })
-    disabled.assertStatus(503)
+    disabled.assertStatus(409)
     disabled.assertBodyContains({ code: 'E_PUSH_DISABLED' })
+  })
+
+  test('an FCM outage is retried: the order is not marked as told', async ({ client, assert }) => {
+    fakeQueue()
+    const { store, carne, cashier, cook } = await setup()
+    const sent = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({
+        customer: { name: 'Cris' },
+        lines: [{ itemId: carne.id, quantity: 1 }],
+        counterMethod: 'cash',
+      })
+      .loginAs(cashier)
+    const order = await Order.findOrFail(sent.body().data.id)
+    await client.post(`/api/v1/public/orders/${order.publicToken}/push`).json({ fid: FID })
+    const line = await OrderItem.findByOrFail('orderId', order.id)
+    await client
+      .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
+      .json({ units: [{ lineId: line.id, quantity: 1 }] })
+      .loginAs(cook)
+
+    fcm.failing = true
+    await assert.rejects(() => runJob(NotifyOrderReady, { orderId: order.id }))
+    await order.refresh()
+    assert.isNull(order.readyNotifiedAt)
+
+    // The retry, once FCM is back, tells the customer.
+    fcm.failing = false
+    await runJob(NotifyOrderReady, { orderId: order.id })
+    await order.refresh()
+    assert.isNotNull(order.readyNotifiedAt)
+    assert.lengthOf(fcm.sent, 2)
   })
 })

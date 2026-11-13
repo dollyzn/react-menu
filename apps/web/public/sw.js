@@ -64,8 +64,15 @@ self.addEventListener("push", (event) => {
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clients) => {
-        // A focused tab already shows the realtime toast.
-        if (clients.some((client) => client.focused)) return;
+        // Skipped only where a focused tab already shows it: the panel's
+        // realtime toast (staff, any /app page), or the order's own page
+        // (a customer's "pedido pronto": it chimes and flashes there).
+        const target = new URL(message.url || "/app/stores", self.location.origin).pathname;
+        const shownThere = (client) => {
+          const path = new URL(client.url).pathname;
+          return target.startsWith("/app/") ? path.startsWith("/app/") : path === target;
+        };
+        if (clients.some((client) => client.focused && shownThere(client))) return;
 
         return self.registration.showNotification(message.title, {
           body: message.body,

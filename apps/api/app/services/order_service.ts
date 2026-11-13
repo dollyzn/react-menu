@@ -25,6 +25,8 @@ import InventoryService from '#services/inventory_service'
 import NotificationService from '#services/notification_service'
 import type CounterPaymentMethod from '#enums/counter_payment_method'
 import NotifyOrderReady from '#jobs/notify_order_ready'
+import PushService from '#services/push_service'
+import logger from '@adonisjs/core/services/logger'
 
 /** Business day boundaries follow the restaurant, not UTC. */
 export const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
@@ -48,7 +50,8 @@ export type CreateOrderInput = {
 export default class OrderService {
   constructor(
     private inventory: InventoryService,
-    private notifications: NotificationService
+    private notifications: NotificationService,
+    private push: PushService
   ) {}
 
   /**
@@ -687,18 +690,19 @@ export default class OrderService {
    * sent once the order is ready, forgotten once it is over.
    */
   private async customerAlerts(order: Order) {
-    if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED) {
-      await db.from('order_push_subscriptions').where('order_id', order.id).delete()
-      return
+    // Best effort: the change is already committed; a queue or DB hiccup here
+    // must not answer 500 nor skip the rest of the post-commit work.
+    try {
+      if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED) {
+        await this.push.forgetOrder(order.id)
+        return
+      }
+      if (order.status !== OrderStatus.READY || !order.readyAt) return
+      if (order.readyNotifiedAt && order.readyNotifiedAt >= order.readyAt) return
+      if (await this.push.hasOrderSubscriptions(order.id)) await NotifyOrderReady.dispatchFor(order)
+    } catch (error) {
+      logger.warn({ err: error, orderId: order.id }, 'could not handle the customer ready alert')
     }
-    if (order.status !== OrderStatus.READY || !order.readyAt) return
-    if (order.readyNotifiedAt && order.readyNotifiedAt >= order.readyAt) return
-    const waiting = await db
-      .from('order_push_subscriptions')
-      .where('order_id', order.id)
-      .select('id')
-      .first()
-    if (waiting) await NotifyOrderReady.dispatchFor(order)
   }
 
   /** After commit: realtime hints for staff and the customer, and staff notifications. */

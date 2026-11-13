@@ -78,7 +78,7 @@ export default class PushService {
     if (registrations.length === 0) return
 
     const fids = registrations.map((registration) => registration.fid)
-    const gone = await this.send(fids, message, { userId })
+    const { gone } = await this.send(fids, message, { userId })
     if (gone.length > 0) {
       await PushRegistration.query().whereIn('fid', gone).delete()
     }
@@ -98,6 +98,15 @@ export default class PushService {
     await db.from('order_push_subscriptions').where({ order_id: orderId, fid }).delete()
   }
 
+  async hasOrderSubscriptions(orderId: string) {
+    const row = await db
+      .from('order_push_subscriptions')
+      .where('order_id', orderId)
+      .select('id')
+      .first()
+    return Boolean(row)
+  }
+
   /** The order is over (delivered, cancelled): nothing more to tell these browsers. */
   async forgetOrder(orderId: string) {
     await db.from('order_push_subscriptions').where('order_id', orderId).delete()
@@ -111,7 +120,12 @@ export default class PushService {
     if (rows.length === 0) return
 
     const fids = rows.map((row) => row.fid as string)
-    const gone = await this.send(fids, message, { orderId })
+    const { gone, delivered } = await this.send(fids, message, { orderId })
+    // Nothing got through, and not because the browsers are gone: throw so the
+    // job retries (it is the customer's one notice).
+    if (delivered === 0 && gone.length < fids.length) {
+      throw new Error('FCM delivered the order notice to no installation')
+    }
     if (gone.length > 0) {
       await db
         .from('order_push_subscriptions')
@@ -121,7 +135,7 @@ export default class PushService {
     }
   }
 
-  /** Sends to the installations; answers the ones FCM no longer knows. */
+  /** Sends to the installations; answers the ones FCM no longer knows and how many got it. */
   private async send(fids: string[], message: PushMessage, context: Record<string, string>) {
     // Data-only message: public/sw.js renders it, so the app controls the
     // notification and skips it while a tab is focused (the page shows it).
@@ -139,6 +153,6 @@ export default class PushService {
         'FCM delivery failed for some installations'
       )
     }
-    return gone
+    return { gone, delivered: response.successCount }
   }
 }

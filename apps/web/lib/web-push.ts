@@ -48,22 +48,50 @@ export async function webPushAvailable() {
 }
 
 /**
- * Turns web push on in this browser (asks permission, subscribes it with
- * FCM) and answers its installation ID. `onNewFid` hears about a new ID
- * FCM hands out later (refresh, restore). Throws a NotAllowedError when
- * permission is refused.
+ * Firebase keeps one `onRegistered` handler (a new one replaces the last),
+ * and both the panel (staff push) and the tracking page (the customer's
+ * order) need to hear about new installation IDs. One handler is installed
+ * and passes each ID to every listener.
  */
-export async function enableWebPush(onNewFid: (fid: string) => void) {
-  const permission = await Notification.requestPermission();
-  if (permission !== "granted") throw new DOMException("Notification permission refused", "NotAllowedError");
+const fidListeners = new Set<(fid: string) => void>();
+let dispatcherInstalled = false;
 
+function installFidDispatcher() {
+  if (dispatcherInstalled) return;
+  onRegistered(getMessaging(getFirebaseApp()), (fid) => fidListeners.forEach((listener) => listener(fid)));
+  dispatcherInstalled = true;
+}
+
+/** Hears about this browser's installation IDs (a new one after a refresh or restore). Answers how to stop. */
+export function listenForFid(listener: (fid: string) => void) {
+  installFidDispatcher();
+  fidListeners.add(listener);
+  return () => {
+    fidListeners.delete(listener);
+  };
+}
+
+/**
+ * Subscribes this browser with FCM and answers its installation ID. The
+ * caller asks for permission first, right in the tap (Safari only shows the
+ * prompt during the user's gesture, before any await). Throws a
+ * NotAllowedError when permission isn't granted.
+ */
+export async function enableWebPush() {
+  if (Notification.permission !== "granted") {
+    throw new DOMException("Notification permission refused", "NotAllowedError");
+  }
   const serviceWorkerRegistration =
     (await navigator.serviceWorker.getRegistration("/")) ??
     (await navigator.serviceWorker.register("/sw.js", { scope: "/" }));
-  const messaging = getMessaging(getFirebaseApp());
   // Firebase refuses register() until an onRegistered handler exists
   // (messaging/invalid-on-registered-handler).
-  onRegistered(messaging, onNewFid);
-  await withTimeout(register(messaging, { vapidKey: env.NEXT_PUBLIC_FIREBASE_VAPID_KEY, serviceWorkerRegistration }));
+  installFidDispatcher();
+  await withTimeout(
+    register(getMessaging(getFirebaseApp()), {
+      vapidKey: env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
+      serviceWorkerRegistration,
+    })
+  );
   return await currentFid();
 }

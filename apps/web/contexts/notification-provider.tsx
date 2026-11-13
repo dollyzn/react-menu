@@ -4,7 +4,6 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
   getMessaging,
   isSupported as isMessagingSupported,
-  onRegistered,
   register,
   unregister,
 } from "firebase/messaging";
@@ -15,7 +14,7 @@ import type {
 import useDebouncedEffect from "@/hooks/use-debonced-effect";
 import { env } from "@/lib/env";
 import { getFirebaseApp, isPushConfigured } from "@/lib/firebase";
-import { currentFid, pushErrorMessage, withTimeout } from "@/lib/web-push";
+import { currentFid, listenForFid, pushErrorMessage, withTimeout } from "@/lib/web-push";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { notificationApi } from "@/redux/features/notification/notificationApi";
 
@@ -45,7 +44,7 @@ export function NotificationProvider({ children }: NotificationProviderProps) {
    */
   function listenForNewInstallations() {
     if (stopListening.current) return;
-    stopListening.current = onRegistered(getMessaging(getFirebaseApp()), (fid) => {
+    stopListening.current = listenForFid((fid) => {
       // While turning push on, subscribe() registers this FID itself.
       if (!signedIn.current || subscribing.current) return;
       void dispatch(notificationApi.endpoints.registerPush.initiate({ fid }))
