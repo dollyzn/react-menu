@@ -13,8 +13,9 @@ const IGNORED = [
   // The browser logs every non-2xx response; expected API errors (e.g. wrong
   // password) are asserted by the tests themselves.
   /Failed to load resource: the server responded with a status of/,
-  // Dropped connections simulated by the flaky-network tests.
+  // Dropped connections and offline moments simulated by the flaky-network tests.
   /Failed to load resource: net::ERR_CONNECTION_RESET/,
+  /Failed to load resource: net::ERR_INTERNET_DISCONNECTED/,
 ];
 
 /**

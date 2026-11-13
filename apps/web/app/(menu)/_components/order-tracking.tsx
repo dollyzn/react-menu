@@ -72,8 +72,12 @@ export function OrderTracking({ token }: { token: string }) {
       dispatch(baseApi.util.invalidateTags([{ type: "PublicOrder", id: token }]))
     );
     subscription.create().catch(() => undefined);
+    // Back online: the events missed meanwhile aren't replayed, so read it again.
+    const refresh = () => dispatch(baseApi.util.invalidateTags([{ type: "PublicOrder", id: token }]));
+    window.addEventListener("online", refresh);
     return () => {
       stop();
+      window.removeEventListener("online", refresh);
       if (subscription.handlerCount === 0) void subscription.delete();
     };
   }, [dispatch, token]);
