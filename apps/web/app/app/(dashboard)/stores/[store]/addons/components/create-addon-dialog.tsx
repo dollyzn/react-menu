@@ -51,9 +51,8 @@ const CreateAddonSchema = z.object({
     .string()
     .max(DESC_MAX, `No máximo ${DESC_MAX} caracteres.`)
     .optional(),
-  price: z
-    .number()
-    .min(0.01, "O preço é obrigatório e deve ser maior que zero."),
+  // 0 is allowed, like the API: an option included in the price ("Orégano", mini flavors).
+  price: z.number().min(0, "O preço não pode ser negativo."),
 });
 
 interface CreateAddonDialogProps {
@@ -138,6 +137,7 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
                   disabled={busy}
                   name={previewName}
                   price={previewPrice}
+                  kind="option"
                 />
                 <FieldDescription>Opcional. Aparece ao lado da opção no cardápio e no PDV.</FieldDescription>
               </Field>

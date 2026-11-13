@@ -36,6 +36,11 @@ export default class JjDescriptions extends BaseCommand {
     if (result.kept.length) {
       this.logger.info(`Mantidas (já tinham descrição; use --force): ${result.kept.join(', ')}`)
     }
+    if (result.notFound.length) {
+      this.logger.warning(
+        `Sem complemento com esse nome e preço (preço mudou no painel?): ${result.notFound.join(', ')}`
+      )
+    }
     if (result.ambiguous.length) {
       this.logger.warning(
         `Mais de um complemento com o mesmo nome e preço: ${result.ambiguous.join(', ')}`

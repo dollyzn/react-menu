@@ -44,7 +44,8 @@ const DESC_MAX = 500;
 const UpdateAddonSchema = z.object({
   name: z.string().min(1, "O nome é obrigatório.").max(NAME_MAX),
   description: z.string().max(DESC_MAX).optional(),
-  price: z.number().min(0.01, "O preço deve ser maior que zero."),
+  // 0 is allowed, like the API: an option included in the price ("Orégano", mini flavors).
+  price: z.number().min(0, "O preço não pode ser negativo."),
 });
 
 interface UpdateAddonDialogProps {
@@ -136,6 +137,7 @@ export function UpdateAddonDialog({
                   disabled={busy}
                   name={previewName}
                   price={previewPrice}
+                  kind="option"
                 />
                 <FieldDescription>Opcional. Aparece ao lado da opção no cardápio e no PDV.</FieldDescription>
               </Field>

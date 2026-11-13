@@ -19,6 +19,7 @@ import env from '#start/env'
 import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 import type { Catalog, CatalogStoreProfile, RecipeLine } from '#catalog/types'
 import { blurPlaceholder } from '#helpers/image_placeholder'
+import { deleteUpload } from '#helpers/uploads'
 
 export type ImportSummary = {
   categories: number
@@ -259,13 +260,30 @@ export default class CatalogImportService {
     const filled: string[] = []
     const kept: string[] = []
     const ambiguous: string[] = []
+    const notFound: string[] = []
     const done = new Set<string>()
+    // Names the catalog itself repeats (the "Escarola" extra filling and mini flavor).
+    const catalogNames = new Map<string, number>()
+    for (const definition of catalog.addons) {
+      const key = definition.name.trim().toLowerCase()
+      catalogNames.set(key, (catalogNames.get(key) ?? 0) + 1)
+    }
     for (const definition of catalog.addons) {
       if (!definition.description) continue
-      const named = byName.get(definition.name.trim().toLowerCase()) ?? []
-      const candidates =
-        named.length > 1 ? named.filter((addon) => addon.price === definition.price) : named
-      if (candidates.length === 0) continue
+      const key = definition.name.trim().toLowerCase()
+      const named = byName.get(key) ?? []
+      if (named.length === 0) continue
+      // A name the store or the catalog repeats is told apart by the price;
+      // otherwise one add-on would take another's description.
+      const repeated = named.length > 1 || (catalogNames.get(key) ?? 0) > 1
+      const candidates = repeated
+        ? named.filter((addon) => addon.price === definition.price)
+        : named
+      if (candidates.length === 0) {
+        // Its price changed in the panel: say so instead of skipping quietly.
+        notFound.push(`${definition.name} (R$ ${definition.price})`)
+        continue
+      }
       if (candidates.length > 1) {
         ambiguous.push(definition.name)
         continue
@@ -281,7 +299,7 @@ export default class CatalogImportService {
       await addon.save()
       filled.push(addon.name)
     }
-    return { filled, kept, ambiguous }
+    return { filled, kept, ambiguous, notFound }
   }
 
   /**
@@ -314,12 +332,16 @@ export default class CatalogImportService {
       }
       const content = await readFile(join(dir, file))
       const hash = createHash('sha256').update(content).digest('hex').slice(0, 8)
+      const previous = record.photoUrl
       record.photoUrl = await storeFile(
         `menu/local-${photoSlug(record.name)}-${hash}${extname(file).toLowerCase()}`,
         join(dir, file)
       )
       record.photoBlur = await blurPlaceholder(content)
       await record.save()
+      // With --force, a photo uploaded in the panel is replaced: its file goes
+      // too (shared catalog photos under menu/ are never deleted).
+      await deleteUpload(previous, record instanceof Item ? 'items' : 'addons')
       applied.push(record.name)
     }
     const used = new Set([...items, ...addons].map((record) => photoSlug(record.name)))

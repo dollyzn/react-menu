@@ -61,19 +61,8 @@ const bulkDeleteValidator = vine.create(
   })
 )
 
-/**
- * The item's photo (`PUT …/items/:id/photo`). The panel sends it already
- * resized to WebP; JPEG/PNG straight from a phone also work.
- */
-const itemPhotoValidator = vine.create(
-  vine.object({
-    photo: vine.file({ size: '5mb', extnames: ['jpg', 'jpeg', 'png', 'webp'] }),
-  })
-)
-
 export {
   bulkDeleteValidator,
-  itemPhotoValidator,
   categoryExistValidator,
   storeValidator,
   updateValidator,

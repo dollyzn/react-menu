@@ -1,7 +1,5 @@
-import { randomUUID } from 'node:crypto'
 import { inject } from '@adonisjs/core'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
-import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Item from '#models/item'
@@ -14,7 +12,7 @@ import ItemRepository from '#repositories/item_repository'
 import AddonRepository from '#repositories/addon_repository'
 import CategoryRepository from '#repositories/category_repository'
 import type { ItemFindOptions, ItemListOptions } from '#types/item_query'
-import { uploadPlaceholder } from '#helpers/image_placeholder'
+import { clearPhoto, replacePhoto } from '#helpers/photos'
 
 /** Item photos live under this drive prefix (only these are ever deleted). */
 const PHOTO_PREFIX = 'items'
@@ -142,27 +140,14 @@ export default class ItemService {
    */
   async setPhoto(storeId: string, id: string, photo: MultipartFile) {
     const item = await this.repo.findByIdInStore(id, storeId, { preload: false })
-    const previous = item.photoUrl
-    const key = `${PHOTO_PREFIX}/${item.id}_${randomUUID()}.${photo.extname}`
-    const blur = await uploadPlaceholder(photo)
-    await photo.moveToDisk(key)
-    item.photoUrl = await drive.use().getUrl(key)
-    item.photoBlur = blur
-    await item.save()
-    await deleteUpload(previous, PHOTO_PREFIX)
+    await replacePhoto(item, PHOTO_PREFIX, photo)
     return await this.withRelations(item)
   }
 
   /** Back to no photo (the menu shows a placeholder). Repeating it is harmless. */
   async removePhoto(storeId: string, id: string) {
     const item = await this.repo.findByIdInStore(id, storeId, { preload: false })
-    const previous = item.photoUrl
-    if (previous) {
-      item.photoUrl = null
-      item.photoBlur = null
-      await item.save()
-      await deleteUpload(previous, PHOTO_PREFIX)
-    }
+    await clearPhoto(item, PHOTO_PREFIX)
     return await this.withRelations(item)
   }
 

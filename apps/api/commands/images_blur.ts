@@ -50,26 +50,25 @@ export default class ImagesBlur extends BaseCommand {
       return
     }
 
+    /** Rows with an uploaded photo: the ones without a preview (all with --force). */
+    const photos = async (
+      rows: { photoUrl: string | null; photoBlur: string | null; save(): Promise<unknown> }[]
+    ) => {
+      for (const row of rows) {
+        const blur = await preview(row.photoUrl, row.photoBlur)
+        if (!blur) continue
+        row.photoBlur = blur
+        await row.save()
+      }
+    }
     const items = Item.query().whereNotNull('photoUrl')
     if (!this.force) items.whereNull('photoBlur')
     if (only) items.whereHas('category', (query) => query.where('storeId', only.id))
-    for (const item of await items) {
-      const blur = await preview(item.photoUrl, item.photoBlur)
-      if (blur) {
-        item.photoBlur = blur
-        await item.save()
-      }
-    }
+    await photos(await items)
     const addons = Addon.query().whereNotNull('photoUrl')
     if (!this.force) addons.whereNull('photoBlur')
     if (only) addons.where('storeId', only.id)
-    for (const addon of await addons) {
-      const blur = await preview(addon.photoUrl, addon.photoBlur)
-      if (blur) {
-        addon.photoBlur = blur
-        await addon.save()
-      }
-    }
+    await photos(await addons)
     for (const store of only ? [only] : await Store.query()) {
       const banner = await preview(store.bannerUrl, store.bannerBlur)
       const logo = await preview(store.photoUrl, store.photoBlur)

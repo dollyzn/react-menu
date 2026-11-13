@@ -427,4 +427,52 @@ test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
     assert.deepEqual(result.ambiguous, [])
     assert.isAbove(result.filled.length, 20)
   })
+
+  test('jj:descriptions never gives a mini flavor the filling of the same name; a changed price is reported', async ({
+    assert,
+  }) => {
+    const store = await createStore()
+    await new CatalogImportService().import(store, JJ_PASTEIS, { photos: false })
+    await Addon.query().where('storeId', store.id).update({ description: null })
+    // The store removed its "Frango" extra filling (only the mini flavor is left)
+    // and changed the price of its "Calabresa" one.
+    await Addon.query().where({ storeId: store.id, name: 'Frango', price: 5 }).delete()
+    await Addon.query()
+      .where({ storeId: store.id, name: 'Calabresa', price: 5 })
+      .update({ price: 6 })
+
+    const result = await new CatalogImportService().applyAddonDescriptions(store, JJ_PASTEIS)
+    const mini = await Addon.query()
+      .where({ storeId: store.id, name: 'Frango', price: 0 })
+      .firstOrFail()
+    assert.match(mini.description!, /mini pastéis/)
+    assert.include(result.notFound, 'Calabresa (R$ 5)')
+  })
+
+  test('jj:photos --force deletes the panel upload it replaces', async ({ assert }) => {
+    drive.fake()
+    try {
+      const store = await createStore()
+      await new CatalogImportService().import(store, JJ_PASTEIS, { photos: false })
+      const disk = drive.use()
+      await disk.put('addons/enviada.webp', 'panel')
+      const bacon = await Addon.query().where({ storeId: store.id, name: 'Bacon' }).firstOrFail()
+      bacon.photoUrl = await disk.getUrl('addons/enviada.webp')
+      await bacon.save()
+      const dir = await mkdtemp(join(tmpdir(), 'jj-fotos-'))
+      const png = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+        'base64'
+      )
+      await writeFile(join(dir, 'bacon.png'), png)
+
+      const result = await new CatalogImportService().applyLocalPhotos(store, dir, { force: true })
+      await rm(dir, { recursive: true, force: true })
+
+      assert.include(result.applied, 'Bacon')
+      assert.isFalse(await disk.exists('addons/enviada.webp'))
+    } finally {
+      drive.restore()
+    }
+  })
 })

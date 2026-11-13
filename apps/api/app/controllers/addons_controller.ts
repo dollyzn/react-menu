@@ -8,8 +8,7 @@ import {
   storeValidator,
   updateValidator,
 } from '#validators/addon'
-import { storeExistValidator, uuidValidator } from '#validators/common'
-import { itemPhotoValidator } from '#validators/item'
+import { photoValidator, storeExistValidator, uuidValidator } from '#validators/common'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
 import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 
@@ -79,7 +78,7 @@ export default class AddonsController {
   async updatePhoto({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const addonId = await uuidValidator.validate(params.addonId)
-    const { photo } = await request.validateUsing(itemPhotoValidator)
+    const { photo } = await request.validateUsing(photoValidator)
 
     const addon = await this.addonService.setPhoto(storeId, addonId, photo)
 

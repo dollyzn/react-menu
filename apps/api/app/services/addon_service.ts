@@ -1,12 +1,10 @@
-import { randomUUID } from 'node:crypto'
 import { inject } from '@adonisjs/core'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
-import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import Addon from '#models/addon'
 import { deleteEach } from '#helpers/bulk_delete'
 import { deleteUpload } from '#helpers/uploads'
-import { uploadPlaceholder } from '#helpers/image_placeholder'
+import { clearPhoto, replacePhoto } from '#helpers/photos'
 import { applyBulkChanges, type BulkChange } from '#helpers/bulk_update'
 import AddonRepository from '#repositories/addon_repository'
 import type { AddonFindOptions, AddonListOptions } from '#types/addon_query'
@@ -72,27 +70,14 @@ export default class AddonService {
    */
   async setPhoto(storeId: string, id: string, photo: MultipartFile) {
     const addon = await this.repo.findByIdInStore(id, storeId, { preload: false })
-    const previous = addon.photoUrl
-    const key = `${PHOTO_PREFIX}/${addon.id}_${randomUUID()}.${photo.extname}`
-    const blur = await uploadPlaceholder(photo)
-    await photo.moveToDisk(key)
-    addon.photoUrl = await drive.use().getUrl(key)
-    addon.photoBlur = blur
-    await addon.save()
-    await deleteUpload(previous, PHOTO_PREFIX)
+    await replacePhoto(addon, PHOTO_PREFIX, photo)
     return addon
   }
 
   /** Back to no photo. Repeating it is harmless. */
   async removePhoto(storeId: string, id: string) {
     const addon = await this.repo.findByIdInStore(id, storeId, { preload: false })
-    const previous = addon.photoUrl
-    if (previous) {
-      addon.photoUrl = null
-      addon.photoBlur = null
-      await addon.save()
-      await deleteUpload(previous, PHOTO_PREFIX)
-    }
+    await clearPhoto(addon, PHOTO_PREFIX)
     return addon
   }
 

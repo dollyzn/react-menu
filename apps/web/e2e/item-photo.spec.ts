@@ -78,7 +78,8 @@ test("add-on photo: picked in the panel, shown next to the option on the custome
   await create.locator('input[type="file"]').setInputFiles(PHOTO);
   await expect(create.getByText(/Nova foto pronta \(\d+ KB\)/)).toBeVisible();
   await create.getByLabel("Nome").fill("Bacon crocante");
-  await create.getByLabel("Preço").fill("500");
+  // R$ 0 (included in the price), like Orégano: it used to block the save.
+  await create.getByLabel("Preço").fill("0");
   await create.getByRole("button", { name: /Criar/ }).last().click();
   await expect(create).toBeHidden();
 
