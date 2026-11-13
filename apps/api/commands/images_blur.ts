@@ -1,5 +1,6 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
+import Addon from '#models/addon'
 import Item from '#models/item'
 import Store from '#models/store'
 import User from '#models/user'
@@ -7,7 +8,7 @@ import { blurPlaceholderOf } from '#helpers/image_placeholder'
 
 /**
  * Makes the blurred previews (shown while an image loads) of images stored
- * before they existed: item photos, store banners and logos, avatars. Images
+ * before they existed: item and add-on photos, store banners and logos, avatars. Images
  * that already have one are skipped unless --force. Safe to run again:
  *
  *   node ace images:blur [--store=<slug>]
@@ -57,6 +58,16 @@ export default class ImagesBlur extends BaseCommand {
       if (blur) {
         item.photoBlur = blur
         await item.save()
+      }
+    }
+    const addons = Addon.query().whereNotNull('photoUrl')
+    if (!this.force) addons.whereNull('photoBlur')
+    if (only) addons.where('storeId', only.id)
+    for (const addon of await addons) {
+      const blur = await preview(addon.photoUrl, addon.photoBlur)
+      if (blur) {
+        addon.photoBlur = blur
+        await addon.save()
       }
     }
     for (const store of only ? [only] : await Store.query()) {

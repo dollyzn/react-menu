@@ -9,6 +9,7 @@ import {
   updateValidator,
 } from '#validators/addon'
 import { storeExistValidator, uuidValidator } from '#validators/common'
+import { itemPhotoValidator } from '#validators/item'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
 import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
 
@@ -72,6 +73,26 @@ export default class AddonsController {
     const addon = await this.addonService.updateInStore(storeId, addonId, data)
 
     return updated(addon, 'Complemento atualizado com sucesso')
+  }
+
+  /** The add-on's photo (multipart `photo`; the panel sends WebP, like items'). */
+  async updatePhoto({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const addonId = await uuidValidator.validate(params.addonId)
+    const { photo } = await request.validateUsing(itemPhotoValidator)
+
+    const addon = await this.addonService.setPhoto(storeId, addonId, photo)
+
+    return updated(addon, 'Foto do complemento atualizada')
+  }
+
+  async destroyPhoto({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const addonId = await uuidValidator.validate(params.addonId)
+
+    const addon = await this.addonService.removePhoto(storeId, addonId)
+
+    return updated(addon, 'Foto do complemento removida')
   }
 
   async destroy({ params }: HttpContext) {

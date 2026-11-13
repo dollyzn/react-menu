@@ -4,7 +4,6 @@ const name = vine.string().trim()
 const description = vine.string().trim().optional()
 /** 0 is allowed: an option included in the item's price ("Mussarela (incluso)"). */
 const price = vine.number().min(0).max(99999.99).decimal([0, 2])
-const photoUrl = vine.string().optional()
 
 const itemExistValidator = vine.create(
   vine
@@ -20,7 +19,6 @@ const storeValidator = vine.create(
     name,
     description,
     price,
-    photoUrl,
   })
 )
 
@@ -29,7 +27,6 @@ const updateValidator = vine.create(
     name: name.optional(),
     description,
     price: price.optional(),
-    photoUrl,
     isAvailable: vine.boolean().optional(),
   })
 )

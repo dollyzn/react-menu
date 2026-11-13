@@ -96,6 +96,8 @@ export type Addon = {
   description: string | null;
   price: number;
   photoUrl: string | null;
+  /** Blurred preview of the photo (data URL), shown while it loads. */
+  photoBlur: string | null;
   isAvailable: boolean;
   createdAt: string;
   updatedAt: string;

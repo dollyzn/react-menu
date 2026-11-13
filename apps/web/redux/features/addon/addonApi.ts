@@ -70,6 +70,36 @@ export const addonApi = baseApi.injectEndpoints({
       ],
     }),
 
+    /**
+     * The add-on's photo (multipart), like an item's: the form sends it
+     * resized to WebP; the API stores it and deletes the old one. The menu
+     * and the POS show it with the options.
+     */
+    uploadAddonPhoto: build.mutation<Addon, { storeId: string; addonId: string; photo: Blob }>({
+      query: ({ storeId, addonId, photo }) => {
+        const body = new FormData();
+        body.append("photo", photo, `foto.${photo.type === "image/webp" ? "webp" : "jpg"}`);
+        return { url: `stores/${storeId}/addons/${addonId}/photo`, method: "PUT", body };
+      },
+      // The form says what went wrong (the add-on itself was saved).
+      extraOptions: { quiet: true },
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Addon", id: arg.addonId },
+        { type: "Addon", id: `store-${arg.storeId}` },
+        { type: "Item", id: "PUBLIC_MENU" },
+      ],
+    }),
+
+    removeAddonPhoto: build.mutation<Addon, { storeId: string; addonId: string }>({
+      query: ({ storeId, addonId }) => ({ url: `stores/${storeId}/addons/${addonId}/photo`, method: "DELETE" }),
+      extraOptions: { quiet: true },
+      invalidatesTags: (_res, _err, arg) => [
+        { type: "Addon", id: arg.addonId },
+        { type: "Addon", id: `store-${arg.storeId}` },
+        { type: "Item", id: "PUBLIC_MENU" },
+      ],
+    }),
+
     deleteAddonByStoreId: build.mutation<
       void,
       { storeId: string; addonId: string }
@@ -124,4 +154,6 @@ export const {
   useDeleteAddonByStoreIdMutation,
   useBulkDeleteAddonsByStoreIdMutation,
   useBulkUpdateAddonsByStoreIdMutation,
+  useUploadAddonPhotoMutation,
+  useRemoveAddonPhotoMutation,
 } = addonApi;

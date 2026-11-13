@@ -23,6 +23,7 @@ export function AddonCard({ row }: AddonCardProps) {
           {addon.photoUrl ? (
             <Image
               src={addon.photoUrl}
+              blurDataURL={addon.photoBlur}
               alt={addon.name}
               fill
               className="object-cover"

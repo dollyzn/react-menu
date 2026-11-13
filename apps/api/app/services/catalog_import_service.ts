@@ -113,6 +113,7 @@ export default class CatalogImportService {
             description: definition.description ?? null,
             price: definition.price,
             photoUrl: definition.photo && photos ? await photos.url(definition.photo) : null,
+            photoBlur: definition.photo && photos ? await photos.blur(definition.photo) : null,
           },
           { client: trx }
         )
@@ -274,8 +275,7 @@ export default class CatalogImportService {
         `menu/local-${photoSlug(record.name)}-${hash}${extname(file).toLowerCase()}`,
         join(dir, file)
       )
-      // Add-ons have no preview yet (roadmap: their photos are only in the panel's add-on screens).
-      if (record instanceof Item) record.photoBlur = await blurPlaceholder(content)
+      record.photoBlur = await blurPlaceholder(content)
       await record.save()
       applied.push(record.name)
     }
@@ -312,7 +312,7 @@ class PhotoStore {
     return url
   }
 
-  /** The blurred preview of a photo, made on first use (only items have one). */
+  /** The blurred preview of a photo, made on first use. */
   async blur(file: string) {
     if (!this.blurs.has(file)) this.blurs.set(file, await blurPlaceholder(this.path(file)))
     return this.blurs.get(file) ?? null

@@ -1,8 +1,9 @@
 "use client";
 
+import * as React from "react";
 import { Row } from "@/components/app/data-table/features";
 import { useParams } from "next/navigation";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -23,8 +24,11 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldTitle,
 } from "@/components/ui/field";
 import { Button } from "@/components/ui/button";
+import { KEEP_PHOTO, PhotoField, type PhotoChange } from "@/components/app/photo-field";
+import { useSaveAddonPhoto } from "./use-save-addon-photo";
 import { Input } from "@/components/ui/input";
 import MoneyInput from "@/components/ui/money-input";
 import {
@@ -57,6 +61,8 @@ export function UpdateAddonDialog({
   const { store } = useParams();
   const storeId = store as string;
   const [updateAddon, { isLoading: isSaving }] = useUpdateAddonByStoreIdMutation();
+  const [photo, setPhoto] = React.useState<PhotoChange>(KEEP_PHOTO);
+  const photoSaver = useSaveAddonPhoto();
 
   const form = useForm<z.infer<typeof UpdateAddonSchema>>({
     resolver: zodResolver(UpdateAddonSchema),
@@ -66,7 +72,9 @@ export function UpdateAddonDialog({
       price: row.original.price,
     },
   });
-  const busy = form.formState.isSubmitting || isSaving;
+  // For the photo's menu preview.
+  const [previewName, previewPrice] = useWatch({ control: form.control, name: ["name", "price"] });
+  const busy = form.formState.isSubmitting || isSaving || photoSaver.saving;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (busy && open && !nextOpen) return;
@@ -81,15 +89,24 @@ export function UpdateAddonDialog({
       description: row.original.description ?? "",
       price: row.original.price,
     });
+    setPhoto(KEEP_PHOTO);
   };
 
   const onSubmit = async (data: z.infer<typeof UpdateAddonSchema>) => {
     try {
-      await updateAddon({
-        storeId,
-        addonId: row.original.id,
-        data,
-      }).unwrap();
+      if (form.formState.isDirty) {
+        await updateAddon({
+          storeId,
+          addonId: row.original.id,
+          data,
+        }).unwrap();
+      }
+      const photoError = await photoSaver.save(photo, storeId, row.original.id);
+      if (photoError) {
+        // The rest was saved: stay open so the photo can be tried again.
+        toast.error(`Adicional salvo, mas a foto não: ${photoError}`);
+        return;
+      }
       handleOpenChange(false);
     } catch (err: unknown) {
       toast.error(
@@ -110,6 +127,19 @@ export function UpdateAddonDialog({
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <DialogBody>
             <FieldGroup>
+              <Field>
+                <FieldTitle>Foto</FieldTitle>
+                <PhotoField
+                  currentUrl={row.original.photoUrl ?? null}
+                  value={photo}
+                  onChange={setPhoto}
+                  disabled={busy}
+                  name={previewName}
+                  price={previewPrice}
+                />
+                <FieldDescription>Opcional. Aparece ao lado da opção no cardápio e no PDV.</FieldDescription>
+              </Field>
+
               <Controller
                 name="name"
                 control={form.control}
@@ -170,7 +200,7 @@ export function UpdateAddonDialog({
             <Button type="button" variant="outline" disabled={busy} onClick={() => handleOpenChange(false)}>
               Cancelar
             </Button>
-            <Button type="submit" loading={busy}>
+            <Button type="submit" loading={busy} disabled={!form.formState.isDirty && photo.kind === "keep"}>
               {busy ? "Salvando..." : "Salvar"}
             </Button>
           </DialogFooter>

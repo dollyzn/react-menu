@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Controller, useForm } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateAddonMutation } from "@/redux/features/addon/addonApi";
 import { toast } from "sonner";
@@ -17,12 +17,15 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { KEEP_PHOTO, PhotoField, type PhotoChange } from "@/components/app/photo-field";
+import { useSaveAddonPhoto } from "./use-save-addon-photo";
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
+  FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { CopyPlus } from "lucide-react";
@@ -59,6 +62,8 @@ interface CreateAddonDialogProps {
 
 export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
   const [createAddon, { isLoading: isSaving }] = useCreateAddonMutation();
+  const [photo, setPhoto] = useState<PhotoChange>(KEEP_PHOTO);
+  const photoSaver = useSaveAddonPhoto();
 
   const form = useForm<z.infer<typeof CreateAddonSchema>>({
     resolver: zodResolver(CreateAddonSchema),
@@ -69,7 +74,9 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
     },
   });
   const { isSubmitting } = form.formState;
-  const busy = isSubmitting || isSaving;
+  // For the photo's menu preview.
+  const [previewName, previewPrice] = useWatch({ control: form.control, name: ["name", "price"] });
+  const busy = isSubmitting || isSaving || photoSaver.saving;
 
   const [open, setOpen] = useState(false);
 
@@ -80,7 +87,10 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
 
   const handleCreateAddon = async (data: z.infer<typeof CreateAddonSchema>) => {
     try {
-      await createAddon({ storeId, data }).unwrap();
+      const addon = await createAddon({ storeId, data }).unwrap();
+      // The photo goes once the add-on has its id; a failure there doesn't undo it.
+      const photoError = await photoSaver.save(photo, storeId, addon.id);
+      if (photoError) toast.error(`Adicional criado, mas a foto não: ${photoError}`);
       handleOpenChange();
     } catch (err: unknown) {
       toast.error(
@@ -97,7 +107,11 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => {
+        if (next) return;
+        form.reset();
+        setPhoto(KEEP_PHOTO);
+      }}>
       <DialogTrigger
         render={
           <Button variant="outline">
@@ -115,6 +129,19 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
         <form onSubmit={form.handleSubmit(handleCreateAddon)}>
           <DialogBody>
             <FieldGroup>
+              <Field>
+                <FieldTitle>Foto</FieldTitle>
+                <PhotoField
+                  currentUrl={null}
+                  value={photo}
+                  onChange={setPhoto}
+                  disabled={busy}
+                  name={previewName}
+                  price={previewPrice}
+                />
+                <FieldDescription>Opcional. Aparece ao lado da opção no cardápio e no PDV.</FieldDescription>
+              </Field>
+
               <Controller
                 name="name"
                 control={form.control}
