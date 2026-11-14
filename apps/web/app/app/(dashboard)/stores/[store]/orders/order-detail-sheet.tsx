@@ -1,5 +1,6 @@
 "use client";
 
+import { lineName } from "@/lib/order-line";
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -134,7 +135,7 @@ export function OrderDetailSheet({
                     <li key={line.id} className="flex justify-between gap-3 p-3 text-sm">
                       <div className="min-w-0">
                         <p className="font-medium">
-                          <span className="tabular-nums">{line.quantity}×</span> {line.displayName ?? line.name}
+                          <span className="tabular-nums">{line.quantity}×</span> {lineName(line)}
                         </p>
                         {line.addons.length > 0 && (
                           <p className="text-xs text-muted-foreground">+ {addonLabels(line.addons).join(", ")}</p>

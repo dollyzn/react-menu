@@ -4,15 +4,14 @@ import { Collapsible } from "@base-ui/react/collapsible";
 import { format, parseISO } from "date-fns";
 import { ChevronDown, PackageCheck } from "lucide-react";
 import type { Order } from "@react-menu/contracts";
-import { addonLabels } from "@/lib/addon-label";
+import { OrderLines } from "./order-lines";
 
 /** How many of the latest hand-overs attendants see. */
 export const RECENT_DELIVERIES = 3;
 
-/** The latest orders handed over today, newest first. */
-export function recentDeliveries(orders: Order[]) {
-  return orders
-    .filter((order) => order.status === "completed")
+/** The latest of today's delivered orders, newest first. */
+export function recentDeliveries(delivered: Order[]) {
+  return [...delivered]
     .sort((a, b) => (b.completedAt ?? b.createdAt).localeCompare(a.completedAt ?? a.createdAt))
     .slice(0, RECENT_DELIVERIES);
 }
@@ -52,18 +51,7 @@ export function RecentDeliveries({ orders }: { orders: Order[] }) {
                     </span>
                   )}
                 </p>
-                <ul className="mt-1 flex flex-col gap-0.5 text-sm">
-                  {order.items.map((line) => (
-                    <li key={line.id}>
-                      <span className="font-semibold tabular-nums">{line.quantity}×</span>{" "}
-                      {line.displayName ?? line.name}
-                      {line.addons.length > 0 && (
-                        <span className="text-muted-foreground"> + {addonLabels(line.addons).join(", ")}</span>
-                      )}
-                      {line.notes && <span className="block text-xs font-medium text-warning">“{line.notes}”</span>}
-                    </li>
-                  ))}
-                </ul>
+                <OrderLines items={order.items} className="mt-1 gap-0.5" />
                 {order.notes && <p className="mt-2 rounded-lg bg-muted px-2 py-1 text-xs">{order.notes}</p>}
               </div>
             </li>

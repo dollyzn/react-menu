@@ -112,6 +112,7 @@ export default function OrdersPage() {
           storeId={storeId}
           canOperate={canOperate}
           isManager={role === "manager"}
+          showRecentDeliveries={role === "attendant"}
           // The order's detail (timeline, cancelling) is for managers.
           onOpen={role === "manager" ? setOpenOrderId : undefined}
         />
@@ -139,11 +140,14 @@ function LiveBoard({
   storeId,
   canOperate,
   isManager,
+  showRecentDeliveries,
   onOpen,
 }: {
   storeId: string;
   canOperate: boolean;
   isManager: boolean;
+  /** Attendants' "Últimos entregues" (they don't get the day's finished list). */
+  showRecentDeliveries: boolean;
   onOpen?: (orderId: string) => void;
 }) {
   const { data: orders = [], isLoading } = useGetOrdersQuery({ storeId }, { pollingInterval: 30_000 });
@@ -159,8 +163,10 @@ function LiveBoard({
 
   const awaitingPayment = byStatus.get("pending_payment") ?? [];
   const finished = [...(byStatus.get("completed") ?? []), ...(byStatus.get("cancelled") ?? [])];
-  // Attendants don't get the day's list (it sums the sales): the last few, to check.
-  const recent = isManager || !canOperate ? [] : recentDeliveries(orders);
+  const recent = useMemo(
+    () => (showRecentDeliveries ? recentDeliveries(byStatus.get("completed") ?? []) : []),
+    [showRecentDeliveries, byStatus]
+  );
 
   return (
     <>

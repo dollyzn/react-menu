@@ -18,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { useCancelOrderMutation } from "@/redux/features/order/orderApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
-import { addonLabels } from "@/lib/addon-label";
+import { OrderLines } from "./order-lines";
 import { DeliverOrderButton } from "./deliver-order-button";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { paidWith } from "@/components/app/payments/counter-methods";
@@ -92,17 +92,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         </div>
       </header>
 
-      <ul className="mt-3 flex flex-col gap-1 text-sm">
-        {order.items.map((line) => (
-          <li key={line.id}>
-            <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.displayName ?? line.name}
-            {line.addons.length > 0 && (
-              <span className="text-muted-foreground"> + {addonLabels(line.addons).join(", ")}</span>
-            )}
-            {line.notes && <span className="block text-xs font-medium text-warning">“{line.notes}”</span>}
-          </li>
-        ))}
-      </ul>
+      <OrderLines items={order.items} className="mt-3" />
       {order.notes && <p className="mt-2 rounded-lg bg-muted px-2 py-1 text-xs">{order.notes}</p>}
 
       {order.status === "preparing" && totalUnits > 0 && (

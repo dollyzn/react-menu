@@ -12,7 +12,8 @@ export default class extends BaseSchema {
       table.string('replaces_in_name', 40).nullable()
     })
     this.schema.alterTable('order_items', (table) => {
-      table.string('display_name').nullable()
+      // Text: the picks are joined into the name, with no length limit.
+      table.text('display_name').nullable()
     })
   }
 

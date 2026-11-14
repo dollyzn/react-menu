@@ -42,7 +42,9 @@ export function unitKey(
 ) {
   // A line with notes ("sem cebola") is never mixed with others.
   if (unit.notes) return `line:${unit.lineId}`
-  return `item:${unit.itemId ?? unit.name}|${[...unit.addons].sort().join(',')}`
+  // The name too: a line renamed by its choice (display name) isn't batched
+  // under one placed before the rename.
+  return `item:${unit.itemId ?? ''}|${unit.name}|${[...unit.addons].sort().join(',')}`
 }
 
 /**
