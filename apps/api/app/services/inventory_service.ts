@@ -283,21 +283,25 @@ export default class InventoryService {
   }
 
   /**
-   * Deducts lines added to an order that already took its stock (items
-   * added while it waits in the queue). Recorded under the order, so
-   * cancelling it puts them back too.
+   * Deducts lines added to an order in the queue, recorded under the order
+   * so cancelling it puts them back too. Also when the order itself took no
+   * stock (tracking turned on after it was placed): they were checked against
+   * the stock, so they take it.
    */
-  async consumeForLines(order: Order, lines: StockLine[], trx: TransactionClientContract) {
-    if (!order.stockConsumedAt) return
-    const store = await Store.findOrFail(order.storeId, { client: trx })
+  async consumeForLines(
+    order: Order,
+    store: Store,
+    lines: StockLine[],
+    trx: TransactionClientContract
+  ) {
     if (!store.inventoryEnabled) return
-
     for (const [ingredientId, { quantity }] of await this.needsOf(lines, trx)) {
       const ingredient = await Ingredient.findOrFail(ingredientId, { client: trx })
       await this.move(ingredient, StockMovementType.CONSUMPTION, -quantity, trx, {
         orderId: order.id,
       })
     }
+    order.stockConsumedAt ??= DateTime.now()
   }
 
   /** Puts back what an order consumed (used when it is cancelled). */

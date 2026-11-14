@@ -54,7 +54,9 @@ export function ReceivePayment({
   const confirm = async (method: CounterPaymentMethod) => {
     setError(null);
     try {
-      await receive({ storeId, orderId: order.id, method }).unwrap();
+      // What is on screen: if someone added items meanwhile, the API refuses
+      // and the board refreshes with the new amount.
+      await receive({ storeId, orderId: order.id, method, amount: order.amountDue }).unwrap();
       if (afterPaid) await afterPaid();
       else toast.success(`Pedido #${order.number}: pagamento recebido ${paidWith(method)}`);
       onClose();

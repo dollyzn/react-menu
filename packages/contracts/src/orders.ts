@@ -258,10 +258,16 @@ export type AddOrderItemsInput = {
   lines: OrderLineInput[];
   /** Received now: how. Left out: on the card machine, or at pickup. */
   counterMethod?: CounterPaymentMethod;
+  /** With `counterMethod`: what the cashier showed and took (all that is due after adding). */
+  amount?: number;
 };
 
 /** POST /orders/:id/payment ("Receber pagamento"). */
-export type ReceivePaymentInput = { method: CounterPaymentMethod };
+export type ReceivePaymentInput = {
+  method: CounterPaymentMethod;
+  /** The amount the cashier saw and took: refused (409 E_AMOUNT_CHANGED) if what is due changed. */
+  amount?: number;
+};
 
 export type Ingredient = {
   id: number;

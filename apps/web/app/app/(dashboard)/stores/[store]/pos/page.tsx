@@ -67,7 +67,7 @@ export default function PosPage() {
    */
   const router = useRouter();
   const addingTo = useSearchParams().get("pedido");
-  const { data: todays } = useGetOrdersQuery({ storeId }, { skip: !addingTo });
+  const { data: todays, refetch: refetchTodays } = useGetOrdersQuery({ storeId }, { skip: !addingTo });
   const target = addingTo ? (todays?.find((order) => order.id === addingTo) ?? null) : null;
   const addTo = target?.status === "received" ? target : null;
   // Opened to add, but the order isn't loaded yet, is gone or the kitchen
@@ -125,6 +125,8 @@ export default function PosPage() {
   // To the cent: a float sum (1.1 + 2.2) would make the exact cash amount look short.
   const total = Math.round(lines.reduce((sum, line) => sum + lineTotal(line), 0) * 100) / 100;
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
+  /** Adding to an order: the ticket plus whatever the order still owed (paid now, it all goes). */
+  const toCollect = (order: Order) => Math.round((total + order.amountDue) * 100) / 100;
 
   const quickAdd = (item: PublicMenuItem) => {
     if (item.addons.length > 0 || item.optionGroups.length > 0) return setPicking(item);
@@ -206,9 +208,13 @@ export default function PosPage() {
     return order;
   };
 
-  /** The ticket goes into the order being added to; the ticket empties. */
-  const addFromTicket = async (order: Order, counterMethod?: CounterPaymentMethod) => {
-    const input = { lines: linesInput(lines), ...(counterMethod ? { counterMethod } : {}) };
+  /**
+   * The ticket goes into the order being added to; the ticket empties. Paid
+   * now, it takes all that is due (`amount`, checked by the API: someone
+   * else may have changed it meanwhile).
+   */
+  const addFromTicket = async (order: Order, counterMethod?: CounterPaymentMethod, amount?: number) => {
+    const input = { lines: linesInput(lines), ...(counterMethod ? { counterMethod, amount } : {}) };
     const keyScope = `pos-add:${order.id}`;
     const updated = await addItems({
       storeId,
@@ -247,9 +253,47 @@ export default function PosPage() {
     return true;
   };
 
+  /** Empties the ticket after it went (or turned out to have gone already). */
+  const resetTicket = () => {
+    setLines([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setTicketOpen(false);
+    setPaying(null);
+  };
+
+  /**
+   * A send that failed, told the same way for a new order and for items
+   * added to one. Resent after a lost response with another method: the
+   * first send went through (same ticket, same key), so it says so.
+   */
+  const sendFailed = (error: unknown, { scope, adding }: { scope: string; adding: boolean }) => {
+    if (errorCode(error) === "E_IDEMPOTENCY_KEY_REUSED") {
+      releaseIdempotencyKey(scope);
+      resetTicket();
+      toast.warning(
+        adding
+          ? "Estes itens já tinham sido adicionados. Confira o pagamento no quadro de pedidos."
+          : "Este pedido já tinha sido enviado. Confira a forma de pagamento no quadro de pedidos.",
+        POS_TOAST
+      );
+      return;
+    }
+    toast.error(
+      isConnectionError(error)
+        ? `Sem confirmação do servidor. Envie de novo: ${adding ? "os itens não serão duplicados" : "o pedido não será duplicado"}.`
+        : getErrorMessage(
+            error as { data?: { error?: string } },
+            adding ? "Não foi possível adicionar os itens." : "Não foi possível criar o pedido."
+          ),
+      POS_TOAST
+    );
+  };
+
   const sendAdding = async (order: Order, counterMethod?: CounterPaymentMethod) => {
     try {
-      await addFromTicket(order, counterMethod);
+      // Paid now: what the cashier was shown (the ticket plus anything already due).
+      await addFromTicket(order, counterMethod, counterMethod ? toCollect(order) : undefined);
       setPaying(null);
       toast.success(
         `Adicionado ao pedido #${order.number} · ${counterMethod ? `pago ${paidWith(counterMethod)}` : "receber depois"}`,
@@ -258,20 +302,9 @@ export default function PosPage() {
       router.push(`/app/stores/${storeId}/orders`);
     } catch (error) {
       if (addRefused(error, order)) return;
-      if (errorCode(error) === "E_IDEMPOTENCY_KEY_REUSED") {
-        releaseIdempotencyKey(`pos-add:${order.id}`);
-        setLines([]);
-        setTicketOpen(false);
-        setPaying(null);
-        toast.warning("Estes itens já tinham sido adicionados. Confira o pagamento no quadro de pedidos.", POS_TOAST);
-        return;
-      }
-      toast.error(
-        isConnectionError(error)
-          ? "Sem confirmação do servidor. Envie de novo: os itens não serão duplicados."
-          : getErrorMessage(error as { data?: { error?: string } }, "Não foi possível adicionar os itens."),
-        POS_TOAST
-      );
+      // Someone else changed what is due: the dialog shows the new amount.
+      if (errorCode(error) === "E_AMOUNT_CHANGED") void refetchTodays();
+      sendFailed(error, { scope: `pos-add:${order.id}`, adding: true });
     }
   };
 
@@ -286,24 +319,7 @@ export default function PosPage() {
         POS_TOAST
       );
     } catch (error) {
-      // Resent after a lost response with another method: the first send went
-      // through (same ticket, same key). The order exists; check its payment.
-      if ((error as { data?: { code?: string } }).data?.code === "E_IDEMPOTENCY_KEY_REUSED") {
-        releaseIdempotencyKey(`pos:${storeId}`);
-        setLines([]);
-        setCustomerName("");
-        setCustomerPhone("");
-        setTicketOpen(false);
-        setPaying(null);
-        toast.warning("Este pedido já tinha sido enviado. Confira a forma de pagamento no quadro de pedidos.", POS_TOAST);
-        return;
-      }
-      toast.error(
-        isConnectionError(error)
-          ? "Sem confirmação do servidor. Envie de novo: o pedido não será duplicado."
-          : getErrorMessage(error as { data?: { error?: string } }, "Não foi possível criar o pedido."),
-        POS_TOAST
-      );
+      sendFailed(error, { scope: `pos:${storeId}`, adding: false });
     }
   };
 
@@ -323,17 +339,21 @@ export default function PosPage() {
   const [paying, setPaying] = useState<CounterPaymentMethod | null>(null);
   const payingShown = useLastValue(paying);
   // Sending empties the ticket: the dialog keeps its amount while it closes.
-  const payingTotal = useLastValue(total, () => paying !== null);
+  const payingTotal = useLastValue(addTo ? toCollect(addTo) : total, () => paying !== null);
+  const payingOwed = useLastValue(addTo?.amountDue ?? 0, () => paying !== null);
   const payingCount = useLastValue(count, () => paying !== null);
 
   const sendAndCharge = () =>
     setChargingTicket({
-      total,
+      // Adding: the machine charges all that is due, shown before it is sent.
+      total: addTo ? toCollect(addTo) : total,
       create: async () => {
         if (addTo) {
           // Added only when the charge is sent; the machine charges what is due.
           try {
             const order = await addFromTicket(addTo);
+            // The ticket went into the order: the next customer starts a new one.
+            leaveAdding();
             return { id: order.id, number: order.number, total: order.amountDue };
           } catch (error) {
             if (addRefused(error, addTo)) setChargingTicket(null);
@@ -558,7 +578,7 @@ export default function PosPage() {
         open={paying !== null}
         onClose={() => setPaying(null)}
         title={addTo ? `Adicionar ao pedido #${addTo.number}` : "Enviar o pedido pago"}
-        badge={`${addTo ? `Pedido #${addTo.number} · ${addTo.customerName}` : "Novo pedido"} · ${payingCount} ${payingCount === 1 ? "item" : "itens"}`}
+        badge={`${addTo ? `Pedido #${addTo.number} · ${addTo.customerName}` : "Novo pedido"} · ${payingCount} ${payingCount === 1 ? "item" : "itens"}${payingOwed > 0 ? ` · inclui ${formatCurrencyBRL(payingOwed)} que faltava` : ""}`}
         total={payingTotal}
         verb={addTo ? "Adicionar" : "Enviar"}
         canCharge={false}

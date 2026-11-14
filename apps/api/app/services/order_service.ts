@@ -81,16 +81,7 @@ export default class OrderService {
       this.assertCanOrder(store, input)
 
       const priced = await this.priceLines(store, input.lines, trx)
-      await this.inventory.assertStock(
-        store,
-        priced.map((line) => ({
-          itemId: line.item.id,
-          addonIds: line.addons.map((addon) => addon.id),
-          quantity: line.quantity,
-          name: line.item.name,
-        })),
-        trx
-      )
+      await this.inventory.assertStock(store, this.stockLines(priced), trx)
       const subtotal = money(priced.reduce((sum, line) => sum + line.total, 0))
 
       const phone = input.customer.phone ? normalizeBrazilianPhone(input.customer.phone) : null
@@ -169,33 +160,7 @@ export default class OrderService {
         )
       }
 
-      for (const line of priced) {
-        const orderItem = await OrderItem.create(
-          {
-            orderId: created.id,
-            itemId: line.item.id,
-            name: line.item.name,
-            displayName: line.displayName,
-            unitPrice: line.item.price,
-            quantity: line.quantity,
-            preparedQuantity: 0,
-            requiresPreparation: line.item.category.requiresPreparation,
-            notes: line.notes,
-            total: line.total,
-          },
-          { client: trx }
-        )
-        await OrderItemAddon.createMany(
-          line.addons.map((addon) => ({
-            orderItemId: orderItem.id,
-            addonId: addon.id,
-            name: addon.name,
-            groupName: addon.groupName,
-            unitPrice: addon.price,
-          })),
-          { client: trx }
-        )
-      }
+      await this.createLines(created.id, priced, trx)
 
       await this.history(created, null, OrderStatus.PENDING_PAYMENT, trx, actor)
 
@@ -237,6 +202,8 @@ export default class OrderService {
       mercadoPagoPaymentId?: string
       /** Received at the counter: how, recorded with who received it. */
       counterMethod?: CounterPaymentMethod
+      /** At the counter: the amount the cashier saw and took (checked against what is due). */
+      expected?: number
     } = {},
     actor?: User
   ) {
@@ -249,6 +216,7 @@ export default class OrderService {
       // Paid or cancelled while the cashier had it open: say so, never "received".
       if (meta.counterMethod) await this.assertReceivable(order, meta.counterMethod, trx)
       if (order.paymentStatus === PaymentStatus.PAID) return false
+      if (meta.counterMethod) this.assertExpected(order, meta.expected)
       wasAwaitingPayment = order.status === OrderStatus.PENDING_PAYMENT
       return await this.receive(order, meta, trx, actor)
     })
@@ -278,27 +246,32 @@ export default class OrderService {
     ) {
       return false
     }
+    const due = order.amountDue
+    // Nothing left to pay (paid another way, or refunded): an approval isn't
+    // recorded and goes back as a duplicate; the order stays as it is.
+    if (due <= 0) return false
+    // An approval for more than is due (an older Pix paid after items were
+    // added to an order already paid) isn't the order's: it goes back whole,
+    // and what is due is received at the counter.
+    if (meta.payment && meta.payment.amount > due + 0.005) return false
     const first = order.amountPaid <= 0
     const method = meta.counterMethod
       ? PaymentMethod.COUNTER
       : (meta.payment?.method ?? order.paymentMethod)
-    const due = order.amountDue
-    if (due > 0) {
-      const amount = meta.payment ? meta.payment.amount : due
-      await OrderReceipt.create(
-        {
-          orderId: order.id,
-          amount,
-          paymentMethod: method,
-          counterMethod: meta.counterMethod ?? null,
-          paymentId: meta.payment?.id ?? null,
-          receivedById: meta.counterMethod ? (actor?.id ?? null) : null,
-          receivedAt: DateTime.now(),
-        },
-        { client: trx }
-      )
-      order.amountPaid = money(order.amountPaid + amount)
-    }
+    const amount = meta.payment ? meta.payment.amount : due
+    await OrderReceipt.create(
+      {
+        orderId: order.id,
+        amount,
+        paymentMethod: method,
+        counterMethod: meta.counterMethod ?? null,
+        paymentId: meta.payment?.id ?? null,
+        receivedById: meta.counterMethod ? (actor?.id ?? null) : null,
+        receivedAt: DateTime.now(),
+      },
+      { client: trx }
+    )
+    order.amountPaid = money(order.amountPaid + amount)
     // The order's own fields describe how it was first paid (the card,
     // reports before receipts); later receipts only add up.
     if (first) {
@@ -314,7 +287,8 @@ export default class OrderService {
     if (gatewayId && !order.mercadoPagoPaymentId) order.mercadoPagoPaymentId = gatewayId
     if (order.amountDue <= 0) {
       order.paymentStatus = PaymentStatus.PAID
-      order.paidAt = DateTime.now()
+      // When it was first paid (later receipts have their own time).
+      order.paidAt ??= DateTime.now()
       if (order.status === OrderStatus.PENDING_PAYMENT) {
         await this.enterKitchen(order, trx, actor)
       }
@@ -335,12 +309,28 @@ export default class OrderService {
   async addItems(
     storeId: string,
     orderId: string,
-    input: { lines: OrderLineInput[]; counterMethod?: CounterPaymentMethod },
+    input: {
+      lines: OrderLineInput[]
+      counterMethod?: CounterPaymentMethod
+      /** What the cashier showed and took with `counterMethod` (all that is due after adding). */
+      amount?: number
+      idempotencyKey?: string
+    },
     actor: User
   ) {
     const order = await this.find(storeId, orderId)
-    await db.transaction(async (trx) => {
+    const key = input.idempotencyKey || null
+    const added = await db.transaction(async (trx) => {
       await this.lock(order, trx)
+      // A retry of an addition that went through (its answer was lost).
+      if (
+        key &&
+        (await OrderItem.query({ client: trx })
+          .where({ orderId: order.id, additionKey: key })
+          .first())
+      ) {
+        return false
+      }
       this.assertInQueue(order)
       // A charge waiting on the card machine was sent for the old total.
       const waiting = await Payment.query({ client: trx })
@@ -361,60 +351,95 @@ export default class OrderService {
 
       const store = await Store.findOrFail(storeId, { client: trx })
       const priced = await this.priceLines(store, input.lines, trx)
-      const stockLines = priced.map((line) => ({
-        itemId: line.item.id,
-        addonIds: line.addons.map((addon) => addon.id),
-        quantity: line.quantity,
-        name: line.item.name,
-      }))
+      const stockLines = this.stockLines(priced)
       await this.inventory.assertStock(store, stockLines, trx)
+      await this.createLines(order.id, priced, trx, {
+        addedAt: DateTime.now(),
+        addedById: actor.id,
+        additionKey: key,
+      })
+      await this.inventory.consumeForLines(order, store, stockLines, trx)
 
-      const addedAt = DateTime.now()
-      for (const line of priced) {
-        const orderItem = await OrderItem.create(
-          {
-            orderId: order.id,
-            itemId: line.item.id,
-            name: line.item.name,
-            displayName: line.displayName,
-            unitPrice: line.item.price,
-            quantity: line.quantity,
-            preparedQuantity: 0,
-            requiresPreparation: line.item.category.requiresPreparation,
-            notes: line.notes,
-            total: line.total,
-            addedAt,
-            addedById: actor.id,
-          },
-          { client: trx }
-        )
-        await OrderItemAddon.createMany(
-          line.addons.map((addon) => ({
-            orderItemId: orderItem.id,
-            addonId: addon.id,
-            name: addon.name,
-            groupName: addon.groupName,
-            unitPrice: addon.price,
-          })),
-          { client: trx }
-        )
-      }
-      await this.inventory.consumeForLines(order, stockLines, trx)
-
-      const added = money(priced.reduce((sum, line) => sum + line.total, 0))
-      order.subtotal = money(order.subtotal + added)
-      order.total = money(order.total + added)
+      const amount = money(priced.reduce((sum, line) => sum + line.total, 0))
+      order.subtotal = money(order.subtotal + amount)
+      order.total = money(order.total + amount)
       if (order.amountDue > 0 && order.paymentStatus === PaymentStatus.PAID) {
         order.paymentStatus = PaymentStatus.PENDING
       }
       await order.useTransaction(trx).save()
       if (input.counterMethod) {
+        this.assertExpected(order, input.amount)
         await this.receive(order, { counterMethod: input.counterMethod }, trx, actor)
       }
+      return true
     })
 
-    await this.afterChange(order)
+    if (added) await this.afterChange(order)
     return await this.find(storeId, orderId)
+  }
+
+  /**
+   * The amount the cashier confirmed must still be what is due: someone else
+   * may have added items or received part of it meanwhile. Nothing is
+   * recorded (the caller's transaction rolls back) and the screen shows the
+   * new amount.
+   */
+  private assertExpected(order: Order, expected: number | undefined) {
+    if (expected === undefined || Math.abs(expected - order.amountDue) < 0.005) return
+    throw new AppException(
+      `O valor a receber mudou para ${order.amountDue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Confira e confirme de novo.`,
+      409,
+      'E_AMOUNT_CHANGED',
+      { amountDue: order.amountDue }
+    )
+  }
+
+  private stockLines(priced: Awaited<ReturnType<OrderService['priceLines']>>) {
+    return priced.map((line) => ({
+      itemId: line.item.id,
+      addonIds: line.addons.map((addon) => addon.id),
+      quantity: line.quantity,
+      name: line.item.name,
+    }))
+  }
+
+  /** Priced lines become rows: names and prices are snapshots, like the whole order. */
+  private async createLines(
+    orderId: string,
+    priced: Awaited<ReturnType<OrderService['priceLines']>>,
+    trx: TransactionClientContract,
+    extra: { addedAt?: DateTime; addedById?: string; additionKey?: string | null } = {}
+  ) {
+    for (const line of priced) {
+      const orderItem = await OrderItem.create(
+        {
+          orderId,
+          itemId: line.item.id,
+          name: line.item.name,
+          displayName: line.displayName,
+          unitPrice: line.item.price,
+          quantity: line.quantity,
+          preparedQuantity: 0,
+          requiresPreparation: line.item.category.requiresPreparation,
+          notes: line.notes,
+          total: line.total,
+          addedAt: extra.addedAt ?? null,
+          addedById: extra.addedById ?? null,
+          additionKey: extra.additionKey ?? null,
+        },
+        { client: trx }
+      )
+      await OrderItemAddon.createMany(
+        line.addons.map((addon) => ({
+          orderItemId: orderItem.id,
+          addonId: addon.id,
+          name: addon.name,
+          groupName: addon.groupName,
+          unitPrice: addon.price,
+        })),
+        { client: trx }
+      )
+    }
   }
 
   /** Items are added only while nothing of the order was made. */
@@ -464,6 +489,8 @@ export default class OrderService {
 
   /** A new payment attempt started (e.g. a new Pix after a rejected card). */
   async markPaymentPending(order: Order) {
+    // Paid in part (items added after paying): a stale online attempt doesn't change it.
+    if (order.amountPaid > 0) return order
     if (order.paymentStatus === PaymentStatus.PENDING) return order
     if (order.paymentStatus === PaymentStatus.PAID) return order
     const changed = await db.transaction(async (trx) => {
@@ -480,6 +507,7 @@ export default class OrderService {
   }
 
   async markPaymentFailed(order: Order) {
+    if (order.amountPaid > 0) return order
     if (order.paymentStatus !== PaymentStatus.PENDING) return order
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
@@ -498,6 +526,19 @@ export default class OrderService {
    */
   async prepareUnits(storeId: string, units: { lineId: number; quantity: number }[], actor?: User) {
     const changed = await db.transaction(async (trx) => {
+      // The orders first, like addItems: items being added to one of them
+      // are committed (and counted) before its status is worked out here.
+      const owners = await OrderItem.query({ client: trx })
+        .whereIn(
+          'id',
+          units.map((unit) => unit.lineId)
+        )
+        .select('orderId')
+      await trx
+        .from('orders')
+        .whereIn('id', [...new Set(owners.map((owner) => owner.orderId))].sort())
+        .forUpdate()
+        .select('id')
       const lines = await OrderItem.query({ client: trx })
         .whereIn(
           'id',

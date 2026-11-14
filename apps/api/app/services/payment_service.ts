@@ -17,6 +17,7 @@ import mail from '@adonisjs/mail/services/main'
 import OrderRefundNotification from '#mails/order_refund_notification'
 import { storeBrand } from '#mails/layout'
 import { orderEmailData } from '#mails/order_email_data'
+import { formatMoney } from '#mails/layout'
 import type Store from '#models/store'
 import FakeGateway from '#payments/fake_gateway'
 import type { GatewayPayment, PaymentGateway } from '#payments/gateway'
@@ -372,13 +373,22 @@ export default class PaymentService {
     order.paymentStatus = PaymentStatus.REFUNDED
     await order.save()
 
+    const refunded = targets.reduce(
+      (sum, target) => sum + (target.payment?.amount ?? order.total),
+      0
+    )
     const payerEmail = targets.find((target) => target.payment?.payerEmail)?.payment?.payerEmail
     if (payerEmail) {
       await order.load((loader) =>
         loader.preload('items', (items) => items.orderBy('id').preload('addons'))
       )
       await mail.sendLater(
-        new OrderRefundNotification(payerEmail, storeBrand(store), orderEmailData(order))
+        new OrderRefundNotification(payerEmail, storeBrand(store), {
+          ...orderEmailData(order),
+          // What went back: the gateway's part (items added later and paid
+          // at the counter, or not paid, aren't in it).
+          totalLabel: formatMoney(refunded),
+        })
       )
     }
   }

@@ -35,6 +35,10 @@ export default class OrderItem extends BaseModel {
   @column()
   declare addedById: string | null
 
+  /** Idempotency-Key of the request that added it (a retry finds it). */
+  @column({ serializeAs: null })
+  declare additionKey: string | null
+
   @column(decimal)
   declare unitPrice: number
 

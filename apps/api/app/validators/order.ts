@@ -88,6 +88,8 @@ const addOrderItemsValidator = vine.create(
   vine.object({
     lines,
     counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
+    /** With `counterMethod`: what the cashier showed and took (all that is due after adding). */
+    amount: vine.number().min(0).max(999999.99).optional(),
   })
 )
 
@@ -102,6 +104,8 @@ const orderPushValidator = vine.create(
 const receivePaymentValidator = vine.create(
   vine.object({
     method: vine.enum(COUNTER_PAYMENT_METHODS),
+    /** The amount the cashier saw and took: refused (409) if what is due changed meanwhile. */
+    amount: vine.number().min(0).max(999999.99).optional(),
   })
 )
 

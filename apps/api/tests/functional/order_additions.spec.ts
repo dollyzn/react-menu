@@ -284,4 +284,120 @@ test.group('Orders | items added while in the queue', (group) => {
     await massa.refresh()
     assert.equal(massa.stockQuantity, 3)
   })
+
+  test('paid now, the amount the cashier confirmed must still be what is due', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca, attendant } = await counterStore()
+    // Sent to receive later (R$ 15): adding a drink paid in cash takes all that is due.
+    const order = await placeOrder(client, store, carne.id, attendant, { paid: false })
+    const url = `/api/v1/stores/${store.id}/orders/${order.id}/items`
+    const lines = [{ itemId: coca.id, quantity: 1 }]
+
+    const stale = await client
+      .post(url)
+      .json({ lines, counterMethod: 'cash', amount: 6 })
+      .loginAs(attendant)
+    stale.assertStatus(409)
+    stale.assertBodyContains({ code: 'E_AMOUNT_CHANGED', details: { amountDue: 21 } })
+    // Nothing was added.
+    const untouched = await Order.query().where('id', order.id).preload('items').firstOrFail()
+    assert.lengthOf(untouched.items, 1)
+    assert.equal(untouched.total, 15)
+
+    const right = await client
+      .post(url)
+      .json({ lines, counterMethod: 'cash', amount: 21 })
+      .loginAs(attendant)
+    right.assertBodyContains({ data: { total: 21, amountPaid: 21, paymentStatus: 'paid' } })
+  })
+
+  test('"Receber pagamento" is refused when what is due changed since it was shown', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca, attendant } = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant, { paid: false })
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}`
+    // Someone adds a drink while the cashier has R$ 15 on screen.
+    await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+
+    const stale = await client
+      .post(`${base}/payment`)
+      .json({ method: 'cash', amount: 15 })
+      .loginAs(attendant)
+    stale.assertStatus(409)
+    stale.assertBodyContains({ code: 'E_AMOUNT_CHANGED' })
+    const receipts = await OrderReceipt.query().where('orderId', order.id)
+    assert.lengthOf(receipts, 0)
+
+    const right = await client
+      .post(`${base}/payment`)
+      .json({ method: 'cash', amount: 21 })
+      .loginAs(attendant)
+    right.assertStatus(200)
+  })
+
+  test('a retry with the same key adds nothing more, even without the replay cache', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca, attendant } = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant)
+    // The service itself (no replay cache in front): the key kept on the lines finds it.
+    const { default: OrderService } = await import('#services/order_service')
+    const { default: app } = await import('@adonisjs/core/services/app')
+    const orders = await app.container.make(OrderService)
+    const input = { lines: [{ itemId: coca.id, quantity: 1 }], idempotencyKey: 'add-items-key-1' }
+    await orders.addItems(store.id, order.id, input, attendant)
+    const retried = await orders.addItems(store.id, order.id, input, attendant)
+
+    assert.lengthOf(retried.items, 2)
+    assert.equal(retried.total, 21)
+  })
+
+  test('an approval for more than is due goes back; a refunded order never reads as paid again', async ({
+    assert,
+  }) => {
+    const { store, carne } = await counterStore()
+    const { default: OrderService } = await import('#services/order_service')
+    const { default: Payment } = await import('#models/payment')
+    const { default: app } = await import('@adonisjs/core/services/app')
+    const orders = await app.container.make(OrderService)
+    const order = await orders.create(store.id, {
+      customer: { name: 'Maria' },
+      lines: [{ itemId: carne.id, quantity: 1 }],
+      channel: 'pos',
+      paymentMethod: 'counter',
+      counterMethod: 'cash',
+    } as never)
+    // R$ 6 still due after an addition; an older R$ 15 Pix is approved now.
+    order.total = 21
+    order.paymentStatus = 'pending'
+    await order.save()
+    const late = await Payment.create({
+      orderId: order.id,
+      storeId: store.id,
+      gateway: 'fake',
+      method: 'pix',
+      status: 'approved',
+      amount: 15,
+    } as never)
+    await orders.markPaid(order, { payment: late })
+    assert.isNull(await OrderReceipt.findBy('paymentId', late.id))
+    const kept = await Order.findOrFail(order.id)
+    assert.equal(kept.amountPaid, 15)
+
+    // Cancelled and refunded: a late approval leaves it refunded.
+    const refunded = await Order.findOrFail(order.id)
+    refunded.merge({ status: 'cancelled', paymentStatus: 'refunded', total: 15 })
+    await refunded.save()
+    await orders.markPaid(refunded, { payment: late })
+    const after = await Order.findOrFail(order.id)
+    assert.equal(after.paymentStatus, 'refunded')
+  })
 })

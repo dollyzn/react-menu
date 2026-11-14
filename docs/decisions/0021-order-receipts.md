@@ -31,8 +31,16 @@ several rules leaned on that:
   card machine) and order creation at the POS (paid as it is sent). The
   order's own payment fields keep describing how it was *first* paid.
 - **Duplicates are approvals the order didn't record**: an approval that
-  finds nothing left to pay gets no receipt, and `PaymentService.settle`
-  gives it back. The same approval notified again finds its receipt.
+  finds nothing left to pay, or asks for more than is due (an older Pix paid
+  after items were added to an order already paid), gets no receipt, and
+  `PaymentService.settle` gives it back whole. The same approval notified
+  again finds its receipt. A refunded order never reads as paid again, and
+  stale online attempts don't change an order paid in part.
+- **The amount the cashier confirmed is checked**: "Receber pagamento" and
+  items added "pagos em" send the amount shown; if what is due changed
+  meanwhile (someone added items), the API answers 409 `E_AMOUNT_CHANGED`
+  and records nothing. Paid now, an addition takes all that is due (the
+  dialog says what was already owed).
 - **Refunds follow the gateway**: cancelling refunds every approved gateway
   attempt, whatever is still to receive. Money taken at the counter is given
   back by hand (the cancel dialog says so).
@@ -45,7 +53,10 @@ several rules leaned on that:
   keep the order's place in the kitchen, and carry `added_at`/`added_by_id`.
   They are charged right away (`counterMethod`) or left to receive (the card
   machine, or at pickup). Removing items is not offered: cancel and place the
-  order again.
+  order again. The request's Idempotency-Key is kept on the lines
+  (`order_items.addition_key`), so a retry finds them even without the
+  replay cache. The kitchen locks the order before its lines (like adding),
+  so an order can't turn ready without lines added at the same moment.
 
 ## Consequences
 

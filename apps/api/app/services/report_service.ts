@@ -1,3 +1,4 @@
+import PaymentMethod from '#enums/payment_method'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import OrderStatus from '#enums/order_status'
@@ -107,16 +108,17 @@ export default class ReportService {
           .countDistinct('order_receipts.order_id as orders')
           .sum('order_receipts.amount as revenue')
           .groupBy('order_receipts.payment_method', 'order_receipts.counter_method'),
+        // One row: whatever its first method, the rest is received at the counter.
         sales(period)
           .whereRaw('total > amount_paid')
-          .select('payment_method as method')
           .count('* as orders')
-          .select(db.raw('sum(total - amount_paid) as revenue'))
-          .groupBy('payment_method'),
-      ]).then(([received, open]) =>
+          .select(db.raw('sum(total - amount_paid) as revenue')),
+      ]).then(([received, [open]]) =>
         [
           ...received.map((row) => ({ ...row, paid: true })),
-          ...open.map((row) => ({ ...row, counter_method: null, paid: false })),
+          ...(Number(open?.orders ?? 0) > 0
+            ? [{ ...open, method: PaymentMethod.COUNTER, counter_method: null, paid: false }]
+            : []),
         ].sort((a, b) => Number(b.revenue) - Number(a.revenue))
       ),
       sales(period)

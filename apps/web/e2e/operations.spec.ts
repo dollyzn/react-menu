@@ -707,11 +707,26 @@ test("orders board: items added to an order in the queue, paid on Pix or left to
   await expect(page).toHaveURL(/\/orders$/);
   await expect(card).toContainText(/Falta receber R\$\s?[\d,]+/);
 
+  const partly = (await (await api.get(`/api/v1/stores/${menu.store.id}/orders/${order.id}`)).json()).data;
+  expect(partly.items).toHaveLength(3);
+  expect(partly.receipts.map((receipt: { counterMethod: string }) => receipt.counterMethod)).toEqual(["cash", "pix"]);
+  expect(partly.amountDue).toBe(partly.total - partly.amountPaid);
+  expect(partly.paymentStatus).toBe("pending");
+
+  // One more, paid now: the dialog takes what was still due too.
+  await addItems();
+  await page.getByRole("group", { name: "Adicionar pago em" }).getByRole("button", { name: "Débito" }).click();
+  const debit = page.getByRole("dialog", { name: `Adicionar ao pedido #${order.number}` });
+  await expect(debit).toContainText("que faltava");
+  await debit.getByRole("button", { name: /^Adicionar · Débito/ }).click();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(card).not.toContainText("Falta receber");
+
   const saved = (await (await api.get(`/api/v1/stores/${menu.store.id}/orders/${order.id}`)).json()).data;
-  expect(saved.items).toHaveLength(3);
-  expect(saved.receipts.map((receipt: { counterMethod: string }) => receipt.counterMethod)).toEqual(["cash", "pix"]);
-  expect(saved.amountDue).toBe(saved.total - saved.amountPaid);
-  expect(saved.paymentStatus).toBe("pending");
+  expect(saved.items).toHaveLength(4);
+  expect(saved.receipts.map((receipt: { counterMethod: string }) => receipt.counterMethod)).toEqual(["cash", "pix", "debit"]);
+  expect(saved.amountDue).toBe(0);
+  expect(saved.paymentStatus).toBe("paid");
 
   // Once the kitchen made something, nothing more joins it: a new order for the same customer.
   const pastryLine = saved.items.find((line: { requiresPreparation: boolean }) => line.requiresPreparation);

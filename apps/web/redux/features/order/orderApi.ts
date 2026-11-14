@@ -97,11 +97,14 @@ export const orderApi = baseApi.injectEndpoints({
     }),
 
     /** "Receber pagamento" at the counter: how it was paid (recorded with who received it). */
-    receiveOrderPayment: build.mutation<Order, { storeId: string; orderId: string; method: CounterPaymentMethod }>({
-      query: ({ storeId, orderId, method }) => ({
+    receiveOrderPayment: build.mutation<
+      Order,
+      { storeId: string; orderId: string; method: CounterPaymentMethod; amount?: number }
+    >({
+      query: ({ storeId, orderId, method, amount }) => ({
         url: `stores/${storeId}/orders/${orderId}/payment`,
         method: "POST",
-        body: { method } satisfies ReceivePaymentInput,
+        body: { method, amount } satisfies ReceivePaymentInput,
       }),
       invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
     }),

@@ -194,7 +194,12 @@ export default class OrdersController {
     const orderId = await uuidValidator.validate(params.orderId)
     const input = await request.validateUsing(addOrderItemsValidator)
 
-    const order = await this.orders.addItems(storeId, orderId, input, auth.getUserOrFail())
+    const order = await this.orders.addItems(
+      storeId,
+      orderId,
+      { ...input, idempotencyKey: request.header('idempotency-key') },
+      auth.getUserOrFail()
+    )
 
     return updated(order, `Itens adicionados ao pedido #${order.number}`)
   }
@@ -203,10 +208,14 @@ export default class OrdersController {
   async markPaid({ params, request, auth }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const orderId = await uuidValidator.validate(params.orderId)
-    const { method } = await request.validateUsing(receivePaymentValidator)
+    const { method, amount } = await request.validateUsing(receivePaymentValidator)
 
     const order = await this.orders.find(storeId, orderId)
-    await this.orders.markPaid(order, { counterMethod: method }, auth.getUserOrFail())
+    await this.orders.markPaid(
+      order,
+      { counterMethod: method, expected: amount },
+      auth.getUserOrFail()
+    )
 
     return updated(order, 'Pagamento recebido')
   }
