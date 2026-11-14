@@ -724,3 +724,86 @@ test("POS: a line in the ticket opens with its picks and is saved in place", asy
   await expect(ticket.getByText(/Escolha o queijo: Cheddar/)).toBeVisible();
   await expect(ticket.getByText(/Catupiry/)).toHaveCount(0);
 });
+
+test("POS: the ticket survives a reload and is gone once sent", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(page.url().replace(/\/orders$/, "/pos"));
+  const ticket = page.getByRole("complementary", { name: "Comanda" });
+
+  await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
+  await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
+  await page.getByLabel("Nome do cliente").fill("Volta já");
+  await page.reload();
+
+  await expect(page.getByText("Comanda recuperada")).toBeVisible();
+  await expect(ticket.getByRole("button", { name: /^Editar Coca-Cola/ })).toHaveCount(1);
+  await expect(page.getByLabel("Nome do cliente")).toHaveValue("Volta já");
+
+  await page.getByRole("group", { name: "Enviar pago em" }).getByRole("button", { name: "Pix" }).click();
+  await page.getByRole("dialog", { name: "Enviar o pedido pago" }).getByRole("button", { name: /^Enviar · Pix/ }).click();
+  await expect(page.getByText(/Pedido #\d+ enviado · pago no Pix/)).toBeVisible();
+  await page.reload();
+  await expect(ticket.getByText("Toque nos produtos para montar o pedido.")).toBeVisible();
+  await expect(page.getByText("Comanda recuperada")).toHaveCount(0);
+});
+
+test("kitchen: add-ons by group, the group once and each pick on its own", async ({ page }) => {
+  await clearKitchen();
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  type Group = { id: string; name: string; options: { id: string; name: string }[] };
+  const items = menu.categories.flatMap((category: { items: object[] }) => category.items);
+  const pastry = items.find((item: { name: string }) => item.name === "Pastel de Frango com Queijo");
+  const cheese = pastry.optionGroups.find((group: Group) => group.name === "Escolha o queijo") as Group;
+  const cheddar = cheese.options.find((option) => option.name === "Cheddar")!;
+  await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: {
+      customer: { name: "Cozinha" },
+      counterMethod: "cash",
+      lines: [{ itemId: pastry.id, quantity: 1, choices: [{ groupId: cheese.id, addonId: cheddar.id }] }],
+    },
+  });
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.kitchen);
+  await page.goto(`/app/stores/${menu.store.id}/kitchen`);
+  const now = page.getByText("Fazer agora").locator("xpath=ancestor::*[contains(@class,'flex-col')][1]");
+  await expect(now.getByRole("term").filter({ hasText: "Escolha o queijo" })).toBeVisible();
+  await expect(now.getByRole("definition").filter({ hasText: /^Cheddar$/ })).toBeVisible();
+  await expect(now.getByText("Escolha o queijo: Cheddar")).toHaveCount(0);
+});
+
+test("POS: an item whose stock runs out shows sold out without a reload", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const storeId = menu.store.id as string;
+  const name = "Coca-Cola Zero lata 350 ml";
+  const ingredients = (await (await api.get(`/api/v1/stores/${storeId}/ingredients?perPage=100`)).json()).data as {
+    id: number;
+    name: string;
+    stockQuantity: number;
+  }[];
+  const stock = ingredients.find((ingredient) => ingredient.name === name)!;
+  const count = (quantity: number) =>
+    api.post(`/api/v1/stores/${storeId}/ingredients/${stock.id}/movements`, { data: { type: "adjustment", quantity } });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(`/app/stores/${storeId}/pos`);
+  const product = page.getByRole("button", { name: new RegExp(`^${name}`) });
+  await expect(product).toBeEnabled();
+
+  try {
+    // Counted: none left. The open POS hears it and marks it sold out.
+    await count(0);
+    await expect(product).toHaveAccessibleName(new RegExp(`^${name} Esgotado`));
+    await expect(product).toBeDisabled();
+  } finally {
+    await count(stock.stockQuantity);
+    await api.dispose();
+  }
+});

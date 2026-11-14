@@ -220,14 +220,26 @@ export default function KitchenPage() {
                 </p>
               )}
 
-              {current.addons.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {current.addons.map((addon) => (
-                    <span key={addon} className="rounded-full bg-primary/10 px-3 py-1 text-lg font-semibold text-primary">
-                      + {addon}
-                    </span>
+              {/* The group once, small, then its picks in strong text on a neutral chip:
+                  the orange on orange read poorly, and "Recheio extra:" before every pick was noise. */}
+              {current.addonGroups.length > 0 && (
+                <dl className="mt-4 flex flex-col gap-2.5">
+                  {current.addonGroups.map(({ group, items }) => (
+                    <div key={group ?? ""} className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                        {group ?? "Adicionais"}
+                      </dt>
+                      {items.map((item) => (
+                        <dd
+                          key={item}
+                          className="rounded-full border border-foreground/15 bg-muted px-3 py-1 text-lg font-semibold text-foreground"
+                        >
+                          {item}
+                        </dd>
+                      ))}
+                    </div>
                   ))}
-                </div>
+                </dl>
               )}
 
               {current.notes && (
@@ -335,8 +347,8 @@ export default function KitchenPage() {
                       )}
                     </div>
                     {(batch.addons.length > 0 || batch.notes) && (
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {batch.addons.map((a) => `+ ${a}`).join(" ")}
+                      <p className="mt-1 text-sm text-foreground/80">
+                        {batch.addonGroups.flatMap((group) => group.items).join(", ")}
                         {batch.notes && <span className="font-medium text-warning"> “{batch.notes}”</span>}
                       </p>
                     )}

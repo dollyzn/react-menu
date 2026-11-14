@@ -460,6 +460,10 @@ test.group('Choice groups', (group) => {
       'Escolha 3 sabores: 2× Mussarela',
       'Escolha 3 sabores: Cheddar',
     ])
+    // The screen gets the group once, then its picks.
+    assert.lengthOf(kitchen.body().data[0].addonGroups, 1)
+    assert.equal(kitchen.body().data[0].addonGroups[0].group, 'Escolha 3 sabores')
+    assert.sameMembers(kitchen.body().data[0].addonGroups[0].items, ['2× Mussarela', 'Cheddar'])
 
     // Without repeats a twice-sent option counts once (and misses the minimum).
     await client

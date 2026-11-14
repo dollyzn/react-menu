@@ -270,6 +270,8 @@ export type ProductionBatch = {
   key: string;
   name: string;
   addons: string[];
+  /** The same add-ons by group, for the screen: the group once, then its picks; null = outside a group. */
+  addonGroups: { group: string | null; items: string[] }[];
   notes: string | null;
   quantity: number;
   units: { orderId: string; orderNumber: number; lineId: number; quantity: number }[];

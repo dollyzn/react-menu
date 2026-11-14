@@ -7,6 +7,24 @@ export function addonLabel(addon: { name: string; groupName: string | null }) {
 }
 
 /**
+ * A line's add-ons by group, for the kitchen: the group once, then its picks
+ * ("Recheio extra" → "Carne moída", "Frango"), repeats counted ("2× Queijo"),
+ * in the order they were saved; add-ons outside a group come as `group: null`.
+ */
+export function addonGroups(addons: { name: string; groupName: string | null }[]) {
+  const groups = new Map<string | null, Map<string, number>>()
+  for (const addon of addons) {
+    const picks = groups.get(addon.groupName) ?? new Map<string, number>()
+    picks.set(addon.name, (picks.get(addon.name) ?? 0) + 1)
+    groups.set(addon.groupName, picks)
+  }
+  return [...groups.entries()].map(([group, picks]) => ({
+    group,
+    items: [...picks.entries()].map(([name, count]) => (count > 1 ? `${count}× ${name}` : name)),
+  }))
+}
+
+/**
  * A line's add-ons as labels, repeats counted: a group pick chosen twice
  * reads "Escolha 2 sabores: 2× Queijo", in the order they were saved.
  */

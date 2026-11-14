@@ -27,13 +27,20 @@ export function useStoreRealtime(storeId: string) {
         ])
       );
 
+    // Orders consume stock and stock counts change it: the menus open here
+    // (the POS) read what is still available again, or a sold-out item stays
+    // on sale until someone reloads.
+    const menuTag = { type: "Item" as const, id: "PUBLIC_MENU" };
     const stopListening = subscription.onMessage<StoreEvent>((event) => {
       if (event.type === "store.status_changed") refresh();
+      else if (event.type === "stock.changed")
+        dispatch(baseApi.util.invalidateTags([menuTag, { type: "Ingredient", id: `store-${storeId}` }]));
       else
         dispatch(
           baseApi.util.invalidateTags([
             { type: "Order", id: `store-${storeId}` },
             { type: "Kitchen", id: storeId },
+            menuTag,
           ])
         );
     });

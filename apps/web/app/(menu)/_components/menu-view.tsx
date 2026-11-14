@@ -18,6 +18,9 @@ import { InstallAppCard } from "@/components/app/pwa/install-app";
 import { countVisit } from "@/lib/install-prompt-storage";
 import { useAppSelector } from "@/redux/hooks";
 
+
+/** How often an open menu reads availability again. */
+const MENU_REFRESH_MS = 2 * 60 * 1000;
 export function MenuView({ menu }: { menu: PublicMenu }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<PublicMenuItem | null>(null);
@@ -36,6 +39,19 @@ export function MenuView({ menu }: { menu: PublicMenu }) {
     const timer = window.setTimeout(() => router.refresh(), wait);
     return () => window.clearTimeout(timer);
   }, [changeAt, router]);
+  // Availability changes as the store sells (an item runs out): read it again
+  // when the customer comes back to the page, and every few minutes while it
+  // is open. The API refuses a sold-out item at checkout anyway.
+  useEffect(() => {
+    const visible = () => document.visibilityState === "visible";
+    const onVisible = () => visible() && router.refresh();
+    const timer = window.setInterval(() => visible() && router.refresh(), MENU_REFRESH_MS);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [router]);
   const stock = useMemo(
     () =>
       Object.fromEntries(

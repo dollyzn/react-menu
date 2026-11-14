@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
 import Image from "@/components/app/image";
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { CustomerAutocomplete } from "./customer-autocomplete";
 import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
+import { readTicket, saveTicket } from "@/lib/pos-ticket-storage";
 import { useLastValue } from "@/hooks/use-last-value";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
 import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
@@ -109,6 +111,53 @@ export default function PosPage() {
     () => new Map((menu?.categories ?? []).flatMap((category) => category.items).map((item) => [item.id, item])),
     [menu]
   );
+
+  /**
+   * The ticket survives a reload or a trip to another screen: restored once
+   * the page is hydrated and the menu is here (lines of items no longer on it
+   * are left out, prices are today's), saved on every change, gone once sent
+   * or cleared. Restored while rendering (React's "adjust state" pattern), so
+   * nothing flashes empty first.
+   */
+  const hydrated = useHydrated();
+  const [restoredFor, setRestoredFor] = useState<string | null>(null);
+  /** Units brought back, for the "Comanda recuperada" toast. */
+  const [recovered, setRecovered] = useState(0);
+  if (hydrated && menu && restoredFor !== storeId) {
+    setRestoredFor(storeId);
+    const saved = readTicket(storeId);
+    const kept = (saved?.lines ?? []).flatMap((line) => {
+      const item = itemsById.get(line.itemId);
+      return item ? [{ ...line, name: item.name, unitPrice: item.price }] : [];
+    });
+    if (saved && (kept.length > 0 || saved.customerName)) {
+      setLines(kept);
+      setCustomerName(saved.customerName);
+      setCustomerPhone(saved.customerPhone);
+      setRecovered(kept.reduce((sum, line) => sum + line.quantity, 0));
+    }
+  }
+  useEffect(() => {
+    if (recovered === 0) return;
+    toast("Comanda recuperada", {
+      ...POS_TOAST,
+      id: "ticket-restored",
+      description: `${recovered} ${recovered === 1 ? "item" : "itens"} de antes`,
+      action: {
+        label: "Limpar",
+        onClick: () => {
+          setLines([]);
+          setCustomerName("");
+          setCustomerPhone("");
+        },
+      },
+    });
+  }, [recovered]);
+  useEffect(() => {
+    // Not before restoring: the empty first render would erase what was kept.
+    if (restoredFor !== storeId) return;
+    saveTicket(storeId, { lines, customerName, customerPhone });
+  }, [restoredFor, storeId, lines, customerName, customerPhone]);
 
   /** Units the stock still allows for an item, after what the ticket holds (null = no limit). */
   const leftFor = (itemId: string) => unitsLeft(itemsById.get(itemId)?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
