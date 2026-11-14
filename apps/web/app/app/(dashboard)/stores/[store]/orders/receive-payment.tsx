@@ -1,5 +1,6 @@
 "use client";
 
+import { formatCurrencyBRL } from "@/utils/string";
 import { useRef, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import type { CounterPaymentMethod, Order } from "@react-menu/contracts";
@@ -26,7 +27,7 @@ export function ReceivePayment({
   afterPaid,
   children,
 }: {
-  order: Pick<Order, "id" | "number" | "total" | "customerName">;
+  order: Pick<Order, "id" | "number" | "total" | "amountPaid" | "amountDue" | "customerName">;
   storeId: string;
   open: boolean;
   onClose: () => void;
@@ -71,8 +72,13 @@ export function ReceivePayment({
           onClose();
         }}
         title={`${verb ?? "Receber"} o pedido #${order.number}`}
-        badge={`Pedido #${order.number} · ${order.customerName}`}
-        total={order.total}
+        badge={
+          order.amountPaid > 0
+            ? `Pedido #${order.number} · ${order.customerName} · já recebido ${formatCurrencyBRL(order.amountPaid)}`
+            : `Pedido #${order.number} · ${order.customerName}`
+        }
+        // Items added after it was paid: only what is left.
+        total={order.amountDue}
         verb={verb}
         canCharge={canCharge}
         busy={isLoading || busy}
@@ -88,7 +94,7 @@ export function ReceivePayment({
       </ReceivePaymentDialog>
       <PointChargeDialog
         storeId={storeId}
-        order={charging ? { id: order.id, number: order.number, total: order.total } : null}
+        order={charging ? { id: order.id, number: order.number, total: order.amountDue } : null}
         onClose={() => {
           setCharging(false);
           if (paidOnMachine.current && afterPaid) void afterPaid().catch(() => undefined);

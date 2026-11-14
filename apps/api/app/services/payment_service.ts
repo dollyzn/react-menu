@@ -117,13 +117,15 @@ export default class PaymentService {
     const settled = await Payment.query()
       .where('orderId', order.id)
       .where((query) =>
-        query.where('status', PaymentAttemptStatus.APPROVED).orWhere((refunded) =>
-          refunded
-            .where('status', PaymentAttemptStatus.REFUNDED)
-            .where((detail) =>
-              detail.whereNull('statusDetail').orWhereNot('statusDetail', 'duplicate_refunded')
-            )
-        )
+        query
+          .where('status', PaymentAttemptStatus.APPROVED)
+          .orWhere((refunded) =>
+            refunded
+              .where('status', PaymentAttemptStatus.REFUNDED)
+              .where((detail) =>
+                detail.whereNull('statusDetail').orWhereNot('statusDetail', 'duplicate_refunded')
+              )
+          )
       )
       .first()
     if (settled) return true

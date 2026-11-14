@@ -3,6 +3,7 @@ import { IDEMPOTENCY_HEADER } from "@/lib/idempotency";
 import { buildStoreListUrl, type StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 import type {
+  AddOrderItemsInput,
   CounterPaymentMethod,
   ReceivePaymentInput,
   CreatePosOrderInput,
@@ -65,6 +66,20 @@ export const orderApi = baseApi.injectEndpoints({
       invalidatesTags: (_res, _err, { storeId }) => [ordersTag(storeId), kitchenTag(storeId)],
     }),
 
+    /** Items added to an order still in the queue (a drink more): charged now or left to receive. */
+    addOrderItems: build.mutation<
+      Order,
+      { storeId: string; orderId: string; input: AddOrderItemsInput; idempotencyKey: string }
+    >({
+      query: ({ storeId, orderId, input, idempotencyKey }) => ({
+        url: `stores/${storeId}/orders/${orderId}/items`,
+        method: "POST",
+        body: input,
+        headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
+      }),
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
+    }),
+
     completeOrder: build.mutation<Order, { storeId: string; orderId: string }>({
       query: ({ storeId, orderId }) => ({ url: `stores/${storeId}/orders/${orderId}/complete`, method: "POST" }),
       invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId)],
@@ -113,6 +128,7 @@ export const {
   useGetOrderQuery,
   useSearchCustomersQuery,
   useCreatePosOrderMutation,
+  useAddOrderItemsMutation,
   useCompleteOrderMutation,
   useCancelOrderMutation,
   useReceiveOrderPaymentMutation,

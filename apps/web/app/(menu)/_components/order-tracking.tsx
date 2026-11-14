@@ -261,7 +261,10 @@ export function OrderTracking({ token }: { token: string }) {
           <span className="tabular-nums">{formatCurrencyBRL(order.total)}</span>
         </div>
         <p className="border-t px-4 py-3 text-xs text-muted-foreground">
-          {order.paymentMethod === "counter"
+          {/* Paid, then something was added at the counter: that part is paid there. */}
+          {order.paymentStatus === "pending" && order.amountDue > 0 && order.amountDue < order.total
+            ? `Falta pagar ${formatCurrencyBRL(order.amountDue)} na retirada`
+            : order.paymentMethod === "counter"
             ? order.paymentStatus === "paid"
               ? "Pago no balcão"
               : "Pagamento na retirada"

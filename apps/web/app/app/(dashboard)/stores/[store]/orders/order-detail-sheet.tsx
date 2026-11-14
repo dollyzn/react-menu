@@ -100,7 +100,9 @@ export function OrderDetailSheet({
                             ? "pago"
                             : show.paymentStatus === "refunded"
                               ? "reembolsado"
-                              : "não pago"}
+                              : show.amountPaid > 0
+                                ? `falta receber ${formatCurrencyBRL(show.amountDue)}`
+                                : "não pago"}
                         </span>
                       </>
                     );
@@ -143,6 +145,11 @@ export function OrderDetailSheet({
                         {line.notes && (
                           <p className="text-xs font-medium text-warning">“{line.notes}”</p>
                         )}
+                        {line.addedAt && (
+                          <p className="text-xs text-muted-foreground tabular-nums">
+                            Adicionado às {format(parseISO(line.addedAt), "HH:mm")}
+                          </p>
+                        )}
                         {line.requiresPreparation && show.status === "preparing" && (
                           <p className="text-xs text-muted-foreground tabular-nums">
                             {line.preparedQuantity} de {line.quantity} prontos
@@ -159,6 +166,32 @@ export function OrderDetailSheet({
                 </ul>
                 {show.notes && <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-sm">{show.notes}</p>}
               </section>
+
+              {/* Paid in more than one go (items added later): each amount, how, and who took it. */}
+              {show.receipts && show.receipts.length > 1 && (
+                <section aria-labelledby="order-receipts" className="flex flex-col gap-2">
+                  <h3 id="order-receipts" className="text-sm font-semibold">
+                    Recebimentos
+                  </h3>
+                  <ul className="divide-y rounded-xl border text-sm">
+                    {show.receipts.map((receipt, index) => (
+                      <li key={index} className="flex items-center justify-between gap-3 p-3">
+                        <span className="min-w-0">
+                          {receipt.counterMethod
+                            ? `${COUNTER_METHODS[receipt.counterMethod].label} no balcão`
+                            : PAYMENT[receipt.paymentMethod]}
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {" "}
+                            · {format(parseISO(receipt.receivedAt), "HH:mm")}
+                            {receipt.receivedBy?.name && ` · ${receipt.receivedBy.name}`}
+                          </span>
+                        </span>
+                        <span className="shrink-0 font-medium tabular-nums">{formatCurrencyBRL(receipt.amount)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
 
               {(show.refundPending || (show.payments && show.payments.length > 0)) && (
                 <section aria-labelledby="order-payments" className="flex flex-col gap-2">
