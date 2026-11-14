@@ -106,6 +106,10 @@ test.group('Bulk edit (items and add-ons)', (group) => {
       .post(`/api/v1/stores/${store.id}/items/bulk-update`)
       .json({ changes: [change(carne, { price: -5 })] })
       .loginAs(manager)
+    const free = await client
+      .post(`/api/v1/stores/${store.id}/items/bulk-update`)
+      .json({ changes: [change(carne, { price: 0 })] })
+      .loginAs(manager)
     const tooPrecise = await client
       .post(`/api/v1/stores/${store.id}/items/bulk-update`)
       .json({ changes: [change(carne, { price: 9.999 })] })
@@ -115,6 +119,9 @@ test.group('Bulk edit (items and add-ons)', (group) => {
     otherStoresItem.assertStatus(409)
     byOtherManager.assertStatus(403)
     negative.assertStatus(422)
+    // An item always costs something (an add-on may be free).
+    free.assertStatus(422)
+    free.assertBodyContains({ code: 'E_INVALID_PRICE' })
     tooPrecise.assertStatus(422)
   })
 
@@ -131,5 +138,14 @@ test.group('Bulk edit (items and add-ons)', (group) => {
     await catupiry.refresh()
     assert.equal(catupiry.price, 4.5)
     assert.isFalse(catupiry.isAvailable)
+
+    // Free (included in the price), like Orégano or the mini flavors.
+    const free = await client
+      .post(`/api/v1/stores/${store.id}/addons/bulk-update`)
+      .json({ changes: [change(catupiry, { price: 0 })] })
+      .loginAs(manager)
+    free.assertStatus(200)
+    await catupiry.refresh()
+    assert.equal(catupiry.price, 0)
   })
 })

@@ -61,7 +61,9 @@ export function applyPriceRule(price: number, rule: PriceRule): number {
   }
 }
 
-export const isValidPrice = (price: number) => price > 0 && price <= MAX_PRICE;
+/** Items cost something; add-ons may be free (included in the price: Orégano, mini flavors). */
+export const isValidPrice = (price: number, allowFree = false) =>
+  (allowFree ? price >= 0 : price > 0) && price <= MAX_PRICE;
 
 export type PreviewRow = BulkEditable & {
   newPrice: number;
@@ -70,7 +72,12 @@ export type PreviewRow = BulkEditable & {
   invalid: boolean;
 };
 
-export function preview(rows: BulkEditable[], rule: PriceRule, availability: Availability): PreviewRow[] {
+export function preview(
+  rows: BulkEditable[],
+  rule: PriceRule,
+  availability: Availability,
+  { allowFree = false }: { allowFree?: boolean } = {}
+): PreviewRow[] {
   return rows.map((row) => {
     const newPrice = applyPriceRule(row.price, rule);
     const newAvailable = availability === "keep" ? row.isAvailable : availability === "available";
@@ -79,7 +86,9 @@ export function preview(rows: BulkEditable[], rule: PriceRule, availability: Ava
       newPrice,
       newAvailable,
       changed: newPrice !== row.price || newAvailable !== row.isAvailable,
-      invalid: !isValidPrice(newPrice),
+      // Only a price this edit changes can be wrong: marking a free add-on
+      // sold out must never be blocked by the price it already has.
+      invalid: newPrice !== row.price && !isValidPrice(newPrice, allowFree),
     };
   });
 }

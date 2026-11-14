@@ -113,6 +113,8 @@ interface BulkEditDialogProps {
   /** Saves the changes; throws on failure (409 when rows changed meanwhile). */
   onApply: (changes: BulkUpdateChange[]) => Promise<{ updated: number }>;
   onDone: () => void;
+  /** Add-ons may be set to R$ 0; items may not. */
+  allowFree?: boolean;
 }
 
 /**
@@ -121,7 +123,7 @@ interface BulkEditDialogProps {
  * available/sold out. Shows every new price before saving; the API applies
  * all or nothing and refuses rows that changed since they were loaded.
  */
-export function BulkEditDialog({ rows, noun, onApply, onDone }: BulkEditDialogProps) {
+export function BulkEditDialog({ rows, noun, onApply, onDone, allowFree = false }: BulkEditDialogProps) {
   const [open, setOpen] = useState(false);
   const [conflict, setConflict] = useState<string[]>([]);
   const form = useForm<Values>({ resolver: zodResolver(Schema), defaultValues: DEFAULTS });
@@ -129,8 +131,8 @@ export function BulkEditDialog({ rows, noun, onApply, onDone }: BulkEditDialogPr
   const busy = form.formState.isSubmitting;
 
   const rows_ = useMemo(
-    () => preview(rows, ruleOf({ ...DEFAULTS, ...values }), values.availability ?? "keep"),
-    [rows, values]
+    () => preview(rows, ruleOf({ ...DEFAULTS, ...values }), values.availability ?? "keep", { allowFree }),
+    [rows, values, allowFree]
   );
   const changed = rows_.filter((row) => row.changed);
   const invalid = rows_.filter((row) => row.invalid);

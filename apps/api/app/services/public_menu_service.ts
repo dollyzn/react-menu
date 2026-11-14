@@ -100,6 +100,7 @@ export default class PublicMenuService {
               description: option.description,
               price: option.price,
               photoUrl: option.photoUrl,
+              photoBlur: option.photoBlur,
               isAvailable: option.isAvailable && left.addons.get(option.id) !== 0,
               stockLeft: left.addons.get(option.id) ?? null,
             })

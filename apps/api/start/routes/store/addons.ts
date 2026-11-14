@@ -35,4 +35,12 @@ export default function registerStoreAddonRoutes() {
     .delete('/addons/:addonId', [AddonsController, 'destroy'])
     .as('addons.destroy')
     .use(managersOnly)
+  router
+    .put('/addons/:addonId/photo', [AddonsController, 'updatePhoto'])
+    .as('addons.photo.update')
+    .use(managersOnly)
+  router
+    .delete('/addons/:addonId/photo', [AddonsController, 'destroyPhoto'])
+    .as('addons.photo.destroy')
+    .use(managersOnly)
 }

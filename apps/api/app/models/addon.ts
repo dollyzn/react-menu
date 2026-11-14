@@ -25,6 +25,10 @@ export default class Addon extends BaseModel {
   @column()
   declare photoUrl: string | null
 
+  /** Blurred preview of the photo (data URL), shown while it loads. */
+  @column()
+  declare photoBlur: string | null
+
   @column()
   declare isAvailable: boolean
 

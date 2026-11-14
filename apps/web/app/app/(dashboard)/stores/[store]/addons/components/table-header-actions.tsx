@@ -20,6 +20,7 @@ export function HeaderActions({ table }: HeaderActionsProps) {
       <BulkEditDialog
         rows={rows.map((row) => row.original)}
         noun={{ singular: "adicional", plural: "adicionais" }}
+        allowFree
         onApply={(changes) => bulkUpdate({ storeId: store as string, changes }).unwrap()}
         onDone={() => table.resetRowSelection()}
       />

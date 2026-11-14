@@ -547,17 +547,18 @@ function ProductCard({
       </div>
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="line-clamp-2 text-sm leading-tight font-medium">{item.name}</span>
-        <span className="mt-1 flex items-center gap-2 text-sm">
-          <span className="font-semibold text-primary">{price}</span>
-          {hint && (
-            <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-xs font-medium text-warning">
-              {hint}
-            </span>
-          )}
+        {/* Wraps instead of squeezing: on a narrow card the stock badge goes below. */}
+        <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+          <span className="shrink-0 font-semibold whitespace-nowrap text-primary">{price}</span>
           {(item.addons.length > 0 || item.optionGroups.length > 0) && (
-            <SlidersHorizontal aria-hidden className="size-3.5 text-muted-foreground">
+            <SlidersHorizontal aria-hidden className="size-3.5 shrink-0 text-muted-foreground">
               <title>Tem adicionais</title>
             </SlidersHorizontal>
+          )}
+          {hint && (
+            <span className="shrink-0 rounded-full bg-warning/15 px-2 py-0.5 text-[11px] leading-tight font-medium whitespace-nowrap text-warning">
+              {hint}
+            </span>
           )}
         </span>
       </div>

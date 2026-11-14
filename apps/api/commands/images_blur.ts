@@ -1,5 +1,7 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
+import type { PhotoRecord } from '#helpers/photos'
+import Addon from '#models/addon'
 import Item from '#models/item'
 import Store from '#models/store'
 import User from '#models/user'
@@ -7,7 +9,7 @@ import { blurPlaceholderOf } from '#helpers/image_placeholder'
 
 /**
  * Makes the blurred previews (shown while an image loads) of images stored
- * before they existed: item photos, store banners and logos, avatars. Images
+ * before they existed: item and add-on photos, store banners and logos, avatars. Images
  * that already have one are skipped unless --force. Safe to run again:
  *
  *   node ace images:blur [--store=<slug>]
@@ -49,16 +51,23 @@ export default class ImagesBlur extends BaseCommand {
       return
     }
 
+    /** Rows with an uploaded photo: the ones without a preview (all with --force). */
+    const photos = async (rows: Pick<PhotoRecord, 'photoUrl' | 'photoBlur' | 'save'>[]) => {
+      for (const row of rows) {
+        const blur = await preview(row.photoUrl, row.photoBlur)
+        if (!blur) continue
+        row.photoBlur = blur
+        await row.save()
+      }
+    }
     const items = Item.query().whereNotNull('photoUrl')
     if (!this.force) items.whereNull('photoBlur')
     if (only) items.whereHas('category', (query) => query.where('storeId', only.id))
-    for (const item of await items) {
-      const blur = await preview(item.photoUrl, item.photoBlur)
-      if (blur) {
-        item.photoBlur = blur
-        await item.save()
-      }
-    }
+    await photos(await items)
+    const addons = Addon.query().whereNotNull('photoUrl')
+    if (!this.force) addons.whereNull('photoBlur')
+    if (only) addons.where('storeId', only.id)
+    await photos(await addons)
     for (const store of only ? [only] : await Store.query()) {
       const banner = await preview(store.bannerUrl, store.bannerBlur)
       const logo = await preview(store.photoUrl, store.photoBlur)
