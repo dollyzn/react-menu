@@ -135,7 +135,9 @@ export function PhotoField({
           void take([...event.dataTransfer.files].find((file) => file.type.startsWith("image/")));
         }}
         className={cn(
-          "group relative w-full overflow-hidden rounded-xl border bg-muted/40 transition-colors",
+          // isolate + transform-gpu: the animated photo layer stays clipped to
+          // the rounded corners (composited layers otherwise bleed past them).
+          "group relative isolate w-full transform-gpu overflow-hidden rounded-xl border bg-muted/40 transition-colors",
           kind === "option" ? "mx-auto aspect-square max-w-56" : "aspect-16/10",
           !shown && "border-dashed",
           dragging && "border-primary bg-primary/5 ring-2 ring-primary/40 ring-inset",
@@ -144,7 +146,12 @@ export function PhotoField({
       >
         <AnimatePresence mode="popLayout" initial={false}>
           {shown ? (
-            <motion.div key={shown} className="absolute inset-0" transition={{ duration: 0.35, ease: "easeOut" }} {...fade}>
+            <motion.div
+              key={shown}
+              className="absolute inset-0 overflow-hidden rounded-[inherit]"
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              {...fade}
+            >
               <Image
                 src={shown}
                 alt={name ? `Foto de ${name}` : kind === "option" ? "Foto da opção" : "Foto do item"}
