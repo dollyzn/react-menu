@@ -210,7 +210,8 @@ export default class PointService {
             external_reference: pointReference(order.id, attempt),
             expiration_time: `PT${CHARGE_TTL_MINUTES}M`,
             description: `Pedido #${order.number} · ${store.name}`.slice(0, 150),
-            transactions: { payments: [{ amount: order.total.toFixed(2) }] },
+            // What is still to receive: all of it, or what was added after it was paid.
+            transactions: { payments: [{ amount: order.amountDue.toFixed(2) }] },
             config: {
               point: {
                 terminal_id: terminal.terminalId,
@@ -244,7 +245,7 @@ export default class PointService {
       gatewayPaymentId: result.id,
       status: PaymentAttemptStatus.PENDING,
       statusDetail: result.status_detail ?? 'created',
-      amount: order.total,
+      amount: order.amountDue,
       pointTerminalId: terminal.terminalId,
       expiresAt: DateTime.now().plus({ minutes: CHARGE_TTL_MINUTES }),
     })

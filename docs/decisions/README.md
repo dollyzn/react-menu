@@ -26,6 +26,7 @@ an accepted ADR, supersede it with a new one.
 | [0018](0018-card-3d-secure.md) | 3-D Secure on card payments | Accepted |
 | [0019](0019-csrf-and-csp-without-shield.md) | CSRF and CSP without @adonisjs/shield and @adonisjs/session | Accepted |
 | [0020](0020-mercado-pago-point.md) | Card machines (Mercado Pago Point) charged from the POS | Accepted |
+| [0021](0021-order-receipts.md) | Orders paid in more than one go (receipts) | Accepted |
 
 ## Template
 

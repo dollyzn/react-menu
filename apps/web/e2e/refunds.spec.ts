@@ -8,10 +8,20 @@ test("a cancelled Pix order shows the pending refund and a manager refunds it", 
   // A customer pays with Pix (development fake gateway).
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
   const menu = (await (await api.get("/api/v1/public/menu")).json()).data;
-  const item = menu.categories[0].items[0];
+  // Any item still on sale: earlier specs may have used up the stock of the first ones.
+  type MenuItem = { isAvailable: boolean; stockLeft: number | null; optionGroups: { minChoices: number }[] };
+  const item = menu.categories
+    .flatMap((category: { items: MenuItem[] }) => category.items)
+    .find(
+      (candidate: MenuItem) =>
+        candidate.isAvailable &&
+        (candidate.stockLeft ?? 1) > 0 &&
+        candidate.optionGroups.every((group) => group.minChoices === 0)
+    );
   const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
     data: { lines: [{ itemId: item.id, quantity: 1 }], customer: { name: customer, phone: "11966665555" }, paymentMethod: "pix" },
   });
+  expect(placed.ok(), await placed.text()).toBeTruthy();
   const token = (await placed.json()).data.publicToken as string;
   await api.post(`/api/v1/public/orders/${token}/payments`, { data: { method: "pix", payer: { email: "pix@example.com" } } });
   const paid = await api.post(`/api/v1/public/orders/${token}/payments/simulate`);

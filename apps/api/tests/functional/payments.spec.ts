@@ -396,6 +396,38 @@ test.group('Payments (in-app checkout)', (group) => {
     assert.equal(order.paymentStatus, 'refunded')
   })
 
+  test('paid by card, then a drink added and not received yet: cancelling still refunds the card', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: { token: 't', installments: 1, paymentMethodId: 'visa' },
+    })
+    const order = await Order.findByOrFail('publicToken', token)
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}`
+
+    const added = await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(manager)
+    added.assertBodyContains({ data: { amountDue: 6, paymentStatus: 'pending' } })
+    // The customer's page says what is left, at the counter.
+    const tracked = await client.get(`/api/v1/public/orders/${token}`)
+    tracked.assertBodyContains({ data: { amountDue: 6, paymentStatus: 'pending' } })
+
+    const cancel = await client.post(`${base}/cancel`).loginAs(manager)
+    cancel.assertStatus(200)
+    queue.assertPushed('RefundOrder', { payload: { orderId: order.id } })
+    await runJob(RefundOrder, { orderId: order.id })
+    assert.deepEqual(fake.refunds, ['ORD1001'])
+  })
+
   test('unpaid online orders expire; a Pix in progress postpones it', async ({
     client,
     assert,
