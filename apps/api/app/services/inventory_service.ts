@@ -282,6 +282,24 @@ export default class InventoryService {
     order.stockConsumedAt = DateTime.now()
   }
 
+  /**
+   * Deducts lines added to an order that already took its stock (items
+   * added while it waits in the queue). Recorded under the order, so
+   * cancelling it puts them back too.
+   */
+  async consumeForLines(order: Order, lines: StockLine[], trx: TransactionClientContract) {
+    if (!order.stockConsumedAt) return
+    const store = await Store.findOrFail(order.storeId, { client: trx })
+    if (!store.inventoryEnabled) return
+
+    for (const [ingredientId, { quantity }] of await this.needsOf(lines, trx)) {
+      const ingredient = await Ingredient.findOrFail(ingredientId, { client: trx })
+      await this.move(ingredient, StockMovementType.CONSUMPTION, -quantity, trx, {
+        orderId: order.id,
+      })
+    }
+  }
+
   /** Puts back what an order consumed (used when it is cancelled). */
   async reverseForOrder(order: Order, trx: TransactionClientContract) {
     if (!order.stockConsumedAt) return

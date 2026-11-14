@@ -48,6 +48,8 @@ export function publicOrder(order: Order, store: Store, checkout?: CheckoutState
     paymentStatus: order.paymentStatus,
     subtotal: order.subtotal,
     total: order.total,
+    /** Still to receive at the counter (items added after it was paid). */
+    amountDue: order.amountDue,
     notes: order.notes,
     createdAt: order.createdAt.toISO(),
     readyAt: order.readyAt?.toISO() ?? null,

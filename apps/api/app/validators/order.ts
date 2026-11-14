@@ -80,6 +80,17 @@ const posOrderValidator = vine.create(
   })
 )
 
+/**
+ * Items added to an order waiting in the queue: charged now (`counterMethod`)
+ * or left to receive (the card machine, or at pickup).
+ */
+const addOrderItemsValidator = vine.create(
+  vine.object({
+    lines,
+    counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
+  })
+)
+
 /** A customer's browser for "avise quando ficar pronto" (Firebase Installation ID). */
 const orderPushValidator = vine.create(
   vine.object({
@@ -141,6 +152,7 @@ export {
   publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,
+  addOrderItemsValidator,
   receivePaymentValidator,
   orderPushValidator,
   prepareUnitsValidator,

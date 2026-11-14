@@ -11,6 +11,7 @@ import PaymentMethod from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
 import Order from '#models/order'
 import Payment from '#models/payment'
+import OrderReceipt from '#models/order_receipt'
 import SendOrderReceipt from '#jobs/send_order_receipt'
 import mail from '@adonisjs/mail/services/main'
 import OrderRefundNotification from '#mails/order_refund_notification'
@@ -94,7 +95,7 @@ export default class PaymentService {
    * paid order whose automatic refund didn't go through.
    */
   async refundNow(order: Order, store: Store) {
-    if (order.status !== OrderStatus.CANCELLED || order.paymentStatus !== PaymentStatus.PAID) {
+    if (order.status !== OrderStatus.CANCELLED || !(await this.hasRefundable(order))) {
       throw new AppException(
         'Este pedido não tem pagamento a devolver.',
         409,
@@ -102,6 +103,35 @@ export default class PaymentService {
       )
     }
     await this.refundCancelled(order, store)
+  }
+
+  /**
+   * Money the gateway took for the order that goes back by itself: an
+   * approved attempt (online or the card machine), one already refunded in
+   * Mercado Pago that the order doesn't show yet, or a legacy Checkout Pro
+   * payment. Counter receipts are given back by hand, and duplicates were
+   * already given back.
+   */
+  async hasRefundable(order: Order) {
+    if (order.paymentStatus === PaymentStatus.REFUNDED) return false
+    const settled = await Payment.query()
+      .where('orderId', order.id)
+      .where((query) =>
+        query.where('status', PaymentAttemptStatus.APPROVED).orWhere((refunded) =>
+          refunded
+            .where('status', PaymentAttemptStatus.REFUNDED)
+            .where((detail) =>
+              detail.whereNull('statusDetail').orWhereNot('statusDetail', 'duplicate_refunded')
+            )
+        )
+      )
+      .first()
+    if (settled) return true
+    return (
+      order.paymentMethod === PaymentMethod.MERCADO_PAGO &&
+      order.paymentStatus === PaymentStatus.PAID &&
+      Boolean(order.mercadoPagoPaymentId)
+    )
   }
 
   /** Latest attempt of the order, shown on its tracking page. */
@@ -297,7 +327,10 @@ export default class PaymentService {
    * the gateway fails, so the RefundOrder job retries it.
    */
   async refundCancelled(order: Order, store: Store) {
-    if (order.status !== OrderStatus.CANCELLED || order.paymentStatus !== PaymentStatus.PAID) return
+    // Paid in part counts too (an online order with items added later and
+    // not received yet): what the gateway took goes back.
+    if (order.status !== OrderStatus.CANCELLED || order.paymentStatus === PaymentStatus.REFUNDED)
+      return
     const settled = await Payment.query()
       .where('orderId', order.id)
       .whereIn('status', [PaymentAttemptStatus.APPROVED, PaymentAttemptStatus.REFUNDED])
@@ -450,21 +483,19 @@ export default class PaymentService {
   /** Mirrors the attempt on the order (only the latest attempt decides). */
   async settle(order: Order, payment: Payment) {
     if (payment.status === PaymentAttemptStatus.APPROVED) {
-      await this.orders.markPaid(order, {
-        mercadoPagoPaymentId:
-          payment.gateway === 'mercado_pago' ? (payment.gatewayPaymentId ?? undefined) : undefined,
-        paymentMethod: payment.method === PaymentMethod.POINT ? PaymentMethod.POINT : undefined,
-      })
-      // markPaid records, under the order's lock, which approval paid it. One
-      // that isn't it came second (cash first, another charge, a late Pix):
-      // it goes back. The same approval notified twice finds its own id.
-      if (payment.gateway === 'mercado_pago') {
-        await order.refresh()
-        if (order.mercadoPagoPaymentId !== payment.gatewayPaymentId) {
+      await this.orders.markPaid(order, { payment })
+      await order.refresh()
+      // markPaid records, under the order's lock, the approvals the order
+      // needed (a receipt each). One it didn't need came second (cash first,
+      // another charge, a late Pix): it goes back. The same approval notified
+      // twice finds its own receipt.
+      const receipt = await OrderReceipt.findBy('paymentId', payment.id)
+      if (!receipt) {
+        if (payment.gateway === 'mercado_pago') {
           const { default: RefundDuplicatePayment } = await import('#jobs/refund_duplicate_payment')
           await RefundDuplicatePayment.dispatchFor(payment)
-          return
         }
+        return
       }
       await SendOrderReceipt.dispatchFor(payment)
       // Paid after it expired (a late Pix): give the money back.

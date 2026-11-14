@@ -236,6 +236,66 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     assert.deepEqual(fake.refunds, ['ORD2001'])
   })
 
+  test('items added after paying on the machine: charged there too, only the difference', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const order = await posOrder(client, store, carne.id, attendant)
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}`
+    const notify = (id: string, requestId: string) =>
+      client
+        .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+        .header('x-signature', signature(id, requestId))
+        .header('x-request-id', requestId)
+        .json({ type: 'order', action: 'order.processed', data: { id } })
+
+    await client
+      .post(`${base}/point-charges`)
+      .json({ paymentType: 'debit_card' })
+      .loginAs(attendant)
+    fake.set('ORD2001', 'processed', 'accredited')
+    await notify('ORD2001', 'req-1')
+
+    // A drink more, left to receive: the machine charges only it.
+    const added = await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+    added.assertBodyContains({ data: { total: 36, amountDue: 6, paymentStatus: 'pending' } })
+    await client
+      .post(`${base}/point-charges`)
+      .json({ paymentType: 'debit_card' })
+      .loginAs(attendant)
+    assert.equal(fake.charges[1].input.transactions.payments[0].amount, (6).toFixed(2))
+
+    // While it waits on the machine, nothing else is added (it was sent for 6).
+    const blocked = await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+    blocked.assertStatus(409)
+    blocked.assertBodyContains({ code: 'E_CHARGE_WAITING' })
+
+    fake.set('ORD2002', 'processed', 'accredited')
+    await notify('ORD2002', 'req-2')
+    // Mercado Pago tells of the first approval again: still the order's, not a duplicate.
+    await notify('ORD2001', 'req-3')
+
+    const paid = await Order.findOrFail(order.id)
+    assert.equal(paid.paymentStatus, 'paid')
+    assert.equal(paid.amountPaid, 36)
+    assert.deepEqual(fake.refunds, [])
+    const approved = await Payment.query().where('orderId', order.id).where('status', 'approved')
+    assert.lengthOf(approved, 2)
+
+    // Cancelled: both charges go back.
+    await client.post(`${base}/cancel`).loginAs(manager)
+    await runJob(RefundOrder, { orderId: order.id })
+    assert.sameMembers(fake.refunds, ['ORD2001', 'ORD2002'])
+  })
+
   test('a refused card leaves the order to be paid; it can be charged again', async ({
     client,
     assert,

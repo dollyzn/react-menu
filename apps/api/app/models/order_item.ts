@@ -1,3 +1,4 @@
+import type { DateTime } from 'luxon'
 import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import { decimal } from '#helpers/columns'
@@ -26,6 +27,13 @@ export default class OrderItem extends BaseModel {
    */
   @column()
   declare displayName: string | null
+
+  /** Added while the order waited in the queue (null: placed with it). */
+  @column.dateTime()
+  declare addedAt: DateTime | null
+
+  @column()
+  declare addedById: string | null
 
   @column(decimal)
   declare unitPrice: number

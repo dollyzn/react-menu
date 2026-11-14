@@ -3,7 +3,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
 import OrderChannel from '#enums/order_channel'
-import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
+import PaymentMethod from '#enums/payment_method'
 import { ok, updated, created } from '#helpers/api_response'
 import OrderService, { BUSINESS_TIMEZONE } from '#services/order_service'
 import RefundOrder from '#jobs/refund_order'
@@ -12,9 +12,13 @@ import Store from '#models/store'
 import type Order from '#models/order'
 import OrderStatus from '#enums/order_status'
 import StoreRole from '#enums/store_role'
-import PaymentStatus from '#enums/payment_status'
 import { storeExistValidator, uuidValidator } from '#validators/common'
-import { orderListValidator, posOrderValidator, receivePaymentValidator } from '#validators/order'
+import {
+  addOrderItemsValidator,
+  orderListValidator,
+  posOrderValidator,
+  receivePaymentValidator,
+} from '#validators/order'
 
 /**
  * The calendar day a `YYYY-MM-DD` query asked for, in the business timezone.
@@ -98,7 +102,11 @@ export default class OrdersController {
 
   /** Staff detail: status history with who did it, and the payment attempts. */
   private async detail(order: Order) {
-    const [payments] = await Promise.all([this.payments.listFor(order), order.load('paidBy')])
+    const [payments] = await Promise.all([
+      this.payments.listFor(order),
+      order.load('paidBy'),
+      order.load('receipts', (receipts) => receipts.preload('receivedBy').orderBy('id')),
+    ])
     return {
       // `paidBy` is replaced below by its name only.
       ...order.serialize(),
@@ -111,11 +119,18 @@ export default class OrdersController {
       })),
       // Paid online and cancelled, but the money hasn't gone back yet.
       refundPending:
-        order.status === OrderStatus.CANCELLED &&
-        order.paymentStatus === PaymentStatus.PAID &&
-        isOnlinePayment(order.paymentMethod),
+        order.status === OrderStatus.CANCELLED && (await this.payments.hasRefundable(order)),
       // Who received a counter payment: only the name leaves the API.
       paidBy: order.paidBy ? { id: order.paidBy.id, name: order.paidBy.name } : null,
+      receipts: order.receipts.map((receipt) => ({
+        amount: receipt.amount,
+        paymentMethod: receipt.paymentMethod,
+        counterMethod: receipt.counterMethod,
+        receivedAt: receipt.receivedAt.toISO(),
+        receivedBy: receipt.receivedBy
+          ? { id: receipt.receivedBy.id, name: receipt.receivedBy.name }
+          : null,
+      })),
       // Who changed each status: only the name leaves the API.
       history: order.history.map((entry) => ({
         fromStatus: entry.fromStatus,
@@ -164,12 +179,24 @@ export default class OrdersController {
     const { default: PointService } = await import('#services/point_service')
     const point = await app.container.make(PointService)
     await point.cancelWaiting(order, await Store.findOrFail(storeId))
-    // A paid online order gives the money back (job with retries).
-    if (order.paymentStatus === PaymentStatus.PAID && isOnlinePayment(order.paymentMethod)) {
+    // What the gateway took (online, the card machine) goes back (job with
+    // retries); money received at the counter is given back by hand.
+    if (await this.payments.hasRefundable(order)) {
       await RefundOrder.dispatchFor(order)
     }
 
     return updated(order, `Pedido #${order.number} cancelado`)
+  }
+
+  /** Items added to an order still in the queue, charged now or left to receive. */
+  async addItems({ params, request, auth }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const orderId = await uuidValidator.validate(params.orderId)
+    const input = await request.validateUsing(addOrderItemsValidator)
+
+    const order = await this.orders.addItems(storeId, orderId, input, auth.getUserOrFail())
+
+    return updated(order, `Itens adicionados ao pedido #${order.number}`)
   }
 
   /** "Receber pagamento" at the counter: how it was paid, recorded with who received it. */

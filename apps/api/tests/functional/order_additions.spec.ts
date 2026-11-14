@@ -1,0 +1,287 @@
+import { test } from '@japa/runner'
+import { DateTime } from 'luxon'
+import testUtils from '@adonisjs/core/services/test_utils'
+import type { ApiClient } from '@japa/api-client'
+import StoreRole from '#enums/store_role'
+import Ingredient from '#models/ingredient'
+import Order from '#models/order'
+import OrderReceipt from '#models/order_receipt'
+import type Store from '#models/store'
+import type User from '#models/user'
+import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { fakeQueue } from '#tests/helpers/queue'
+
+async function counterStore() {
+  const menu = await createMenuStore()
+  const manager = await createUser()
+  const attendant = await createUser()
+  const cook = await createUser()
+  await linkUser(menu.store, manager, StoreRole.MANAGER)
+  await linkUser(menu.store, attendant, StoreRole.ATTENDANT)
+  await linkUser(menu.store, cook, StoreRole.KITCHEN)
+  return { ...menu, manager, attendant, cook }
+}
+
+/** A POS order of one meat pastry (R$ 15), paid in cash unless told otherwise. */
+async function placeOrder(
+  client: ApiClient,
+  store: Store,
+  itemId: string,
+  user: User,
+  { paid = true } = {}
+) {
+  const response = await client
+    .post(`/api/v1/stores/${store.id}/orders`)
+    .json({
+      customer: { name: 'Maria' },
+      lines: [{ itemId, quantity: 1 }],
+      counterMethod: paid ? 'cash' : undefined,
+    })
+    .loginAs(user)
+  response.assertStatus(200)
+  return response.body().data as { id: string; number: number; total: number }
+}
+
+async function firstLineId(orderId: string) {
+  const order = await Order.query().where('id', orderId).preload('items').firstOrFail()
+  return order.items[0].id
+}
+
+test.group('Orders | items added while in the queue', (group) => {
+  group.each.setup(() => {
+    fakeQueue()
+  })
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+
+  test('a paid order takes a drink paid on Pix: two receipts, paid, and the report splits them', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca, attendant, manager } = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant)
+
+    const added = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/items`)
+      .json({
+        lines: [{ itemId: coca.id, quantity: 1, notes: 'Bem gelada' }],
+        counterMethod: 'pix',
+      })
+      .loginAs(attendant)
+
+    added.assertStatus(200)
+    added.assertBodyContains({
+      data: { total: 21, amountPaid: 21, amountDue: 0, paymentStatus: 'paid', status: 'received' },
+    })
+    const lines = added.body().data.items as {
+      name: string
+      notes: string | null
+      addedAt: string | null
+    }[]
+    assert.lengthOf(lines, 2)
+    assert.isNull(lines[0].addedAt)
+    assert.isNotNull(lines[1].addedAt)
+    assert.equal(lines[1].notes, 'Bem gelada')
+
+    const receipts = await OrderReceipt.query().where('orderId', order.id).orderBy('id')
+    assert.deepEqual(
+      receipts.map((receipt) => [receipt.amount, receipt.paymentMethod, receipt.counterMethod]),
+      [
+        [15, 'counter', 'cash'],
+        [6, 'counter', 'pix'],
+      ]
+    )
+    // The order still reads as paid in cash (how it was first paid).
+    const saved = await Order.findOrFail(order.id)
+    assert.equal(saved.counterMethod, 'cash')
+    // The detail lists both, with who received them (name only).
+    const detail = await client
+      .get(`/api/v1/stores/${store.id}/orders/${order.id}`)
+      .loginAs(manager)
+    detail.assertBodyContains({
+      data: {
+        receipts: [
+          { amount: 15, counterMethod: 'cash', receivedBy: { id: attendant.id } },
+          { amount: 6, counterMethod: 'pix', receivedBy: { id: attendant.id } },
+        ],
+      },
+    })
+
+    const today = DateTime.now().setZone('America/Sao_Paulo').toISODate()!
+    const report = await client
+      .get(`/api/v1/stores/${store.id}/reports/sales`)
+      .qs({ from: today, to: today })
+      .loginAs(manager)
+    const payments = report.body().data.payments as {
+      counterMethod: string | null
+      paid: boolean
+      revenue: number
+    }[]
+    assert.equal(payments.find((row) => row.counterMethod === 'cash')!.revenue, 15)
+    assert.equal(payments.find((row) => row.counterMethod === 'pix')!.revenue, 6)
+    assert.isUndefined(payments.find((row) => !row.paid))
+  })
+
+  test('left to receive: delivered only after the rest is received', async ({ client, assert }) => {
+    const { store, carne, coca, attendant } = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant)
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}`
+
+    const added = await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 2 }] })
+      .loginAs(attendant)
+    added.assertBodyContains({
+      data: { total: 27, amountPaid: 15, amountDue: 12, paymentStatus: 'pending' },
+    })
+
+    // Nothing to make: the cook's part is done, then it waits for the rest.
+    const cook = await createUser()
+    await linkUser(store, cook, StoreRole.KITCHEN)
+    const lineId = await firstLineId(order.id)
+    await client
+      .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
+      .json({ units: [{ lineId, quantity: 1 }] })
+      .loginAs(cook)
+    const refused = await client.post(`${base}/complete`).loginAs(attendant)
+    refused.assertStatus(409)
+    refused.assertBodyContains({ code: 'E_PAYMENT_REQUIRED' })
+
+    const received = await client
+      .post(`${base}/payment`)
+      .json({ method: 'debit' })
+      .loginAs(attendant)
+    received.assertStatus(200)
+    const paid = await Order.findOrFail(order.id)
+    assert.equal(paid.paymentStatus, 'paid')
+    assert.equal(paid.amountPaid, 27)
+    const last = await OrderReceipt.query()
+      .where('orderId', order.id)
+      .orderBy('id', 'desc')
+      .firstOrFail()
+    assert.deepEqual([last.amount, last.counterMethod], [12, 'debit'])
+
+    const delivered = await client.post(`${base}/complete`).loginAs(attendant)
+    delivered.assertStatus(200)
+  })
+
+  test('an unpaid counter order just grows; one payment covers all of it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, coca, attendant } = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant, { paid: false })
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}`
+
+    await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+    await client.post(`${base}/payment`).json({ method: 'cash' }).loginAs(attendant)
+
+    const receipts = await OrderReceipt.query().where('orderId', order.id)
+    assert.deepEqual(
+      receipts.map((receipt) => receipt.amount),
+      [21]
+    )
+  })
+
+  test('only while nothing was made, and never with a charge waiting on the machine', async ({
+    client,
+  }) => {
+    const { store, carne, coca, attendant, cook } = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant)
+    const base = `/api/v1/stores/${store.id}/orders/${order.id}`
+    const lineId = await firstLineId(order.id)
+
+    // The cook made the pastry: too late.
+    await client
+      .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
+      .json({ units: [{ lineId, quantity: 1 }] })
+      .loginAs(cook)
+    const started = await client
+      .post(`${base}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+    started.assertStatus(409)
+    started.assertBodyContains({ code: 'E_ORDER_STARTED' })
+
+    const cancelled = await placeOrder(client, store, carne.id, attendant)
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    await client.post(`/api/v1/stores/${store.id}/orders/${cancelled.id}/cancel`).loginAs(manager)
+    const afterCancel = await client
+      .post(`/api/v1/stores/${store.id}/orders/${cancelled.id}/items`)
+      .json({ lines: [{ itemId: coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+    afterCancel.assertStatus(409)
+    afterCancel.assertBodyContains({ code: 'E_ORDER_CANCELLED' })
+  })
+
+  test("the kitchen and another store's staff can't add; invalid lines are refused", async ({
+    client,
+  }) => {
+    const { store, carne, coca, attendant, cook } = await counterStore()
+    const other = await counterStore()
+    const order = await placeOrder(client, store, carne.id, attendant)
+    const url = `/api/v1/stores/${store.id}/orders/${order.id}/items`
+    const lines = [{ itemId: coca.id, quantity: 1 }]
+
+    const byCook = await client.post(url).json({ lines }).loginAs(cook)
+    const byOtherStore = await client.post(url).json({ lines }).loginAs(other.attendant)
+    // Another store's order through this store's URL: not found.
+    const theirs = await placeOrder(client, other.store, other.carne.id, other.attendant)
+    const theirOrder = await client
+      .post(`/api/v1/stores/${store.id}/orders/${theirs.id}/items`)
+      .json({ lines })
+      .loginAs(attendant)
+    const theirItem = await client
+      .post(url)
+      .json({ lines: [{ itemId: other.coca.id, quantity: 1 }] })
+      .loginAs(attendant)
+    const empty = await client.post(url).json({ lines: [] }).loginAs(attendant)
+
+    byCook.assertStatus(403)
+    byOtherStore.assertStatus(403)
+    theirOrder.assertStatus(404)
+    theirItem.assertStatus(422)
+    empty.assertStatus(422)
+  })
+
+  test('added items take their stock, and cancelling puts all of it back', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, attendant, manager } = await counterStore()
+    store.inventoryEnabled = true
+    await store.save()
+    const massa = await Ingredient.create({
+      storeId: store.id,
+      name: 'Massa',
+      unit: 'un',
+      stockQuantity: 3,
+      minStock: 0,
+    })
+    await carne.related('ingredients').attach({ [massa.id]: { quantity: 1 } })
+
+    const order = await placeOrder(client, store, carne.id, attendant)
+    const url = `/api/v1/stores/${store.id}/orders/${order.id}/items`
+    const added = await client
+      .post(url)
+      .json({ lines: [{ itemId: carne.id, quantity: 1 }], counterMethod: 'cash' })
+      .loginAs(attendant)
+    added.assertStatus(200)
+    await massa.refresh()
+    assert.equal(massa.stockQuantity, 1)
+
+    const tooMany = await client
+      .post(url)
+      .json({ lines: [{ itemId: carne.id, quantity: 2 }] })
+      .loginAs(attendant)
+    tooMany.assertStatus(422)
+    tooMany.assertBodyContains({ code: 'E_OUT_OF_STOCK' })
+
+    await client.post(`/api/v1/stores/${store.id}/orders/${order.id}/cancel`).loginAs(manager)
+    await massa.refresh()
+    assert.equal(massa.stockQuantity, 3)
+  })
+})

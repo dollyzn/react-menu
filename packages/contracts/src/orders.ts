@@ -51,6 +51,9 @@ export type OrderItem = {
   requiresPreparation: boolean;
   notes: string | null;
   total: number;
+  /** Added while the order waited in the queue (null: placed with it). */
+  addedAt: string | null;
+  addedById: string | null;
   addons: OrderItemAddon[];
 };
 
@@ -76,6 +79,10 @@ export type Order = {
   paidById: string | null;
   subtotal: number;
   total: number;
+  /** Received so far (all receipts); paid when it covers the total. */
+  amountPaid: number;
+  /** Still to receive: what was added after it was paid, or all of it. */
+  amountDue: number;
   notes: string | null;
   publicToken: string;
   createdById: string | null;
@@ -92,6 +99,18 @@ export type Order = {
   refundPending?: boolean;
   /** Only on GET /orders/:id: who received the counter payment. */
   paidBy?: { id: string; name: string | null } | null;
+  /** Only on GET /orders/:id: every amount received, oldest first. */
+  receipts?: OrderReceipt[];
+};
+
+/** Money received for an order (it may be paid in more than one go). */
+export type OrderReceipt = {
+  amount: number;
+  paymentMethod: PaymentMethod;
+  counterMethod: CounterPaymentMethod | null;
+  receivedAt: string;
+  /** Who took it at the counter (null: online or the card machine). */
+  receivedBy: { id: string; name: string | null } | null;
 };
 
 /** A payment attempt as staff see it (no gateway ids). */
@@ -121,6 +140,7 @@ export type PublicOrder = Pick<
   | 'paymentStatus'
   | 'subtotal'
   | 'total'
+  | 'amountDue'
   | 'notes'
   | 'createdAt'
   | 'readyAt'
@@ -230,6 +250,13 @@ export type CreatePosOrderInput = {
   lines: OrderLineInput[];
   notes?: string;
   /** Paid as it was sent; left out: paid later or on the card machine. */
+  counterMethod?: CounterPaymentMethod;
+};
+
+/** POST /orders/:id/items: items added to an order still in the queue. */
+export type AddOrderItemsInput = {
+  lines: OrderLineInput[];
+  /** Received now: how. Left out: on the card machine, or at pickup. */
   counterMethod?: CounterPaymentMethod;
 };
 
