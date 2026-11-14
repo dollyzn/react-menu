@@ -14,6 +14,14 @@ const PUBLIC_PAGES = ["/app/forgot-password", "/app/reset-password", "/app/socia
 /** Fetched by the browser without cookies when installing the staff app. */
 const PUBLIC_FILES = ["/app/manifest.webmanifest"];
 
+/**
+ * Paths no page here has: scanners probing for PHP files, dotfiles and
+ * server configs (/wp-login.php, /.env, /.git/config). A bare 404 before any
+ * page renders or the API is asked (`/.well-known/` stays reachable).
+ */
+const PROBE =
+  /\.(php\d?|aspx?|jsp|cgi|env|ini|sql|bak|old|ya?ml)(\/|$)|(^|\/)\.(?!well-known\/)|^\/(wp-admin|wp-content|wp-includes|wp-json|wordpress|phpmyadmin|pma|cgi-bin|xmlrpc|vendor)(\/|$)/i;
+
 function isLoggedIn(req: NextRequest) {
   const token = req.cookies.get(env.NEXT_PUBLIC_AUTH_COOKIE_NAME)?.value;
 
@@ -39,6 +47,10 @@ function withCsp(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set("x-nonce", nonce);
   headers.set("content-security-policy-report-only", policy);
+  // The root layout keeps browsers from translating the staff panel.
+  const path = req.nextUrl.pathname;
+  if (path === "/app" || path.startsWith("/app/")) headers.set("x-panel", "1");
+  else headers.delete("x-panel");
   const response = NextResponse.next({ request: { headers } });
   response.headers.set("Content-Security-Policy-Report-Only", policy);
   return response;
@@ -50,6 +62,7 @@ function withCsp(req: NextRequest) {
  */
 export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname;
+  if (PROBE.test(path)) return new NextResponse(null, { status: 404 });
   if (path !== "/app" && !path.startsWith("/app/")) return withCsp(req);
   if (PUBLIC_FILES.includes(path) || PUBLIC_PAGES.includes(path)) return withCsp(req);
 

@@ -10,7 +10,7 @@ Read the root `AGENTS.md` first. This file only covers the API.
 | Middleware (named: `auth`, `storeAccess`) | `app/middleware`, registered in `start/kernel.ts` |
 | Authorization | `app/abilities/main.ts` (`accessStore`), `app/policies/*` |
 | CSRF | `#middleware/cookie_auth_middleware` + `#helpers/trusted_origin`: a write (not GET/HEAD/OPTIONS) that carries the session cookie must come from `FRONTEND_URL` (or `TRUSTED_ORIGINS`; localhost/LAN outside production) by `Origin`, or `Sec-Fetch-Site: same-origin`; else 403 `E_UNTRUSTED_ORIGIN`. Bearer-token and cookieless calls (webhooks) are not affected |
-| Input validation (VineJS) | `app/validators/*` |
+| Input validation (VineJS) | `app/validators/*` (store slugs: `^[a-z0-9-]+$` minus `RESERVED_SLUGS` in `validators/store.ts`, the web's own root paths and the scanner paths its proxy blocks) |
 | HTTP layer | `app/controllers/*` (thin: validate, authorize, call service, respond) |
 | Business rules, transactions | `app/services/*` |
 | Queries, store scoping | `app/repositories/*` |

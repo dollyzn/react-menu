@@ -17,6 +17,7 @@ import { ServiceWorkerRegistrar } from "@/components/app/pwa/service-worker-regi
 import { HeadScripts } from "@/components/app/head-scripts";
 import { PendingWritesGuard } from "@/components/app/pending-writes-guard";
 import { ThemeColorSync } from "@/components/app/theme-color-sync";
+import { KeyboardWatcher } from "@/components/app/keyboard-watcher";
 import { THEME_COLORS } from "@/lib/theme-colors";
 
 const DESCRIPTION =
@@ -99,10 +100,15 @@ interface RootLayoutProps {
 
 export default async function RootLayout({ children }: RootLayoutProps) {
   // This request's CSP nonce (proxy.ts) for the scripts we inline.
-  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get("x-nonce") ?? undefined;
+  // The staff panel (proxy.ts marks it) isn't translated by the browser, its
+  // dialogs and toasts included (they render outside the panel's own tree).
+  const panel = requestHeaders.get("x-panel") === "1";
   return (
     <html
       lang="pt-BR"
+      translate={panel ? "no" : undefined}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
       className={cn(
@@ -131,6 +137,7 @@ export default async function RootLayout({ children }: RootLayoutProps) {
                 <ServiceWorkerRegistrar />
                 <PendingWritesGuard />
                 <ThemeColorSync />
+                <KeyboardWatcher />
               </SessionProvider>
             </NotificationProvider>
           </ReduxProvider>
