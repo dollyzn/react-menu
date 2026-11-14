@@ -230,6 +230,8 @@ const groups: Catalog['groups'] = [
     name: 'Escolha o queijo',
     minChoices: 1,
     maxChoices: 1,
+    // The kitchen reads "Pastel de Frango com Catupiry".
+    replacesInName: 'Queijo',
     // Included in the pastry's price.
     optionPrice: 0,
     options: ['mussarela', 'catupiry', 'cheddar', 'creamCheese'],

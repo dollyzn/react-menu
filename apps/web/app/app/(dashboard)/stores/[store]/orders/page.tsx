@@ -17,6 +17,7 @@ import { OrderCard } from "./order-card";
 import { OrderDetailSheet } from "./order-detail-sheet";
 import { OrderHistory } from "./order-history";
 import { FinishedOrders } from "./finished-orders";
+import { RecentDeliveries, recentDeliveries } from "./recent-deliveries";
 import { cn } from "@/lib/utils";
 import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
@@ -158,6 +159,8 @@ function LiveBoard({
 
   const awaitingPayment = byStatus.get("pending_payment") ?? [];
   const finished = [...(byStatus.get("completed") ?? []), ...(byStatus.get("cancelled") ?? [])];
+  // Attendants don't get the day's list (it sums the sales): the last few, to check.
+  const recent = isManager || !canOperate ? [] : recentDeliveries(orders);
 
   return (
     <>
@@ -242,6 +245,18 @@ function LiveBoard({
             transition={{ layout: { type: "spring", bounce: 0, duration: 0.35 } }}
           >
             <FinishedOrders orders={finished} onOpen={(orderId) => onOpen?.(orderId)} />
+          </motion.div>
+        )}
+        {recent.length > 0 && (
+          <motion.div
+            key="recent"
+            layout="position"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ layout: { type: "spring", bounce: 0, duration: 0.35 } }}
+          >
+            <RecentDeliveries orders={recent} />
           </motion.div>
         )}
       </AnimatePresence>

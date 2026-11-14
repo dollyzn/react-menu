@@ -67,18 +67,16 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
             type="button"
             onClick={() => onOpen(order.id)}
             aria-label={`Ver detalhes do pedido ${order.number}`}
-            className="-m-1 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="-m-1 min-w-0 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <p className="text-2xl font-black tabular-nums">#{order.number}</p>
-            <p className="font-medium">{order.customerName}</p>
+            <OrderTitle order={order} />
           </button>
         ) : (
-          <div>
-            <p className="text-2xl font-black tabular-nums">#{order.number}</p>
-            <p className="font-medium">{order.customerName}</p>
+          <div className="min-w-0">
+            <OrderTitle order={order} />
           </div>
         )}
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <span
             className={cn(
               "inline-flex items-center gap-1 text-sm tabular-nums",
@@ -97,7 +95,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       <ul className="mt-3 flex flex-col gap-1 text-sm">
         {order.items.map((line) => (
           <li key={line.id}>
-            <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.name}
+            <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.displayName ?? line.name}
             {line.addons.length > 0 && (
               <span className="text-muted-foreground"> + {addonLabels(line.addons).join(", ")}</span>
             )}
@@ -178,5 +176,18 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         }}
       />
     </motion.article>
+  );
+}
+
+/**
+ * The number and, as big, the customer's name: the counter calls people by
+ * name ("Maria!"), and the number is what they check on their phone.
+ */
+function OrderTitle({ order }: { order: Order }) {
+  return (
+    <>
+      <p className="text-xl leading-none font-black tabular-nums">#{order.number}</p>
+      <p className="mt-1 line-clamp-2 text-lg leading-tight font-bold wrap-break-word">{order.customerName}</p>
+    </>
   );
 }

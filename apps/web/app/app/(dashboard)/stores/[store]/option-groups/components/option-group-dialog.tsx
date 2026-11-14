@@ -43,6 +43,8 @@ const Schema = z
     allowRepeat: z.boolean(),
     /** Price by pick order (one per pick up to the maximum); null = each option's price. */
     pickPrices: z.array(z.number().min(0)).nullable(),
+    /** A word of the item's name the pick replaces in the kitchen and the orders ("Queijo"); empty = none. */
+    replacesInName: z.string().trim().max(40, "Use até 40 caracteres."),
     /** In display order; price null = the add-on's own price. */
     options: z
       .array(z.object({ addonId: z.string(), price: z.number().min(0).nullable() }))
@@ -105,6 +107,7 @@ export function OptionGroupDialog({
       maxChoices: group?.maxChoices ?? 1,
       allowRepeat: group?.allowRepeat ?? false,
       pickPrices: group?.pickPrices ?? null,
+      replacesInName: group?.replacesInName ?? "",
       options: group?.options?.map((option) => ({ addonId: option.id, price: option.groupPrice })) ?? [],
     },
   });
@@ -123,6 +126,7 @@ export function OptionGroupDialog({
     const data = {
       ...values,
       pickPrices: values.pickPrices ? tiers(values.pickPrices, values.maxChoices) : null,
+      replacesInName: values.replacesInName || null,
     };
     try {
       if (group) await update({ storeId, id: group.id, data }).unwrap();
@@ -390,6 +394,39 @@ export function OptionGroupDialog({
                   )}
                 />
               )}
+              <Controller
+                name="replacesInName"
+                control={form.control}
+                render={({ field, fieldState }) => {
+                  const word = field.value.trim();
+                  const first = values.options?.[0] && addonById.get(values.options[0].addonId)?.name;
+                  return (
+                    <Field data-invalid={fieldState.invalid}>
+                      <FieldLabel htmlFor="group-replaces">Palavra do item trocada pela escolha (opcional)</FieldLabel>
+                      <Input
+                        {...field}
+                        id="group-replaces"
+                        placeholder="Ex.: Queijo"
+                        maxLength={40}
+                        aria-invalid={fieldState.invalid}
+                        disabled={busy}
+                      />
+                      <FieldDescription>
+                        Na cozinha e nos pedidos, a opção escolhida entra no lugar desta palavra
+                        {word && first ? (
+                          <>
+                            : &quot;Pastel com {word}&quot; vira &quot;Pastel com {first}&quot;.
+                          </>
+                        ) : (
+                          <>: &quot;Pastel de Frango com Queijo&quot; vira &quot;Pastel de Frango com Catupiry&quot;.</>
+                        )}{" "}
+                        O cardápio não muda.
+                      </FieldDescription>
+                      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+                    </Field>
+                  );
+                }}
+              />
               {Number.isFinite(values.minChoices) && Number.isFinite(values.maxChoices) && values.maxChoices >= 1 && (
                 <p className="text-sm text-muted-foreground">
                   O cliente vê: <strong className="text-foreground">{groupRule(values)}</strong>

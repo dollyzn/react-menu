@@ -1,3 +1,4 @@
+import { displayName } from '#orders/display_name'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -157,6 +158,7 @@ export default class OrderService {
             orderId: created.id,
             itemId: line.item.id,
             name: line.item.name,
+            displayName: line.displayName,
             unitPrice: line.item.price,
             quantity: line.quantity,
             preparedQuantity: 0,
@@ -629,6 +631,14 @@ export default class OrderService {
       return {
         item,
         addons,
+        // "Pastel de Frango com Catupiry" on the staff screens (see OptionGroup.replacesInName).
+        displayName: displayName(
+          item.name,
+          [...picks.values()].map(({ addon, group }) => ({
+            name: addon.name,
+            replaces: group?.replacesInName ?? null,
+          }))
+        ),
         quantity: line.quantity,
         notes: line.notes?.trim() || null,
         total: money(unitTotal * line.quantity),

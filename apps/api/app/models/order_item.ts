@@ -19,6 +19,14 @@ export default class OrderItem extends BaseModel {
   @column()
   declare name: string
 
+  /**
+   * The name on the staff screens (kitchen, board) when a choice renames the
+   * item ("Pastel de Frango com Catupiry"); null = `name`. See
+   * OptionGroup.replacesInName.
+   */
+  @column()
+  declare displayName: string | null
+
   @column(decimal)
   declare unitPrice: number
 
