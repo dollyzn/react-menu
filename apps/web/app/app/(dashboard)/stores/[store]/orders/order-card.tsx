@@ -187,7 +187,7 @@ function OrderTitle({ order }: { order: Order }) {
   return (
     <>
       <p className="text-xl leading-none font-black tabular-nums">#{order.number}</p>
-      <p className="mt-1 line-clamp-2 text-lg leading-tight font-bold wrap-break-word">{order.customerName}</p>
+      <p className="mt-1.5 line-clamp-2 text-xl leading-tight font-bold wrap-break-word">{order.customerName}</p>
     </>
   );
 }
