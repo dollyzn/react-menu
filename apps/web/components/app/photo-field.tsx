@@ -167,7 +167,7 @@ export function PhotoField({
               type="button"
               onClick={pick}
               disabled={disabled}
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+              className="absolute inset-0 rounded-[inherit] flex flex-col items-center justify-center gap-2 p-4 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
               transition={{ duration: 0.25 }}
               {...fade}
             >
@@ -196,7 +196,7 @@ export function PhotoField({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center gap-2 bg-background/70 text-sm font-medium backdrop-blur-sm"
+              className="absolute inset-0 rounded-[inherit] flex items-center justify-center gap-2 bg-background/70 text-sm font-medium backdrop-blur-sm"
             >
               <Upload className="size-4 text-primary" /> Solte para trocar
             </motion.div>
@@ -210,7 +210,7 @@ export function PhotoField({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center gap-2 bg-background/60 text-sm font-medium backdrop-blur-sm"
+              className="absolute inset-0 rounded-[inherit] flex items-center justify-center gap-2 bg-background/60 text-sm font-medium backdrop-blur-sm"
               aria-live="polite"
             >
               <Spinner aria-hidden /> Preparando a foto…
