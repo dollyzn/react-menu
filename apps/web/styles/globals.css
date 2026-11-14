@@ -4,6 +4,13 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/*
+ * Room for a footer pinned to the bottom of a drawer. With the on-screen
+ * keyboard open (Android shrinks the page: interactive-widget=resizes-content)
+ * a pinned footer can cover the field being typed in, so drawers pin theirs
+ * only with `tall:sticky` and let it follow the content otherwise.
+ */
+@custom-variant tall (@media (min-height: 560px));
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
