@@ -85,16 +85,9 @@ export default class AuthService {
 
     const key = `login_${request.ip()}_${data.email}`
 
-    const attempt = () =>
-      loginLimiter.penalize(key, () => User.verifyCredentials(data.email, data.password))
-    let result = await attempt()
-    // The in-memory store (development) reports a block that already ended
-    // but wasn't swept yet as still in force (a negative wait): let it go.
-    if (result[0] && result[0].response.availableIn <= 0) {
-      await loginLimiter.delete(key)
-      result = await attempt()
-    }
-    const [error, user] = result
+    const [error, user] = await loginLimiter.penalize(key, () =>
+      User.verifyCredentials(data.email, data.password)
+    )
 
     if (error) {
       throw new AppException(
