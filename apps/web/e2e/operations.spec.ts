@@ -666,3 +666,49 @@ test("tracking page: \"Avisar quando ficar pronto\" stays on after a reload and 
   await expect(page.getByText("Pronto! Pode vir buscar")).toBeVisible({ timeout: 15_000 });
   await expect.poll(() => page.title(), { timeout: 5_000 }).toContain(`Pedido #${number} pronto!`);
 });
+
+test("POS: a line in the ticket opens with its picks and is saved in place", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(page.url().replace(/\/orders$/, "/pos"));
+
+  await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
+  const drink = page.getByRole("button", { name: /^Coca-Cola/ }).first();
+  const drinkName = (await drink.getAttribute("aria-label"))!.replace(/ R\$.*$/, "");
+  await drink.click();
+  await page.getByRole("searchbox", { name: "Buscar produto" }).fill("");
+  const ticket = page.getByRole("complementary", { name: "Comanda" });
+
+  // Opened from the ticket: "Salvar", not "Adicionar"; a note and one more.
+  await ticket.getByRole("button", { name: `Editar ${drinkName}` }).click();
+  const editor = page.getByRole("dialog", { name: drinkName });
+  await expect(editor.getByRole("button", { name: /Salvar/ })).toBeVisible();
+  await editor.getByLabel("Alguma observação?").fill("Sem gelo");
+  await editor.getByRole("button", { name: "Aumentar quantidade" }).click();
+  await editor.getByRole("button", { name: /Salvar/ }).click();
+  await expect(editor).toBeHidden();
+
+  // Still one line, changed where it was.
+  await expect(ticket.getByRole("button", { name: /^Editar / })).toHaveCount(1);
+  await expect(ticket.getByText("“Sem gelo”")).toBeVisible();
+  await expect(ticket.getByText(/^2 ×/)).toBeVisible();
+
+  // Opened again: it starts from what was saved.
+  await ticket.getByRole("button", { name: `Editar ${drinkName}` }).click();
+  await expect(editor.getByLabel("Alguma observação?")).toHaveValue("Sem gelo");
+  await page.keyboard.press("Escape");
+  await expect(editor).toBeHidden();
+
+  // The usual case: the customer changes the cheese.
+  await page.getByRole("searchbox", { name: "Buscar produto" }).fill("frango com queijo");
+  await page.getByRole("button", { name: /^Pastel de Frango com Queijo R\$/ }).click();
+  const pastry = page.getByRole("dialog", { name: "Pastel de Frango com Queijo" });
+  await pastry.getByText("Catupiry", { exact: true }).click();
+  await pastry.getByRole("button", { name: /Adicionar/ }).click();
+  await ticket.getByRole("button", { name: "Editar Pastel de Frango com Queijo" }).click();
+  await expect(pastry.getByRole("radio", { name: /Catupiry/ })).toBeChecked();
+  await pastry.getByText("Cheddar", { exact: true }).click();
+  await pastry.getByRole("button", { name: /Salvar/ }).click();
+  await expect(ticket.getByText(/Escolha o queijo: Cheddar/)).toBeVisible();
+  await expect(ticket.getByText(/Catupiry/)).toHaveCount(0);
+});

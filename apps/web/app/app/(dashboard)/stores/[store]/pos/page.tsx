@@ -7,7 +7,7 @@ import Image from "@/components/app/image";
 import { useParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Clock, Minus, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed } from "lucide-react";
+import { Clock, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed } from "lucide-react";
 import type { CounterPaymentMethod } from "@react-menu/contracts";
 import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
 import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
@@ -55,6 +55,9 @@ export default function PosPage() {
   const [picking, setPicking] = useState<PublicMenuItem | null>(null);
   // The customizer stays on screen while its dialog animates closed.
   const pickingShown = useLastValue(picking);
+  /** A ticket line opened to change its choices, notes or quantity (null: adding a new one). */
+  const [editing, setEditing] = useState<TicketLine | null>(null);
+  const editingShown = useLastValue(editing, () => picking !== null);
   const [lines, setLines] = useState<TicketLine[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -122,6 +125,15 @@ export default function PosPage() {
       if (same) return current.map((l) => (l === same ? { ...l, quantity: l.quantity + line.quantity } : l));
       return [...current, { ...line, key: randomId() }];
     });
+  };
+
+  /** Opens a ticket line in the customizer, with its picks; "Salvar" replaces it in place. */
+  const editLine = (key: string) => {
+    const line = lines.find((candidate) => candidate.key === key);
+    const item = line && categories.flatMap((category) => category.items).find((candidate) => candidate.id === line.itemId);
+    if (!line || !item) return;
+    setEditing(line);
+    setPicking(item);
   };
 
   const changeQuantity = (key: string, delta: number) => {
@@ -260,6 +272,7 @@ export default function PosPage() {
     onCustomerName: setCustomerName,
     onCustomerPhone: setCustomerPhone,
     onQuantity: changeQuantity,
+    onEdit: editLine,
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
     onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
@@ -415,20 +428,32 @@ export default function PosPage() {
 
       <ResponsiveModal
         open={Boolean(picking)}
-        onOpenChange={(open) => !open && setPicking(null)}
+        onOpenChange={(open) => {
+          if (open) return;
+          setPicking(null);
+          setEditing(null);
+        }}
         title={pickingShown?.name ?? ""}
         hideHeader
         className="sm:max-w-md"
       >
         {pickingShown && (
           <ItemCustomizer
-            key={pickingShown.id}
+            key={`${pickingShown.id}:${editingShown?.key ?? "new"}`}
             item={pickingShown}
-            ctaLabel="Adicionar"
-            alreadyChosen={inTicket.get(pickingShown.id) ?? 0}
+            ctaLabel={editingShown ? "Salvar" : "Adicionar"}
+            initial={editingShown ?? undefined}
+            // The line being edited doesn't count against itself.
+            alreadyChosen={(inTicket.get(pickingShown.id) ?? 0) - (editingShown?.quantity ?? 0)}
             onAdd={(line) => {
-              addToTicket(line);
+              if (editingShown) {
+                const key = editingShown.key;
+                setLines((current) => current.map((candidate) => (candidate.key === key ? { ...line, key } : candidate)));
+              } else {
+                addToTicket(line);
+              }
               setPicking(null);
+              setEditing(null);
             }}
           />
         )}
@@ -581,6 +606,7 @@ function Ticket({
   onCustomerName,
   onCustomerPhone,
   onQuantity,
+  onEdit,
   canIncrease,
   onClear,
   onSend,
@@ -597,6 +623,8 @@ function Ticket({
   onCustomerName: (value: string) => void;
   onCustomerPhone: (value: string) => void;
   onQuantity: (key: string, delta: number) => void;
+  /** Opens the line to change its choices, notes or quantity. */
+  onEdit: (key: string) => void;
   /** False when the stock allows no more units of that item. */
   canIncrease: (itemId: string) => boolean;
   onClear: () => void;
@@ -676,17 +704,26 @@ function Ticket({
                 exit={{ opacity: 0, height: 0 }}
                 className="flex items-center gap-3 py-3"
               >
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium leading-snug">{line.name}</p>
+                {/* The whole description opens the line: change the cheese, a note… without removing it. */}
+                <button
+                  type="button"
+                  onClick={() => onEdit(line.key)}
+                  aria-label={`Editar ${line.name}`}
+                  className="group/line -m-1 min-w-0 flex-1 rounded-lg p-1 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
+                >
+                  <span className="flex items-center gap-1.5 text-sm leading-snug font-medium">
+                    {line.name}
+                    <Pencil className="size-3 shrink-0 text-muted-foreground opacity-60 group-hover/line:opacity-100" />
+                  </span>
                   {line.addons.length > 0 && (
-                    <p className="text-xs text-muted-foreground">+ {addonLabels(line.addons).join(", ")}</p>
+                    <span className="block text-xs text-muted-foreground">+ {addonLabels(line.addons).join(", ")}</span>
                   )}
-                  {line.notes && <p className="text-xs text-warning italic">“{line.notes}”</p>}
-                  <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">
+                  {line.notes && <span className="block text-xs text-warning italic">“{line.notes}”</span>}
+                  <span className="mt-0.5 block text-xs text-muted-foreground tabular-nums">
                     {line.quantity} × {formatCurrencyBRL(unitTotal(line))} ={" "}
                     <span className="font-semibold text-foreground">{formatCurrencyBRL(lineTotal(line))}</span>
-                  </p>
-                </div>
+                  </span>
+                </button>
                 <div className="flex items-center rounded-full border">
                   <Button
                     variant="ghost"

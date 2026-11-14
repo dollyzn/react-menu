@@ -78,6 +78,7 @@ export function ItemCustomizer({
   ctaLabel,
   disabled,
   alreadyChosen = 0,
+  initial,
   onAdd,
 }: {
   item: PublicMenuItem;
@@ -85,13 +86,23 @@ export function ItemCustomizer({
   disabled?: boolean;
   /** Units of this item already in the bag/ticket (they count against the stock). */
   alreadyChosen?: number;
+  /** A line being edited (the POS ticket): its picks, notes and quantity. */
+  initial?: CustomizedLine;
   onAdd: (line: CustomizedLine) => void;
 }) {
-  const [addonIds, setAddonIds] = useState<string[]>([]);
-  /** Choices per group (option ids). */
-  const [choices, setChoices] = useState<Record<string, string[]>>({});
-  const [notes, setNotes] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [addonIds, setAddonIds] = useState<string[]>(
+    () => initial?.addons.filter((addon) => !addon.groupId).map((addon) => addon.id) ?? []
+  );
+  /** Choices per group (option ids), in the order picked (it sets their price). */
+  const [choices, setChoices] = useState<Record<string, string[]>>(() => {
+    const picked: Record<string, string[]> = {};
+    for (const addon of initial?.addons ?? []) {
+      if (addon.groupId) picked[addon.groupId] = [...(picked[addon.groupId] ?? []), addon.id];
+    }
+    return picked;
+  });
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [quantity, setQuantity] = useState(initial?.quantity ?? 1);
 
   const groups = item.optionGroups ?? [];
   // A pick carries its group: the price there and "Recheio extra: Carne".
