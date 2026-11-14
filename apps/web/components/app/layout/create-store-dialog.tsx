@@ -27,7 +27,7 @@ import { Input } from "@/components/ui/input";
 import { useCreateStoreMutation } from "@/redux/features/store/storeApi";
 import { useSession } from "@/contexts/session-provider";
 import { getErrorMessage } from "@/utils/get-error-message";
-import { slugify } from "@/utils/string";
+import { slugify, STORE_SLUG } from "@/utils/string";
 
 const NAME_MAX = 120;
 
@@ -40,7 +40,7 @@ const CreateStoreSchema = z.object({
   slug: z
     .string()
     .min(1, "O endereço é obrigatório.")
-    .regex(/^[a-z0-9-]+$/, "Use apenas letras minúsculas, números e hífens."),
+    .regex(STORE_SLUG, "Use apenas letras minúsculas, números e hífens."),
 });
 
 type CreateStoreValues = z.infer<typeof CreateStoreSchema>;

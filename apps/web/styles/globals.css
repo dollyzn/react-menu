@@ -4,6 +4,21 @@
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
+/*
+ * Room for a footer pinned to the bottom of a drawer. With the on-screen
+ * keyboard open a pinned footer can cover the field being typed in, so
+ * drawers pin theirs only with `tall:sticky` and let it follow the content
+ * otherwise. Android shrinks the page (interactive-widget=resizes-content):
+ * the height says it; iOS shrinks only what is visible: KeyboardWatcher marks
+ * `html[data-keyboard]`. A mouse (desktop) always has room.
+ */
+@custom-variant tall {
+  @media (min-height: 560px), (pointer: fine) {
+    &:where(:root:not([data-keyboard]) *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --font-sans: var(--font-geist-sans);

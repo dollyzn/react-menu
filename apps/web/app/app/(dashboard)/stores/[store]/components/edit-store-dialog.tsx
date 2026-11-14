@@ -19,7 +19,7 @@ import {
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { formatPhoneBR } from "@/utils/string";
+import { formatPhoneBR, STORE_SLUG } from "@/utils/string";
 import {
   Dialog,
   DialogBody,
@@ -60,7 +60,7 @@ const EditStoreSchema = z.object({
     .string()
     .min(1, "O slug é obrigatório.")
     .regex(
-      /^[a-z0-9-]+$/,
+      STORE_SLUG,
       "O slug deve conter apenas letras minúsculas, números e hífens."
     ),
   phone: z
