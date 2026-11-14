@@ -38,6 +38,9 @@ test("the POS shows what's left, stops at the stock, and a quick count changes i
   // aria-disabled reads as unavailable but still answers a click (Playwright waits on it).
   await more.click({ force: true });
   await expect(page.getByText("Só tem 2 Pastel de ovo no estoque: a comanda já tem todas.")).toBeVisible();
+  // Emptied, so the kept ticket doesn't come back holding both.
+  await page.getByRole("button", { name: "Diminuir Pastel de ovo" }).first().click();
+  await page.getByRole("button", { name: "Remover Pastel de ovo" }).first().click();
 
   // "Papai disse que só tem 1 ovo": a quick count on the stock screen.
   await page.goto(`/app/stores/${store.id}/inventory`);
