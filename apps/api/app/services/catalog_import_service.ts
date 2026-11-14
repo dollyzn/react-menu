@@ -251,55 +251,69 @@ export default class CatalogImportService {
    * (what was typed in the panel stays).
    */
   async applyAddonDescriptions(store: Store, catalog: Catalog, options: { force?: boolean } = {}) {
-    const addons = await Addon.query().where('storeId', store.id)
-    const byName = new Map<string, Addon[]>()
-    for (const addon of addons) {
-      const key = addon.name.trim().toLowerCase()
-      byName.set(key, [...(byName.get(key) ?? []), addon])
-    }
-    const filled: string[] = []
-    const kept: string[] = []
-    const ambiguous: string[] = []
-    const notFound: string[] = []
-    const done = new Set<string>()
-    // Names the catalog itself repeats (the "Escarola" extra filling and mini flavor).
-    const catalogNames = new Map<string, number>()
-    for (const definition of catalog.addons) {
-      const key = definition.name.trim().toLowerCase()
-      catalogNames.set(key, (catalogNames.get(key) ?? 0) + 1)
-    }
-    for (const definition of catalog.addons) {
-      if (!definition.description) continue
-      const key = definition.name.trim().toLowerCase()
-      const named = byName.get(key) ?? []
-      if (named.length === 0) continue
-      // A name the store or the catalog repeats is told apart by the price;
-      // otherwise one add-on would take another's description.
-      const repeated = named.length > 1 || (catalogNames.get(key) ?? 0) > 1
-      const candidates = repeated
-        ? named.filter((addon) => addon.price === definition.price)
-        : named
-      if (candidates.length === 0) {
-        // Its price changed in the panel: say so instead of skipping quietly.
-        notFound.push(`${definition.name} (R$ ${definition.price})`)
-        continue
+    // All or nothing: a failure halfway leaves the store as it was.
+    return await db.transaction(async (trx) => {
+      const addons = await Addon.query({ client: trx }).where('storeId', store.id)
+      const byName = new Map<string, Addon[]>()
+      for (const addon of addons) {
+        const key = addon.name.trim().toLowerCase()
+        byName.set(key, [...(byName.get(key) ?? []), addon])
       }
-      if (candidates.length > 1) {
-        ambiguous.push(definition.name)
-        continue
+      const filled = new Set<string>()
+      const kept = new Set<string>()
+      const ambiguous = new Set<string>()
+      const notFound = new Set<string>()
+      const done = new Set<string>()
+      // Names the catalog itself repeats (the "Escarola" extra filling and mini
+      // flavor), and the prices it gives each.
+      const catalogPrices = new Map<string, number[]>()
+      for (const definition of catalog.addons) {
+        const key = definition.name.trim().toLowerCase()
+        catalogPrices.set(key, [...(catalogPrices.get(key) ?? []), definition.price])
       }
-      const [addon] = candidates
-      if (done.has(addon.id)) continue
-      done.add(addon.id)
-      if (addon.description && !options.force) {
-        kept.push(addon.name)
-        continue
+      for (const definition of catalog.addons) {
+        if (!definition.description) continue
+        const key = definition.name.trim().toLowerCase()
+        const named = byName.get(key) ?? []
+        if (named.length === 0) continue
+        const prices = catalogPrices.get(key) ?? []
+        // A name the store or the catalog repeats is told apart by the price;
+        // otherwise one add-on would take another's description.
+        const repeated = named.length > 1 || prices.length > 1
+        const candidates = repeated
+          ? named.filter((addon) => addon.price === definition.price)
+          : named
+        if (candidates.length === 0) {
+          // Only a warning when an add-on of this name matches no catalog price
+          // (its price changed in the panel); otherwise this one simply isn't in
+          // the store (it kept the extra filling, not the mini flavor).
+          if (named.some((addon) => !prices.includes(addon.price))) {
+            notFound.add(`${definition.name} (R$ ${definition.price})`)
+          }
+          continue
+        }
+        if (candidates.length > 1) {
+          ambiguous.add(definition.name)
+          continue
+        }
+        const [addon] = candidates
+        if (done.has(addon.id)) continue
+        done.add(addon.id)
+        if (addon.description && !options.force) {
+          kept.add(addon.name)
+          continue
+        }
+        addon.description = definition.description
+        await addon.useTransaction(trx).save()
+        filled.add(addon.name)
       }
-      addon.description = definition.description
-      await addon.save()
-      filled.push(addon.name)
-    }
-    return { filled, kept, ambiguous, notFound }
+      return {
+        filled: [...filled],
+        kept: [...kept],
+        ambiguous: [...ambiguous],
+        notFound: [...notFound],
+      }
+    })
   }
 
   /**

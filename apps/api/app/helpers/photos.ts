@@ -5,7 +5,7 @@ import { uploadPlaceholder } from '#helpers/image_placeholder'
 import { deleteUpload } from '#helpers/uploads'
 
 /** A row with an uploaded photo and its blurred preview (an item, an add-on). */
-type PhotoRecord = {
+export type PhotoRecord = {
   id: string
   photoUrl: string | null
   photoBlur: string | null

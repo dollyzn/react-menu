@@ -1,5 +1,6 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
+import type { PhotoRecord } from '#helpers/photos'
 import Addon from '#models/addon'
 import Item from '#models/item'
 import Store from '#models/store'
@@ -51,9 +52,7 @@ export default class ImagesBlur extends BaseCommand {
     }
 
     /** Rows with an uploaded photo: the ones without a preview (all with --force). */
-    const photos = async (
-      rows: { photoUrl: string | null; photoBlur: string | null; save(): Promise<unknown> }[]
-    ) => {
+    const photos = async (rows: Pick<PhotoRecord, 'photoUrl' | 'photoBlur' | 'save'>[]) => {
       for (const row of rows) {
         const blur = await preview(row.photoUrl, row.photoBlur)
         if (!blur) continue

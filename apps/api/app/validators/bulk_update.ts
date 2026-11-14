@@ -11,7 +11,8 @@ export const bulkUpdateValidator = vine.create(
         vine.object({
           id: vine.string().uuid(),
           updatedAt: vine.string().trim().minLength(1),
-          price: vine.number().positive().max(99999.99).decimal([0, 2]).optional(),
+          // 0 for add-ons (included in the price); items refuse it in ItemService.
+          price: vine.number().min(0).max(99999.99).decimal([0, 2]).optional(),
           isAvailable: vine.boolean().optional(),
         })
       )

@@ -3,6 +3,7 @@ import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import Item from '#models/item'
+import AppException from '#exceptions/app_exception'
 import { deleteEach } from '#helpers/bulk_delete'
 import { deleteUpload } from '#helpers/uploads'
 import { applyBulkChanges, type BulkChange } from '#helpers/bulk_update'
@@ -160,6 +161,10 @@ export default class ItemService {
 
   /** Prices/availability of many items at once, all or nothing (see applyBulkChanges). */
   async bulkUpdateForStore(storeId: string, changes: BulkChange[]) {
+    // Add-ons may be free; an item always costs something (as in its own form).
+    if (changes.some((change) => change.price !== undefined && change.price <= 0)) {
+      throw new AppException('O preço de um item deve ser maior que zero.', 422, 'E_INVALID_PRICE')
+    }
     return await db.transaction(async (trx) => {
       const items = await Item.query({ client: trx })
         .whereIn(

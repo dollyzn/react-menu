@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Controller, useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateAddonMutation } from "@/redux/features/addon/addonApi";
 import { toast } from "sonner";
@@ -17,7 +17,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { KEEP_PHOTO, PhotoField, type PhotoChange } from "@/components/app/photo-field";
+import { KEEP_PHOTO, type PhotoChange } from "@/components/app/photo-field";
+import { AddonPhotoField } from "./addon-photo-field";
 import { useSaveAddonPhoto } from "./use-save-addon-photo";
 import {
   Field,
@@ -25,7 +26,6 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { CopyPlus } from "lucide-react";
@@ -73,11 +73,14 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
     },
   });
   const { isSubmitting } = form.formState;
-  // For the photo's menu preview.
-  const [previewName, previewPrice] = useWatch({ control: form.control, name: ["name", "price"] });
   const busy = isSubmitting || isSaving || photoSaver.saving;
 
   const [open, setOpen] = useState(false);
+  /**
+   * Created, but its photo failed: the dialog stays open with the photo, and
+   * the next "Criar" only retries the photo (never a second add-on).
+   */
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const handleOpenChange = () => {
     if (busy && open) return;
@@ -86,11 +89,15 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
 
   const handleCreateAddon = async (data: z.infer<typeof CreateAddonSchema>) => {
     try {
-      const addon = await createAddon({ storeId, data }).unwrap();
+      const id = createdId ?? (await createAddon({ storeId, data }).unwrap()).id;
+      setCreatedId(id);
       // The photo goes once the add-on has its id; a failure there doesn't undo it.
-      const photoError = await photoSaver.save(photo, storeId, addon.id);
-      if (photoError) toast.error(`Adicional criado, mas a foto não: ${photoError}`);
-      handleOpenChange();
+      const photoError = await photoSaver.save(photo, storeId, id);
+      if (photoError) {
+        toast.error(`Adicional criado, mas a foto não: ${photoError}. Tente enviar a foto de novo.`);
+        return;
+      }
+      setOpen(false);
     } catch (err: unknown) {
       toast.error(
         getErrorMessage(
@@ -110,6 +117,7 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
         if (next) return;
         form.reset();
         setPhoto(KEEP_PHOTO);
+        setCreatedId(null);
       }}>
       <DialogTrigger
         render={
@@ -128,19 +136,13 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
         <form onSubmit={form.handleSubmit(handleCreateAddon)}>
           <DialogBody>
             <FieldGroup>
-              <Field>
-                <FieldTitle>Foto</FieldTitle>
-                <PhotoField
-                  currentUrl={null}
-                  value={photo}
-                  onChange={setPhoto}
-                  disabled={busy}
-                  name={previewName}
-                  price={previewPrice}
-                  kind="option"
-                />
-                <FieldDescription>Opcional. Aparece ao lado da opção no cardápio e no PDV.</FieldDescription>
-              </Field>
+              <AddonPhotoField
+                control={form.control}
+                currentUrl={null}
+                value={photo}
+                onChange={setPhoto}
+                disabled={busy}
+              />
 
               <Controller
                 name="name"
@@ -230,7 +232,7 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
               Limpar
             </Button>
             <Button type="submit" loading={busy}>
-              {busy ? "Criando..." : "Criar Addon"}
+              {busy ? "Salvando..." : createdId ? "Enviar a foto de novo" : "Criar adicional"}
             </Button>
           </DialogFooter>
         </form>
