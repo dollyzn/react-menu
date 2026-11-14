@@ -7,7 +7,10 @@ export function formatCurrencyBRL(value: number): string {
   });
 }
 
-/** Same shape the API accepts for store slugs: `^[a-z0-9-]+$`. */
+/** Store slugs, as the API accepts them (the column holds up to 255). */
+export const STORE_SLUG = /^[a-z0-9-]{1,255}$/;
+
+/** Same shape the API accepts for store slugs (`STORE_SLUG`). */
 export function slugify(value: string): string {
   return value
     .normalize("NFD")

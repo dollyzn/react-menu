@@ -784,7 +784,7 @@ function Ticket({
         </ul>
       )}
 
-      <div className={cn("flex flex-col gap-3 border-t bg-card p-4", inModal && "sticky bottom-0")}>
+      <div className={cn("flex flex-col gap-3 border-t bg-card p-4", inModal && "tall:sticky tall:bottom-0")}>
         <div className="flex items-center justify-between font-semibold">
           <span>Total</span>
           <AnimatedPrice value={total} className="text-xl" />

@@ -324,7 +324,8 @@ export function ItemCustomizer({
       </div>
 
       {/* overflow-x-clip: the message's shake must not scroll the window sideways. */}
-      <div className="sticky bottom-0 overflow-x-clip border-t bg-background/95 backdrop-blur">
+      {/* Pinned only with room: with the keyboard open it would cover the notes. */}
+      <div className="overflow-x-clip border-t bg-background/95 backdrop-blur tall:sticky tall:bottom-0">
       {hint && (
         <motion.p
           key={nudge}

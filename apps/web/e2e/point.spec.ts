@@ -63,11 +63,32 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
     await sendToMachine();
     await expect(charging.getByText(new RegExp(`cobrança do pedido #${first} em aberto`))).toBeVisible();
     await expect(charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` })).toBeVisible();
+    // That charge is already on the machine's screen (as Mercado Pago answers then; the
+    // fake machine never refuses, so it is mocked): cancel it there, and no button that can't.
+    const cancelRoute = /\/point-charges\/[^/]+\/cancel$/;
+    await page.route(cancelRoute, (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: "A cobrança já está na maquininha: cancele por lá (segure o botão vermelho e confirme).",
+          code: "E_CANCEL_ON_TERMINAL",
+        }),
+      })
+    );
+    await charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` }).click();
+    await expect(charging.getByText(new RegExp(`pedido #${first} já está na .+: cancele por lá`))).toBeVisible();
+    await expect(charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` })).toBeHidden();
+    await page.unroute(cancelRoute);
     await charging.getByRole("button", { name: "Cobrar depois" }).click();
 
     await bar.getByRole("button", { name: "Abrir" }).click();
     const resumed = page.getByRole("dialog", { name: `Cobrar pedido #${first}` });
     await expect(resumed.getByText("Aguardando pagamento na maquininha")).toBeVisible();
+    // Reopened, it still knows the charge is on the machine: no cancel button here either.
+    await expect(resumed.getByText(/Já está na .+: cancele por lá/)).toBeVisible();
+    await expect(resumed.getByRole("button", { name: "Cancelar cobrança" })).toBeHidden();
     await resumed.getByRole("button", { name: "Simular aprovação" }).click();
     await expect(resumed.getByText("Pagamento aprovado")).toBeVisible();
     await resumed.getByRole("button", { name: "Concluir" }).click();

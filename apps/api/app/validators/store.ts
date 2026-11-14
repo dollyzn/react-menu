@@ -1,4 +1,35 @@
 import vine from '@vinejs/vine'
+
+/**
+ * Paths the web owns at the root (`/<slug>` is a store's menu): a store with
+ * one of these slugs would be unreachable. Scanner paths blocked by the web's
+ * proxy are here too.
+ */
+const RESERVED_SLUGS = [
+  'app',
+  'api',
+  'pedido',
+  'pedidos',
+  'privacy',
+  'terms',
+  'icons',
+  'fonts',
+  'screenshots',
+  'login-marquee',
+  'csp-report',
+  'muitos-acessos',
+  'opengraph-image',
+  'wp-admin',
+  'wp-content',
+  'wp-includes',
+  'wp-json',
+  'wordpress',
+  'phpmyadmin',
+  'pma',
+  'cgi-bin',
+  'xmlrpc',
+  'vendor',
+]
 import { MAX_KITCHEN_LOOKAHEAD } from '#kitchen/production_queue'
 import StoreStatus from '../enums/store_status.js'
 
@@ -17,6 +48,7 @@ const storeValidator = vine.create(
     slug: vine
       .string()
       .regex(/^[a-z0-9-]+$/)
+      .notIn(RESERVED_SLUGS)
       .unique(async (db, value) => {
         const match = await db.from('stores').select('id').where('slug', value).first()
 
@@ -35,6 +67,7 @@ const updateValidator = vine.create(
     slug: vine
       .string()
       .regex(/^[a-z0-9-]+$/)
+      .notIn(RESERVED_SLUGS)
       .unique(async (db, value, field) => {
         const storeId = field.data.params.storeId
         const match = await db

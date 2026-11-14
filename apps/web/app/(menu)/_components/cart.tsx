@@ -590,7 +590,8 @@ function CheckoutFlow({
         </div>
       )}
 
-      <div className="sticky bottom-0 flex flex-col gap-3 border-t bg-background/95 p-4 backdrop-blur">
+      {/* Pinned only with room: with the keyboard open it would cover the name and phone. */}
+      <div className="flex flex-col gap-3 border-t bg-background/95 p-4 backdrop-blur tall:sticky tall:bottom-0">
         {/* Distinct keys: reusing one <button> and flipping its type to "submit"
             mid-click would submit the order straight from the details step. */}
         {step === "details" ? (
