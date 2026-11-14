@@ -22,9 +22,19 @@ test("staff signed in on the device get a shortcut from the menu to their panel"
 test("the order tracking page wears the store's icon and title, and isn't indexed", async ({ page }) => {
   const api = await playwrightRequest.newContext({ baseURL: API_URL });
   const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  // Any item still on sale: earlier specs may have used up the stock of the first ones.
+  type MenuItem = { id: string; isAvailable: boolean; stockLeft: number | null; optionGroups: { minChoices: number }[] };
+  const item = menu.categories
+    .flatMap((category: { items: MenuItem[] }) => category.items)
+    .find(
+      (candidate: MenuItem) =>
+        candidate.isAvailable &&
+        (candidate.stockLeft ?? 1) > 0 &&
+        candidate.optionGroups.every((group) => group.minChoices === 0)
+    );
   const placed = await api.post(`/api/v1/public/menu/${menu.store.slug}/orders`, {
     data: {
-      lines: [{ itemId: menu.categories[0].items[0].id, quantity: 1 }],
+      lines: [{ itemId: item.id, quantity: 1 }],
       customer: { name: "Ícone", phone: "11955554444" },
       paymentMethod: "counter",
     },

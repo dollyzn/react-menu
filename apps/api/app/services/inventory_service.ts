@@ -1,3 +1,4 @@
+import { broadcastStoreEvent } from '#helpers/realtime'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -22,6 +23,11 @@ export type StockLine = { itemId: string | null; addonIds: string[]; quantity: n
 
 /** Rounds to the 3 decimals stored in the database. */
 const round3 = (value: number) => Math.round(value * 1000) / 1000
+
+/** After the commit: menus open in the panel read availability again (realtime is a hint). */
+function stockChanged(storeId: string) {
+  broadcastStoreEvent({ type: 'stock.changed', storeId })
+}
 
 @inject()
 export default class InventoryService {
@@ -86,6 +92,8 @@ export default class InventoryService {
   async remove(storeId: string, id: number) {
     const ingredient = await this.repo.findInStore(storeId, id)
     await ingredient.delete()
+    // Recipes that used it lose a limit.
+    stockChanged(storeId)
   }
 
   async movements(storeId: string, id: number) {
@@ -103,7 +111,7 @@ export default class InventoryService {
     input: { type: StockMovementType; quantity: number; note?: string },
     userId: string
   ) {
-    return await db.transaction(async (trx) => {
+    const changed = await db.transaction(async (trx) => {
       const ingredient = await this.repo.findInStore(storeId, id, trx)
       await ingredient.useTransaction(trx).refresh()
 
@@ -118,6 +126,8 @@ export default class InventoryService {
       await ingredient.refresh()
       return ingredient
     })
+    stockChanged(storeId)
+    return changed
   }
 
   async setItemRecipe(storeId: string, item: Item, lines: RecipeLine[]) {
@@ -127,6 +137,7 @@ export default class InventoryService {
         .related('ingredients')
         .sync(await this.pivot(storeId, lines, trx))
     })
+    stockChanged(storeId)
   }
 
   async setAddonRecipe(storeId: string, addon: Addon, lines: RecipeLine[]) {
@@ -136,6 +147,7 @@ export default class InventoryService {
         .related('ingredients')
         .sync(await this.pivot(storeId, lines, trx))
     })
+    stockChanged(storeId)
   }
 
   /**

@@ -24,6 +24,15 @@ export type StoreEvent =
       storeId: string;
       orderId: string;
       status: OrderStatus;
+    }
+  | {
+      /**
+       * What the stock can make changed by hand (a count, a purchase, waste,
+       * a recipe): menus open in the panel read availability again. Orders
+       * consuming stock are already `order.*` events.
+       */
+      type: 'stock.changed';
+      storeId: string;
     };
 
 /** Published on `orders/:publicToken` for the customer's tracking page. */

@@ -1,4 +1,4 @@
-import { addonLabels } from '#models/order_item_addon'
+import { addonGroups, addonLabels } from '#models/order_item_addon'
 import db from '@adonisjs/lucid/services/db'
 import type { ProductionBatch } from '@react-menu/contracts'
 import OrderStatus from '#enums/order_status'
@@ -30,7 +30,10 @@ export default class KitchenService {
       )
       .orderBy('createdAt', 'asc')
 
-    const pending: (PendingUnit & { addonIds: string[] })[] = orders.flatMap((order, orderIndex) =>
+    const pending: (PendingUnit & {
+      addonIds: string[]
+      addonGroups: ReturnType<typeof addonGroups>
+    })[] = orders.flatMap((order, orderIndex) =>
       order.items.map((line) => ({
         orderId: order.id,
         orderNumber: order.number,
@@ -40,6 +43,7 @@ export default class KitchenService {
         // "Pastel de Frango com Catupiry" when a choice renames it.
         name: line.displayName ?? line.name,
         addons: addonLabels(line.addons),
+        addonGroups: addonGroups(line.addons),
         addonIds: line.addons.flatMap((addon) => (addon.addonId ? [addon.addonId] : [])),
         notes: line.notes,
         remaining: line.quantity - line.preparedQuantity,
@@ -71,7 +75,7 @@ export default class KitchenService {
         totals.set(row.name, current)
       }
 
-      return { ...batch, ingredients: [...totals.values()] }
+      return { ...batch, addonGroups: first.addonGroups, ingredients: [...totals.values()] }
     })
   }
 

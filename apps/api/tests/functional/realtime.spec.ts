@@ -79,4 +79,34 @@ test.group('Realtime (Transmit)', (group) => {
       { type: 'store.status_changed', storeId: store.id, status: StoreStatus.OPEN },
     ])
   })
+
+  test('a stock count is told to the store, so open menus read availability again', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const { default: StoreRole } = await import('#enums/store_role')
+    const { default: Ingredient } = await import('#models/ingredient')
+    const { linkUser } = await import('#tests/helpers/fixtures')
+    const manager = await createUser()
+    const store = await createStore()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const coca = await Ingredient.create({
+      storeId: store.id,
+      name: 'Coca lata',
+      unit: 'un',
+      stockQuantity: 5,
+      minStock: 0,
+    })
+    const broadcasts: unknown[] = []
+    cleanup(transmit.on('broadcast', ({ payload }) => broadcasts.push(payload)))
+
+    const counted = await client
+      .post(`/api/v1/stores/${store.id}/ingredients/${coca.id}/movements`)
+      .json({ type: 'adjustment', quantity: 0 })
+      .loginAs(manager)
+
+    counted.assertStatus(200)
+    assert.deepEqual(broadcasts, [{ type: 'stock.changed', storeId: store.id }])
+  })
 })
