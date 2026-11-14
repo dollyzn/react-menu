@@ -260,6 +260,7 @@ export function ItemCustomizer({
                   >
                     {checked && <Check className="size-3.5" />}
                   </span>
+                  <OptionPhoto option={addon} />
                   <span className="flex-1">
                     <span className="block text-sm font-medium">{addon.name}</span>
                     {addon.description && (
@@ -440,6 +441,7 @@ function ChoiceGroup({
               blocked && "opacity-50"
             )}
           >
+            <OptionPhoto option={option} />
             <span className="min-w-0 flex-1">
               <span className="block text-sm font-medium">{option.name}</span>
               {option.description && (
@@ -513,6 +515,7 @@ function ChoiceGroup({
             >
               {checked && (single ? <span className="size-2 rounded-full bg-current" /> : <Check className="size-3.5" />)}
             </span>
+            <OptionPhoto option={option} />
             <span className="flex-1">
               <span className="block text-sm font-medium">{option.name}</span>
               {option.description && (
@@ -583,5 +586,15 @@ function ChoiceGroup({
         )}
       </AnimatePresence>
     </fieldset>
+  );
+}
+
+/** An option's photo, when it has one (the panel uploads it): recognized at a glance. */
+function OptionPhoto({ option }: { option: { photoUrl: string | null; photoBlur?: string | null } }) {
+  if (!option.photoUrl) return null;
+  return (
+    <span className="relative size-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+      <Image src={option.photoUrl} blurDataURL={option.photoBlur} alt="" fill sizes="40px" className="object-cover" />
+    </span>
   );
 }

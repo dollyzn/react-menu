@@ -97,7 +97,7 @@ export function AddonsColumnDialog({ row, size }: AddonsColumnDialogProps) {
                 <li key={addon.id} className={cn("flex items-center gap-3 p-2.5", !addon.isAvailable && "bg-muted/40")}>
                   <div className="relative size-12 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {addon.photoUrl ? (
-                      <Image src={addon.photoUrl} alt="" fill sizes="48px" className={cn("object-cover", !addon.isAvailable && "grayscale")} />
+                      <Image src={addon.photoUrl} blurDataURL={addon.photoBlur} alt="" fill sizes="48px" className={cn("object-cover", !addon.isAvailable && "grayscale")} />
                     ) : (
                       <ImageOff className="absolute top-1/2 left-1/2 size-4 -translate-1/2 text-muted-foreground" />
                     )}

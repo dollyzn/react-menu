@@ -13,7 +13,7 @@ const SIZE = 12
  */
 const MAX_PIXELS = 50_000_000
 /** Where this app keeps the images that have previews (see `uploadKey`). */
-const PREFIXES = ['items', 'menu', 'banners', 'photos', 'avatars']
+const PREFIXES = ['items', 'addons', 'menu', 'banners', 'photos', 'avatars']
 
 /**
  * A tiny blurred copy of an image as a WebP data URL, shown by the web

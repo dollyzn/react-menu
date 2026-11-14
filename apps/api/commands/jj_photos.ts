@@ -4,8 +4,10 @@ import Store from '#models/store'
 import CatalogImportService from '#services/catalog_import_service'
 
 /**
- * Puts photos from a local folder on a store's items and add-ons, matched by
- * name ("Pastel de Palmito" -> pastel-de-palmito.webp). The folder stays out
+ * Puts photos from a local folder on a store's items and add-ons (recheios,
+ * queijos, opcionais, coberturas, mini flavors), matched by name ("Pastel de
+ * Palmito" -> pastel-de-palmito.webp, "Cream cheese" -> cream-cheese.webp).
+ * Lists the ones still without a photo and the file name that would fix it. The folder stays out
  * of git; empty and catalog photos are replaced, photos uploaded in the
  * panel only with --force:
  *
@@ -41,6 +43,11 @@ export default class JjPhotos extends BaseCommand {
     }
     if (result.unmatched.length) {
       this.logger.warning(`Arquivos sem item com esse nome: ${result.unmatched.join(', ')}`)
+    }
+    if (result.missing.length) {
+      this.logger.info(
+        `Ainda sem foto (coloque <nome>.webp|jpg|png na pasta): ${result.missing.join(', ')}`
+      )
     }
   }
 }

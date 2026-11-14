@@ -37,6 +37,7 @@ export function PhotoField({
   disabled,
   name,
   price,
+  kind = "item",
 }: {
   /** The saved photo (null: none yet). */
   currentUrl: string | null;
@@ -46,6 +47,11 @@ export function PhotoField({
   /** For the menu preview. */
   name?: string;
   price?: number;
+  /**
+   * "option": an add-on's photo, shown as a small square next to the option
+   * (the preview is square and says so), not an item's 16:10 detail.
+   */
+  kind?: "item" | "option";
 }) {
   const inputId = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -129,7 +135,10 @@ export function PhotoField({
           void take([...event.dataTransfer.files].find((file) => file.type.startsWith("image/")));
         }}
         className={cn(
-          "group relative aspect-16/10 w-full overflow-hidden rounded-xl border bg-muted/40 transition-colors",
+          // isolate + transform-gpu: the animated photo layer stays clipped to
+          // the rounded corners (composited layers otherwise bleed past them).
+          "group relative isolate w-full transform-gpu overflow-hidden rounded-xl border bg-muted/40 transition-colors",
+          kind === "option" ? "mx-auto aspect-square max-w-56" : "aspect-16/10",
           !shown && "border-dashed",
           dragging && "border-primary bg-primary/5 ring-2 ring-primary/40 ring-inset",
           error && !dragging && "border-destructive/60"
@@ -137,10 +146,15 @@ export function PhotoField({
       >
         <AnimatePresence mode="popLayout" initial={false}>
           {shown ? (
-            <motion.div key={shown} className="absolute inset-0" transition={{ duration: 0.35, ease: "easeOut" }} {...fade}>
+            <motion.div
+              key={shown}
+              className="absolute inset-0 overflow-hidden rounded-[inherit]"
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              {...fade}
+            >
               <Image
                 src={shown}
-                alt={name ? `Foto de ${name}` : "Foto do item"}
+                alt={name ? `Foto de ${name}` : kind === "option" ? "Foto da opção" : "Foto do item"}
                 fill
                 sizes="(max-width: 640px) 100vw, 448px"
                 unoptimized={shown.startsWith("blob:") || undefined}
@@ -153,7 +167,7 @@ export function PhotoField({
               type="button"
               onClick={pick}
               disabled={disabled}
-              className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
+              className="absolute inset-0 rounded-[inherit] flex flex-col items-center justify-center gap-2 p-4 text-center outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed"
               transition={{ duration: 0.25 }}
               {...fade}
             >
@@ -182,7 +196,7 @@ export function PhotoField({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center gap-2 bg-background/70 text-sm font-medium backdrop-blur-sm"
+              className="absolute inset-0 rounded-[inherit] flex items-center justify-center gap-2 bg-background/70 text-sm font-medium backdrop-blur-sm"
             >
               <Upload className="size-4 text-primary" /> Solte para trocar
             </motion.div>
@@ -196,7 +210,7 @@ export function PhotoField({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 flex items-center justify-center gap-2 bg-background/60 text-sm font-medium backdrop-blur-sm"
+              className="absolute inset-0 rounded-[inherit] flex items-center justify-center gap-2 bg-background/60 text-sm font-medium backdrop-blur-sm"
               aria-live="polite"
             >
               <Spinner aria-hidden /> Preparando a foto…
@@ -249,8 +263,14 @@ export function PhotoField({
             </>
           ) : (
             <>
-              <span className="block truncate font-medium text-foreground">{name || "Seu item"}</span>
-              {price ? formatCurrencyBRL(price) : "Assim aparece na lista do cardápio."}
+              <span className="block truncate font-medium text-foreground">
+                {name || (kind === "option" ? "Sua opção" : "Seu item")}
+              </span>
+              {kind === "option"
+                ? `Assim aparece ao lado da opção${price ? ` · + ${formatCurrencyBRL(price)}` : ""}.`
+                : price
+                  ? formatCurrencyBRL(price)
+                  : "Assim aparece na lista do cardápio."}
             </>
           )}
         </div>

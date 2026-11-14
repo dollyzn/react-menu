@@ -17,6 +17,9 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { KEEP_PHOTO, type PhotoChange } from "@/components/app/photo-field";
+import { AddonPhotoField } from "./addon-photo-field";
+import { useSaveAddonPhoto } from "./use-save-addon-photo";
 import {
   Field,
   FieldDescription,
@@ -48,9 +51,8 @@ const CreateAddonSchema = z.object({
     .string()
     .max(DESC_MAX, `No máximo ${DESC_MAX} caracteres.`)
     .optional(),
-  price: z
-    .number()
-    .min(0.01, "O preço é obrigatório e deve ser maior que zero."),
+  // 0 is allowed, like the API: an option included in the price ("Orégano", mini flavors).
+  price: z.number().min(0, "O preço não pode ser negativo."),
 });
 
 interface CreateAddonDialogProps {
@@ -59,6 +61,8 @@ interface CreateAddonDialogProps {
 
 export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
   const [createAddon, { isLoading: isSaving }] = useCreateAddonMutation();
+  const [photo, setPhoto] = useState<PhotoChange>(KEEP_PHOTO);
+  const photoSaver = useSaveAddonPhoto();
 
   const form = useForm<z.infer<typeof CreateAddonSchema>>({
     resolver: zodResolver(CreateAddonSchema),
@@ -69,9 +73,14 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
     },
   });
   const { isSubmitting } = form.formState;
-  const busy = isSubmitting || isSaving;
+  const busy = isSubmitting || isSaving || photoSaver.saving;
 
   const [open, setOpen] = useState(false);
+  /**
+   * Created, but its photo failed: the dialog stays open with the photo, and
+   * the next "Criar" only retries the photo (never a second add-on).
+   */
+  const [createdId, setCreatedId] = useState<string | null>(null);
 
   const handleOpenChange = () => {
     if (busy && open) return;
@@ -80,8 +89,15 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
 
   const handleCreateAddon = async (data: z.infer<typeof CreateAddonSchema>) => {
     try {
-      await createAddon({ storeId, data }).unwrap();
-      handleOpenChange();
+      const id = createdId ?? (await createAddon({ storeId, data }).unwrap()).id;
+      setCreatedId(id);
+      // The photo goes once the add-on has its id; a failure there doesn't undo it.
+      const photoError = await photoSaver.save(photo, storeId, id);
+      if (photoError) {
+        toast.error(`Adicional criado, mas a foto não: ${photoError}. Tente enviar a foto de novo.`);
+        return;
+      }
+      setOpen(false);
     } catch (err: unknown) {
       toast.error(
         getErrorMessage(
@@ -97,7 +113,12 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => !next && form.reset()}>
+    <Dialog open={open} onOpenChange={handleOpenChange} onOpenChangeComplete={(next) => {
+        if (next) return;
+        form.reset();
+        setPhoto(KEEP_PHOTO);
+        setCreatedId(null);
+      }}>
       <DialogTrigger
         render={
           <Button variant="outline">
@@ -115,6 +136,14 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
         <form onSubmit={form.handleSubmit(handleCreateAddon)}>
           <DialogBody>
             <FieldGroup>
+              <AddonPhotoField
+                control={form.control}
+                currentUrl={null}
+                value={photo}
+                onChange={setPhoto}
+                disabled={busy}
+              />
+
               <Controller
                 name="name"
                 control={form.control}
@@ -203,7 +232,7 @@ export function CreateAddonDialog({ storeId }: CreateAddonDialogProps) {
               Limpar
             </Button>
             <Button type="submit" loading={busy}>
-              {busy ? "Criando..." : "Criar Addon"}
+              {busy ? "Salvando..." : createdId ? "Enviar a foto de novo" : "Criar adicional"}
             </Button>
           </DialogFooter>
         </form>

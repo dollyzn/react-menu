@@ -63,3 +63,45 @@ test("item photo: pick it when creating, see it, remove it when editing", async 
   // The old file is gone from the disk too.
   expect((await page.request.get(created.photoUrl!)).status()).toBe(404);
 });
+
+test("add-on photo: picked in the panel, shown next to the option on the customer's menu", async ({ page }) => {
+  const store = (await createStoreViaApi(page, "Adicionais")) as { id: string; name: string; slug: string };
+  const api = storeApi(page, store.id);
+  const category = await api.post("/categories", { name: "Pastéis" });
+  await api.post(`/categories/${category.id}/items`, { name: "Pastel montado", price: 15 });
+
+  await page.context().clearCookies();
+  await login(page);
+  await page.goto(`/app/stores/${store.id}/addons`, { timeout: 30_000 });
+  await page.getByRole("button", { name: "Criar adicional" }).click();
+  const create = page.getByRole("dialog", { name: "Criar novo adicional" });
+  await create.locator('input[type="file"]').setInputFiles(PHOTO);
+  await expect(create.getByText(/Nova foto pronta \(\d+ KB\)/)).toBeVisible();
+  await create.getByLabel("Nome").fill("Bacon crocante");
+  // R$ 0 (included in the price), like Orégano: it used to block the save.
+  await create.getByLabel("Preço").fill("0");
+  await create.getByRole("button", { name: /Criar/ }).last().click();
+  await expect(create).toBeHidden();
+
+  const addons = (await (await page.request.get(`${API_URL}/api/v1/stores/${store.id}/addons?perPage=50`)).json())
+    .data as { id: string; name: string; photoUrl: string | null; photoBlur: string | null }[];
+  const bacon = addons.find((addon) => addon.name === "Bacon crocante")!;
+  expect(bacon.photoUrl).toMatch(/\/uploads\/addons\/.+\.webp$/);
+  expect(bacon.photoBlur).toMatch(/^data:image\/webp;base64,/);
+
+  // Offered with the item: the customer sees the photo next to the option.
+  const items = (await (await page.request.get(`${API_URL}/api/v1/stores/${store.id}/items?perPage=50`)).json())
+    .data as { id: string; name: string }[];
+  const pastry = items.find((item) => item.name === "Pastel montado")!;
+  await page.request.put(`${API_URL}/api/v1/stores/${store.id}/items/${pastry.id}`, { data: { addonIds: [bacon.id] } });
+
+  await page.goto(`/${store.slug}`);
+  await page.getByRole("button", { name: /Pastel montado/ }).first().click();
+  const option = page.getByRole("dialog").locator("label").filter({ hasText: "Bacon crocante" });
+  await expect(option.locator("img")).toHaveAttribute("src", /\/uploads\/addons\//);
+  if (process.env.SHOTS) {
+    await page.setViewportSize({ width: 430, height: 900 });
+    await page.waitForTimeout(500);
+    await page.screenshot({ path: `${process.env.SHOTS}/addon-photo.png` });
+  }
+});

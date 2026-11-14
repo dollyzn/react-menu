@@ -19,6 +19,7 @@ import env from '#start/env'
 import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 import type { Catalog, CatalogStoreProfile, RecipeLine } from '#catalog/types'
 import { blurPlaceholder } from '#helpers/image_placeholder'
+import { deleteUpload } from '#helpers/uploads'
 
 export type ImportSummary = {
   categories: number
@@ -113,6 +114,7 @@ export default class CatalogImportService {
             description: definition.description ?? null,
             price: definition.price,
             photoUrl: definition.photo && photos ? await photos.url(definition.photo) : null,
+            photoBlur: definition.photo && photos ? await photos.blur(definition.photo) : null,
           },
           { client: trx }
         )
@@ -241,6 +243,80 @@ export default class CatalogImportService {
   }
 
   /**
+   * The catalog's add-on descriptions on a store loaded before they were
+   * written ("Porção…", "Catupiry original…"). Matched by name; names shared
+   * by different add-ons (the "Escarola" extra filling and the "Escarola"
+   * mini flavor) are told apart by the catalog's price, and left alone when
+   * still ambiguous. Only empty descriptions are filled, unless `force`
+   * (what was typed in the panel stays).
+   */
+  async applyAddonDescriptions(store: Store, catalog: Catalog, options: { force?: boolean } = {}) {
+    // All or nothing: a failure halfway leaves the store as it was.
+    return await db.transaction(async (trx) => {
+      const addons = await Addon.query({ client: trx }).where('storeId', store.id)
+      const byName = new Map<string, Addon[]>()
+      for (const addon of addons) {
+        const key = addon.name.trim().toLowerCase()
+        byName.set(key, [...(byName.get(key) ?? []), addon])
+      }
+      const filled = new Set<string>()
+      const kept = new Set<string>()
+      const ambiguous = new Set<string>()
+      const notFound = new Set<string>()
+      const done = new Set<string>()
+      // Names the catalog itself repeats (the "Escarola" extra filling and mini
+      // flavor), and the prices it gives each.
+      const catalogPrices = new Map<string, number[]>()
+      for (const definition of catalog.addons) {
+        const key = definition.name.trim().toLowerCase()
+        catalogPrices.set(key, [...(catalogPrices.get(key) ?? []), definition.price])
+      }
+      for (const definition of catalog.addons) {
+        if (!definition.description) continue
+        const key = definition.name.trim().toLowerCase()
+        const named = byName.get(key) ?? []
+        if (named.length === 0) continue
+        const prices = catalogPrices.get(key) ?? []
+        // A name the store or the catalog repeats is told apart by the price;
+        // otherwise one add-on would take another's description.
+        const repeated = named.length > 1 || prices.length > 1
+        const candidates = repeated
+          ? named.filter((addon) => addon.price === definition.price)
+          : named
+        if (candidates.length === 0) {
+          // Only a warning when an add-on of this name matches no catalog price
+          // (its price changed in the panel); otherwise this one simply isn't in
+          // the store (it kept the extra filling, not the mini flavor).
+          if (named.some((addon) => !prices.includes(addon.price))) {
+            notFound.add(`${definition.name} (R$ ${definition.price})`)
+          }
+          continue
+        }
+        if (candidates.length > 1) {
+          ambiguous.add(definition.name)
+          continue
+        }
+        const [addon] = candidates
+        if (done.has(addon.id)) continue
+        done.add(addon.id)
+        if (addon.description && !options.force) {
+          kept.add(addon.name)
+          continue
+        }
+        addon.description = definition.description
+        await addon.useTransaction(trx).save()
+        filled.add(addon.name)
+      }
+      return {
+        filled: [...filled],
+        kept: [...kept],
+        ambiguous: [...ambiguous],
+        notFound: [...notFound],
+      }
+    })
+  }
+
+  /**
    * Photos from a local folder (outside git: the store's own or ones it
    * chose), matched by the item's or add-on's name as a slug
    * ("Pastel de Palmito" -> pastel-de-palmito.webp|jpg|jpeg|png). Replaces
@@ -270,18 +346,29 @@ export default class CatalogImportService {
       }
       const content = await readFile(join(dir, file))
       const hash = createHash('sha256').update(content).digest('hex').slice(0, 8)
+      const previous = record.photoUrl
       record.photoUrl = await storeFile(
         `menu/local-${photoSlug(record.name)}-${hash}${extname(file).toLowerCase()}`,
         join(dir, file)
       )
-      // Add-ons have no preview yet (roadmap: their photos are only in the panel's add-on screens).
-      if (record instanceof Item) record.photoBlur = await blurPlaceholder(content)
+      record.photoBlur = await blurPlaceholder(content)
       await record.save()
+      // With --force, a photo uploaded in the panel is replaced: its file goes
+      // too (shared catalog photos under menu/ are never deleted).
+      await deleteUpload(previous, record instanceof Item ? 'items' : 'addons')
       applied.push(record.name)
     }
     const used = new Set([...items, ...addons].map((record) => photoSlug(record.name)))
     const unmatched = [...files.keys()].filter((slug) => !used.has(slug))
-    return { applied, skipped, unmatched }
+    // Still without a photo: the file names that would give them one.
+    const missing = [
+      ...new Set(
+        [...items, ...addons]
+          .filter((record) => !record.photoUrl && !files.has(photoSlug(record.name)))
+          .map((record) => photoSlug(record.name))
+      ),
+    ].sort()
+    return { applied, skipped, unmatched, missing }
   }
 
   private async enableInventory(store: Store, trx: TransactionClientContract) {
@@ -312,7 +399,7 @@ class PhotoStore {
     return url
   }
 
-  /** The blurred preview of a photo, made on first use (only items have one). */
+  /** The blurred preview of a photo, made on first use. */
   async blur(file: string) {
     if (!this.blurs.has(file)) this.blurs.set(file, await blurPlaceholder(this.path(file)))
     return this.blurs.get(file) ?? null

@@ -2,10 +2,14 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { bulkUpdateValidator } from '#validators/bulk_update'
 import { inject } from '@adonisjs/core'
 import ItemService from '#services/item_service'
-import { numberValidator, storeExistValidator, uuidValidator } from '#validators/common'
+import {
+  numberValidator,
+  storeExistValidator,
+  uuidValidator,
+  photoValidator,
+} from '#validators/common'
 import {
   bulkDeleteValidator,
-  itemPhotoValidator,
   categoryExistValidator,
   storeValidator,
   reorderValidator,
@@ -125,7 +129,7 @@ export default class ItemsController {
   async updatePhoto({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const itemId = await uuidValidator.validate(params.itemId)
-    const { photo } = await request.validateUsing(itemPhotoValidator)
+    const { photo } = await request.validateUsing(photoValidator)
 
     const item = await this.itemService.setPhoto(storeId, itemId, photo)
 

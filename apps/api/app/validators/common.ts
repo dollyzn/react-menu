@@ -17,4 +17,14 @@ storeExistValidator.messagesProvider = new SimpleMessagesProvider({
   'database.exists': 'Loja não encontrada',
 })
 
-export { uuidValidator, numberValidator, storeExistValidator }
+/**
+ * An uploaded menu photo (an item's or an add-on's, `PUT …/photo`). The panel
+ * sends it already resized to WebP; JPEG/PNG straight from a phone also work.
+ */
+const photoValidator = vine.create(
+  vine.object({
+    photo: vine.file({ size: '5mb', extnames: ['jpg', 'jpeg', 'png', 'webp'] }),
+  })
+)
+
+export { uuidValidator, numberValidator, storeExistValidator, photoValidator }

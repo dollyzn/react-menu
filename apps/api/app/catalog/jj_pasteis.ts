@@ -70,20 +70,23 @@ const ingredients: Catalog['ingredients'] = [
   { name: 'Batata frita (congelada)', unit: G, stock: 10000, min: 2000 },
 ]
 
-/** Fillings offered as "Recheio extra" (and the cheeses of "Escolha o queijo"). */
-const FILLINGS: [key: string, name: string, ingredient: string][] = [
-  ['carne', 'Carne moída', 'Carne moída'],
-  ['frango', 'Frango', 'Frango desfiado'],
-  ['calabresa', 'Calabresa', 'Calabresa'],
-  ['presunto', 'Presunto', 'Presunto'],
-  ['mussarela', 'Mussarela', 'Mussarela'],
-  ['catupiry', 'Catupiry', 'Catupiry'],
-  ['cheddar', 'Cheddar', 'Cheddar'],
-  ['creamCheese', 'Cream cheese', 'Cream cheese'],
-  ['brocolis', 'Brócolis', 'Brócolis'],
-  ['escarola', 'Escarola', 'Escarola'],
-  ['palmito', 'Palmito', 'Palmito'],
-  ['berinjela', 'Berinjela', 'Berinjela'],
+/**
+ * Fillings offered as "Recheio extra" (and the cheeses of "Escolha o queijo").
+ * The description reads well in both: what the filling is, not how much.
+ */
+const FILLINGS: [key: string, name: string, ingredient: string, description: string][] = [
+  ['carne', 'Carne moída', 'Carne moída', 'Carne moída temperada da casa'],
+  ['frango', 'Frango', 'Frango desfiado', 'Frango desfiado e temperado'],
+  ['calabresa', 'Calabresa', 'Calabresa', 'Calabresa triturada'],
+  ['presunto', 'Presunto', 'Presunto', 'Presunto triturado'],
+  ['mussarela', 'Mussarela', 'Mussarela', 'Mussarela que derrete e puxa'],
+  ['catupiry', 'Catupiry', 'Catupiry', 'Catupiry original, bem cremoso'],
+  ['cheddar', 'Cheddar', 'Cheddar', 'Cheddar cremoso'],
+  ['creamCheese', 'Cream cheese', 'Cream cheese', 'Cream cheese suave e cremoso'],
+  ['brocolis', 'Brócolis', 'Brócolis', 'Brócolis refogado no alho'],
+  ['escarola', 'Escarola', 'Escarola', 'Escarola refogada'],
+  ['palmito', 'Palmito', 'Palmito', 'Palmito em pedaços'],
+  ['berinjela', 'Berinjela', 'Berinjela', 'Berinjela temperada'],
 ]
 
 /** The seven simple flavors of the mini pastry portions (no Pizza). */
@@ -98,9 +101,10 @@ const MINI_FLAVORS: [key: string, name: string, ingredient: string][] = [
 ]
 
 const addons: Catalog['addons'] = [
-  ...FILLINGS.map(([key, name, ingredient]) => ({
+  ...FILLINGS.map(([key, name, ingredient, description]) => ({
     key,
     name,
+    description,
     price: 5,
     recipe: [[ingredient, EXTRA]] as [string, number][],
   })),
@@ -159,12 +163,25 @@ const addons: Catalog['addons'] = [
     recipe: [['Cebola', 20]],
   },
   // "Opcionais": no price was given (free until the store sets one).
-  { key: 'oregano', name: 'Orégano', price: 0, recipe: [['Orégano', 2]] },
-  { key: 'alhoFrito', name: 'Alho frito', price: 0, recipe: [['Alho frito', 5]] },
+  {
+    key: 'oregano',
+    name: 'Orégano',
+    description: 'Misturado ao recheio',
+    price: 0,
+    recipe: [['Orégano', 2]],
+  },
+  {
+    key: 'alhoFrito',
+    name: 'Alho frito',
+    description: 'Alho frito misturado ao recheio',
+    price: 0,
+    recipe: [['Alho frito', 5]],
+  },
   // Fries toppings (one per portion).
   {
     key: 'cheddarBacon',
     name: 'Cheddar + bacon',
+    description: 'Cheddar cremoso e bacon em pedaços',
     price: 20,
     recipe: [
       ['Cheddar', 80],
@@ -174,6 +191,7 @@ const addons: Catalog['addons'] = [
   {
     key: 'catupiryBacon',
     name: 'Catupiry + bacon',
+    description: 'Catupiry cremoso e bacon em pedaços',
     price: 20,
     recipe: [
       ['Catupiry', 80],
@@ -183,6 +201,7 @@ const addons: Catalog['addons'] = [
   {
     key: 'cheddarCatupiryBacon',
     name: 'Cheddar + Catupiry + bacon',
+    description: 'Os dois queijos cremosos e bacon em pedaços',
     price: 25,
     recipe: [
       ['Cheddar', 60],
