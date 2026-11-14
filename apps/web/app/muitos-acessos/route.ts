@@ -1,3 +1,5 @@
+import { STORE_SLUG } from "@/utils/string";
+
 /**
  * Where a page goes when the API refused its visitor for asking too much
  * (its per-IP limit): a real 429 with Retry-After, which pages can't send
@@ -7,13 +9,13 @@
 export function GET(request: Request) {
   const back = new URL(request.url).searchParams.get("next");
   // Only a menu path of this site (it goes into the page as is).
-  const target = back && /^\/[a-z0-9-]*$/.test(back) ? back : "/";
+  const target = back && STORE_SLUG.test(back.slice(1)) && back.startsWith("/") ? back : "/";
   const html = `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="30;url=${target}">
+<meta http-equiv="refresh" content="60;url=${target}">
 <meta name="robots" content="noindex">
 <title>Muitos acessos agora</title>
 <style>
@@ -36,7 +38,8 @@ export function GET(request: Request) {
     status: 429,
     headers: {
       "content-type": "text/html; charset=utf-8",
-      "retry-after": "30",
+      // The API counts requests per minute.
+      "retry-after": "60",
       "cache-control": "no-store",
       "x-robots-tag": "noindex",
     },

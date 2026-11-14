@@ -19,7 +19,8 @@ const PUBLIC_FILES = ["/app/manifest.webmanifest"];
  * server configs (/wp-login.php, /.env, /.git/config). A bare 404 before any
  * page renders or the API is asked (`/.well-known/` stays reachable).
  */
-const PROBE = /\.(php\d?|aspx?|jsp|cgi|env|ini|sql|bak|old|ya?ml)(\/|$)|(^|\/)\.(?!well-known\/)/i;
+const PROBE =
+  /\.(php\d?|aspx?|jsp|cgi|env|ini|sql|bak|old|ya?ml)(\/|$)|(^|\/)\.(?!well-known\/)|^\/(wp-admin|wp-content|wp-includes|wp-json|wordpress|phpmyadmin|pma|cgi-bin|xmlrpc|vendor)(\/|$)/i;
 
 function isLoggedIn(req: NextRequest) {
   const token = req.cookies.get(env.NEXT_PUBLIC_AUTH_COOKIE_NAME)?.value;
@@ -46,6 +47,10 @@ function withCsp(req: NextRequest) {
   const headers = new Headers(req.headers);
   headers.set("x-nonce", nonce);
   headers.set("content-security-policy-report-only", policy);
+  // The root layout keeps browsers from translating the staff panel.
+  const path = req.nextUrl.pathname;
+  if (path === "/app" || path.startsWith("/app/")) headers.set("x-panel", "1");
+  else headers.delete("x-panel");
   const response = NextResponse.next({ request: { headers } });
   response.headers.set("Content-Security-Policy-Report-Only", policy);
   return response;

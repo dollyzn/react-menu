@@ -2,9 +2,7 @@ import "server-only";
 import type { ApiSuccess, PublicMenu } from "@react-menu/contracts";
 import { redirect } from "next/navigation";
 import { serverApiBase, visitorHeaders } from "@/lib/server-api";
-
-/** Store slugs, as the API accepts them. */
-const STORE_SLUG = /^[a-z0-9-]{1,100}$/;
+import { STORE_SLUG } from "@/utils/string";
 
 /**
  * Loads a store menu on the server (SSR). Returns null when the store does
@@ -20,6 +18,12 @@ export async function fetchMenu(slug?: string, { track = true } = {}): Promise<P
     headers: await visitorHeaders(),
   });
 
+  if (response.status === 404 || response.status === 429) {
+    // Read (small) so the connection goes back to the pool. Not `cancel()`:
+    // Next shares this response between metadata and page (a tee), and a
+    // cancelled branch waits for the other one forever.
+    await response.text().catch(() => undefined);
+  }
   if (response.status === 404) return null;
   // Too many requests from this visitor (the API counts per IP): a page can't
   // answer 429 itself, so it goes to one that does instead of failing with 500.

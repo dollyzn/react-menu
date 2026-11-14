@@ -63,14 +63,10 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
     await sendToMachine();
     await expect(charging.getByText(new RegExp(`cobrança do pedido #${first} em aberto`))).toBeVisible();
     await expect(charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` })).toBeVisible();
-    await charging.getByRole("button", { name: "Cobrar depois" }).click();
-
-    await bar.getByRole("button", { name: "Abrir" }).click();
-    const resumed = page.getByRole("dialog", { name: `Cobrar pedido #${first}` });
-    await expect(resumed.getByText("Aguardando pagamento na maquininha")).toBeVisible();
-    // Already on the machine (as Mercado Pago answers then): the dialog says to cancel
-    // there and drops the button that can't (the fake machine never refuses, so it is mocked).
-    await page.route(/\/point-charges\/[^/]+\/cancel$/, (route) =>
+    // That charge is already on the machine's screen (as Mercado Pago answers then; the
+    // fake machine never refuses, so it is mocked): cancel it there, and no button that can't.
+    const cancelRoute = /\/point-charges\/[^/]+\/cancel$/;
+    await page.route(cancelRoute, (route) =>
       route.fulfill({
         status: 409,
         contentType: "application/json",
@@ -81,10 +77,18 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
         }),
       })
     );
-    await resumed.getByRole("button", { name: "Cancelar cobrança" }).click();
+    await charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` }).click();
+    await expect(charging.getByText(new RegExp(`pedido #${first} já está na .+: cancele por lá`))).toBeVisible();
+    await expect(charging.getByRole("button", { name: `Cancelar a cobrança do pedido #${first}` })).toBeHidden();
+    await page.unroute(cancelRoute);
+    await charging.getByRole("button", { name: "Cobrar depois" }).click();
+
+    await bar.getByRole("button", { name: "Abrir" }).click();
+    const resumed = page.getByRole("dialog", { name: `Cobrar pedido #${first}` });
+    await expect(resumed.getByText("Aguardando pagamento na maquininha")).toBeVisible();
+    // Reopened, it still knows the charge is on the machine: no cancel button here either.
     await expect(resumed.getByText(/Já está na .+: cancele por lá/)).toBeVisible();
     await expect(resumed.getByRole("button", { name: "Cancelar cobrança" })).toBeHidden();
-    await page.unroute(/\/point-charges\/[^/]+\/cancel$/);
     await resumed.getByRole("button", { name: "Simular aprovação" }).click();
     await expect(resumed.getByText("Pagamento aprovado")).toBeVisible();
     await resumed.getByRole("button", { name: "Concluir" }).click();
