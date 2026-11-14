@@ -1,5 +1,6 @@
 "use client";
 
+import { lineName } from "@/lib/order-line";
 import type { ColumnDef, HeaderContext, Row } from "@/components/app/data-table/features";
 import { format, parseISO } from "date-fns";
 import type { Order } from "@react-menu/contracts";
@@ -21,7 +22,7 @@ const header =
     <DataTableColumnHeader column={column} title={title} />
   );
 
-const itemsSummary = (order: Order) => order.items.map((line) => `${line.quantity}× ${line.name}`).join(", ");
+const itemsSummary = (order: Order) => order.items.map((line) => `${line.quantity}× ${lineName(line)}`).join(", ");
 
 const columns: ColumnDef<Order>[] = [
   {

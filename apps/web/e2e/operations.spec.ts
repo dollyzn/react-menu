@@ -550,6 +550,13 @@ test("attendants: today's board only, no cancelling, and Entregar takes the paym
   await expect(page.getByText(`Pedido #${order.number} entregue`)).toBeVisible();
   await expect(card).toHaveCount(0);
 
+  // The latest hand-overs stay to check: items and drinks, no amounts.
+  await page.getByRole("button", { name: /Últimos entregues/ }).click();
+  const delivered = page.getByRole("listitem", { name: `Pedido ${order.number} de Paga na entrega` });
+  await expect(delivered).toContainText(drink.name);
+  await expect(delivered).toContainText("Entregue às");
+  await expect(delivered).not.toContainText("R$");
+
   // The order is paid and delivered.
   const check = await playwrightRequest.newContext({ baseURL: API_URL });
   await apiSignIn(check, E2E_ADMIN);

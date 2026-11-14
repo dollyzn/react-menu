@@ -137,6 +137,7 @@ export default class CatalogImportService {
             maxChoices: definition.maxChoices,
             pickPrices: definition.pickPrices ?? null,
             allowRepeat: definition.allowRepeat ?? false,
+            replacesInName: definition.replacesInName ?? null,
           },
           { client: trx }
         )

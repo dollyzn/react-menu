@@ -39,6 +39,11 @@ export type OrderItem = {
   orderId: string;
   itemId: string | null;
   name: string;
+  /**
+   * The name on the staff screens (kitchen, board) when a choice renames the
+   * item ("Pastel de Frango com Catupiry"); null = `name`.
+   */
+  displayName: string | null;
   unitPrice: number;
   quantity: number;
   /** Units the kitchen has finished (0..quantity). */

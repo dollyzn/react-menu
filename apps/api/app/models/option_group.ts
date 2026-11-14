@@ -52,6 +52,14 @@ export default class OptionGroup extends BaseModel {
   declare allowRepeat: boolean
 
   /**
+   * A word of the item's name the pick takes the place of on the staff
+   * screens ("Queijo": "Pastel de Frango com Queijo" + Catupiry = "Pastel
+   * de Frango com Catupiry"); null = the name stays.
+   */
+  @column()
+  declare replacesInName: string | null
+
+  /**
    * Price by pick order ([3, 5]: the 1st pick R$ 3, every later one R$ 5),
    * overriding the options' prices; null = each option's price.
    */

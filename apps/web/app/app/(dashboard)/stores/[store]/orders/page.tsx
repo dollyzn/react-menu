@@ -17,6 +17,7 @@ import { OrderCard } from "./order-card";
 import { OrderDetailSheet } from "./order-detail-sheet";
 import { OrderHistory } from "./order-history";
 import { FinishedOrders } from "./finished-orders";
+import { RecentDeliveries, recentDeliveries } from "./recent-deliveries";
 import { cn } from "@/lib/utils";
 import { PendingChargesBar } from "@/components/app/point/pending-charges-bar";
 import { PointChargeDialog } from "@/components/app/point/point-charge-dialog";
@@ -111,6 +112,7 @@ export default function OrdersPage() {
           storeId={storeId}
           canOperate={canOperate}
           isManager={role === "manager"}
+          showRecentDeliveries={role === "attendant"}
           // The order's detail (timeline, cancelling) is for managers.
           onOpen={role === "manager" ? setOpenOrderId : undefined}
         />
@@ -138,11 +140,14 @@ function LiveBoard({
   storeId,
   canOperate,
   isManager,
+  showRecentDeliveries,
   onOpen,
 }: {
   storeId: string;
   canOperate: boolean;
   isManager: boolean;
+  /** Attendants' "Últimos entregues" (they don't get the day's finished list). */
+  showRecentDeliveries: boolean;
   onOpen?: (orderId: string) => void;
 }) {
   const { data: orders = [], isLoading } = useGetOrdersQuery({ storeId }, { pollingInterval: 30_000 });
@@ -158,6 +163,10 @@ function LiveBoard({
 
   const awaitingPayment = byStatus.get("pending_payment") ?? [];
   const finished = [...(byStatus.get("completed") ?? []), ...(byStatus.get("cancelled") ?? [])];
+  const recent = useMemo(
+    () => (showRecentDeliveries ? recentDeliveries(byStatus.get("completed") ?? []) : []),
+    [showRecentDeliveries, byStatus]
+  );
 
   return (
     <>
@@ -242,6 +251,18 @@ function LiveBoard({
             transition={{ layout: { type: "spring", bounce: 0, duration: 0.35 } }}
           >
             <FinishedOrders orders={finished} onOpen={(orderId) => onOpen?.(orderId)} />
+          </motion.div>
+        )}
+        {recent.length > 0 && (
+          <motion.div
+            key="recent"
+            layout="position"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ layout: { type: "spring", bounce: 0, duration: 0.35 } }}
+          >
+            <RecentDeliveries orders={recent} />
           </motion.div>
         )}
       </AnimatePresence>

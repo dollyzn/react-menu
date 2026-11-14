@@ -215,6 +215,11 @@ export type OptionGroup = {
   /** The same option may be picked more than once (up to the maximum). */
   allowRepeat: boolean;
   /**
+   * A word of the item's name the pick replaces on the staff screens
+   * ("Queijo": "Pastel de Frango com Catupiry"); null = the name stays.
+   */
+  replacesInName: string | null;
+  /**
    * Price by pick order ([3, 5]: the 1st pick R$ 3, every later one R$ 5; the
    * last value repeats), overriding the options' prices. Null: per option.
    */

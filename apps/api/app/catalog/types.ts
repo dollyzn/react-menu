@@ -54,6 +54,8 @@ export type Catalog = {
     pickPrices?: number[]
     /** The same option may be picked more than once. */
     allowRepeat?: boolean
+    /** A word of the item's name the pick replaces on the staff screens (see OptionGroup). */
+    replacesInName?: string
     options: string[]
   }[]
   categories: {

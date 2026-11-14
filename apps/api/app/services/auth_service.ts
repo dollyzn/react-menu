@@ -1,3 +1,4 @@
+import { waitTime } from '#helpers/wait_time'
 import type { HttpContext } from '@adonisjs/core/http'
 import type { AccessToken } from '@adonisjs/auth/access_tokens'
 import app from '@adonisjs/core/services/app'
@@ -90,11 +91,7 @@ export default class AuthService {
 
     if (error) {
       throw new AppException(
-        `Muitas tentativas de login. Tente novamente após ${
-          error.response.availableIn > 60
-            ? Math.floor(error.response.availableIn / 60) + ' minutos'
-            : error.response.availableIn + ' segundos'
-        }`,
+        `Muitas tentativas de login. Tente novamente em ${waitTime(error.response.availableIn)}.`,
         429
       )
     }

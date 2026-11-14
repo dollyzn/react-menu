@@ -18,7 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { useCancelOrderMutation } from "@/redux/features/order/orderApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
-import { addonLabels } from "@/lib/addon-label";
+import { OrderLines } from "./order-lines";
 import { DeliverOrderButton } from "./deliver-order-button";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { paidWith } from "@/components/app/payments/counter-methods";
@@ -67,18 +67,16 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
             type="button"
             onClick={() => onOpen(order.id)}
             aria-label={`Ver detalhes do pedido ${order.number}`}
-            className="-m-1 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
+            className="-m-1 min-w-0 rounded-lg p-1 text-left outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            <p className="text-2xl font-black tabular-nums">#{order.number}</p>
-            <p className="font-medium">{order.customerName}</p>
+            <OrderTitle order={order} />
           </button>
         ) : (
-          <div>
-            <p className="text-2xl font-black tabular-nums">#{order.number}</p>
-            <p className="font-medium">{order.customerName}</p>
+          <div className="min-w-0">
+            <OrderTitle order={order} />
           </div>
         )}
-        <div className="flex flex-col items-end gap-1">
+        <div className="flex shrink-0 flex-col items-end gap-1">
           <span
             className={cn(
               "inline-flex items-center gap-1 text-sm tabular-nums",
@@ -94,17 +92,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         </div>
       </header>
 
-      <ul className="mt-3 flex flex-col gap-1 text-sm">
-        {order.items.map((line) => (
-          <li key={line.id}>
-            <span className="font-semibold tabular-nums">{line.quantity}×</span> {line.name}
-            {line.addons.length > 0 && (
-              <span className="text-muted-foreground"> + {addonLabels(line.addons).join(", ")}</span>
-            )}
-            {line.notes && <span className="block text-xs font-medium text-warning">“{line.notes}”</span>}
-          </li>
-        ))}
-      </ul>
+      <OrderLines items={order.items} className="mt-3" />
       {order.notes && <p className="mt-2 rounded-lg bg-muted px-2 py-1 text-xs">{order.notes}</p>}
 
       {order.status === "preparing" && totalUnits > 0 && (
@@ -178,5 +166,18 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         }}
       />
     </motion.article>
+  );
+}
+
+/**
+ * The number and, as big, the customer's name: the counter calls people by
+ * name ("Maria!"), and the number is what they check on their phone.
+ */
+function OrderTitle({ order }: { order: Order }) {
+  return (
+    <>
+      <p className="text-xl leading-none font-black tabular-nums">#{order.number}</p>
+      <p className="mt-1.5 line-clamp-2 text-xl leading-tight font-bold wrap-break-word">{order.customerName}</p>
+    </>
   );
 }

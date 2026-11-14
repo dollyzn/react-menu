@@ -545,3 +545,77 @@ test.group('Choice groups', (group) => {
     )
   })
 })
+
+test.group('Choice groups | renaming the item', (group) => {
+  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+
+  test('the cheese picked takes the place of "Queijo" on the kitchen and the board', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, mussarela, cheddar } = await storeWithCheeseChoice()
+    carne.name = 'Pastel de Carne com Queijo'
+    await carne.save()
+    const url = `/api/v1/stores/${store.id}/option-groups`
+    const created = await client
+      .post(url)
+      .json({
+        name: 'Escolha o queijo',
+        minChoices: 1,
+        maxChoices: 1,
+        replacesInName: ' Queijo ',
+        options: options([mussarela, cheddar], 0),
+      })
+      .loginAs(manager)
+    created.assertStatus(200)
+    created.assertBodyContains({ data: { replacesInName: 'Queijo' } })
+    const groupId = created.body().data.id
+    await client
+      .put(`/api/v1/stores/${store.id}/items/${carne.id}`)
+      .json({ optionGroupIds: [groupId] })
+      .loginAs(manager)
+
+    const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [{ itemId: carne.id, quantity: 1, choices: [{ groupId, addonId: cheddar.id }] }],
+    })
+    placed.assertStatus(200)
+
+    // The kitchen reads the new name and still lists the choice.
+    const kitchen = await client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(manager)
+    assert.equal(kitchen.body().data[0].name, 'Pastel de Carne com Cheddar')
+    assert.deepEqual(kitchen.body().data[0].addons, ['Escolha o queijo: Cheddar'])
+
+    // The board too; the item's own name is kept (receipts, reports).
+    const board = await client.get(`/api/v1/stores/${store.id}/orders`).loginAs(manager)
+    const line = board.body().data[0].items[0]
+    assert.equal(line.name, 'Pastel de Carne com Queijo')
+    assert.equal(line.displayName, 'Pastel de Carne com Cheddar')
+
+    // Cleared: later orders keep the item's name.
+    const cleared = await client
+      .put(`${url}/${groupId}`)
+      .json({
+        name: 'Escolha o queijo',
+        minChoices: 1,
+        maxChoices: 1,
+        replacesInName: '',
+        options: options([mussarela, cheddar], 0),
+      })
+      .loginAs(manager)
+    cleared.assertBodyContains({ data: { replacesInName: null } })
+    const later = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer,
+      paymentMethod: 'counter',
+      lines: [{ itemId: carne.id, quantity: 1, choices: [{ groupId, addonId: mussarela.id }] }],
+    })
+    later.assertStatus(200)
+    const order = await Order.query()
+      .where('storeId', store.id)
+      .orderBy('number', 'desc')
+      .preload('items')
+      .firstOrFail()
+    assert.isNull(order.items[0].displayName)
+  })
+})

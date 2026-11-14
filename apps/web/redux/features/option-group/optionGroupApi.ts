@@ -11,6 +11,8 @@ export type OptionGroupInput = {
   allowRepeat: boolean;
   /** Price by pick order (the last repeats), instead of the options' prices; null = per option. */
   pickPrices: number[] | null;
+  /** A word of the item's name the pick replaces in the kitchen and the orders ("Queijo"); null = none. */
+  replacesInName: string | null;
   /** The options (store add-ons), in display order; price null = the add-on's own. */
   options: { addonId: string; price: number | null }[];
 };

@@ -1,3 +1,4 @@
+import { displayName } from '#orders/display_name'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -157,6 +158,7 @@ export default class OrderService {
             orderId: created.id,
             itemId: line.item.id,
             name: line.item.name,
+            displayName: line.displayName,
             unitPrice: line.item.price,
             quantity: line.quantity,
             preparedQuantity: 0,
@@ -606,29 +608,37 @@ export default class OrderService {
         group
           ? item.optionGroups.indexOf(group) * 100 + group.options.indexOf(addon)
           : Number.MAX_SAFE_INTEGER
-      const addons = [...picks.values()]
-        .sort((a, b) => rank(a) - rank(b))
-        .map((entry) => {
-          const { addon, group } = entry
-          if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
-            throw new AppException(
-              `${addon.name} está indisponível no momento.`,
-              422,
-              'E_UNAVAILABLE'
-            )
-          }
-          return {
-            id: addon.id,
-            name: addon.name,
-            price: priceOf.get(entry) ?? addon.price,
-            groupName: group?.name ?? null,
-          }
-        })
+      const ranked = [...picks.values()].sort((a, b) => rank(a) - rank(b))
+      const addons = ranked.map((entry) => {
+        const { addon, group } = entry
+        if (!addon.isAvailable || unavailable.addons.has(addon.id)) {
+          throw new AppException(
+            `${addon.name} está indisponível no momento.`,
+            422,
+            'E_UNAVAILABLE'
+          )
+        }
+        return {
+          id: addon.id,
+          name: addon.name,
+          price: priceOf.get(entry) ?? addon.price,
+          groupName: group?.name ?? null,
+        }
+      })
 
       const unitTotal = item.price + addons.reduce((sum, addon) => sum + addon.price, 0)
       return {
         item,
         addons,
+        // "Pastel de Frango com Catupiry" on the staff screens (see OptionGroup.replacesInName).
+        displayName: displayName(
+          item.name,
+          // In the saved order, so the same picks always read the same.
+          ranked.map(({ addon, group }) => ({
+            name: addon.name,
+            replaces: group?.replacesInName ?? null,
+          }))
+        ),
         quantity: line.quantity,
         notes: line.notes?.trim() || null,
         total: money(unitTotal * line.quantity),

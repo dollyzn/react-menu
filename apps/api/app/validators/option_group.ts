@@ -11,6 +11,8 @@ export const optionGroupValidator = vine.create(
     maxChoices: vine.number().withoutDecimals().min(1).max(20),
     /** The same option may be picked more than once. */
     allowRepeat: vine.boolean().optional(),
+    /** A word of the item's name the pick replaces on the staff screens ("Queijo"). */
+    replacesInName: vine.string().trim().maxLength(40).nullable().optional(),
     /** Price by pick order (the last value repeats); null = each option's price. */
     pickPrices: vine
       .array(vine.number().min(0).max(99999.99).decimal([0, 2]))

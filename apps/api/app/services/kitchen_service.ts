@@ -37,7 +37,8 @@ export default class KitchenService {
         orderIndex,
         lineId: line.id,
         itemId: line.itemId,
-        name: line.name,
+        // "Pastel de Frango com Catupiry" when a choice renames it.
+        name: line.displayName ?? line.name,
         addons: addonLabels(line.addons),
         addonIds: line.addons.flatMap((addon) => (addon.addonId ? [addon.addonId] : [])),
         notes: line.notes,

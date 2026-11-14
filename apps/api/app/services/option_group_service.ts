@@ -13,6 +13,8 @@ export type OptionGroupInput = {
   allowRepeat?: boolean
   /** Price by pick order (see OptionGroup.pickPrices); null/absent = per option. */
   pickPrices?: number[] | null
+  /** A word of the item's name the pick replaces on the staff screens (see OptionGroup). */
+  replacesInName?: string | null
   /** The options, in display order (the store's add-ons), with their price here. */
   options: { addonId: string; price: number | null }[]
 }
@@ -55,6 +57,7 @@ export default class OptionGroupService {
           maxChoices: input.maxChoices,
           allowRepeat: input.allowRepeat ?? false,
           pickPrices: input.pickPrices ?? null,
+          replacesInName: input.replacesInName || null,
         },
         { client: trx }
       )
@@ -73,6 +76,7 @@ export default class OptionGroupService {
         maxChoices: input.maxChoices,
         allowRepeat: input.allowRepeat ?? false,
         pickPrices: input.pickPrices ?? null,
+        replacesInName: input.replacesInName || null,
       })
       await group.useTransaction(trx).save()
       await this.syncOptions(group, input.options, trx)
