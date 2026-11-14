@@ -7,6 +7,7 @@ import { DateTime } from 'luxon'
 import OrderStatus from '#enums/order_status'
 import PaymentStatus from '#enums/payment_status'
 import Order from '#models/order'
+import Store from '#models/store'
 import OrderService from '#services/order_service'
 import PaymentService from '#services/payment_service'
 
@@ -55,6 +56,14 @@ export default class ExpireUnpaidOrder extends AppJob<Payload> {
       await ExpireUnpaidOrder.dispatch(this.payload).in(`${wait}s`)
       return
     }
+
+    // Last word from the gateway: a payment whose webhook never came is
+    // settled now (the order gets paid) instead of cancelled with the money kept.
+    const store = await Store.findOrFail(order.storeId)
+    await this.payments.syncPending(order, store)
+    const current = await Order.findOrFail(order.id)
+    if (current.paymentStatus === PaymentStatus.PAID) return
+    if (current.status !== OrderStatus.PENDING_PAYMENT) return
 
     await this.orders.cancel(order.storeId, order.id)
     logger.info({ orderId: order.id }, 'unpaid online order cancelled')

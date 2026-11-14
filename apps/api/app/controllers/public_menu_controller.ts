@@ -64,7 +64,8 @@ export default class PublicMenuController {
     // History token for this device (see CustomerAccessService).
     const customerToken = await this.access.tokenFor(
       order.customerId,
-      request.header('customer-token')
+      request.header('customer-token'),
+      order.createdAt
     )
     return ok({
       ...publicOrder(order, store, await this.checkoutState(order, store)),
@@ -83,7 +84,7 @@ export default class PublicMenuController {
         'E_CUSTOMER_TOKEN_INVALID'
       )
     }
-    const orders = await this.orders.listForCustomer(store.id, customer.id)
+    const orders = await this.orders.listForCustomer(store.id, customer.id, customer.historySince)
     return ok({
       customer: { name: customer.name, phone: maskPhone(customer.phone) },
       orders: orders.map((order) => publicOrderSummary(order, store)),

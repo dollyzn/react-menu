@@ -22,6 +22,10 @@ export default class Customer extends BaseModel {
   @column({ serializeAs: null })
   declare accessTokenHash: string | null
 
+  /** The history the token opens starts here (null: tokens issued before, whole history). */
+  @column.dateTime({ serializeAs: null })
+  declare historySince: DateTime | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

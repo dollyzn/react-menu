@@ -242,16 +242,31 @@ export default class MercadoPagoClient {
     /** Statuses that mean something to the caller, answered as these errors. */
     errors: Record<number, AppException> = {}
   ) {
-    const response = await fetch(`${API}${path}`, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-        ...(idempotencyKey && { 'X-Idempotency-Key': idempotencyKey }),
-      },
-      body: body === undefined ? undefined : JSON.stringify(body),
-      signal: AbortSignal.timeout(10_000),
-    })
+    let response: Response
+    try {
+      response = await fetch(`${API}${path}`, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          ...(idempotencyKey && { 'X-Idempotency-Key': idempotencyKey }),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        signal: AbortSignal.timeout(10_000),
+      })
+    } catch (error) {
+      // No answer (slow or dropped): Mercado Pago may have done it. A 5xx the
+      // web retries with the same Idempotency-Key, which Mercado Pago also
+      // gets, so the retry finds the same charge instead of a second one.
+      const timedOut =
+        error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')
+      logger.warn({ err: error, method, path: path.split('?')[0] }, 'Mercado Pago did not answer')
+      throw new AppException(
+        'O Mercado Pago demorou a responder. Tente novamente.',
+        timedOut ? 504 : 503,
+        'E_PAYMENT_PROVIDER_UNAVAILABLE'
+      )
+    }
     if (resultStatuses.includes(response.status)) {
       const result = (await response.json().catch(() => null)) as T | null
       if (result && typeof result === 'object' && 'id' in result) return result
