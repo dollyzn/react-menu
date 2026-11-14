@@ -5,14 +5,14 @@ import { useHydrated } from "@/hooks/use-hydrated";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
 import Image from "@/components/app/image";
-import { useParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Clock, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed } from "lucide-react";
+import { Clock, ListPlus, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed, X } from "lucide-react";
 import type { CounterPaymentMethod } from "@react-menu/contracts";
 import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
 import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
-import type { PointCharge, PublicMenuItem } from "@react-menu/contracts";
+import type { Order, PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
-import { useCreatePosOrderMutation } from "@/redux/features/order/orderApi";
+import { useAddOrderItemsMutation, useCreatePosOrderMutation, useGetOrdersQuery } from "@/redux/features/order/orderApi";
 import { stockHint, unitsLeft } from "@/lib/stock";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/string";
@@ -41,6 +41,14 @@ type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>
   line.unitPrice + line.addons.reduce((sum, addon) => sum + addon.price, 0);
 const lineTotal = (line: CustomizedLine) => unitTotal(line) * line.quantity;
+const linesInput = (lines: TicketLine[]) =>
+  lines.map((line) => ({
+    itemId: line.itemId,
+    quantity: line.quantity,
+    ...lineAddonsInput(line.addons),
+    notes: line.notes || undefined,
+  }));
+const errorCode = (error: unknown) => (error as { data?: { code?: string } }).data?.code;
 /** Same item, picks (in the order chosen: it sets their prices) and notes. */
 const sameLine = (a: CustomizedLine, b: CustomizedLine) =>
   a.itemId === b.itemId &&
@@ -56,7 +64,24 @@ export default function PosPage() {
     { slug: store?.slug, preview: true },
     { skip: !store }
   );
-  const [createOrder, { isLoading: sending }] = useCreatePosOrderMutation();
+  const [createOrder, { isLoading: creating }] = useCreatePosOrderMutation();
+  const [addItems, { isLoading: adding }] = useAddOrderItemsMutation();
+  const sending = creating || adding;
+
+  /**
+   * "Adicionar itens" on the orders board opens the POS on an order still in
+   * the queue (`?pedido=`): the ticket then adds to it instead of creating
+   * one. It comes from today's board (attendants have no order detail).
+   */
+  const router = useRouter();
+  const addingTo = useSearchParams().get("pedido");
+  const { data: todays, refetch: refetchTodays } = useGetOrdersQuery({ storeId }, { skip: !addingTo });
+  const target = addingTo ? (todays?.find((order) => order.id === addingTo) ?? null) : null;
+  const addTo = target?.status === "received" ? target : null;
+  // Opened to add, but the order isn't loaded yet, is gone or the kitchen
+  // started it: nothing is sent, so a quick tap never becomes a separate order.
+  const blocked = Boolean(addingTo) && !addTo;
+  const leaveAdding = () => router.replace(`/app/stores/${storeId}/pos`);
 
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<number | "all">("all");
@@ -174,6 +199,8 @@ export default function PosPage() {
   // To the cent: a float sum (1.1 + 2.2) would make the exact cash amount look short.
   const total = Math.round(lines.reduce((sum, line) => sum + lineTotal(line), 0) * 100) / 100;
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
+  /** Adding to an order: the ticket plus whatever the order still owed (paid now, it all goes). */
+  const toCollect = (order: Order) => Math.round((total + order.amountDue) * 100) / 100;
 
   const quickAdd = (item: PublicMenuItem) => {
     if (item.addons.length > 0 || item.optionGroups.length > 0) return openCustomizer(item);
@@ -264,12 +291,7 @@ export default function PosPage() {
       customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       // Paid as it was sent (cash, Pix, credit, debit); left out: received later.
       ...(counterMethod ? { counterMethod } : {}),
-      lines: lines.map((line) => ({
-        itemId: line.itemId,
-        quantity: line.quantity,
-        ...lineAddonsInput(line.addons),
-        notes: line.notes || undefined,
-      })),
+      lines: linesInput(lines),
     };
     const keyScope = `pos:${storeId}`;
     const order = await createOrder({
@@ -287,7 +309,109 @@ export default function PosPage() {
     return order;
   };
 
+  /**
+   * The ticket goes into the order being added to; the ticket empties. Paid
+   * now, it takes all that is due (`amount`, checked by the API: someone
+   * else may have changed it meanwhile).
+   */
+  const addFromTicket = async (order: Order, counterMethod?: CounterPaymentMethod, amount?: number) => {
+    const input = { lines: linesInput(lines), ...(counterMethod ? { counterMethod, amount } : {}) };
+    const keyScope = `pos-add:${order.id}`;
+    const updated = await addItems({
+      storeId,
+      orderId: order.id,
+      input,
+      // Like a new order: resending the same ticket never adds it twice.
+      idempotencyKey: stableIdempotencyKey(keyScope, { lines: input.lines }),
+    }).unwrap();
+    releaseIdempotencyKey(keyScope);
+    setLines([]);
+    setTicketOpen(false);
+    return updated;
+  };
+
+  /** Leaves "adding": the ticket stays, as a new order to the same customer. */
+  const startNew = (order: Order | null) => {
+    if (order) {
+      setCustomerName(order.customerName);
+      setCustomerPhone(order.customerPhone ? formatPhoneBR(order.customerPhone.replace(/^55/, "")) : "");
+    }
+    leaveAdding();
+  };
+
+  /**
+   * The kitchen started the order while the items were picked: they can't
+   * join it anymore. The ticket stays, for a new order to the same customer.
+   */
+  const addRefused = (error: unknown, order: Order) => {
+    if (errorCode(error) !== "E_ORDER_STARTED" && errorCode(error) !== "E_ORDER_OVER") return false;
+    setPaying(null);
+    toast.error(`O pedido #${order.number} já entrou em preparo.`, {
+      ...POS_TOAST,
+      description: "Lance o que faltou como um pedido novo.",
+      action: { label: "Pedido novo", onClick: () => startNew(order) },
+    });
+    return true;
+  };
+
+  /** Empties the ticket after it went (or turned out to have gone already). */
+  const resetTicket = () => {
+    setLines([]);
+    setCustomerName("");
+    setCustomerPhone("");
+    setTicketOpen(false);
+    setPaying(null);
+  };
+
+  /**
+   * A send that failed, told the same way for a new order and for items
+   * added to one. Resent after a lost response with another method: the
+   * first send went through (same ticket, same key), so it says so.
+   */
+  const sendFailed = (error: unknown, { scope, adding }: { scope: string; adding: boolean }) => {
+    if (errorCode(error) === "E_IDEMPOTENCY_KEY_REUSED") {
+      releaseIdempotencyKey(scope);
+      resetTicket();
+      toast.warning(
+        adding
+          ? "Estes itens já tinham sido adicionados. Confira o pagamento no quadro de pedidos."
+          : "Este pedido já tinha sido enviado. Confira a forma de pagamento no quadro de pedidos.",
+        POS_TOAST
+      );
+      return;
+    }
+    toast.error(
+      isConnectionError(error)
+        ? `Sem confirmação do servidor. Envie de novo: ${adding ? "os itens não serão duplicados" : "o pedido não será duplicado"}.`
+        : getErrorMessage(
+            error as { data?: { error?: string } },
+            adding ? "Não foi possível adicionar os itens." : "Não foi possível criar o pedido."
+          ),
+      POS_TOAST
+    );
+  };
+
+  const sendAdding = async (order: Order, counterMethod?: CounterPaymentMethod) => {
+    try {
+      // Paid now: what the cashier was shown (the ticket plus anything already due).
+      await addFromTicket(order, counterMethod, counterMethod ? toCollect(order) : undefined);
+      setPaying(null);
+      toast.success(
+        `Adicionado ao pedido #${order.number} · ${counterMethod ? `pago ${paidWith(counterMethod)}` : "receber depois"}`,
+        POS_TOAST
+      );
+      router.push(`/app/stores/${storeId}/orders`);
+    } catch (error) {
+      if (addRefused(error, order)) return;
+      // Someone else changed what is due: the dialog shows the new amount.
+      if (errorCode(error) === "E_AMOUNT_CHANGED") void refetchTodays();
+      sendFailed(error, { scope: `pos-add:${order.id}`, adding: true });
+    }
+  };
+
   const send = async (counterMethod?: CounterPaymentMethod) => {
+    if (blocked) return;
+    if (addTo) return sendAdding(addTo, counterMethod);
     try {
       const order = await createFromTicket(counterMethod);
       setPaying(null);
@@ -296,24 +420,7 @@ export default function PosPage() {
         POS_TOAST
       );
     } catch (error) {
-      // Resent after a lost response with another method: the first send went
-      // through (same ticket, same key). The order exists; check its payment.
-      if ((error as { data?: { code?: string } }).data?.code === "E_IDEMPOTENCY_KEY_REUSED") {
-        releaseIdempotencyKey(`pos:${storeId}`);
-        setLines([]);
-        setCustomerName("");
-        setCustomerPhone("");
-        setTicketOpen(false);
-        setPaying(null);
-        toast.warning("Este pedido já tinha sido enviado. Confira a forma de pagamento no quadro de pedidos.", POS_TOAST);
-        return;
-      }
-      toast.error(
-        isConnectionError(error)
-          ? "Sem confirmação do servidor. Envie de novo: o pedido não será duplicado."
-          : getErrorMessage(error as { data?: { error?: string } }, "Não foi possível criar o pedido."),
-        POS_TOAST
-      );
+      sendFailed(error, { scope: `pos:${storeId}`, adding: false });
     }
   };
 
@@ -333,13 +440,27 @@ export default function PosPage() {
   const [paying, setPaying] = useState<CounterPaymentMethod | null>(null);
   const payingShown = useLastValue(paying);
   // Sending empties the ticket: the dialog keeps its amount while it closes.
-  const payingTotal = useLastValue(total, () => paying !== null);
+  const payingTotal = useLastValue(addTo ? toCollect(addTo) : total, () => paying !== null);
+  const payingOwed = useLastValue(addTo?.amountDue ?? 0, () => paying !== null);
   const payingCount = useLastValue(count, () => paying !== null);
 
   const sendAndCharge = () =>
     setChargingTicket({
-      total,
+      // Adding: the machine charges all that is due, shown before it is sent.
+      total: addTo ? toCollect(addTo) : total,
       create: async () => {
+        if (addTo) {
+          // Added only when the charge is sent; the machine charges what is due.
+          try {
+            const order = await addFromTicket(addTo);
+            // The ticket went into the order: the next customer starts a new one.
+            leaveAdding();
+            return { id: order.id, number: order.number, total: order.amountDue };
+          } catch (error) {
+            if (addRefused(error, addTo)) setChargingTicket(null);
+            throw error;
+          }
+        }
         const order = await createFromTicket();
         return { id: order.id, number: order.number, total: order.total };
       },
@@ -367,12 +488,31 @@ export default function PosPage() {
     onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
     onSendAndCharge: canCharge ? sendAndCharge : undefined,
     sending,
+    blocked,
+    addingTo: addTo,
+    onLeaveAdding: leaveAdding,
   };
 
   return (
     <div className="grid min-h-[calc(100svh-3rem)] grid-cols-1 lg:h-[calc(100svh-3rem)] lg:grid-cols-[1fr_400px] lg:overflow-hidden">
       <section aria-label="Produtos" className="flex min-w-0 min-h-0 flex-col lg:overflow-y-auto">
         <div className="sticky top-12 z-10 flex flex-col gap-2 border-b bg-background/90 p-4 pb-3 backdrop-blur-md lg:top-0">
+          {blocked && (
+            <div role="status" className="flex items-center gap-3 rounded-xl border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+              <span className="flex-1">
+                {!todays
+                  ? "Carregando o pedido…"
+                  : target
+                    ? `O pedido #${target.number} já entrou em preparo: não dá mais para adicionar.`
+                    : "Este pedido não está mais no quadro de hoje."}
+              </span>
+              {todays && (
+                <Button variant="outline" size="sm" onClick={() => startNew(target)}>
+                  Lançar como pedido novo
+                </Button>
+              )}
+            </div>
+          )}
           <PendingChargesBar
             storeId={storeId}
             onOpen={(charge) => {
@@ -541,10 +681,10 @@ export default function PosPage() {
       <ReceivePaymentDialog
         open={paying !== null}
         onClose={() => setPaying(null)}
-        title="Enviar o pedido pago"
-        badge={`Novo pedido · ${payingCount} ${payingCount === 1 ? "item" : "itens"}`}
+        title={addTo ? `Adicionar ao pedido #${addTo.number}` : "Enviar o pedido pago"}
+        badge={`${addTo ? `Pedido #${addTo.number} · ${addTo.customerName}` : "Novo pedido"} · ${payingCount} ${payingCount === 1 ? "item" : "itens"}${payingOwed > 0 ? ` · inclui ${formatCurrencyBRL(payingOwed)} que faltava` : ""}`}
         total={payingTotal}
-        verb="Enviar"
+        verb={addTo ? "Adicionar" : "Enviar"}
         canCharge={false}
         initial={payingShown}
         busy={sending}
@@ -691,6 +831,9 @@ function Ticket({
   onSend,
   onSendAndCharge,
   sending,
+  blocked,
+  addingTo,
+  onLeaveAdding,
   inModal,
 }: {
   storeId: string;
@@ -712,6 +855,11 @@ function Ticket({
   /** With a card machine on: send, then charge it there. */
   onSendAndCharge?: () => void;
   sending: boolean;
+  /** Nothing can be sent (the order being added to isn't ready for it). */
+  blocked: boolean;
+  /** Adding to an order in the queue: the customer is the order's, the buttons add. */
+  addingTo: Order | null;
+  onLeaveAdding: () => void;
   /** In the phone drawer/dialog the parent scrolls, so the footer sticks. */
   inModal?: boolean;
 }) {
@@ -733,7 +881,23 @@ function Ticket({
         )}
       </div>
 
-      {/* relative: the suggestions list spans both fields. */}
+      {addingTo ? (
+        <div className="m-4 mb-0 flex items-center gap-3 rounded-xl border border-primary/40 bg-primary/5 p-3">
+          <ListPlus className="size-5 shrink-0 text-primary" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Adicionando ao pedido #{addingTo.number}</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {addingTo.customerName} · já tem {addingTo.items.reduce((sum, line) => sum + line.quantity, 0)}{" "}
+              {addingTo.items.length === 1 && addingTo.items[0].quantity === 1 ? "item" : "itens"} ·{" "}
+              {formatCurrencyBRL(addingTo.total)}
+            </p>
+          </div>
+          <Button variant="ghost" size="icon-sm" aria-label="Parar de adicionar ao pedido" onClick={onLeaveAdding}>
+            <X />
+          </Button>
+        </div>
+      ) : (
+      /* relative: the suggestions list spans both fields. */
       <div className="relative grid grid-cols-2 gap-2 border-b p-4">
         <CustomerAutocomplete
           storeId={storeId}
@@ -765,6 +929,7 @@ function Ticket({
           />
         </div>
       </div>
+      )}
 
       {lines.length === 0 ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center text-muted-foreground">
@@ -835,20 +1000,21 @@ function Ticket({
 
       <div className={cn("flex flex-col gap-3 border-t bg-card p-4", inModal && "sticky bottom-0")}>
         <div className="flex items-center justify-between font-semibold">
-          <span>Total</span>
+          <span>{addingTo ? "A adicionar" : "Total"}</span>
           <AnimatedPrice value={total} className="text-xl" />
         </div>
         {onSendAndCharge && (
-          <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0 || sending} onClick={onSendAndCharge}>
-            <SmartphoneNfc /> Enviar e cobrar na maquininha
+          <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0 || sending || blocked} onClick={onSendAndCharge}>
+            <SmartphoneNfc /> {addingTo ? "Adicionar e cobrar na maquininha" : "Enviar e cobrar na maquininha"}
           </Button>
         )}
         {/* Already paid another way: confirmed in a dialog (the method can't change afterwards). */}
         <div className="flex flex-col gap-1.5">
           <span className="text-xs font-medium text-muted-foreground">
-            {onSendAndCharge ? "Ou já recebeu? Enviar pago em" : "Enviar pago em"}
+            {onSendAndCharge ? "Ou já recebeu? " : ""}
+            {addingTo ? "Adicionar pago em" : "Enviar pago em"}
           </span>
-          <div className="grid grid-cols-4 gap-1.5" role="group" aria-label="Enviar pago em">
+          <div className="grid grid-cols-4 gap-1.5" role="group" aria-label={addingTo ? "Adicionar pago em" : "Enviar pago em"}>
             {COUNTER_METHOD_ORDER.map((method) => {
               const { label, icon: Icon } = COUNTER_METHODS[method];
               return (
@@ -856,7 +1022,7 @@ function Ticket({
                   key={method}
                   variant="outline"
                   className="h-14 flex-col gap-1 rounded-xl px-1 text-xs"
-                  disabled={lines.length === 0 || sending}
+                  disabled={lines.length === 0 || sending || blocked}
                   onClick={() => onSend(method)}
                 >
                   <Icon className="size-5" /> {label}
@@ -868,11 +1034,11 @@ function Ticket({
         <Button
           variant="ghost"
           className="w-full text-muted-foreground"
-          disabled={lines.length === 0}
+          disabled={lines.length === 0 || blocked}
           loading={sending}
           onClick={() => onSend()}
         >
-          <Clock /> Enviar e receber depois
+          <Clock /> {addingTo ? "Adicionar e receber depois" : "Enviar e receber depois"}
         </Button>
       </div>
     </div>

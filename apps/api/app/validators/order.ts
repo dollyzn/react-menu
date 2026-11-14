@@ -80,6 +80,19 @@ const posOrderValidator = vine.create(
   })
 )
 
+/**
+ * Items added to an order waiting in the queue: charged now (`counterMethod`)
+ * or left to receive (the card machine, or at pickup).
+ */
+const addOrderItemsValidator = vine.create(
+  vine.object({
+    lines,
+    counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
+    /** With `counterMethod`: what the cashier showed and took (all that is due after adding). */
+    amount: vine.number().min(0).max(999999.99).optional(),
+  })
+)
+
 /** A customer's browser for "avise quando ficar pronto" (Firebase Installation ID). */
 const orderPushValidator = vine.create(
   vine.object({
@@ -91,6 +104,8 @@ const orderPushValidator = vine.create(
 const receivePaymentValidator = vine.create(
   vine.object({
     method: vine.enum(COUNTER_PAYMENT_METHODS),
+    /** The amount the cashier saw and took: refused (409) if what is due changed meanwhile. */
+    amount: vine.number().min(0).max(999999.99).optional(),
   })
 )
 
@@ -141,6 +156,7 @@ export {
   publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,
+  addOrderItemsValidator,
   receivePaymentValidator,
   orderPushValidator,
   prepareUnitsValidator,

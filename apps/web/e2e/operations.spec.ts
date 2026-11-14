@@ -667,6 +667,82 @@ test("tracking page: \"Avisar quando ficar pronto\" stays on after a reload and 
   await expect.poll(() => page.title(), { timeout: 5_000 }).toContain(`Pedido #${number} pronto!`);
 });
 
+test("orders board: items added to an order in the queue, paid on Pix or left to receive", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const items = menu.categories.flatMap((category: { items: { id: string; name: string }[] }) => category.items);
+  const pastry = items.find((item: { name: string }) => item.name === "Pastel de Carne");
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+  const placed = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: "Quer mais" }, counterMethod: "cash", lines: [{ itemId: pastry.id, quantity: 1 }] },
+  });
+  const order = (await placed.json()).data as { id: string; number: number; total: number };
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(`/app/stores/${menu.store.id}/orders`);
+  const card = page.getByRole("article").filter({ hasText: `#${order.number}` });
+  const addItems = async () => {
+    await card.getByRole("button", { name: `Mais ações do pedido ${order.number}` }).click();
+    await page.getByRole("menuitem", { name: "Adicionar itens" }).click();
+    await expect(page.getByText(`Adicionando ao pedido #${order.number}`)).toBeVisible();
+    await page.getByRole("button", { name: new RegExp(`^${drink.name} R\\$`) }).click();
+  };
+
+  // A drink paid on Pix: confirmed like the POS, then back to the board.
+  await addItems();
+  await page.getByRole("group", { name: "Adicionar pago em" }).getByRole("button", { name: "Pix" }).click();
+  await page
+    .getByRole("dialog", { name: `Adicionar ao pedido #${order.number}` })
+    .getByRole("button", { name: /^Adicionar · Pix/ })
+    .click();
+  await expect(page.getByText(`Adicionado ao pedido #${order.number} · pago no Pix`)).toBeVisible();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(card).toContainText(drink.name);
+
+  // Another, left to receive: the card says what is missing.
+  await addItems();
+  await page.getByRole("button", { name: "Adicionar e receber depois" }).click();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(card).toContainText(/Falta receber R\$\s?[\d,]+/);
+
+  const partly = (await (await api.get(`/api/v1/stores/${menu.store.id}/orders/${order.id}`)).json()).data;
+  expect(partly.items).toHaveLength(3);
+  expect(partly.receipts.map((receipt: { counterMethod: string }) => receipt.counterMethod)).toEqual(["cash", "pix"]);
+  expect(partly.amountDue).toBe(partly.total - partly.amountPaid);
+  expect(partly.paymentStatus).toBe("pending");
+
+  // One more, paid now: the dialog takes what was still due too.
+  await addItems();
+  await page.getByRole("group", { name: "Adicionar pago em" }).getByRole("button", { name: "Débito" }).click();
+  const debit = page.getByRole("dialog", { name: `Adicionar ao pedido #${order.number}` });
+  await expect(debit).toContainText("que faltava");
+  await debit.getByRole("button", { name: /^Adicionar · Débito/ }).click();
+  await expect(page).toHaveURL(/\/orders$/);
+  await expect(card).not.toContainText("Falta receber");
+
+  const saved = (await (await api.get(`/api/v1/stores/${menu.store.id}/orders/${order.id}`)).json()).data;
+  expect(saved.items).toHaveLength(4);
+  expect(saved.receipts.map((receipt: { counterMethod: string }) => receipt.counterMethod)).toEqual(["cash", "pix", "debit"]);
+  expect(saved.amountDue).toBe(0);
+  expect(saved.paymentStatus).toBe("paid");
+
+  // Once the kitchen made something, nothing more joins it: a new order for the same customer.
+  const pastryLine = saved.items.find((line: { requiresPreparation: boolean }) => line.requiresPreparation);
+  await api.post(`/api/v1/stores/${menu.store.id}/kitchen/prepare`, {
+    data: { units: [{ lineId: pastryLine.id, quantity: 1 }] },
+  });
+  await api.dispose();
+  await page.goto(`/app/stores/${menu.store.id}/pos?pedido=${order.id}`);
+  await expect(page.getByText(`O pedido #${order.number} já entrou em preparo`)).toBeVisible();
+  await page.getByRole("button", { name: new RegExp(`^${drink.name} R\\$`) }).click();
+  await expect(page.getByRole("group", { name: "Enviar pago em" }).getByRole("button", { name: "Pix" })).toBeDisabled();
+  await page.getByRole("button", { name: "Lançar como pedido novo" }).click();
+  await expect(page.getByLabel("Nome do cliente")).toHaveValue("Quer mais");
+  await expect(page.getByRole("group", { name: "Enviar pago em" }).getByRole("button", { name: "Pix" })).toBeEnabled();
+});
+
 test("POS: a line in the ticket opens with its picks and is saved in place", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await login(page, DEMO_STAFF.attendant);

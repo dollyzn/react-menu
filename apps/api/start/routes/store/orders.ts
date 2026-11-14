@@ -23,6 +23,11 @@ export default function registerStoreOrderRoutes() {
     .post('/orders/:orderId/refund', [OrdersController, 'refund'])
     .as('orders.refund')
     .use(managersOnly)
+  // Items added while the order waits in the queue (front of house, like the POS).
+  router
+    .post('/orders/:orderId/items', [OrdersController, 'addItems'])
+    .as('orders.addItems')
+    .use(frontOfHouse)
   router
     .post('/orders/:orderId/payment', [OrdersController, 'markPaid'])
     .as('orders.markPaid')

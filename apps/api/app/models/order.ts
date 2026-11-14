@@ -1,5 +1,5 @@
 import { DateTime } from 'luxon'
-import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, belongsTo, column, computed, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import type OrderChannel from '#enums/order_channel'
 import type OrderStatus from '#enums/order_status'
@@ -9,6 +9,7 @@ import type PaymentStatus from '#enums/payment_status'
 import { decimal } from '#helpers/columns'
 import Customer from '#models/customer'
 import OrderItem from '#models/order_item'
+import OrderReceipt from '#models/order_receipt'
 import OrderStatusHistory from '#models/order_status_history'
 import Store from '#models/store'
 import User from '#models/user'
@@ -72,6 +73,13 @@ export default class Order extends BaseModel {
   @column(decimal)
   declare total: number
 
+  /**
+   * What was received so far (the sum of its receipts). Paid when it covers
+   * the total; items added to a paid order leave the rest to receive.
+   */
+  @column(decimal)
+  declare amountPaid: number
+
   @column()
   declare notes: string | null
 
@@ -119,4 +127,13 @@ export default class Order extends BaseModel {
 
   @hasMany(() => OrderStatusHistory)
   declare history: HasMany<typeof OrderStatusHistory>
+
+  @hasMany(() => OrderReceipt)
+  declare receipts: HasMany<typeof OrderReceipt>
+
+  /** Still to receive: what was added after it was paid, or all of it. */
+  @computed()
+  get amountDue() {
+    return Math.max(0, Math.round((this.total - (this.amountPaid ?? 0)) * 100) / 100)
+  }
 }

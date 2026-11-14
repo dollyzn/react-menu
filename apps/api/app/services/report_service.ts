@@ -1,3 +1,4 @@
+import PaymentMethod from '#enums/payment_method'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import OrderStatus from '#enums/order_status'
@@ -95,15 +96,31 @@ export default class ReportService {
         .orderBy('quantity', 'desc')
         .orderBy('order_item_addons.name', 'asc')
         .limit(15),
-      // Counter payments split by how the cashier recorded them (null: before that was
-      // kept), and apart from what hasn't been received yet (paid at pickup, still open).
-      sales(period)
-        .select('payment_method as method', 'counter_method')
-        .select(db.raw(`payment_status = 'paid' as paid`))
-        .count('* as orders')
-        .sum('total as revenue')
-        .groupByRaw(`payment_method, counter_method, payment_status = 'paid'`)
-        .orderBy('revenue', 'desc'),
+      // What was received, by how (an order paid in two goes, cash and then
+      // Pix for items added later, counts in both), with counter payments
+      // split by how the cashier recorded them (null: before that was kept);
+      // then what hasn't been received yet (paid at pickup, still open).
+      Promise.all([
+        db
+          .from('order_receipts')
+          .whereIn('order_receipts.order_id', sales(period).select('id'))
+          .select('order_receipts.payment_method as method', 'order_receipts.counter_method')
+          .countDistinct('order_receipts.order_id as orders')
+          .sum('order_receipts.amount as revenue')
+          .groupBy('order_receipts.payment_method', 'order_receipts.counter_method'),
+        // One row: whatever its first method, the rest is received at the counter.
+        sales(period)
+          .whereRaw('total > amount_paid')
+          .count('* as orders')
+          .select(db.raw('sum(total - amount_paid) as revenue')),
+      ]).then(([received, [open]]) =>
+        [
+          ...received.map((row) => ({ ...row, paid: true })),
+          ...(Number(open?.orders ?? 0) > 0
+            ? [{ ...open, method: PaymentMethod.COUNTER, counter_method: null, paid: false }]
+            : []),
+        ].sort((a, b) => Number(b.revenue) - Number(a.revenue))
+      ),
       sales(period)
         .select('channel')
         .count('* as orders')

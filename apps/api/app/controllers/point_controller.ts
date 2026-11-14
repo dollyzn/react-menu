@@ -29,7 +29,8 @@ function charge(
     order: {
       id: order.id,
       number: order.number,
-      total: order.total,
+      // What this charge asks for: all of it, or what was added after it was paid.
+      total: payment.amount,
       customerName: order.customerName,
     },
     status: payment.status,
@@ -96,7 +97,7 @@ export default class PointController {
     return messageOnly('Maquininha desativada nesta loja')
   }
 
-  /** "Cobrar na maquininha": sends the order's total to a machine. */
+  /** "Cobrar na maquininha": sends what the order still owes to a machine. */
   async charge({ params, request }: HttpContext) {
     const { store, order } = await this.order(params)
     const input = await request.validateUsing(pointChargeValidator)

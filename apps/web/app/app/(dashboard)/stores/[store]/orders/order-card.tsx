@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, Clock, Globe, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, Globe, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
@@ -48,6 +49,11 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const totalUnits = prepLines.reduce((sum, line) => sum + line.quantity, 0);
   const doneUnits = prepLines.reduce((sum, line) => sum + line.preparedQuantity, 0);
   const paid = order.paymentStatus === "paid";
+  // Paid, then items were added: only those are left to receive.
+  const partlyPaid = !paid && order.amountPaid > 0;
+  // Items can join it until the kitchen makes the first one.
+  const canAdd = order.status === "received";
+  const router = useRouter();
 
   return (
     <motion.article
@@ -107,8 +113,10 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       <footer className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
         <div className="text-sm">
           <p className="font-semibold tabular-nums">{formatCurrencyBRL(order.total)}</p>
-          <p className={cn("text-xs", paid ? "text-success" : "text-muted-foreground")}>
-            {paid
+          <p className={cn("text-xs", paid ? "text-success" : partlyPaid ? "font-medium text-warning" : "text-muted-foreground")}>
+            {partlyPaid
+              ? `Falta receber ${formatCurrencyBRL(order.amountDue)}`
+              : paid
               ? order.counterMethod
                 ? `Pago ${paidWith(order.counterMethod)}`
                 : order.paymentMethod === "point"
@@ -124,12 +132,17 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
             {order.status === "ready" && (
               <DeliverOrderButton order={order} storeId={storeId} />
             )}
-            {(!paid || canCancel) && (
+            {(!paid || canCancel || canAdd) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Mais ações do pedido ${order.number}`} />}>
                 <MoreHorizontal />
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {canAdd && (
+                  <DropdownMenuItem onClick={() => router.push(`/app/stores/${storeId}/pos?pedido=${order.id}`)}>
+                    <ListPlus /> Adicionar itens
+                  </DropdownMenuItem>
+                )}
                 {!paid && (
                   <DropdownMenuItem onClick={() => setReceiving(true)}>
                     <Banknote /> Receber pagamento
@@ -157,7 +170,11 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         onOpenChange={setConfirmCancel}
         loading={cancelling}
         title={`Cancelar o pedido #${order.number}?`}
-        description="O pedido sai da cozinha e o estoque usado é devolvido. Esta ação não pode ser desfeita."
+        description={
+          order.amountPaid > 0
+            ? "O pedido sai da cozinha e o estoque usado é devolvido. Pagamentos online e na maquininha voltam sozinhos; o que foi recebido no balcão, devolva em mãos. Esta ação não pode ser desfeita."
+            : "O pedido sai da cozinha e o estoque usado é devolvido. Esta ação não pode ser desfeita."
+        }
         confirmLabel="Cancelar pedido"
         onConfirm={async () => {
           await cancel({ storeId, orderId: order.id }).unwrap();
