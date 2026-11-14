@@ -883,3 +883,38 @@ test("POS: an item whose stock runs out shows sold out without a reload", async 
     await api.dispose();
   }
 });
+
+test("POS: a kept ticket never goes into an order being added to", async ({ page }) => {
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+  const pastry = menu.categories
+    .flatMap((category: { items: { id: string; name: string }[] }) => category.items)
+    .find((item: { name: string }) => item.name === "Pastel de Carne");
+  const order = (
+    await (
+      await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+        data: { customer: { name: "Outro" }, counterMethod: "cash", lines: [{ itemId: pastry.id, quantity: 1 }] },
+      })
+    ).json()
+  ).data as { id: string; number: number };
+  await api.dispose();
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  await page.goto(`/app/stores/${menu.store.id}/pos`);
+  const ticket = page.getByRole("complementary", { name: "Comanda" });
+  await page.getByRole("button", { name: new RegExp(`^${drink.name} R\\$`) }).click();
+  await page.getByLabel("Nome do cliente").fill("Guardada");
+
+  // Adding to another order: an empty ticket, the kept one stays aside.
+  await page.goto(`/app/stores/${menu.store.id}/pos?pedido=${order.id}`);
+  await expect(page.getByText(`Adicionando ao pedido #${order.number}`)).toBeVisible();
+  await expect(ticket.getByText("Toque nos produtos para montar o pedido.")).toBeVisible();
+
+  // Back to the POS: the kept ticket is there.
+  await page.goto(`/app/stores/${menu.store.id}/pos`);
+  await expect(page.getByLabel("Nome do cliente")).toHaveValue("Guardada");
+  await expect(ticket.getByRole("button", { name: new RegExp(`^Editar ${drink.name}`) })).toHaveCount(1);
+});

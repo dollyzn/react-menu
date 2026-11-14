@@ -148,9 +148,11 @@ export default function PosPage() {
   const [restoredFor, setRestoredFor] = useState<string | null>(null);
   /** Units brought back, for the "Comanda recuperada" toast. */
   const [recovered, setRecovered] = useState(0);
-  if (hydrated && menu && restoredFor !== storeId) {
+  // Not while adding to an order: a ticket kept for another customer must
+  // never go into it. Nor over a ticket already on screen (left "adding").
+  if (hydrated && menu && !addingTo && restoredFor !== storeId) {
     setRestoredFor(storeId);
-    const saved = readTicket(storeId);
+    const saved = lines.length === 0 ? readTicket(storeId) : null;
     const kept = (saved?.lines ?? []).flatMap((line) => {
       const item = itemsById.get(line.itemId);
       return item ? [{ ...line, name: item.name, unitPrice: item.price }] : [];
@@ -179,10 +181,11 @@ export default function PosPage() {
     });
   }, [recovered]);
   useEffect(() => {
-    // Not before restoring: the empty first render would erase what was kept.
-    if (restoredFor !== storeId) return;
+    // Not before restoring (the empty first render would erase what was
+    // kept), and not while adding to an order (that ticket is the order's).
+    if (restoredFor !== storeId || addingTo) return;
     saveTicket(storeId, { lines, customerName, customerPhone });
-  }, [restoredFor, storeId, lines, customerName, customerPhone]);
+  }, [restoredFor, storeId, lines, customerName, customerPhone, addingTo]);
 
   /** Units the stock still allows for an item, after what the ticket holds (null = no limit). */
   const leftFor = (itemId: string) => unitsLeft(itemsById.get(itemId)?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
