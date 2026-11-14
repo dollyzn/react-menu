@@ -68,6 +68,23 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
     await bar.getByRole("button", { name: "Abrir" }).click();
     const resumed = page.getByRole("dialog", { name: `Cobrar pedido #${first}` });
     await expect(resumed.getByText("Aguardando pagamento na maquininha")).toBeVisible();
+    // Already on the machine (as Mercado Pago answers then): the dialog says to cancel
+    // there and drops the button that can't (the fake machine never refuses, so it is mocked).
+    await page.route(/\/point-charges\/[^/]+\/cancel$/, (route) =>
+      route.fulfill({
+        status: 409,
+        contentType: "application/json",
+        body: JSON.stringify({
+          success: false,
+          error: "A cobrança já está na maquininha: cancele por lá (segure o botão vermelho e confirme).",
+          code: "E_CANCEL_ON_TERMINAL",
+        }),
+      })
+    );
+    await resumed.getByRole("button", { name: "Cancelar cobrança" }).click();
+    await expect(resumed.getByText(/Já está na .+: cancele por lá/)).toBeVisible();
+    await expect(resumed.getByRole("button", { name: "Cancelar cobrança" })).toBeHidden();
+    await page.unroute(/\/point-charges\/[^/]+\/cancel$/);
     await resumed.getByRole("button", { name: "Simular aprovação" }).click();
     await expect(resumed.getByText("Pagamento aprovado")).toBeVisible();
     await resumed.getByRole("button", { name: "Concluir" }).click();

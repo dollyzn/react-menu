@@ -175,6 +175,11 @@ function ChargeFlow({
 
   const [own, setCharge] = useState<PointCharge | null>(resume);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * The charge reached the machine, where only the machine can cancel it:
+   * the dialog says how and keeps following it until the machine reports it.
+   */
+  const [onTerminal, setOnTerminal] = useState<string | null>(null);
   /** The machine is busy with another order's charge. */
   const [busy, setBusy] = useState<{ orderId: string; orderNumber: number; paymentId: string } | null>(null);
 
@@ -278,6 +283,10 @@ function ChargeFlow({
     try {
       setCharge(await cancel({ storeId, orderId: charge.order.id, paymentId: charge.id }).unwrap());
     } catch (err) {
+      if ((err as { data?: { code?: string } }).data?.code === "E_CANCEL_ON_TERMINAL") {
+        setOnTerminal(charge.id);
+        return;
+      }
       setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível cancelar a cobrança."));
     }
   };
@@ -474,6 +483,15 @@ function ChargeFlow({
                     </span>
                   </div>
                 )}
+                {onTerminal === charge.id && (
+                  <div role="alert" className="flex w-full items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 p-3 text-left text-sm">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0 text-warning" />
+                    <span>
+                      <span className="block font-semibold">Já está na {machine}: cancele por lá</span>
+                      Segure o botão vermelho da maquininha e confirme. Esta tela muda sozinha quando ela cancelar.
+                    </span>
+                  </div>
+                )}
                 {error && (
                   <p role="alert" className="text-sm text-destructive">
                     {error}
@@ -481,15 +499,18 @@ function ChargeFlow({
                 )}
               </div>
               <Footer hint="A cobrança continua na maquininha e fica na barra “Na maquininha”.">
-                <div className="grid w-full grid-cols-2 gap-2">
-                  <Button
-                    variant="outline"
-                    className="h-11 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
-                    loading={cancelling}
-                    onClick={() => void stop()}
-                  >
-                    <X /> Cancelar cobrança
-                  </Button>
+                {/* Once on the machine only the machine cancels it: no button that can't. */}
+                <div className={cn("grid w-full gap-2", onTerminal !== charge.id && "grid-cols-2")}>
+                  {onTerminal !== charge.id && (
+                    <Button
+                      variant="outline"
+                      className="h-11 rounded-xl text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      loading={cancelling}
+                      onClick={() => void stop()}
+                    >
+                      <X /> Cancelar cobrança
+                    </Button>
+                  )}
                   <Button variant="secondary" className="h-11 rounded-xl" onClick={onClose}>
                     Continuar depois
                   </Button>
