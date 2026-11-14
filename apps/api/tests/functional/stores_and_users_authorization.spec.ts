@@ -37,6 +37,18 @@ test.group('Store creation and deletion', (group) => {
     assert.isTrue(await user.hasStoreAccess(response.body().data.id))
   })
 
+  test("a store can't take a path the site uses for itself as its slug", async ({ client }) => {
+    const user = await createUserWithPermissions(['create_store'])
+
+    for (const slug of ['app', 'pedido', 'muitos-acessos', 'wp-admin']) {
+      const response = await client
+        .post('/api/v1/stores')
+        .json({ name: 'Nova', slug })
+        .loginAs(user)
+      response.assertStatus(422)
+    }
+  })
+
   test('creating a default store unsets the previous default', async ({ client, assert }) => {
     const user = await createUserWithPermissions(['create_store'])
     const previous = await createStore()

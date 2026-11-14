@@ -70,6 +70,30 @@ export function ItemDetail({ item: current, storeSlug, storeOpen, onClose }: Ite
 export type CustomizedLine = Omit<CartLine, "key">;
 
 /**
+ * A line's picks that still fit the item as it is now: options still offered
+ * and on sale, in their group, within its maximum (repeats only where the
+ * group allows them). What no longer fits is left out, so the line can be
+ * saved (a required choice gone shows as missing) instead of being stuck on
+ * an option that can't be unticked.
+ */
+function restorePicks(item: PublicMenuItem, addons: CustomizedLine["addons"]) {
+  const addonIds = addons
+    .filter((addon) => !addon.groupId && item.addons.some((offered) => offered.id === addon.id && offered.isAvailable))
+    .map((addon) => addon.id);
+  const choices: Record<string, string[]> = {};
+  for (const addon of addons) {
+    if (!addon.groupId) continue;
+    const group = (item.optionGroups ?? []).find((candidate) => candidate.id === addon.groupId);
+    const option = group?.options.find((candidate) => candidate.id === addon.id);
+    if (!group || !option?.isAvailable) continue;
+    const picked = choices[group.id] ?? [];
+    if (picked.length >= group.maxChoices || (!group.allowRepeat && picked.includes(addon.id))) continue;
+    choices[group.id] = [...picked, addon.id];
+  }
+  return { addonIds, choices };
+}
+
+/**
  * Add-ons, notes and quantity for one menu item. Shared by the customer menu
  * (adds to the bag) and the POS (adds to the ticket).
  */
@@ -78,6 +102,7 @@ export function ItemCustomizer({
   ctaLabel,
   disabled,
   alreadyChosen = 0,
+  initial,
   onAdd,
 }: {
   item: PublicMenuItem;
@@ -85,13 +110,17 @@ export function ItemCustomizer({
   disabled?: boolean;
   /** Units of this item already in the bag/ticket (they count against the stock). */
   alreadyChosen?: number;
+  /** A line being edited (the POS ticket): its picks, notes and quantity. */
+  initial?: CustomizedLine;
   onAdd: (line: CustomizedLine) => void;
 }) {
-  const [addonIds, setAddonIds] = useState<string[]>([]);
-  /** Choices per group (option ids). */
-  const [choices, setChoices] = useState<Record<string, string[]>>({});
-  const [notes, setNotes] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  // A line being edited: its picks that still fit the item as it is now.
+  const [restored] = useState(() => restorePicks(item, initial?.addons ?? []));
+  const [addonIds, setAddonIds] = useState<string[]>(restored.addonIds);
+  /** Choices per group (option ids), in the order picked (it sets their price). */
+  const [choices, setChoices] = useState<Record<string, string[]>>(restored.choices);
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [quantity, setQuantity] = useState(Math.min(initial?.quantity ?? 1, MAX_QUANTITY));
 
   const groups = item.optionGroups ?? [];
   // A pick carries its group: the price there and "Recheio extra: Carne".
@@ -295,7 +324,8 @@ export function ItemCustomizer({
       </div>
 
       {/* overflow-x-clip: the message's shake must not scroll the window sideways. */}
-      <div className="sticky bottom-0 overflow-x-clip border-t bg-background/95 backdrop-blur">
+      {/* Pinned only with room: with the keyboard open it would cover the notes. */}
+      <div className="overflow-x-clip border-t bg-background/95 backdrop-blur tall:sticky tall:bottom-0">
       {hint && (
         <motion.p
           key={nudge}
