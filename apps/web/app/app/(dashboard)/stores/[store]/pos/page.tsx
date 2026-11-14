@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup as ToggleGroupPrimitive } from "@base-ui/react/toggle-group";
 import Image from "@/components/app/image";
@@ -39,6 +39,12 @@ type TicketLine = CustomizedLine & { key: string };
 const unitTotal = (line: CustomizedLine) =>
   line.unitPrice + line.addons.reduce((sum, addon) => sum + addon.price, 0);
 const lineTotal = (line: CustomizedLine) => unitTotal(line) * line.quantity;
+/** Same item, picks (in the order chosen: it sets their prices) and notes. */
+const sameLine = (a: CustomizedLine, b: CustomizedLine) =>
+  a.itemId === b.itemId &&
+  a.notes === b.notes &&
+  a.addons.map((addon) => `${addon.groupId ?? ""}:${addon.id}`).join("|") ===
+    b.addons.map((addon) => `${addon.groupId ?? ""}:${addon.id}`).join("|");
 
 /** Point of sale: staff build an order fast and send it to the kitchen. */
 export default function PosPage() {
@@ -52,12 +58,17 @@ export default function PosPage() {
 
   const [query, setQuery] = useState("");
   const [categoryId, setCategoryId] = useState<number | "all">("all");
-  const [picking, setPicking] = useState<PublicMenuItem | null>(null);
+  /**
+   * The customizer: an item to add, or a ticket line to change (its choices,
+   * notes or quantity; "Salvar" replaces it). Each opening is a new `session`,
+   * so it starts from the line as it is, never from a draft left closing.
+   */
+  const [picking, setPicking] = useState<{ item: PublicMenuItem; line?: TicketLine; session: number } | null>(null);
   // The customizer stays on screen while its dialog animates closed.
   const pickingShown = useLastValue(picking);
-  /** A ticket line opened to change its choices, notes or quantity (null: adding a new one). */
-  const [editing, setEditing] = useState<TicketLine | null>(null);
-  const editingShown = useLastValue(editing, () => picking !== null);
+  const sessions = useRef(0);
+  const openCustomizer = (item: PublicMenuItem, line?: TicketLine) =>
+    setPicking({ item, line, session: ++sessions.current });
   const [lines, setLines] = useState<TicketLine[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -94,18 +105,29 @@ export default function PosPage() {
     return counts;
   }, [lines]);
 
+  const itemsById = useMemo(
+    () => new Map((menu?.categories ?? []).flatMap((category) => category.items).map((item) => [item.id, item])),
+    [menu]
+  );
+
   /** Units the stock still allows for an item, after what the ticket holds (null = no limit). */
-  const leftFor = (itemId: string) => {
-    const item = categories.flatMap((category) => category.items).find((candidate) => candidate.id === itemId);
-    return unitsLeft(item?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
-  };
+  const leftFor = (itemId: string) => unitsLeft(itemsById.get(itemId)?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
+
+  /** Units of an item in the ticket, but for the line being edited (it doesn't count against itself). */
+  const unitsElsewhere = (itemId: string, exceptKey?: string) =>
+    lines.reduce((sum, line) => (line.itemId === itemId && line.key !== exceptKey ? sum + line.quantity : sum), 0);
+  // Kept while the dialog closes: saving changes the ticket, the dialog shouldn't.
+  const chosenElsewhere = useLastValue(
+    picking ? unitsElsewhere(picking.item.id, picking.line?.key) : 0,
+    () => picking !== null
+  );
 
   // To the cent: a float sum (1.1 + 2.2) would make the exact cash amount look short.
   const total = Math.round(lines.reduce((sum, line) => sum + lineTotal(line), 0) * 100) / 100;
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
 
   const quickAdd = (item: PublicMenuItem) => {
-    if (item.addons.length > 0 || item.optionGroups.length > 0) return setPicking(item);
+    if (item.addons.length > 0 || item.optionGroups.length > 0) return openCustomizer(item);
     addToTicket({
       itemId: item.id,
       name: item.name,
@@ -130,11 +152,29 @@ export default function PosPage() {
   /** Opens a ticket line in the customizer, with its picks; "Salvar" replaces it in place. */
   const editLine = (key: string) => {
     const line = lines.find((candidate) => candidate.key === key);
-    const item = line && categories.flatMap((category) => category.items).find((candidate) => candidate.id === line.itemId);
-    if (!line || !item) return;
-    setEditing(line);
-    setPicking(item);
+    if (!line) return;
+    const item = itemsById.get(line.itemId);
+    if (!item) {
+      toast.info(`${line.name} saiu do cardápio: remova a linha e escolha outro item.`, POS_TOAST);
+      return;
+    }
+    openCustomizer(item, line);
   };
+
+  /**
+   * The edited line takes its place; if it now matches another line (same
+   * picks and notes), the two become one, like adding the same item twice.
+   */
+  const saveLine = (key: string, changed: CustomizedLine) =>
+    setLines((current) => {
+      const twin = current.find((candidate) => candidate.key !== key && sameLine(candidate, changed));
+      if (!twin) return current.map((candidate) => (candidate.key === key ? { ...changed, key } : candidate));
+      return current
+        .filter((candidate) => candidate.key !== key)
+        .map((candidate) =>
+          candidate === twin ? { ...candidate, quantity: candidate.quantity + changed.quantity } : candidate
+        );
+    });
 
   const changeQuantity = (key: string, delta: number) => {
     const line = lines.find((candidate) => candidate.key === key);
@@ -428,32 +468,22 @@ export default function PosPage() {
 
       <ResponsiveModal
         open={Boolean(picking)}
-        onOpenChange={(open) => {
-          if (open) return;
-          setPicking(null);
-          setEditing(null);
-        }}
-        title={pickingShown?.name ?? ""}
+        onOpenChange={(open) => !open && setPicking(null)}
+        title={pickingShown?.item.name ?? ""}
         hideHeader
         className="sm:max-w-md"
       >
         {pickingShown && (
           <ItemCustomizer
-            key={`${pickingShown.id}:${editingShown?.key ?? "new"}`}
-            item={pickingShown}
-            ctaLabel={editingShown ? "Salvar" : "Adicionar"}
-            initial={editingShown ?? undefined}
-            // The line being edited doesn't count against itself.
-            alreadyChosen={(inTicket.get(pickingShown.id) ?? 0) - (editingShown?.quantity ?? 0)}
+            key={pickingShown.session}
+            item={pickingShown.item}
+            ctaLabel={pickingShown.line ? "Salvar" : "Adicionar"}
+            initial={pickingShown.line}
+            alreadyChosen={chosenElsewhere}
             onAdd={(line) => {
-              if (editingShown) {
-                const key = editingShown.key;
-                setLines((current) => current.map((candidate) => (candidate.key === key ? { ...line, key } : candidate)));
-              } else {
-                addToTicket(line);
-              }
+              if (pickingShown.line) saveLine(pickingShown.line.key, line);
+              else addToTicket(line);
               setPicking(null);
-              setEditing(null);
             }}
           />
         )}
@@ -708,10 +738,11 @@ function Ticket({
                 <button
                   type="button"
                   onClick={() => onEdit(line.key)}
-                  aria-label={`Editar ${line.name}`}
                   className="group/line -m-1 min-w-0 flex-1 rounded-lg p-1 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
                 >
                   <span className="flex items-center gap-1.5 text-sm leading-snug font-medium">
+                    {/* Read as "Editar Pastel … + Escolha o queijo: Catupiry, 1 × R$ …": tells two lines apart. */}
+                    <span className="sr-only">Editar </span>
                     {line.name}
                     <Pencil className="size-3 shrink-0 text-muted-foreground opacity-60 group-hover/line:opacity-100" />
                   </span>
