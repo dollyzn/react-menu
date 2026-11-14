@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto'
+import { DateTime } from 'luxon'
 import Customer from '#models/customer'
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex')
@@ -15,7 +16,7 @@ export default class CustomerAccessService {
    * Token to hand to the device that just ordered: a new one for a customer
    * without token, the presented one if it is valid, otherwise none.
    */
-  async tokenFor(customerId: string | null, presented?: string | null) {
+  async tokenFor(customerId: string | null, presented?: string | null, since?: DateTime) {
     if (!customerId) return null
     const customer = await Customer.find(customerId)
     if (!customer) return null
@@ -26,7 +27,12 @@ export default class CustomerAccessService {
       const updated = await Customer.query()
         .where('id', customer.id)
         .whereNull('accessTokenHash')
-        .update({ accessTokenHash: hash(token) })
+        // Its history starts at the order that issued it: earlier orders
+        // (at the counter, by phone only) aren't this device's to see.
+        .update({
+          accessTokenHash: hash(token),
+          historySince: (since ?? DateTime.now()).toJSDate(),
+        })
       if (Number(updated[0] ?? updated) > 0) return token
       await customer.refresh()
     }

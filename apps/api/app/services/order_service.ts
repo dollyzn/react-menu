@@ -100,12 +100,20 @@ export default class OrderService {
           'E_INVALID_PHONE'
         )
       }
+      // The counter (staff) may correct a customer's name; an online order
+      // only names a new customer (anyone can type someone else's phone).
       const customer = phone
-        ? await Customer.updateOrCreate(
-            { storeId, phone },
-            { name: input.customer.name },
-            { client: trx }
-          )
+        ? input.channel === OrderChannel.ONLINE
+          ? await Customer.firstOrCreate(
+              { storeId, phone },
+              { name: input.customer.name },
+              { client: trx }
+            )
+          : await Customer.updateOrCreate(
+              { storeId, phone },
+              { name: input.customer.name },
+              { client: trx }
+            )
         : null
 
       const businessDate = DateTime.now().setZone(BUSINESS_TIMEZONE).startOf('day')
@@ -455,9 +463,15 @@ export default class OrderService {
   }
 
   /** A customer's latest orders in one store, newest first. */
-  async listForCustomer(storeId: string, customerId: string, limit = 30) {
+  async listForCustomer(
+    storeId: string,
+    customerId: string,
+    since: DateTime | null = null,
+    limit = 30
+  ) {
     return await Order.query()
       .where({ storeId, customerId })
+      .if(since, (query) => query.where('createdAt', '>=', since!.toSQL()!))
       .preload('items', (items) => items.orderBy('id'))
       .orderBy('createdAt', 'desc')
       .limit(limit)

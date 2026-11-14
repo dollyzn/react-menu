@@ -243,13 +243,35 @@ export default class PaymentService {
 
     if (!payment) {
       // Legacy Checkout Pro order (no Payment row): only approval matters.
-      // Anything else (e.g. a "payment" notice about an Orders API attempt)
-      // is settled by its own attempt, never straight on the order.
+      if (order.paymentMethod === PaymentMethod.MERCADO_PAGO) {
+        if (result.status === PaymentAttemptStatus.APPROVED) {
+          await this.orders.markPaid(order, { mercadoPagoPaymentId: result.gatewayPaymentId })
+        }
+        return
+      }
+      // An attempt of this order whose answer never reached us (a timeout
+      // after Mercado Pago charged): record it now, so it pays the order or,
+      // if the order was paid another way, goes back as a duplicate.
       if (
-        order.paymentMethod === PaymentMethod.MERCADO_PAGO &&
-        result.status === PaymentAttemptStatus.APPROVED
+        input.type === 'order' &&
+        result.orderId === order.id &&
+        (order.paymentMethod === PaymentMethod.PIX || order.paymentMethod === PaymentMethod.CARD)
       ) {
-        await this.orders.markPaid(order, { mercadoPagoPaymentId: result.gatewayPaymentId })
+        const recorded = await Payment.create({
+          orderId: order.id,
+          storeId: store.id,
+          gateway: gateway.name,
+          method: result.pix ? PaymentMethod.PIX : PaymentMethod.CARD,
+          gatewayPaymentId: result.gatewayPaymentId,
+          status: result.status,
+          statusDetail: result.statusDetail,
+          amount: order.total,
+        })
+        logger.warn(
+          { orderId: order.id, paymentId: recorded.id },
+          'payment attempt recorded from its webhook'
+        )
+        await this.settle(order, recorded)
       }
       return
     }
@@ -350,6 +372,27 @@ export default class PaymentService {
     if (!gateway || gateway.name !== payment.gateway) return
     await this.update(payment, await gateway.fetch(payment.gatewayPaymentId))
     await this.settle(order, payment)
+  }
+
+  /**
+   * Before giving up on an unpaid order: asks the gateway about every attempt
+   * still pending here. A webhook that never arrived (a wrong secret, an
+   * outage) must not let a paid Pix be cancelled with the money kept. Throws
+   * when the gateway can't be reached, so the caller retries instead of
+   * cancelling blind.
+   */
+  async syncPending(order: Order, store: Store) {
+    const pending = await Payment.query().where({
+      orderId: order.id,
+      status: PaymentAttemptStatus.PENDING,
+    })
+    for (const payment of pending) {
+      if (!payment.gatewayPaymentId) continue
+      const gateway = payment.gateway === 'fake' ? new FakeGateway() : this.gatewayFor(store)
+      if (!gateway || gateway.name !== payment.gateway) continue
+      await this.update(payment, await gateway.fetch(payment.gatewayPaymentId))
+      await this.settle(order, payment)
+    }
   }
 
   /** Online orders take their stock only once paid: check before charging. */

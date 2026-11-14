@@ -444,6 +444,73 @@ test.group('Payments (in-app checkout)', (group) => {
     queue.assertPushed('RefundOrder', { payload: { orderId: order.id } })
   })
 
+  test('a Pix paid whose webhook never came: the expiry asks Mercado Pago and keeps the order', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id)
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({ method: 'pix', payer })
+    const order = await Order.findByOrFail('publicToken', token)
+    await Payment.query()
+      .where('orderId', order.id)
+      .update({ expiresAt: new Date(Date.now() - 1000) })
+    // Paid in the bank app; the webhook is lost (a wrong secret, an outage).
+    fake.approve('ORD1001')
+
+    await runJob(ExpireUnpaidOrder, { orderId: order.id })
+
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'paid')
+    assert.notEqual(order.status, 'cancelled')
+    queue.assertNotPushed('RefundOrder')
+  })
+
+  test('Mercado Pago unreachable at the expiry: the order is not cancelled blind', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id)
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({ method: 'pix', payer })
+    const order = await Order.findByOrFail('publicToken', token)
+    await Payment.query()
+      .where('orderId', order.id)
+      .update({ expiresAt: new Date(Date.now() - 1000) })
+    fake.getOrder = async () => {
+      throw new AppException('down', 504, 'E_PAYMENT_PROVIDER_UNAVAILABLE')
+    }
+
+    await assert.rejects(() => runJob(ExpireUnpaidOrder, { orderId: order.id }))
+    await order.refresh()
+    assert.equal(order.status, 'pending_payment')
+  })
+
+  test('a webhook for an attempt whose answer was lost records it and pays the order', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const token = await placeOrder(client, store.slug, carne.id)
+    await client.post(`/api/v1/public/orders/${token}/payments`).json({ method: 'pix', payer })
+    const order = await Order.findByOrFail('publicToken', token)
+    // Charged at Mercado Pago, but the answer never reached us: no attempt here.
+    await Payment.query().where('orderId', order.id).delete()
+    fake.approve('ORD1001')
+
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('ORD1001', 'req-orphan'))
+      .header('x-request-id', 'req-orphan')
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
+
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'paid')
+    const recorded = await Payment.query().where('orderId', order.id).firstOrFail()
+    assert.equal(recorded.gatewayPaymentId, 'ORD1001')
+    assert.equal(recorded.status, 'approved')
+  })
+
   test('a gateway failure leaves the order payable', async ({ client, assert }) => {
     const { store, carne } = await onlinePaymentStore()
     const token = await placeOrder(client, store.slug, carne.id)

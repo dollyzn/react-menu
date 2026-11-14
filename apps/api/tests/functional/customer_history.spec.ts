@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
-import { createMenuStore } from '#tests/helpers/fixtures'
+import StoreRole from '#enums/store_role'
+import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 
 const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
 
@@ -42,6 +43,40 @@ test.group('Customer order history', (group) => {
     assert.deepEqual(history.body().data.orders[0].items, [
       { name: 'Pastel de Carne', quantity: 1 },
     ])
+  })
+
+  test('a phone first used at the counter: online, its earlier orders stay out of the history', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await createMenuStore()
+    const cashier = await createUser()
+    await linkUser(store, cashier, StoreRole.ATTENDANT)
+    // Maria gave her phone at the counter (no token: the POS never issues one).
+    await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({
+        customer: { name: 'Maria', phone: customer.phone },
+        lines: [{ itemId: carne.id, quantity: 1 }],
+      })
+      .loginAs(cashier)
+
+    // Someone else orders online with her phone and gets the first token.
+    const online = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+      customer: { name: 'Outra pessoa', phone: customer.phone },
+      paymentMethod: 'counter',
+      lines: [{ itemId: carne.id, quantity: 1 }],
+    })
+    const token = online.body().data.customerToken as string
+    assert.match(token, /^ct_/)
+
+    const history = await client
+      .get(`/api/v1/public/menu/${store.slug}/my-orders`)
+      .header('Customer-Token', token)
+    // Only what this device ordered, not Maria's counter order; her name kept.
+    assert.lengthOf(history.body().data.orders, 1)
+    assert.equal(history.body().data.orders[0].publicToken, online.body().data.publicToken)
+    assert.equal(history.body().data.customer.name, 'Maria')
   })
 
   test('history needs a valid token of that store', async ({ client }) => {
