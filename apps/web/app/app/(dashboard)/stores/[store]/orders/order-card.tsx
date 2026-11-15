@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, Clock, Globe, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, CreditCard, Globe, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
@@ -67,7 +67,9 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       aria-label={`Pedido ${order.number} de ${order.customerName}`}
       className={cn(
         "rounded-2xl border bg-card p-4 shadow-xs",
-        order.status === "ready" && "border-success/50 bg-success/5"
+        order.status === "ready" && "border-success/50 bg-success/5",
+        // Held for the card machine: in the queue's place, not in the kitchen yet.
+        order.status === "pending_payment" && "border-2 border-dashed border-warning bg-warning/10"
       )}
     >
       <header className="flex items-start justify-between gap-2">
@@ -101,6 +103,11 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         </div>
       </header>
 
+      {order.status === "pending_payment" && (
+        <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-warning/15 px-2 py-1.5 text-xs font-semibold text-warning">
+          <CreditCard className="size-3.5 shrink-0" /> Aguardando pagamento · ainda não foi para a cozinha
+        </p>
+      )}
       <OrderLines items={order.items} className="mt-3" />
       {order.notes && <p className="mt-2 rounded-lg bg-muted px-2 py-1 text-xs">{order.notes}</p>}
 
@@ -125,7 +132,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                 : order.paymentMethod === "point"
                   ? "Pago na maquininha"
                   : "Pago"
-              : order.paymentMethod === "counter"
+              : order.paymentMethod === "counter" && order.status !== "pending_payment"
                 ? "Falta receber"
                 : "Aguardando pagamento"}
           </p>

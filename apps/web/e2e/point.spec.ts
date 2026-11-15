@@ -157,10 +157,10 @@ test("card machine, kitchen after payment: a refused card keeps the order off th
     await charging.getByRole("button", { name: "Concluir" }).click();
 
     await page.goto(`/app/stores/${storeId}/orders`);
-    const waiting = page.getByRole("region", { name: /Aguardando pagamento/ });
-    const refused = waiting.getByRole("article", { name: /de Recusado/ });
-    await expect(refused).toBeVisible();
-    await expect(waiting.getByRole("article", { name: /de Aprovado/ })).toBeHidden();
+    // Held: first in "Na fila", marked as not in the kitchen yet.
+    const queue = page.getByRole("region", { name: "Na fila" });
+    const refused = queue.getByRole("article", { name: /de Recusado/ });
+    await expect(refused.getByText(/Aguardando pagamento · ainda não foi para a cozinha/)).toBeVisible();
     // Paid: on the board's columns (a drink-only order is ready at once).
     await expect(page.getByRole("article", { name: /de Aprovado/ })).toBeVisible();
 
@@ -168,7 +168,7 @@ test("card machine, kitchen after payment: a refused card keeps the order off th
     await refused.getByRole("button", { name: /Mais ações do pedido/ }).click();
     await page.getByRole("menuitem", { name: "Descartar pedido" }).click();
     await page.getByRole("alertdialog").getByRole("button", { name: "Descartar pedido" }).click();
-    await expect(waiting).toBeHidden();
+    await expect(refused).toBeHidden();
   } finally {
     // The other POS tests expect no machine and the default flow.
     await apiSignIn(page.request);
