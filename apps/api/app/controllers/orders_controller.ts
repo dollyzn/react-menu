@@ -17,6 +17,8 @@ import { storeExistValidator, uuidValidator } from '#validators/common'
 import {
   addOrderItemsValidator,
   orderListValidator,
+  payLaterListValidator,
+  payLaterValidator,
   posOrderValidator,
   receivePaymentValidator,
 } from '#validators/order'
@@ -159,6 +161,7 @@ export default class OrdersController {
         paymentMethod: PaymentMethod.COUNTER,
         counterMethod: input.counterMethod,
         payOnMachine: input.payOnMachine,
+        payLater: input.payLater,
         idempotencyKey: request.header('idempotency-key'),
       },
       auth.getUserOrFail()
@@ -202,6 +205,48 @@ export default class OrdersController {
     }
 
     return updated(order, `Pedido #${order.number} cancelado`)
+  }
+
+  /** "Pagar depois" on an order already sent (front of house, like the POS). */
+  async payLater({ params, request, auth }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const orderId = await uuidValidator.validate(params.orderId)
+    const input = await request.validateUsing(payLaterValidator)
+
+    const order = await this.orders.markPayLater(storeId, orderId, input, auth.getUserOrFail())
+
+    return updated(order, `Pedido #${order.number} fica para pagar depois`)
+  }
+
+  /**
+   * The managers' "Pagar depois": open ones, any day, with who sent them
+   * that way; search, sort and pages like the history.
+   */
+  async payLaterList({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const qs = request.qs()
+    const filters = await payLaterListValidator.validate({
+      ...qs,
+      sort: [qs.sort].flat()[0],
+      // A comma in the search ("Silva, Ana") arrives split (`comma: true`).
+      customerName: qs.customerName === undefined ? undefined : [qs.customerName].flat().join(','),
+    })
+    const page = await this.orders.listPayLater(storeId, filters)
+    return ok(
+      page.all().map((order) => ({
+        ...order.serialize(),
+        payLaterBy: order.payLaterBy
+          ? { id: order.payLaterBy.id, name: order.payLaterBy.name }
+          : null,
+      })),
+      page.getMeta()
+    )
+  }
+
+  /** The tab's count and who owes the most (managers). */
+  async payLaterSummary({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    return ok(await this.orders.payLaterSummary(storeId))
   }
 
   /** Items added to an order still in the queue, charged now or left to receive. */

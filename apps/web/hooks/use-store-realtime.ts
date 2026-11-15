@@ -23,12 +23,16 @@ export function useStoreRealtime(storeId: string) {
       { type: "Item" as const, id: "PUBLIC_MENU" },
       { type: "Ingredient" as const, id: `store-${storeId}` },
     ];
+    // "Pagar depois" (managers): the summary is cheap, the list is read only
+    // while its tab is open; an order paid, marked or cancelled elsewhere changes them.
+    const payLaterTag = { type: "Order" as const, id: `pay-later-${storeId}` };
     // Back after a gap: anything missed is read again, the menu included.
     const refresh = () =>
       dispatch(
         baseApi.util.invalidateTags([
           { type: "Store", id: storeId },
           { type: "Order", id: `store-${storeId}` },
+          payLaterTag,
           { type: "Kitchen", id: storeId },
           ...menuTags,
         ])
@@ -44,6 +48,7 @@ export function useStoreRealtime(storeId: string) {
           baseApi.util.invalidateTags([
             { type: "Order", id: `store-${storeId}` },
             { type: "Kitchen", id: storeId },
+            payLaterTag,
             // Stock moves when an order is placed, gets items or is
             // cancelled; not on every kitchen tap, payment or hand-over.
             ...(event.type === "order.created" || event.status === "received" || event.status === "cancelled"

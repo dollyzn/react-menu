@@ -20,6 +20,8 @@ test("leaving while a save is in flight waits for it, then continues", async ({ 
   }
   await page.getByLabel("Nome do cliente").fill("Guarda de navegação");
   await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  await page.getByRole("button", { name: /^Receber na retirada/ }).click();
+  await page.getByRole("button", { name: "Enviar · receber na retirada" }).click();
 
   // Trying to leave while it is saving: held, with an explanation.
   await page.getByRole("link", { name: "Pedidos", exact: true }).click();

@@ -20,7 +20,8 @@ const searchable = (term: string) => term.trim().length >= 2 || term.replace(/\D
  * Customer name with suggestions from the store's customers (by name or part
  * of the phone). Picking one fills the name and the phone; editing the name
  * afterwards unpicks it (the parent clears the phone it filled), and the ✕
- * clears both. Keyboard: ↑/↓ move, Enter picks, Esc closes.
+ * clears both. Keyboard: ↑/↓ move, Enter picks, Esc closes. Used by the POS
+ * ticket and the "Pagar depois" dialog.
  */
 export function CustomerAutocomplete({
   storeId,
@@ -29,6 +30,13 @@ export function CustomerAutocomplete({
   onUnpick,
   onNameChange,
   onClear,
+  id,
+  label = "Nome do cliente",
+  placeholder = "Cliente (Balcão)",
+  inputClassName = "h-9",
+  invalid,
+  disabled,
+  inline = false,
 }: {
   storeId: string;
   name: string;
@@ -38,6 +46,18 @@ export function CustomerAutocomplete({
   onUnpick: (customer: { name: string; phone: string }) => void;
   /** ✕: empty name and phone. */
   onClear: () => void;
+  id?: string;
+  /** The field's accessible name (a visible `<label htmlFor={id}>` may name it instead). */
+  label?: string;
+  placeholder?: string;
+  inputClassName?: string;
+  invalid?: boolean;
+  disabled?: boolean;
+  /**
+   * The suggestions below the field in the flow, not over the content: in a
+   * dialog, where an overlay would be clipped by its scrolling body.
+   */
+  inline?: boolean;
 }) {
   const listId = useId();
   const [open, setOpen] = useState(false);
@@ -58,7 +78,7 @@ export function CustomerAutocomplete({
     { storeId, search: term },
     { skip: !searchable(term) || isPicked }
   );
-  const visible = open && searchable(name) && !isPicked && suggestions.length > 0;
+  const visible = open && !disabled && searchable(name) && !isPicked && suggestions.length > 0;
 
   const pick = (customer: CustomerSuggestion) => {
     const chosen = { name: customer.name, phone: nationalPhone(customer.phone) };
@@ -102,27 +122,30 @@ export function CustomerAutocomplete({
     <>
       <div className="relative">
         {isPicked ? (
-          <UserCheck className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-success" />
+          <UserCheck className="pointer-events-none absolute inset-y-0 left-2.5 my-auto size-4 text-success" />
         ) : (
-          <User className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <User className="pointer-events-none absolute inset-y-0 left-2.5 my-auto size-4 text-muted-foreground" />
         )}
         <Input
+          id={id}
           value={name}
+          disabled={disabled}
           onChange={(event) => changeName(event.target.value)}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
           onKeyDown={onKeyDown}
-          placeholder="Cliente (Balcão)"
-          aria-label="Nome do cliente"
+          placeholder={placeholder}
+          aria-label={id ? undefined : label}
+          aria-invalid={invalid || undefined}
           role="combobox"
           aria-autocomplete="list"
           aria-expanded={visible}
           aria-controls={listId}
           aria-activedescendant={visible ? `${listId}-${active}` : undefined}
           autoComplete="off"
-          className={cn("h-9 pl-8", name && "pr-8")}
+          className={cn(inputClassName, "pl-8", name && "pr-8")}
         />
-        {name && (
+        {name && !disabled && (
           <Button
             type="button"
             variant="ghost"
@@ -142,7 +165,10 @@ export function CustomerAutocomplete({
           role="listbox"
           aria-label="Clientes encontrados"
           aria-busy={isFetching}
-          className="absolute inset-x-4 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg"
+          className={cn(
+            "max-h-72 overflow-y-auto rounded-xl border bg-popover p-1 text-popover-foreground shadow-lg",
+            inline ? "mt-1 max-h-56" : "absolute inset-x-4 top-full z-20 mt-1"
+          )}
         >
           {suggestions.map((customer, index) => (
             <li

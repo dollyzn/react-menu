@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, Clock, CreditCard, Globe, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, CreditCard, Globe, HandCoins, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
@@ -16,7 +16,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import { useCancelOrderMutation } from "@/redux/features/order/orderApi";
+import { useCancelOrderMutation, useMarkPayLaterMutation } from "@/redux/features/order/orderApi";
+import { SendUnpaidDialog } from "@/components/app/payments/send-unpaid-dialog";
+import { getErrorMessage } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { OrderLines } from "./order-lines";
@@ -24,6 +26,9 @@ import { DeliverOrderButton } from "./deliver-order-button";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { paidWith } from "@/components/app/payments/counter-methods";
 import { ReceivePayment } from "./receive-payment";
+
+/** The card's "Pagar depois (fiado)": already sent, only who to charge is asked. */
+const PAY_LATER_ONLY = ["payLater" as const];
 
 interface OrderCardProps {
   order: Order;
@@ -40,6 +45,9 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const [cancel, { isLoading: cancelling }] = useCancelOrderMutation();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [receiving, setReceiving] = useState(false);
+  const [markPayLater, { isLoading: markingPayLater }] = useMarkPayLaterMutation();
+  const [askingPayLater, setAskingPayLater] = useState(false);
+  const [payLaterError, setPayLaterError] = useState<string | null>(null);
   // Cancelling refunds a paid order: managers only (the API refuses the rest).
   // The counter may drop one still waiting for its payment with nothing
   // received (the card was refused on the machine and it never reached the kitchen).
@@ -52,6 +60,10 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const totalUnits = prepLines.reduce((sum, line) => sum + line.quantity, 0);
   const doneUnits = prepLines.reduce((sum, line) => sum + line.preparedQuantity, 0);
   const paid = order.paymentStatus === "paid";
+  // "Pagar depois" (fiado): handed over unpaid, the managers follow it.
+  const payLater = !paid && Boolean(order.payLaterAt);
+  // An unpaid order in the kitchen's flow can still become "pagar depois".
+  const canPayLater = !paid && !payLater && order.status !== "pending_payment";
   // Paid, then items were added: only those are left to receive.
   const partlyPaid = !paid && order.amountPaid > 0;
   // Items can join it until the kitchen makes the first one.
@@ -100,6 +112,11 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
             {order.channel === "online" ? <Globe className="size-3" /> : <StoreIcon className="size-3" />}
             {order.channel === "online" ? "Online" : "Balcão"}
           </Badge>
+          {payLater && (
+            <Badge className="gap-1 bg-primary/10 text-primary">
+              <HandCoins className="size-3" /> Pagar depois
+            </Badge>
+          )}
         </div>
       </header>
 
@@ -123,8 +140,15 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       <footer className="mt-3 flex items-center justify-between gap-2 border-t pt-3">
         <div className="text-sm">
           <p className="font-semibold tabular-nums">{formatCurrencyBRL(order.total)}</p>
-          <p className={cn("text-xs", paid ? "text-success" : partlyPaid ? "font-medium text-warning" : "text-muted-foreground")}>
-            {partlyPaid
+          <p
+            className={cn(
+              "text-xs",
+              paid ? "text-success" : payLater ? "font-medium text-primary" : partlyPaid ? "font-medium text-warning" : "text-muted-foreground"
+            )}
+          >
+            {payLater
+              ? `Pagar depois${partlyPaid ? ` · falta ${formatCurrencyBRL(order.amountDue)}` : ""}`
+              : partlyPaid
               ? `Falta receber ${formatCurrencyBRL(order.amountDue)}`
               : paid
               ? order.counterMethod
@@ -158,6 +182,16 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                     <Banknote /> Receber pagamento
                   </DropdownMenuItem>
                 )}
+                {canPayLater && (
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setPayLaterError(null);
+                      setAskingPayLater(true);
+                    }}
+                  >
+                    <HandCoins /> Pagar depois (fiado)
+                  </DropdownMenuItem>
+                )}
                 {canCancel && (
                   <DropdownMenuItem variant="destructive" onClick={() => setConfirmCancel(true)}>
                     <Ban /> {discard ? "Descartar pedido" : "Cancelar pedido"}
@@ -169,6 +203,33 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
           </div>
         )}
       </footer>
+
+      {canOperate && (
+        <SendUnpaidDialog
+          storeId={storeId}
+          open={askingPayLater}
+          onClose={() => setAskingPayLater(false)}
+          badge={`Pedido #${order.number} · ${order.customerName}`}
+          total={order.amountDue}
+          name={order.customerName}
+          phone={order.customerPhone}
+          choices={PAY_LATER_ONLY}
+          verb="Deixar"
+          busy={markingPayLater}
+          error={payLaterError}
+          onConfirm={async (confirm) => {
+            if (confirm.kind !== "payLater") return;
+            setPayLaterError(null);
+            try {
+              await markPayLater({ storeId, orderId: order.id, name: confirm.name, phone: confirm.phone }).unwrap();
+              setAskingPayLater(false);
+              toast.success(`Pedido #${order.number} fica para pagar depois`);
+            } catch (error) {
+              setPayLaterError(getErrorMessage(error as { data?: { error?: string } }, "Não foi possível marcar o pedido."));
+            }
+          }}
+        />
+      )}
 
       {/* Mounted while the order turns paid, so it closes smoothly (closed, it fetches nothing). */}
       {canOperate && (

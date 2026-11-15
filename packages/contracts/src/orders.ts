@@ -77,6 +77,11 @@ export type Order = {
   paidAt: string | null;
   /** Who received a counter payment. */
   paidById: string | null;
+  /**
+   * "Pagar depois" (fiado): when it was sent that way. Handed over unpaid and
+   * settled another day; open while `paymentStatus` isn't `paid`.
+   */
+  payLaterAt: string | null;
   subtotal: number;
   total: number;
   /** Received so far (all receipts); paid when it covers the total. */
@@ -251,7 +256,31 @@ export type CreatePosOrderInput = {
   notes?: string;
   /** Paid as it was sent; left out: paid later or on the card machine. */
   counterMethod?: CounterPaymentMethod;
+  /** About to be charged on the card machine (the store may hold it from the kitchen). */
+  payOnMachine?: boolean;
+  /** "Pagar depois" (fiado): handed over unpaid, settled another day; needs the phone. */
+  payLater?: boolean;
 };
+
+/** GET /orders/pay-later (managers, paginated): open "pagar depois" orders, any day, oldest first by default. */
+export type PayLaterOrder = Order & {
+  /** Who sent it as "pagar depois". */
+  payLaterBy: { id: string; name: string | null } | null;
+};
+
+/** GET /orders/pay-later/summary (managers): the tab's count and who owes the most. */
+export type PayLaterSummary = {
+  count: number;
+  total: number;
+  /** Up to 12, the most owed first (one per phone, or per name without one). */
+  debtors: { name: string; phone: string | null; orders: number; due: number }[];
+};
+
+/** GET /orders/pay-later sorts (allowlisted). */
+export type PayLaterSort = "createdAt:asc" | "createdAt:desc" | "amountDue:desc" | "amountDue:asc";
+
+/** POST /orders/:id/pay-later: who to charge, when the order lacks it or it is corrected. */
+export type PayLaterInput = { name?: string; phone?: string };
 
 /** POST /orders/:id/items: items added to an order still in the queue. */
 export type AddOrderItemsInput = {

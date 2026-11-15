@@ -100,9 +100,11 @@ export function OrderDetailSheet({
                             ? "pago"
                             : show.paymentStatus === "refunded"
                               ? "reembolsado"
-                              : show.amountPaid > 0
-                                ? `falta receber ${formatCurrencyBRL(show.amountDue)}`
-                                : "não pago"}
+                              : show.payLaterAt
+                                ? `pagar depois · ${formatCurrencyBRL(show.amountDue)}`
+                                : show.amountPaid > 0
+                                  ? `falta receber ${formatCurrencyBRL(show.amountDue)}`
+                                  : "não pago"}
                         </span>
                       </>
                     );

@@ -61,6 +61,17 @@ export default class Order extends BaseModel {
   @column()
   declare paidById: string | null
 
+  /**
+   * "Pagar depois" (fiado): the customer settles it another day. Handed over
+   * without a payment; open until it is paid (the managers' list).
+   */
+  @column.dateTime()
+  declare payLaterAt: DateTime | null
+
+  /** Who sent it as "pagar depois" (the list shows the name). */
+  @column({ serializeAs: null })
+  declare payLaterById: string | null
+
   @column({ serializeAs: null })
   declare mercadoPagoPreferenceId: string | null
 
@@ -115,6 +126,9 @@ export default class Order extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'paidById' })
   declare paidBy: BelongsTo<typeof User>
+
+  @belongsTo(() => User, { foreignKey: 'payLaterById' })
+  declare payLaterBy: BelongsTo<typeof User>
 
   @belongsTo(() => Store)
   declare store: BelongsTo<typeof Store>

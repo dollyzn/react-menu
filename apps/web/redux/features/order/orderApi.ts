@@ -10,12 +10,20 @@ import type {
   CustomerSuggestion,
   Order,
   OrderStatus,
+  PayLaterInput,
+  PayLaterOrder,
+  PayLaterSummary,
   ProductionBatch,
 } from "@react-menu/contracts";
 
 const ordersTag = (storeId: string) => ({ type: "Order" as const, id: `store-${storeId}` });
 const kitchenTag = (storeId: string) => ({ type: "Kitchen" as const, id: storeId });
 const orderTag = (orderId: string) => ({ type: "Order" as const, id: orderId });
+/**
+ * The managers' "Pagar depois" (every day, so not refetched on every board
+ * event): changed by sending, marking, receiving, delivering or cancelling.
+ */
+const payLaterTag = (storeId: string) => ({ type: "Order" as const, id: `pay-later-${storeId}` });
 
 export const orderApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
@@ -41,6 +49,33 @@ export const orderApi = baseApi.injectEndpoints({
       providesTags: (_res, _err, { storeId }) => [ordersTag(storeId)],
     }),
 
+    /** Managers: "Pagar depois" (fiado) still open, any day: search, sort and pages. */
+    getPayLaterOrders: build.query<PaginatedList<PayLaterOrder>, StoreScopedListArg>({
+      query: ({ storeId, filters, pagination, sort }) =>
+        buildStoreListUrl(storeId, "orders/pay-later", {
+          filters,
+          pagination: { page: pagination?.page ?? 1, pageSize: pagination?.pageSize },
+          sort: sort?.slice(0, 1),
+        }),
+      providesTags: (_res, _err, { storeId }) => [payLaterTag(storeId)],
+    }),
+
+    /** Managers: the tab's count and who owes the most. */
+    getPayLaterSummary: build.query<PayLaterSummary, string>({
+      query: (storeId) => `stores/${storeId}/orders/pay-later/summary`,
+      providesTags: (_res, _err, storeId) => [payLaterTag(storeId)],
+    }),
+
+    /** "Pagar depois" on an order sent unpaid (the phone when it has none). */
+    markPayLater: build.mutation<Order, { storeId: string; orderId: string } & PayLaterInput>({
+      query: ({ storeId, orderId, name, phone }) => ({
+        url: `stores/${storeId}/orders/${orderId}/pay-later`,
+        method: "POST",
+        body: { name, phone } satisfies PayLaterInput,
+      }),
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId), payLaterTag(storeId)],
+    }),
+
     /** One order with its status history (who changed what). */
     getOrder: build.query<Order, { storeId: string; orderId: string }>({
       query: ({ storeId, orderId }) => `stores/${storeId}/orders/${orderId}`,
@@ -63,7 +98,11 @@ export const orderApi = baseApi.injectEndpoints({
         body: input,
         headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
       }),
-      invalidatesTags: (_res, _err, { storeId }) => [ordersTag(storeId), kitchenTag(storeId)],
+      invalidatesTags: (_res, _err, { storeId, input }) => [
+        ordersTag(storeId),
+        kitchenTag(storeId),
+        ...(input.payLater ? [payLaterTag(storeId)] : []),
+      ],
     }),
 
     /** Items added to an order still in the queue (a drink more): charged now or left to receive. */
@@ -77,17 +116,27 @@ export const orderApi = baseApi.injectEndpoints({
         body: input,
         headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
       }),
-      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [
+        ordersTag(storeId),
+        kitchenTag(storeId),
+        orderTag(orderId),
+        payLaterTag(storeId),
+      ],
     }),
 
     completeOrder: build.mutation<Order, { storeId: string; orderId: string }>({
       query: ({ storeId, orderId }) => ({ url: `stores/${storeId}/orders/${orderId}/complete`, method: "POST" }),
-      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId)],
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId), payLaterTag(storeId)],
     }),
 
     cancelOrder: build.mutation<Order, { storeId: string; orderId: string }>({
       query: ({ storeId, orderId }) => ({ url: `stores/${storeId}/orders/${orderId}/cancel`, method: "POST" }),
-      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [
+        ordersTag(storeId),
+        kitchenTag(storeId),
+        orderTag(orderId),
+        payLaterTag(storeId),
+      ],
     }),
 
     /** Managers: retry the refund of a cancelled paid order. */
@@ -106,7 +155,12 @@ export const orderApi = baseApi.injectEndpoints({
         method: "POST",
         body: { method, amount } satisfies ReceivePaymentInput,
       }),
-      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), kitchenTag(storeId), orderTag(orderId)],
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [
+        ordersTag(storeId),
+        kitchenTag(storeId),
+        orderTag(orderId),
+        payLaterTag(storeId),
+      ],
     }),
 
     getKitchenQueue: build.query<ProductionBatch[], string>({
@@ -129,6 +183,9 @@ export const {
   useGetOrdersQuery,
   useGetOrdersPageQuery,
   useGetOrderQuery,
+  useGetPayLaterOrdersQuery,
+  useGetPayLaterSummaryQuery,
+  useMarkPayLaterMutation,
   useSearchCustomersQuery,
   useCreatePosOrderMutation,
   useAddOrderItemsMutation,

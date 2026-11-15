@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { Clock, ListPlus, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed, X } from "lucide-react";
 import type { CounterPaymentMethod } from "@react-menu/contracts";
 import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
+import { SendUnpaidDialog, type UnpaidConfirm } from "@/components/app/payments/send-unpaid-dialog";
 import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
 import type { Order, PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, rebuildLine, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
@@ -21,14 +22,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
-import { useAddOrderItemsMutation, useCreatePosOrderMutation, useGetOrdersQuery } from "@/redux/features/order/orderApi";
+import {
+  useAddOrderItemsMutation,
+  useCreatePosOrderMutation,
+  useGetOrdersQuery,
+  useMarkPayLaterMutation,
+} from "@/redux/features/order/orderApi";
 import { stockHint, unitsLeft } from "@/lib/stock";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/string";
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
-import { CustomerAutocomplete } from "./customer-autocomplete";
+import { CustomerAutocomplete } from "@/components/app/customers/customer-autocomplete";
 import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
 import { readTicket, saveTicket } from "@/lib/pos-ticket-storage";
@@ -310,13 +316,23 @@ export default function PosPage() {
    * The ticket becomes an order (it goes to the kitchen) and the ticket
    * empties. Re-sending after a dropped connection never creates a second.
    */
-  const createFromTicket = async (counterMethod?: CounterPaymentMethod, { payOnMachine = false } = {}) => {
+  const createFromTicket = async (
+    counterMethod?: CounterPaymentMethod,
+    {
+      payOnMachine = false,
+      payLater = false,
+      who,
+    }: { payOnMachine?: boolean; payLater?: boolean; who?: { name: string; phone: string } } = {}
+  ) => {
     const input = {
-      customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
+      // "Pagar depois" asks who to charge in its dialog.
+      customer: who ?? { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       // Paid as it was sent (cash, Pix, credit, debit); left out: received later.
       ...(counterMethod ? { counterMethod } : {}),
       // Charged on the card machine next: the store may hold it from the kitchen until approved.
       ...(payOnMachine ? { payOnMachine } : {}),
+      // "Pagar depois" (fiado): handed over unpaid, settled another day.
+      ...(payLater ? { payLater } : {}),
       lines: linesInput(lines),
     };
     const keyScope = `pos:${storeId}`;
@@ -325,7 +341,8 @@ export default function PosPage() {
       input,
       // The key follows the ticket, not how it was paid: resending after a lost
       // response with another method (or "receber depois") finds the same order.
-      idempotencyKey: stableIdempotencyKey(keyScope, { customer: input.customer, lines: input.lines }),
+      // The phone stays out: "Pagar depois" asks it after an attempt that may have gone.
+      idempotencyKey: stableIdempotencyKey(keyScope, { customer: { name: input.customer.name }, lines: input.lines }),
     }).unwrap();
     releaseIdempotencyKey(keyScope);
     setLines([]);
@@ -387,6 +404,7 @@ export default function PosPage() {
     setCustomerPhone("");
     setTicketOpen(false);
     setPaying(null);
+    setSendingUnpaid(false);
   };
 
   /**
@@ -441,12 +459,52 @@ export default function PosPage() {
     try {
       const order = await createFromTicket(counterMethod);
       setPaying(null);
+      setSendingUnpaid(false);
       toast.success(
         `Pedido #${order.number} enviado · ${counterMethod ? `pago ${paidWith(counterMethod)}` : "receber depois"}`,
         POS_TOAST
       );
     } catch (error) {
       sendFailed(error, { scope: `pos:${storeId}`, adding: false });
+    }
+  };
+
+  /**
+   * "Enviar e receber depois": confirmed like the other methods, choosing
+   * when the customer pays: at pickup, or another day ("Pagar depois",
+   * fiado, which asks who to charge).
+   */
+  const [sendingUnpaid, setSendingUnpaid] = useState(false);
+  const [unpaidError, setUnpaidError] = useState<string | null>(null);
+  const unpaidTotal = useLastValue(total, () => sendingUnpaid);
+  const unpaidCount = useLastValue(count, () => sendingUnpaid);
+  const [markPayLater] = useMarkPayLaterMutation();
+  const sendUnpaid = async (confirm: UnpaidConfirm) => {
+    setUnpaidError(null);
+    if (blocked) {
+      setUnpaidError("Este pedido não pode ser enviado agora.");
+      return;
+    }
+    // At pickup: as before the dialog, it goes from the ticket (the button spins).
+    if (confirm.kind === "pickup") {
+      setSendingUnpaid(false);
+      return send();
+    }
+    const who = { name: confirm.name, phone: confirm.phone };
+    try {
+      let order = await createFromTicket(undefined, { payLater: true, who });
+      // The same ticket sent before another way (its answer lost): the API
+      // gave that order back, so it becomes "pagar depois" now.
+      if (!order.payLaterAt) order = await markPayLater({ storeId, orderId: order.id, ...who }).unwrap();
+      setSendingUnpaid(false);
+      toast.success(`Pedido #${order.number} enviado · pagar depois`, POS_TOAST);
+    } catch (error) {
+      if (errorCode(error) === "E_IDEMPOTENCY_KEY_REUSED" || isConnectionError(error)) {
+        setSendingUnpaid(false);
+        sendFailed(error, { scope: `pos:${storeId}`, adding: false });
+        return;
+      }
+      setUnpaidError(getErrorMessage(error as { data?: { error?: string } }, "Não foi possível enviar o pedido."));
     }
   };
 
@@ -512,7 +570,13 @@ export default function PosPage() {
     onEdit: editLine,
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
-    onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
+    // Unpaid: adding to an order goes at once; a new order asks when it is paid.
+    onSend: (method?: CounterPaymentMethod) => {
+      if (method) return setPaying(method);
+      if (addTo) return void send();
+      setUnpaidError(null);
+      setSendingUnpaid(true);
+    },
     onSendAndCharge: canCharge ? sendAndCharge : undefined,
     // The store sends a machine order to the kitchen only once it is approved.
     chargeFirst: Boolean(point?.kitchenAfterPayment) && !addTo,
@@ -706,6 +770,19 @@ export default function PosPage() {
           />
         )}
       </ResponsiveModal>
+
+      <SendUnpaidDialog
+        storeId={storeId}
+        open={sendingUnpaid}
+        onClose={() => setSendingUnpaid(false)}
+        badge={`Novo pedido · ${unpaidCount} ${unpaidCount === 1 ? "item" : "itens"}`}
+        total={unpaidTotal}
+        name={customerName}
+        phone={customerPhone || null}
+        busy={sending}
+        error={unpaidError}
+        onConfirm={(confirm) => void sendUnpaid(confirm)}
+      />
 
       <ReceivePaymentDialog
         open={paying !== null}
@@ -1068,6 +1145,7 @@ function Ticket({
             })}
           </div>
         </div>
+        {/* Unpaid now: a new order asks when (at pickup, or "pagar depois"). */}
         <Button
           variant="ghost"
           className="w-full text-muted-foreground"

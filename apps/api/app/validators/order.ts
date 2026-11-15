@@ -79,6 +79,16 @@ const posOrderValidator = vine.create(
     counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
     /** About to be charged on the card machine (the store may hold it until approved). */
     payOnMachine: vine.boolean().optional(),
+    /** "Pagar depois" (fiado): handed over unpaid, settled another day (needs the phone). */
+    payLater: vine.boolean().optional(),
+  })
+)
+
+/** "Pagar depois" on an order already sent: the phone when the order has none. */
+const payLaterValidator = vine.create(
+  vine.object({
+    name: customerName.optional(),
+    phone: vine.string().trim().maxLength(25).optional(),
   })
 )
 
@@ -148,6 +158,18 @@ const orderListValidator = vine.create(
   })
 )
 
+/** The managers' "Pagar depois" list: search, sort and pages like the history. */
+const payLaterListValidator = vine.create(
+  vine.object({
+    customerName: vine.string().trim().maxLength(80).optional(),
+    sort: vine
+      .enum(['createdAt:asc', 'createdAt:desc', 'amountDue:desc', 'amountDue:asc'])
+      .optional(),
+    page: vine.number().withoutDecimals().min(1).optional(),
+    perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+  })
+)
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 /** Keeps up to 30 well-formed tokens; anything else is ignored. */
 function lookupTokens(tokens: string[] | undefined) {
@@ -158,10 +180,12 @@ export {
   publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,
+  payLaterValidator,
   addOrderItemsValidator,
   receivePaymentValidator,
   orderPushValidator,
   prepareUnitsValidator,
   orderListValidator,
+  payLaterListValidator,
   lookupTokens,
 }

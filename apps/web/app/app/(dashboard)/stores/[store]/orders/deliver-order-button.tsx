@@ -30,6 +30,7 @@ import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
  * first, with how it was paid: the card machine (delivered when its approval
  * is closed) or cash/Pix/credit/debit. Items that skip the kitchen (drinks,
  * ready-made products) never show up there, so they are listed to check.
+ * "Pagar depois" (fiado) goes unpaid, like a paid one: nothing to receive now.
  */
 export function DeliverOrderButton({
   order,
@@ -51,7 +52,8 @@ export function DeliverOrderButton({
   const confirming = opened !== null;
   const delivered = useRef(false);
 
-  const paid = shown.paymentStatus === "paid";
+  // Nothing to receive now: paid, or "pagar depois" (settled another day).
+  const paid = shown.paymentStatus === "paid" || Boolean(shown.payLaterAt);
   const extras = shown.items.filter((line) => !line.requiresPreparation);
   const busy = completing;
 
@@ -69,7 +71,8 @@ export function DeliverOrderButton({
   };
 
   const open = () => {
-    const nothingToAsk = order.paymentStatus === "paid" && order.items.every((line) => line.requiresPreparation);
+    const settled = order.paymentStatus === "paid" || Boolean(order.payLaterAt);
+    const nothingToAsk = settled && order.items.every((line) => line.requiresPreparation);
     if (nothingToAsk) void deliver();
     else setOpened(order);
   };

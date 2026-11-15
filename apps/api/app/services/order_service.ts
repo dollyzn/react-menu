@@ -37,6 +37,8 @@ export const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
 const MAX_QUANTITY_PER_LINE = 50
 const money = (value: number) => Math.round(value * 100) / 100
 
+export type PayLaterSort = 'createdAt:asc' | 'createdAt:desc' | 'amountDue:desc' | 'amountDue:asc'
+
 export type CreateOrderInput = {
   channel: OrderChannel
   customer: { name: string; phone?: string | null }
@@ -49,6 +51,8 @@ export type CreateOrderInput = {
    * instead of going to the kitchen at once.
    */
   payOnMachine?: boolean
+  /** POS: "Pagar depois" (fiado): handed over unpaid, settled another day; needs a phone. */
+  payLater?: boolean
   lines: OrderLineInput[]
   notes?: string | null
   /** From the Idempotency-Key header: a retry returns the same order. */
@@ -92,6 +96,18 @@ export default class OrderService {
       const phone = input.customer.phone ? normalizeBrazilianPhone(input.customer.phone) : null
       if (input.customer.phone && !phone) {
         throw new AppException('Telefone inválido. Use DDD + número.', 422, 'E_INVALID_PHONE')
+      }
+      const payLater =
+        input.channel === OrderChannel.POS &&
+        Boolean(input.payLater) &&
+        !input.counterMethod &&
+        !input.payOnMachine
+      if (payLater && !phone) {
+        throw new AppException(
+          'Informe o telefone de quem vai pagar depois.',
+          422,
+          'E_PHONE_REQUIRED'
+        )
       }
       if (input.channel === OrderChannel.ONLINE && !phone) {
         throw new AppException(
@@ -143,6 +159,7 @@ export default class OrderService {
                 amountPaid: subtotal,
               }
             : { paymentStatus: PaymentStatus.PENDING, amountPaid: 0 }),
+          ...(payLater && { payLaterAt: DateTime.now(), payLaterById: actor?.id ?? null }),
           subtotal,
           total: subtotal,
           notes: input.notes || null,
@@ -593,7 +610,8 @@ export default class OrderService {
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
       if (order.status === OrderStatus.COMPLETED) return false
-      if (order.paymentStatus !== PaymentStatus.PAID) {
+      // "Pagar depois" goes unpaid: the managers follow it until it is received.
+      if (order.paymentStatus !== PaymentStatus.PAID && !order.payLaterAt) {
         throw new AppException(
           'Receba o pagamento antes de entregar o pedido.',
           409,
@@ -661,6 +679,166 @@ export default class OrderService {
     })
     if (changed) await this.afterChange(order)
     return order
+  }
+
+  /**
+   * Turns an unpaid order into "Pagar depois" (sent as "receber depois", the
+   * customer will settle another day). Name and phone are who to charge: the
+   * order's, or corrected now (also on an order already "pagar depois").
+   * Repeating it is a success.
+   */
+  async markPayLater(
+    storeId: string,
+    orderId: string,
+    input: { name?: string | null; phone?: string | null },
+    actor?: User
+  ) {
+    const order = await this.find(storeId, orderId)
+    const given = input.phone ? normalizeBrazilianPhone(input.phone) : null
+    if (input.phone && !given) {
+      throw new AppException('Telefone inválido. Use DDD + número.', 422, 'E_INVALID_PHONE')
+    }
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      if (order.status === OrderStatus.CANCELLED) {
+        throw new AppException('Este pedido foi cancelado.', 409, 'E_ORDER_CANCELLED')
+      }
+      if (order.paymentStatus === PaymentStatus.PAID) {
+        throw new AppException('Este pedido já está pago.', 409, 'E_ALREADY_PAID')
+      }
+      const name = input.name?.trim() || order.customerName
+      const phone = given ?? order.customerPhone
+      // Already "pagar depois": a repeat, or a correction of who to charge.
+      if (
+        order.payLaterAt &&
+        name === order.customerName &&
+        phone === order.customerPhone &&
+        order.customerId
+      ) {
+        return false
+      }
+      // Waiting for its online payment or the card machine (held from the kitchen).
+      if (!order.payLaterAt && order.status === OrderStatus.PENDING_PAYMENT) {
+        throw new AppException(
+          'Este pedido ainda espera o pagamento. Ele não pode ficar para pagar depois.',
+          409,
+          'E_ORDER_NOT_IN_QUEUE'
+        )
+      }
+      if (!order.payLaterAt && (await Payment.waitingOnMachine(order.id, trx))) {
+        throw new AppException(
+          'Há uma cobrança na maquininha para este pedido. Termine ou cancele essa cobrança antes.',
+          409,
+          'E_CHARGE_WAITING'
+        )
+      }
+      if (!phone) {
+        throw new AppException(
+          'Informe o telefone de quem vai pagar depois.',
+          422,
+          'E_PHONE_REQUIRED'
+        )
+      }
+      // Linked to the customer of that phone (named as the counter says), like a POS order.
+      if (phone !== order.customerPhone || name !== order.customerName || !order.customerId) {
+        const customer = await Customer.updateOrCreate(
+          { storeId, phone },
+          { name },
+          { client: trx }
+        )
+        order.customerName = name
+        order.customerPhone = phone
+        order.customerId = customer.id
+      }
+      if (!order.payLaterAt) {
+        order.payLaterAt = DateTime.now()
+        order.payLaterById = actor?.id ?? null
+      }
+      await order.useTransaction(trx).save()
+      return true
+    })
+    if (changed) await this.afterChange(order)
+    return order
+  }
+
+  /**
+   * "Pagar depois" still open, any day: oldest first (the managers' list),
+   * with who sent each one that way.
+   */
+  async listPayLater(
+    storeId: string,
+    filters: {
+      customerName?: string
+      sort?: PayLaterSort
+      page?: number
+      perPage?: number
+    } = {}
+  ) {
+    const search = filters.customerName?.trim()
+    const digits = search?.replace(/\D/g, '') ?? ''
+    const [column, direction] = (filters.sort ?? 'createdAt:asc').split(':') as [
+      'createdAt' | 'amountDue',
+      'asc' | 'desc',
+    ]
+    return await this.openPayLater(storeId)
+      .if(search, (query) =>
+        query.where((match) => {
+          match.whereILike('customer_name', `%${search}%`)
+          // "#12" or "12": the order number; 4+ digits: part of the phone.
+          if (/^#?\d{1,5}$/.test(search!)) match.orWhere('number', Number(digits))
+          if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
+        })
+      )
+      .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('payLaterBy')
+      // Allowlisted: what is still owed, or when it was placed.
+      .if(
+        column === 'amountDue',
+        (query) =>
+          query.orderByRaw(`(total - amount_paid) ${direction === 'desc' ? 'desc' : 'asc'}`),
+        (query) => query.orderBy('created_at', direction)
+      )
+      .orderBy('id')
+      .paginate(filters.page ?? 1, filters.perPage ?? 20)
+  }
+
+  /**
+   * The tab's count and the list's summary: how many are open, how much,
+   * and who owes the most (one customer per phone, or per name without one).
+   */
+  async payLaterSummary(storeId: string) {
+    const rows = await this.openPayLater(storeId)
+      .select(
+        db.raw(`coalesce(customer_phone, 'name:' || customer_name) as debtor`),
+        db.raw('(array_agg(customer_name order by created_at desc))[1] as name'),
+        db.raw('max(customer_phone) as phone'),
+        db.raw('count(*)::int as orders'),
+        db.raw('sum(total - amount_paid) as due')
+      )
+      .groupByRaw(`coalesce(customer_phone, 'name:' || customer_name)`)
+      .orderByRaw('due desc, name asc')
+      .pojo<{ debtor: string; name: string; phone: string | null; orders: number; due: string }>()
+    const debtors = rows.map((row) => ({
+      name: row.name,
+      phone: row.phone,
+      orders: Number(row.orders),
+      due: money(Number(row.due)),
+    }))
+    return {
+      count: debtors.reduce((sum, debtor) => sum + debtor.orders, 0),
+      total: money(debtors.reduce((sum, debtor) => sum + debtor.due, 0)),
+      // The ones the counter charges first.
+      debtors: debtors.slice(0, 12),
+    }
+  }
+
+  /** "Pagar depois" still open: not paid, not cancelled. */
+  private openPayLater(storeId: string) {
+    return Order.query()
+      .where({ storeId })
+      .whereNotNull('payLaterAt')
+      .whereNot('paymentStatus', PaymentStatus.PAID)
+      .whereNot('status', OrderStatus.CANCELLED)
   }
 
   async list(storeId: string, filters: { statuses?: OrderStatus[]; date?: DateTime } = {}) {

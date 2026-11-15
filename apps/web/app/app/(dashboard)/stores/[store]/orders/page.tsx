@@ -4,18 +4,19 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, usePathname, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { History, Plus, Radio } from "lucide-react";
+import { HandCoins, History, Plus, Radio } from "lucide-react";
 import type { Order, OrderStatus, PointCharge } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGetOrdersQuery } from "@/redux/features/order/orderApi";
+import { useGetOrdersQuery, useGetPayLaterSummaryQuery } from "@/redux/features/order/orderApi";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { useNow } from "@/hooks/use-now";
 import { OrderCard } from "./order-card";
 import { OrderDetailSheet } from "./order-detail-sheet";
 import { OrderHistory } from "./order-history";
+import { PayLaterList } from "./pay-later-list";
 import { FinishedOrders } from "./finished-orders";
 import { RecentDeliveries, recentDeliveries } from "./recent-deliveries";
 import { cn } from "@/lib/utils";
@@ -58,6 +59,10 @@ export default function OrdersPage() {
    */
   const isManager = role === "manager" || role === null;
   const history = view === "historico" && isManager;
+  // "Pagar depois" (fiado) still open, any day: managers follow them.
+  const payLater = view === "pagar-depois" && isManager;
+  // The tab's count (cheap); realtime order events refresh it.
+  const { data: owed } = useGetPayLaterSummaryQuery(storeId, { skip: role !== "manager", pollingInterval: 120_000 });
   /** A charge on the card machine, opened from the "Na maquininha" bar. */
   const [resuming, setResuming] = useState<PointCharge | null>(null);
 
@@ -69,16 +74,18 @@ export default function OrdersPage() {
           <p className="text-sm text-muted-foreground">
             {history
               ? "Todos os pedidos da loja: busque, filtre por período e abra qualquer um."
-              : "Hoje, ao vivo. Entregue no balcão os pedidos prontos."}
+              : payLater
+                ? "Pedidos entregues para pagar depois (fiado), até serem pagos."
+                : "Hoje, ao vivo. Entregue no balcão os pedidos prontos."}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {isManager && (
           <Tabs
-            value={history ? "historico" : "ao-vivo"}
+            value={history ? "historico" : payLater ? "pagar-depois" : "ao-vivo"}
             onValueChange={(value) =>
               // Leaving the history drops its table params (page, filters).
-              setView(value === "historico" ? "historico" : null, (params) => {
+              setView(value === "ao-vivo" ? null : (value as string), (params) => {
                 if (value !== "historico")
                   for (const key of [...params.keys()])
                     if (key === "page" || key === "size" || key === "sort" || key.startsWith("f.")) params.delete(key);
@@ -91,6 +98,14 @@ export default function OrdersPage() {
               </TabsTrigger>
               <TabsTrigger value="historico">
                 <History /> Histórico
+              </TabsTrigger>
+              <TabsTrigger value="pagar-depois">
+                <HandCoins /> Pagar depois
+                {(owed?.count ?? 0) > 0 && (
+                  <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums">
+                    {owed!.count}
+                  </span>
+                )}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -107,6 +122,8 @@ export default function OrdersPage() {
 
       {history ? (
         <OrderHistory storeId={storeId} onOpen={setOpenOrderId} />
+      ) : payLater ? (
+        <PayLaterList storeId={storeId} />
       ) : (
         <LiveBoard
           storeId={storeId}
