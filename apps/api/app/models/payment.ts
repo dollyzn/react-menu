@@ -1,8 +1,9 @@
 import { DateTime } from 'luxon'
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
-import type PaymentAttemptStatus from '#enums/payment_attempt_status'
-import type PaymentMethod from '#enums/payment_method'
+import PaymentAttemptStatus from '#enums/payment_attempt_status'
+import PaymentMethod from '#enums/payment_method'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { decimal } from '#helpers/columns'
 import Order from '#models/order'
 
@@ -68,4 +69,16 @@ export default class Payment extends BaseModel {
 
   @belongsTo(() => Order)
   declare order: BelongsTo<typeof Order>
+
+  /**
+   * The order's charge still waiting on a card machine, if any: pending and
+   * within its time (Mercado Pago drops it after; `SettlePointCharge` closes it).
+   */
+  static waitingOnMachine(orderId: string, client?: TransactionClientContract) {
+    return Payment.query({ client })
+      .where({ orderId, method: PaymentMethod.POINT, status: PaymentAttemptStatus.PENDING })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .orderBy('createdAt', 'desc')
+      .first()
+  }
 }

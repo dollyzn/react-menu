@@ -457,7 +457,7 @@ export default function PosPage() {
    */
   const [chargingTicket, setChargingTicket] = useState<{
     total: number;
-    create: () => Promise<{ id: string; number: number; total: number }>;
+    create: () => Promise<{ id: string; number: number; total: number; status: Order["status"] }>;
   } | null>(null);
   /**
    * "Enviar pago em": the method can't be changed once the order goes, so a
@@ -481,14 +481,15 @@ export default function PosPage() {
             const order = await addFromTicket(addTo);
             // The ticket went into the order: the next customer starts a new one.
             leaveAdding();
-            return { id: order.id, number: order.number, total: order.amountDue };
+            return { id: order.id, number: order.number, total: order.amountDue, status: order.status };
           } catch (error) {
             if (addRefused(error, addTo)) setChargingTicket(null);
             throw error;
           }
         }
         const order = await createFromTicket(undefined, { payOnMachine: true });
-        return { id: order.id, number: order.number, total: order.total };
+        // The status says whether the store held it from the kitchen until paid.
+        return { id: order.id, number: order.number, total: order.total, status: order.status };
       },
     });
 

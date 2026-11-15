@@ -17,7 +17,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import type { PointCharge, PointPaymentType } from "@react-menu/contracts";
+import type { OrderStatus, PointCharge, PointPaymentType } from "@react-menu/contracts";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -74,7 +74,13 @@ const POLL_MS = 2000;
 /** Every this many polls, ask Mercado Pago too (the webhook may be slow or blocked). */
 const CHECK_EVERY = 5;
 
-type ChargeOrder = { id: string; number: number; total: number };
+type ChargeOrder = {
+  id: string;
+  number: number;
+  total: number;
+  /** As the API left it: `pending_payment` = held from the kitchen until paid. */
+  status?: OrderStatus;
+};
 
 /** A ticket not sent yet: the order is created only on "Enviar para a maquininha". */
 type Prepare = { total: number; create: () => Promise<ChargeOrder> };
@@ -171,10 +177,11 @@ function ChargeFlow({
   const [simulate, { isLoading: simulating }] = useSimulatePointChargeMutation();
 
   /**
-   * From the POS ticket with "Cozinha só depois do pagamento": the order waits
-   * for this charge before the kitchen sees it (the API holds it).
+   * Created from the POS ticket and held by the API ("Cozinha só depois do
+   * pagamento"): the kitchen sees it once this charge is approved. Read from
+   * the order itself, not the setting, so the text matches what happened.
    */
-  const held = Boolean(prepare && config?.kitchenAfterPayment);
+  const held = created?.status === "pending_payment";
   const types = config?.paymentTypes ?? [];
   const choices: Choice[] = types;
   const [choice, setChoice] = useState<Choice | null>(null);

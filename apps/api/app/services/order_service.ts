@@ -17,7 +17,6 @@ import Item from '#models/item'
 import Order from '#models/order'
 import OrderReceipt from '#models/order_receipt'
 import Payment from '#models/payment'
-import PaymentAttemptStatus from '#enums/payment_attempt_status'
 import OrderItem from '#models/order_item'
 import OrderItemAddon from '#models/order_item_addon'
 import { optionPrice, pickPrice, type default as OptionGroup } from '#models/option_group'
@@ -345,14 +344,7 @@ export default class OrderService {
       }
       this.assertInQueue(order)
       // A charge waiting on the card machine was sent for the old total.
-      const waiting = await Payment.query({ client: trx })
-        .where({
-          orderId: order.id,
-          method: PaymentMethod.POINT,
-          status: PaymentAttemptStatus.PENDING,
-        })
-        .where('expiresAt', '>', DateTime.now().toSQL()!)
-        .first()
+      const waiting = await Payment.waitingOnMachine(order.id, trx)
       if (waiting) {
         throw new AppException(
           'Há uma cobrança na maquininha para este pedido. Termine ou cancele essa cobrança antes de adicionar.',
@@ -467,7 +459,12 @@ export default class OrderService {
           ? ['Este pedido foi cancelado.', 'E_ORDER_CANCELLED']
           : order.status === OrderStatus.COMPLETED
             ? ['Este pedido já foi entregue.', 'E_ORDER_OVER']
-            : ['Este pedido ainda espera o pagamento online.', 'E_ORDER_NOT_IN_QUEUE']
+            : order.channel === OrderChannel.POS
+              ? [
+                  'Este pedido ainda espera o pagamento na maquininha. Receba-o antes de adicionar.',
+                  'E_ORDER_NOT_IN_QUEUE',
+                ]
+              : ['Este pedido ainda espera o pagamento online.', 'E_ORDER_NOT_IN_QUEUE']
     throw new AppException(message, 409, code)
   }
 
@@ -629,25 +626,26 @@ export default class OrderService {
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
       if (order.status === OrderStatus.CANCELLED) return false
-      if (onlyUnpaid && (order.status !== OrderStatus.PENDING_PAYMENT || order.amountPaid > 0)) {
+      // Online orders wait for the customer's Pix or card: the managers' call.
+      if (
+        onlyUnpaid &&
+        (order.channel !== OrderChannel.POS ||
+          order.status !== OrderStatus.PENDING_PAYMENT ||
+          order.amountPaid > 0)
+      ) {
         throw new AppException(
           order.amountPaid > 0
             ? 'Este pedido já foi pago. Só um gerente pode cancelá-lo.'
-            : 'Este pedido já foi para a cozinha. Só um gerente pode cancelá-lo.',
+            : order.channel !== OrderChannel.POS
+              ? 'Pedido online aguardando o pagamento do cliente. Só um gerente pode cancelá-lo.'
+              : 'Este pedido já foi para a cozinha. Só um gerente pode cancelá-lo.',
           403,
           'E_NOT_DISCARDABLE'
         )
       }
       // The customer may still pay it on the machine: that charge ends first.
       if (onlyUnpaid) {
-        const waiting = await Payment.query({ client: trx })
-          .where({
-            orderId: order.id,
-            method: PaymentMethod.POINT,
-            status: PaymentAttemptStatus.PENDING,
-          })
-          .where('expiresAt', '>', DateTime.now().toSQL()!)
-          .first()
+        const waiting = await Payment.waitingOnMachine(order.id, trx)
         if (waiting) {
           throw new AppException(
             'A cobrança deste pedido ainda está na maquininha. Cancele a cobrança antes de descartar.',

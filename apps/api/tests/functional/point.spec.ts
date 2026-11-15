@@ -16,6 +16,10 @@ import RefundOrder from '#jobs/refund_order'
 import RefundDuplicatePayment from '#jobs/refund_duplicate_payment'
 import SettlePointCharge from '#jobs/settle_point_charge'
 import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
+import Ingredient from '#models/ingredient'
+import OrderService from '#services/order_service'
+import OrderChannel from '#enums/order_channel'
+import PaymentMethod from '#enums/payment_method'
 
 const TOKEN = 'TEST-1234567890-abcdef' // gitleaks:allow (fake test credential)
 const SECRET = 'webhook-secret-123'
@@ -493,6 +497,66 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     await refuse(forgotten, 'ORD2003')
     await runJob(ExpireUnpaidOrder, { orderId: forgotten })
     assert.equal(await statusOf(forgotten), 'cancelled')
+  })
+
+  test('kitchen after payment: the stock is checked before charging; attendants never drop online orders', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    store.merge({ pointKitchenAfterPayment: true, inventoryEnabled: true })
+    await store.save()
+    const ovo = await Ingredient.create({
+      storeId: store.id,
+      name: 'Ovo',
+      unit: 'un',
+      stockQuantity: 1,
+      minStock: 0,
+    })
+    await carne.related('ingredients').attach({ [ovo.id]: { quantity: 1 } })
+
+    // Held for the machine (its egg isn't taken yet)…
+    const held = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({
+        customer: { name: 'Mesa 3' },
+        lines: [{ itemId: carne.id, quantity: 1 }],
+        payOnMachine: true,
+      })
+      .loginAs(attendant)
+    // …meanwhile the counter sells the last egg.
+    const sold = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({
+        customer: { name: 'Balcão' },
+        lines: [{ itemId: carne.id, quantity: 1 }],
+        counterMethod: 'cash',
+      })
+      .loginAs(attendant)
+    const charge = await client
+      .post(`/api/v1/stores/${store.id}/orders/${held.body().data.id}/point-charges`)
+      .json({ paymentType: 'debit_card' })
+      .loginAs(attendant)
+    sold.assertStatus(200)
+    charge.assertStatus(422)
+    charge.assertBodyContains({ code: 'E_OUT_OF_STOCK' })
+    assert.lengthOf(fake.charges, 0, 'nothing sent to the machine')
+
+    // An online order waiting for the customer's Pix is the managers' to cancel.
+    await ovo.merge({ stockQuantity: 5 }).save()
+    const orders = await app.container.make(OrderService)
+    const online = await orders.create(store.id, {
+      channel: OrderChannel.ONLINE,
+      paymentMethod: PaymentMethod.PIX,
+      customer: { name: 'Ana', phone: '13999990000' },
+      lines: [{ itemId: carne.id, quantity: 1 }],
+    })
+    const byAttendant = await client
+      .post(`/api/v1/stores/${store.id}/orders/${online.id}/cancel`)
+      .loginAs(attendant)
+    byAttendant.assertStatus(403)
+    assert.equal(await statusOf(online.id), 'pending_payment')
   })
 
   test('a charge is cancelled from the POS, or on the machine once it is there', async ({

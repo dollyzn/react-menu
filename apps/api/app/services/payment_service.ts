@@ -440,8 +440,11 @@ export default class PaymentService {
     }
   }
 
-  /** Online orders take their stock only once paid: check before charging. */
-  private async assertStillInStock(order: Order, store: Store) {
+  /**
+   * Orders waiting for their payment (online, or a POS order held for the
+   * card machine) take their stock only once paid: check before charging.
+   */
+  async assertStillInStock(order: Order, store: Store) {
     await db.transaction(async (trx) => {
       const lines = await order.related('items').query().useTransaction(trx).preload('addons')
       await this.inventory.assertStock(

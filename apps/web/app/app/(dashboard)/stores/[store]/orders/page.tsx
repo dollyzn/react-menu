@@ -163,8 +163,12 @@ function LiveBoard({
 
   // Online orders wait for the customer's Pix or card; POS orders for the card
   // machine (with "Cozinha só depois do pagamento"), which the counter acts on.
-  const awaitingPayment = (byStatus.get("pending_payment") ?? []).filter((order) => order.channel === "online");
-  const awaitingMachine = (byStatus.get("pending_payment") ?? []).filter((order) => order.channel !== "online");
+  const [awaitingPayment, awaitingMachine] = useMemo(() => {
+    const online: Order[] = [];
+    const counter: Order[] = [];
+    for (const order of byStatus.get("pending_payment") ?? []) (order.channel === "online" ? online : counter).push(order);
+    return [online, counter];
+  }, [byStatus]);
   const finished = [...(byStatus.get("completed") ?? []), ...(byStatus.get("cancelled") ?? [])];
   const recent = useMemo(
     () => (showRecentDeliveries ? recentDeliveries(byStatus.get("completed") ?? []) : []),
