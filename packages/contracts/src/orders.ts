@@ -262,11 +262,22 @@ export type CreatePosOrderInput = {
   payLater?: boolean;
 };
 
-/** GET /orders/pay-later (managers): open "pagar depois" orders, any day, oldest first. */
+/** GET /orders/pay-later (managers, paginated): open "pagar depois" orders, any day, oldest first by default. */
 export type PayLaterOrder = Order & {
   /** Who sent it as "pagar depois". */
   payLaterBy: { id: string; name: string | null } | null;
 };
+
+/** GET /orders/pay-later/summary (managers): the tab's count and who owes the most. */
+export type PayLaterSummary = {
+  count: number;
+  total: number;
+  /** Up to 12, the most owed first (one per phone, or per name without one). */
+  debtors: { name: string; phone: string | null; orders: number; due: number }[];
+};
+
+/** GET /orders/pay-later sorts (allowlisted). */
+export type PayLaterSort = "createdAt:asc" | "createdAt:desc" | "amountDue:desc" | "amountDue:asc";
 
 /** POST /orders/:id/pay-later: who to charge, when the order lacks it or it is corrected. */
 export type PayLaterInput = { name?: string; phone?: string };

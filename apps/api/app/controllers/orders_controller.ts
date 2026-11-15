@@ -17,6 +17,7 @@ import { storeExistValidator, uuidValidator } from '#validators/common'
 import {
   addOrderItemsValidator,
   orderListValidator,
+  payLaterListValidator,
   payLaterValidator,
   posOrderValidator,
   receivePaymentValidator,
@@ -217,18 +218,35 @@ export default class OrdersController {
     return updated(order, `Pedido #${order.number} fica para pagar depois`)
   }
 
-  /** The managers' "Pagar depois": open ones, any day, with who sent them that way. */
-  async payLaterList({ params }: HttpContext) {
+  /**
+   * The managers' "Pagar depois": open ones, any day, with who sent them
+   * that way; search, sort and pages like the history.
+   */
+  async payLaterList({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
-    const orders = await this.orders.listPayLater(storeId)
+    const qs = request.qs()
+    const filters = await payLaterListValidator.validate({
+      ...qs,
+      sort: [qs.sort].flat()[0],
+      // A comma in the search ("Silva, Ana") arrives split (`comma: true`).
+      customerName: qs.customerName === undefined ? undefined : [qs.customerName].flat().join(','),
+    })
+    const page = await this.orders.listPayLater(storeId, filters)
     return ok(
-      orders.map((order) => ({
+      page.all().map((order) => ({
         ...order.serialize(),
         payLaterBy: order.payLaterBy
           ? { id: order.payLaterBy.id, name: order.payLaterBy.name }
           : null,
-      }))
+      })),
+      page.getMeta()
     )
+  }
+
+  /** The tab's count and who owes the most (managers). */
+  async payLaterSummary({ params }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    return ok(await this.orders.payLaterSummary(storeId))
   }
 
   /** Items added to an order still in the queue, charged now or left to receive. */

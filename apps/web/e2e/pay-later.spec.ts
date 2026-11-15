@@ -11,10 +11,16 @@ test("pagar depois: sent as fiado, handed over unpaid, received later from the m
   await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
   await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
   await page.getByLabel("Nome do cliente").fill(customer);
-  await page.getByRole("button", { name: "Pagar depois (fiado)" }).click();
-  const asking = page.getByRole("dialog", { name: "Pagar depois" });
-  await expect(asking.getByRole("button", { name: "Informe o celular com DDD" })).toBeDisabled();
-  await asking.getByLabel("Celular de quem vai pagar depois").fill("13988887777");
+  // One "Enviar e receber depois": the dialog asks when, like the other methods.
+  await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  const asking = page.getByRole("dialog", { name: "Enviar sem receber agora" });
+  await expect(asking.getByRole("button", { name: "Escolha quando o cliente paga" })).toBeDisabled();
+  await asking.getByRole("button", { name: /^Pagar depois \(fiado\)/ }).click();
+  // The name comes from the ticket; the phone is required.
+  await expect(asking.getByLabel("Quem vai pagar")).toHaveValue(customer);
+  await asking.getByRole("button", { name: "Enviar para pagar depois" }).click();
+  await expect(asking.getByText("Informe o celular com DDD.")).toBeVisible();
+  await asking.getByLabel("Celular com DDD").fill("13988887777");
   await asking.getByRole("button", { name: "Enviar para pagar depois" }).click();
   const toastText = await page.getByText(/Pedido #\d+ enviado · pagar depois/).textContent();
   const number = toastText!.match(/#(\d+)/)![1];
@@ -39,9 +45,23 @@ test("pagar depois: sent as fiado, handed over unpaid, received later from the m
   await login(manager);
   await manager.goto(page.url());
   await manager.getByRole("tab", { name: /Pagar depois/ }).click();
-  const owed = manager.getByRole("region", { name: new RegExp(`^${customer}: R\\$`) });
+  // The store's table, as cards by default; the summary says who owes what.
+  await expect(manager.getByRole("list", { name: "Quanto cada cliente deve" })).toContainText(customer);
+  const owed = manager.getByRole("article", { name: new RegExp(`^Pedido ${number} de ${customer}: R\\$`) });
   await expect(owed).toContainText("(13) 98888-7777");
-  await expect(owed.getByRole("link", { name: "WhatsApp" })).toHaveAttribute("href", "https://wa.me/5513988887777");
+  await expect(owed.getByRole("link", { name: `WhatsApp de ${customer}` })).toHaveAttribute("href", "https://wa.me/5513988887777");
+  // Searching (on the API, kept in the URL) by another phone hides it; by its own, it is back.
+  const search = async (text: string) => {
+    await manager.getByText("Cliente, telefone ou número").first().click();
+    await manager.getByPlaceholder("Digite para filtrar...").fill(text);
+    await manager.getByPlaceholder("Digite para filtrar...").press("Enter");
+    await manager.keyboard.press("Escape");
+  };
+  await search("00000000");
+  await expect(owed).toBeHidden();
+  await expect(manager).toHaveURL(/00000000/);
+  await search("98888");
+  await expect(owed).toBeVisible();
   await owed.getByRole("button", { name: `Receber o pedido #${number}` }).click();
   const receive = manager.getByRole("dialog");
   await receive.getByRole("button", { name: /^Pix/ }).click();
@@ -60,6 +80,8 @@ test("pagar depois: an order sent as \"receber depois\" becomes fiado from the c
   await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
   await page.getByLabel("Nome do cliente").fill(customer);
   await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  await page.getByRole("button", { name: /^Receber na retirada/ }).click();
+  await page.getByRole("button", { name: "Enviar · receber na retirada" }).click();
   const toastText = await page.getByText(/Pedido #\d+ enviado · receber depois/).textContent();
   const number = toastText!.match(/#(\d+)/)![1];
 
@@ -68,7 +90,7 @@ test("pagar depois: an order sent as \"receber depois\" becomes fiado from the c
   await card.getByRole("button", { name: `Mais ações do pedido ${number}` }).click();
   await page.getByRole("menuitem", { name: "Pagar depois (fiado)" }).click();
   const asking = page.getByRole("dialog", { name: "Pagar depois" });
-  await asking.getByLabel("Celular de quem vai pagar depois").fill("13977776666");
+  await asking.getByLabel("Celular com DDD").fill("13977776666");
   await asking.getByRole("button", { name: "Deixar para pagar depois" }).click();
   await expect(page.getByText(`Pedido #${number} fica para pagar depois`)).toBeVisible();
   await expect(card.getByText("Pagar depois").first()).toBeVisible();

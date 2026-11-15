@@ -37,6 +37,8 @@ export const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
 const MAX_QUANTITY_PER_LINE = 50
 const money = (value: number) => Math.round(value * 100) / 100
 
+export type PayLaterSort = 'createdAt:asc' | 'createdAt:desc' | 'amountDue:desc' | 'amountDue:asc'
+
 export type CreateOrderInput = {
   channel: OrderChannel
   customer: { name: string; phone?: string | null }
@@ -763,15 +765,80 @@ export default class OrderService {
    * "Pagar depois" still open, any day: oldest first (the managers' list),
    * with who sent each one that way.
    */
-  async listPayLater(storeId: string) {
-    return await Order.query()
+  async listPayLater(
+    storeId: string,
+    filters: {
+      customerName?: string
+      sort?: PayLaterSort
+      page?: number
+      perPage?: number
+    } = {}
+  ) {
+    const search = filters.customerName?.trim()
+    const digits = search?.replace(/\D/g, '') ?? ''
+    const [column, direction] = (filters.sort ?? 'createdAt:asc').split(':') as [
+      'createdAt' | 'amountDue',
+      'asc' | 'desc',
+    ]
+    return await this.openPayLater(storeId)
+      .if(search, (query) =>
+        query.where((match) => {
+          match.whereILike('customer_name', `%${search}%`)
+          // "#12" or "12": the order number; 4+ digits: part of the phone.
+          if (/^#?\d{1,5}$/.test(search!)) match.orWhere('number', Number(digits))
+          if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
+        })
+      )
+      .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('payLaterBy')
+      // Allowlisted: what is still owed, or when it was placed.
+      .if(
+        column === 'amountDue',
+        (query) =>
+          query.orderByRaw(`(total - amount_paid) ${direction === 'desc' ? 'desc' : 'asc'}`),
+        (query) => query.orderBy('created_at', direction)
+      )
+      .orderBy('id')
+      .paginate(filters.page ?? 1, filters.perPage ?? 20)
+  }
+
+  /**
+   * The tab's count and the list's summary: how many are open, how much,
+   * and who owes the most (one customer per phone, or per name without one).
+   */
+  async payLaterSummary(storeId: string) {
+    const rows = await this.openPayLater(storeId)
+      .select(
+        db.raw(`coalesce(customer_phone, 'name:' || customer_name) as debtor`),
+        db.raw('(array_agg(customer_name order by created_at desc))[1] as name'),
+        db.raw('max(customer_phone) as phone'),
+        db.raw('count(*)::int as orders'),
+        db.raw('sum(total - amount_paid) as due')
+      )
+      .groupByRaw(`coalesce(customer_phone, 'name:' || customer_name)`)
+      .orderByRaw('due desc, name asc')
+      .pojo<{ debtor: string; name: string; phone: string | null; orders: number; due: string }>()
+    const debtors = rows.map((row) => ({
+      name: row.name,
+      phone: row.phone,
+      orders: Number(row.orders),
+      due: money(Number(row.due)),
+    }))
+    return {
+      count: debtors.reduce((sum, debtor) => sum + debtor.orders, 0),
+      total: money(debtors.reduce((sum, debtor) => sum + debtor.due, 0)),
+      // The ones the counter charges first.
+      debtors: debtors.slice(0, 12),
+    }
+  }
+
+  /** "Pagar depois" still open: not paid, not cancelled. */
+  private openPayLater(storeId: string) {
+    return Order.query()
       .where({ storeId })
       .whereNotNull('payLaterAt')
       .whereNot('paymentStatus', PaymentStatus.PAID)
       .whereNot('status', OrderStatus.CANCELLED)
-      .preload('items', (items) => items.preload('addons').orderBy('id'))
-      .preload('payLaterBy')
-      .orderBy('createdAt', 'asc')
   }
 
   async list(storeId: string, filters: { statuses?: OrderStatus[]; date?: DateTime } = {}) {

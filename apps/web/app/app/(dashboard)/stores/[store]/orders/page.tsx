@@ -9,7 +9,7 @@ import type { Order, OrderStatus, PointCharge } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useGetOrdersQuery, useGetPayLaterOrdersQuery } from "@/redux/features/order/orderApi";
+import { useGetOrdersQuery, useGetPayLaterSummaryQuery } from "@/redux/features/order/orderApi";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { useNow } from "@/hooks/use-now";
@@ -61,7 +61,8 @@ export default function OrdersPage() {
   const history = view === "historico" && isManager;
   // "Pagar depois" (fiado) still open, any day: managers follow them.
   const payLater = view === "pagar-depois" && isManager;
-  const { data: owed = [] } = useGetPayLaterOrdersQuery(storeId, { skip: role !== "manager", pollingInterval: 60_000 });
+  // The tab's count (cheap); realtime order events refresh it.
+  const { data: owed } = useGetPayLaterSummaryQuery(storeId, { skip: role !== "manager", pollingInterval: 120_000 });
   /** A charge on the card machine, opened from the "Na maquininha" bar. */
   const [resuming, setResuming] = useState<PointCharge | null>(null);
 
@@ -100,9 +101,9 @@ export default function OrdersPage() {
               </TabsTrigger>
               <TabsTrigger value="pagar-depois">
                 <HandCoins /> Pagar depois
-                {owed.length > 0 && (
+                {(owed?.count ?? 0) > 0 && (
                   <span className="rounded-full bg-primary px-1.5 text-xs font-semibold text-primary-foreground tabular-nums">
-                    {owed.length}
+                    {owed!.count}
                   </span>
                 )}
               </TabsTrigger>

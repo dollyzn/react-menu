@@ -250,6 +250,8 @@ test("POS: when every retry fails and the cashier resends with another method, s
   down = false;
   await page.getByRole("button", { name: "Voltar" }).click();
   await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  await page.getByRole("button", { name: /^Receber na retirada/ }).click();
+  await page.getByRole("button", { name: "Enviar · receber na retirada" }).click();
   await expect(page.getByText("Este pedido já tinha sido enviado. Confira a forma de pagamento no quadro de pedidos.")).toBeVisible();
 
   const { api, storeId } = await adminApi();

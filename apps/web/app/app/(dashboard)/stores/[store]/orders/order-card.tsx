@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
 import { useCancelOrderMutation, useMarkPayLaterMutation } from "@/redux/features/order/orderApi";
-import { PayLaterDialog } from "@/components/app/payments/pay-later-dialog";
+import { SendUnpaidDialog } from "@/components/app/payments/send-unpaid-dialog";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
@@ -26,6 +26,9 @@ import { DeliverOrderButton } from "./deliver-order-button";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { paidWith } from "@/components/app/payments/counter-methods";
 import { ReceivePayment } from "./receive-payment";
+
+/** The card's "Pagar depois (fiado)": already sent, only who to charge is asked. */
+const PAY_LATER_ONLY = ["payLater" as const];
 
 interface OrderCardProps {
   order: Order;
@@ -202,20 +205,22 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
       </footer>
 
       {canOperate && (
-        <PayLaterDialog
+        <SendUnpaidDialog
           open={askingPayLater}
           onClose={() => setAskingPayLater(false)}
           badge={`Pedido #${order.number} · ${order.customerName}`}
           total={order.amountDue}
           name={order.customerName}
           phone={order.customerPhone}
-          verb="Deixar para pagar depois"
+          choices={PAY_LATER_ONLY}
+          verb="Deixar"
           busy={markingPayLater}
           error={payLaterError}
-          onConfirm={async (who) => {
+          onConfirm={async (confirm) => {
+            if (confirm.kind !== "payLater") return;
             setPayLaterError(null);
             try {
-              await markPayLater({ storeId, orderId: order.id, ...who }).unwrap();
+              await markPayLater({ storeId, orderId: order.id, name: confirm.name, phone: confirm.phone }).unwrap();
               setAskingPayLater(false);
               toast.success(`Pedido #${order.number} fica para pagar depois`);
             } catch (error) {

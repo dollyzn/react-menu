@@ -12,6 +12,7 @@ import type {
   OrderStatus,
   PayLaterInput,
   PayLaterOrder,
+  PayLaterSummary,
   ProductionBatch,
 } from "@react-menu/contracts";
 
@@ -48,9 +49,20 @@ export const orderApi = baseApi.injectEndpoints({
       providesTags: (_res, _err, { storeId }) => [ordersTag(storeId)],
     }),
 
-    /** Managers: "Pagar depois" (fiado) still open, any day, oldest first. */
-    getPayLaterOrders: build.query<PayLaterOrder[], string>({
-      query: (storeId) => `stores/${storeId}/orders/pay-later`,
+    /** Managers: "Pagar depois" (fiado) still open, any day: search, sort and pages. */
+    getPayLaterOrders: build.query<PaginatedList<PayLaterOrder>, StoreScopedListArg>({
+      query: ({ storeId, filters, pagination, sort }) =>
+        buildStoreListUrl(storeId, "orders/pay-later", {
+          filters,
+          pagination: { page: pagination?.page ?? 1, pageSize: pagination?.pageSize },
+          sort: sort?.slice(0, 1),
+        }),
+      providesTags: (_res, _err, { storeId }) => [payLaterTag(storeId)],
+    }),
+
+    /** Managers: the tab's count and who owes the most. */
+    getPayLaterSummary: build.query<PayLaterSummary, string>({
+      query: (storeId) => `stores/${storeId}/orders/pay-later/summary`,
       providesTags: (_res, _err, storeId) => [payLaterTag(storeId)],
     }),
 
@@ -172,6 +184,7 @@ export const {
   useGetOrdersPageQuery,
   useGetOrderQuery,
   useGetPayLaterOrdersQuery,
+  useGetPayLaterSummaryQuery,
   useMarkPayLaterMutation,
   useSearchCustomersQuery,
   useCreatePosOrderMutation,

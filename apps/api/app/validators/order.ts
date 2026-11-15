@@ -158,6 +158,18 @@ const orderListValidator = vine.create(
   })
 )
 
+/** The managers' "Pagar depois" list: search, sort and pages like the history. */
+const payLaterListValidator = vine.create(
+  vine.object({
+    customerName: vine.string().trim().maxLength(80).optional(),
+    sort: vine
+      .enum(['createdAt:asc', 'createdAt:desc', 'amountDue:desc', 'amountDue:asc'])
+      .optional(),
+    page: vine.number().withoutDecimals().min(1).optional(),
+    perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+  })
+)
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 /** Keeps up to 30 well-formed tokens; anything else is ignored. */
 function lookupTokens(tokens: string[] | undefined) {
@@ -174,5 +186,6 @@ export {
   orderPushValidator,
   prepareUnitsValidator,
   orderListValidator,
+  payLaterListValidator,
   lookupTokens,
 }

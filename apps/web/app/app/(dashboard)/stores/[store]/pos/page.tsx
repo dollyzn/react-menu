@@ -8,10 +8,10 @@ import Image from "@/components/app/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Clock, HandCoins, ListPlus, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed, X } from "lucide-react";
+import { Clock, ListPlus, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed, X } from "lucide-react";
 import type { CounterPaymentMethod } from "@react-menu/contracts";
 import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
-import { PayLaterDialog } from "@/components/app/payments/pay-later-dialog";
+import { SendUnpaidDialog, type UnpaidConfirm } from "@/components/app/payments/send-unpaid-dialog";
 import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
 import type { Order, PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, rebuildLine, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
@@ -22,7 +22,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
-import { useAddOrderItemsMutation, useCreatePosOrderMutation, useGetOrdersQuery } from "@/redux/features/order/orderApi";
+import {
+  useAddOrderItemsMutation,
+  useCreatePosOrderMutation,
+  useGetOrdersQuery,
+  useMarkPayLaterMutation,
+} from "@/redux/features/order/orderApi";
 import { stockHint, unitsLeft } from "@/lib/stock";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/string";
@@ -399,6 +404,7 @@ export default function PosPage() {
     setCustomerPhone("");
     setTicketOpen(false);
     setPaying(null);
+    setSendingUnpaid(false);
   };
 
   /**
@@ -453,6 +459,7 @@ export default function PosPage() {
     try {
       const order = await createFromTicket(counterMethod);
       setPaying(null);
+      setSendingUnpaid(false);
       toast.success(
         `Pedido #${order.number} enviado · ${counterMethod ? `pago ${paidWith(counterMethod)}` : "receber depois"}`,
         POS_TOAST
@@ -462,30 +469,42 @@ export default function PosPage() {
     }
   };
 
-  /** "Pagar depois" (fiado): the dialog asks the phone, then the order goes. */
-  const [payingLater, setPayingLater] = useState(false);
-  const [payLaterError, setPayLaterError] = useState<string | null>(null);
-  const payingLaterTotal = useLastValue(total, () => payingLater);
-  const payingLaterCount = useLastValue(count, () => payingLater);
-  const sendPayLater = async (who: { name: string; phone: string }) => {
-    setPayLaterError(null);
+  /**
+   * "Enviar e receber depois": confirmed like the other methods, choosing
+   * when the customer pays: at pickup, or another day ("Pagar depois",
+   * fiado, which asks who to charge).
+   */
+  const [sendingUnpaid, setSendingUnpaid] = useState(false);
+  const [unpaidError, setUnpaidError] = useState<string | null>(null);
+  const unpaidTotal = useLastValue(total, () => sendingUnpaid);
+  const unpaidCount = useLastValue(count, () => sendingUnpaid);
+  const [markPayLater] = useMarkPayLaterMutation();
+  const sendUnpaid = async (confirm: UnpaidConfirm) => {
+    setUnpaidError(null);
     if (blocked) {
-      setPayLaterError("Este pedido não pode ser enviado agora.");
+      setUnpaidError("Este pedido não pode ser enviado agora.");
       return;
     }
+    // At pickup: as before the dialog, it goes from the ticket (the button spins).
+    if (confirm.kind === "pickup") {
+      setSendingUnpaid(false);
+      return send();
+    }
+    const who = { name: confirm.name, phone: confirm.phone };
     try {
-      const order = await createFromTicket(undefined, { payLater: true, who });
-      setPayingLater(false);
+      let order = await createFromTicket(undefined, { payLater: true, who });
+      // The same ticket sent before another way (its answer lost): the API
+      // gave that order back, so it becomes "pagar depois" now.
+      if (!order.payLaterAt) order = await markPayLater({ storeId, orderId: order.id, ...who }).unwrap();
+      setSendingUnpaid(false);
       toast.success(`Pedido #${order.number} enviado · pagar depois`, POS_TOAST);
     } catch (error) {
       if (errorCode(error) === "E_IDEMPOTENCY_KEY_REUSED" || isConnectionError(error)) {
-        setPayingLater(false);
+        setSendingUnpaid(false);
         sendFailed(error, { scope: `pos:${storeId}`, adding: false });
         return;
       }
-      setPayLaterError(
-        getErrorMessage(error as { data?: { error?: string } }, "Não foi possível enviar o pedido.")
-      );
+      setUnpaidError(getErrorMessage(error as { data?: { error?: string } }, "Não foi possível enviar o pedido."));
     }
   };
 
@@ -551,12 +570,14 @@ export default function PosPage() {
     onEdit: editLine,
     canIncrease: (itemId: string) => leftFor(itemId) !== 0,
     onClear: clearTicket,
-    onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
-    onSendAndCharge: canCharge ? sendAndCharge : undefined,
-    onPayLater: () => {
-      setPayLaterError(null);
-      setPayingLater(true);
+    // Unpaid: adding to an order goes at once; a new order asks when it is paid.
+    onSend: (method?: CounterPaymentMethod) => {
+      if (method) return setPaying(method);
+      if (addTo) return void send();
+      setUnpaidError(null);
+      setSendingUnpaid(true);
     },
+    onSendAndCharge: canCharge ? sendAndCharge : undefined,
     // The store sends a machine order to the kitchen only once it is approved.
     chargeFirst: Boolean(point?.kitchenAfterPayment) && !addTo,
     sending,
@@ -750,17 +771,16 @@ export default function PosPage() {
         )}
       </ResponsiveModal>
 
-      <PayLaterDialog
-        open={payingLater}
-        onClose={() => setPayingLater(false)}
-        badge={`Novo pedido · ${payingLaterCount} ${payingLaterCount === 1 ? "item" : "itens"}`}
-        total={payingLaterTotal}
+      <SendUnpaidDialog
+        open={sendingUnpaid}
+        onClose={() => setSendingUnpaid(false)}
+        badge={`Novo pedido · ${unpaidCount} ${unpaidCount === 1 ? "item" : "itens"}`}
+        total={unpaidTotal}
         name={customerName}
         phone={customerPhone || null}
-        verb="Enviar para pagar depois"
         busy={sending}
-        error={payLaterError}
-        onConfirm={(who) => void sendPayLater(who)}
+        error={unpaidError}
+        onConfirm={(confirm) => void sendUnpaid(confirm)}
       />
 
       <ReceivePaymentDialog
@@ -915,7 +935,6 @@ function Ticket({
   onClear,
   onSend,
   onSendAndCharge,
-  onPayLater,
   chargeFirst = false,
   sending,
   blocked,
@@ -943,8 +962,6 @@ function Ticket({
   onSendAndCharge?: () => void;
   /** The machine charges first; the kitchen gets the order once it is approved. */
   chargeFirst?: boolean;
-  /** "Pagar depois" (fiado): opens its dialog (the phone), then sends. */
-  onPayLater: () => void;
   sending: boolean;
   /** Nothing can be sent (the order being added to isn't ready for it). */
   blocked: boolean;
@@ -1127,28 +1144,16 @@ function Ticket({
             })}
           </div>
         </div>
-        {/* Unpaid now: at pickup (the counter receives it), or another day (fiado). */}
-        <div className="flex flex-wrap gap-1.5">
-          <Button
-            variant="ghost"
-            className="min-w-fit flex-1 px-2 text-muted-foreground"
-            disabled={lines.length === 0 || blocked}
-            loading={sending}
-            onClick={() => onSend()}
-          >
-            <Clock /> {addingTo ? "Adicionar e receber depois" : "Enviar e receber depois"}
-          </Button>
-          {!addingTo && (
-            <Button
-              variant="ghost"
-              className="min-w-fit flex-1 px-2 text-muted-foreground"
-              disabled={lines.length === 0 || blocked || sending}
-              onClick={onPayLater}
-            >
-              <HandCoins /> Pagar depois (fiado)
-            </Button>
-          )}
-        </div>
+        {/* Unpaid now: a new order asks when (at pickup, or "pagar depois"). */}
+        <Button
+          variant="ghost"
+          className="w-full text-muted-foreground"
+          disabled={lines.length === 0 || blocked}
+          loading={sending}
+          onClick={() => onSend()}
+        >
+          <Clock /> {addingTo ? "Adicionar e receber depois" : "Enviar e receber depois"}
+        </Button>
       </div>
     </div>
   );

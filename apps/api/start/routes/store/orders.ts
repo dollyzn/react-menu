@@ -13,6 +13,10 @@ export default function registerStoreOrderRoutes() {
     .get('/orders/pay-later', [OrdersController, 'payLaterList'])
     .as('orders.payLater.index')
     .use(managersOnly)
+  router
+    .get('/orders/pay-later/summary', [OrdersController, 'payLaterSummary'])
+    .as('orders.payLater.summary')
+    .use(managersOnly)
   router.get('/orders/:orderId', [OrdersController, 'show']).as('orders.show')
   router
     .post('/orders/:orderId/complete', [OrdersController, 'complete'])

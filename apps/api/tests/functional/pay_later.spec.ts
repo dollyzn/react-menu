@@ -180,6 +180,57 @@ test.group('Pagar depois (fiado)', (group) => {
     assert.lengthOf(list.body().data, 0)
   })
 
+  test('the list searches, sorts and pages; the summary adds up who owes what', async ({
+    client,
+    assert,
+  }) => {
+    const { store, coca, attendant, manager } = await setup()
+    const orders = `/api/v1/stores/${store.id}/orders`
+    const send = (name: string, phone: string, quantity: number) =>
+      client
+        .post(orders)
+        .json({ customer: { name, phone }, lines: [{ itemId: coca.id, quantity }], payLater: true })
+        .loginAs(attendant)
+    await send('Zé', '13999990000', 1)
+    await send('Maria', '13988880000', 4)
+    await send('Zé', '13999990000', 2)
+
+    const all = await client.get(`${orders}/pay-later`).qs({ page: 1, perPage: 2 }).loginAs(manager)
+    assert.lengthOf(all.body().data, 2)
+    assert.equal(all.body().meta.total, 3)
+    const byPhone = await client
+      .get(`${orders}/pay-later`)
+      .qs({ customerName: '88880' })
+      .loginAs(manager)
+    assert.deepEqual(
+      byPhone.body().data.map((order: { customerName: string }) => order.customerName),
+      ['Maria']
+    )
+    const biggest = await client
+      .get(`${orders}/pay-later`)
+      .qs({ sort: 'amountDue:desc' })
+      .loginAs(manager)
+    assert.deepEqual(
+      biggest.body().data.map((order: { amountDue: number }) => order.amountDue),
+      [24, 12, 6]
+    )
+    const badSort = await client.get(`${orders}/pay-later`).qs({ sort: 'id:desc' }).loginAs(manager)
+    badSort.assertStatus(422)
+
+    const summary = await client.get(`${orders}/pay-later/summary`).loginAs(manager)
+    summary.assertStatus(200)
+    assert.deepEqual(summary.body().data, {
+      count: 3,
+      total: 42,
+      debtors: [
+        { name: 'Maria', phone: '5513988880000', orders: 1, due: 24 },
+        { name: 'Zé', phone: '5513999990000', orders: 2, due: 18 },
+      ],
+    })
+    const byAttendant = await client.get(`${orders}/pay-later/summary`).loginAs(attendant)
+    byAttendant.assertStatus(403)
+  })
+
   test('the list is for managers of this store; marking is for its front of house', async ({
     client,
     assert,

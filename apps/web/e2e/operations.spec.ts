@@ -34,6 +34,8 @@ test("POS → kitchen → pickup: the whole shop floor flow", async ({ page, bro
   await page.getByLabel("Nome do cliente").fill("Mesa 4");
   // Paid at pickup (the exception): received on the board below.
   await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  await page.getByRole("button", { name: /^Receber na retirada/ }).click();
+  await page.getByRole("button", { name: "Enviar · receber na retirada" }).click();
   const toastText = await page.getByText(/Pedido #\d+ enviado · receber depois/).textContent();
   const number = toastText!.match(/#(\d+)/)![1];
 
