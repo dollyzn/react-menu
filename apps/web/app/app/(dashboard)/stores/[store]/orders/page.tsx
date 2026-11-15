@@ -169,6 +169,12 @@ function LiveBoard({
     for (const order of byStatus.get("pending_payment") ?? []) (order.channel === "online" ? online : counter).push(order);
     return [online, counter];
   }, [byStatus]);
+  /**
+   * A column's cards. "Na fila" starts with the POS orders waiting for the
+   * card machine (amber): next in line once paid, and the counter acts on them.
+   */
+  const columnOrders = (status: OrderStatus) =>
+    status === "received" ? [...awaitingMachine, ...(byStatus.get("received") ?? [])] : (byStatus.get(status) ?? []);
   const finished = [...(byStatus.get("completed") ?? []), ...(byStatus.get("cancelled") ?? [])];
   const recent = useMemo(
     () => (showRecentDeliveries ? recentDeliveries(byStatus.get("completed") ?? []) : []),
@@ -199,39 +205,11 @@ function LiveBoard({
         </div>
       )}
 
-      {awaitingMachine.length > 0 && (
-        <section aria-labelledby="awaiting-machine" className="flex flex-col gap-3 rounded-2xl border border-dashed border-warning/50 bg-warning/5 p-3">
-          <div>
-            <h2 id="awaiting-machine" className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
-              Aguardando pagamento ({awaitingMachine.length})
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Ainda não foram para a cozinha: vão quando o pagamento for recebido. Cobre de novo, receba de outro jeito ou descarte.
-            </p>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <AnimatePresence initial={false}>
-              {awaitingMachine.map((order) => (
-                <OrderCard
-                  key={order.id}
-                  order={order}
-                  storeId={storeId}
-                  now={now}
-                  etaMinutes={store?.pickupEtaMinutes ?? 20}
-                  canOperate={canOperate}
-                  onOpen={onOpen}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        </section>
-      )}
-
       <Tabs value={mobileColumn} onValueChange={(v) => setMobileColumn(v as OrderStatus)} className="md:hidden">
         <TabsList className="grid w-full grid-cols-3">
           {COLUMNS.map((column) => (
             <TabsTrigger key={column.status} value={column.status}>
-              {column.tab} ({byStatus.get(column.status)?.length ?? 0})
+              {column.tab} ({columnOrders(column.status).length})
             </TabsTrigger>
           ))}
         </TabsList>
@@ -239,7 +217,7 @@ function LiveBoard({
 
       <div className="grid gap-4 md:grid-cols-3">
         {COLUMNS.map((column) => {
-          const list = byStatus.get(column.status) ?? [];
+          const list = columnOrders(column.status);
           return (
             <section
               key={column.status}
