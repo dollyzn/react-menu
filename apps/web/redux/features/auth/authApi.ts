@@ -16,6 +16,17 @@ export const authApi = baseApi.injectEndpoints({
       extraOptions: { quiet: true, session: true },
       keepUnusedDataFor: 0,
     }),
+    /**
+     * A sign-in waiting for its code, if any (`null` otherwise): the login
+     * page asks on its own when it opens or comes back, since Google may have
+     * finished where it couldn't tell it (the installed app reopens on its
+     * start page after the browser tab).
+     */
+    pendingTwoFactor: build.query<{ twoFactor: TwoFactorChallenge | null }, void>({
+      query: () => "auth/two-factor?ifAny=1",
+      extraOptions: { quiet: true, session: true },
+      keepUnusedDataFor: 0,
+    }),
     verifyTwoFactor: build.mutation<{ user: SessionUser }, { code: string; recovery?: boolean; remember?: boolean }>({
       query: (body) => ({ url: "auth/two-factor", method: "POST", body }),
       extraOptions: { quiet: true, session: true },
@@ -66,6 +77,7 @@ export const {
   useSocialProvidersQuery,
   useResendTwoFactorMutation,
   useLazyTwoFactorChallengeQuery,
+  useLazyPendingTwoFactorQuery,
   useTwoFactorChallengeQuery,
   useLazyPresenceQuery,
 } = authApi;

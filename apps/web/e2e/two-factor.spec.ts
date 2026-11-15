@@ -1,5 +1,5 @@
 import * as OTPAuth from "otpauth";
-import { test, expect, login, createStoreViaApi, signInCode } from "./fixtures";
+import { test, expect, login, createStoreViaApi, signInCode, DEMO_STAFF } from "./fixtures";
 import { API_URL } from "../playwright.config";
 
 /** The authenticator app's code for `secret`, `offset` periods from now. */
@@ -123,4 +123,25 @@ test("back from Google without a pending second step: the login page says so", a
   const alert = page.getByRole("alert").filter({ hasText: "Login com o Google não concluído" });
   await expect(alert).toContainText("Este acesso expirou");
   await expect(page.getByLabel("E-mail")).toBeEnabled();
+});
+
+test("a sign-in waiting for its code shows the code step even without ?etapa (the installed app reopens on its start page)", async ({ page }) => {
+  // Google finished elsewhere: the challenge cookie is in the browser, the page never heard.
+  await page.goto("/app/login");
+  await page.request.post(`${API_URL}/api/v1/auth/login`, {
+    data: { email: DEMO_STAFF.attendant.email, password: DEMO_STAFF.attendant.password },
+  });
+  await page.reload();
+  const code = page.getByLabel("Código de 6 dígitos");
+  await expect(code).toBeVisible();
+
+  // Turned down, it doesn't come back on its own, not even after a reload.
+  await page.getByRole("button", { name: "Voltar para o login" }).click();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await page.reload();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await expect(code).toHaveCount(0);
+
+  // Signing in again from the page still works as usual.
+  await login(page, DEMO_STAFF.attendant);
 });
