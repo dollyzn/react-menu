@@ -126,19 +126,27 @@ test("back from Google without a pending second step: the login page says so", a
 });
 
 test("a sign-in waiting for its code shows the code step even without ?etapa (the installed app reopens on its start page)", async ({ page }) => {
-  // Google finished elsewhere: the challenge cookie is in the browser, the page never heard.
+  // Someone's password sign-in left waiting on this device: not put on screen by itself.
   await page.goto("/app/login");
   await page.request.post(`${API_URL}/api/v1/auth/login`, {
     data: { email: DEMO_STAFF.attendant.email, password: DEMO_STAFF.attendant.password },
   });
-  await page.reload();
   const code = page.getByLabel("Código de 6 dígitos");
+  await page.reload();
+  await expect(page.getByLabel("E-mail")).toBeVisible();
+  await expect(code).toHaveCount(0);
+
+  // This device started "Entrar com Google"; Google finished where the page couldn't hear.
+  await page.evaluate(() => localStorage.setItem("google-sign-in:started", String(Date.now())));
+  await page.reload();
   await expect(code).toBeVisible();
 
   // Turned down, it doesn't come back on its own, not even after a reload.
   await page.getByRole("button", { name: "Voltar para o login" }).click();
   await expect(page.getByLabel("E-mail")).toBeVisible();
+  const lookup = page.waitForResponse((response) => response.url().includes("/auth/two-factor?ifAny=1"));
   await page.reload();
+  await lookup;
   await expect(page.getByLabel("E-mail")).toBeVisible();
   await expect(code).toHaveCount(0);
 

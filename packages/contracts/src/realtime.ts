@@ -33,6 +33,11 @@ export type StoreEvent =
        */
       type: 'stock.changed';
       storeId: string;
+    }
+  | {
+      /** An item or add-on was changed (sold out by hand, price) or stock tracking turned on/off. */
+      type: 'menu.changed';
+      storeId: string;
     };
 
 /** Published on `orders/:publicToken` for the customer's tracking page. */

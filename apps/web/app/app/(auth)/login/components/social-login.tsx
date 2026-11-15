@@ -1,5 +1,6 @@
 "use client";
 
+import { markGoogleSignInStarted } from "@/lib/pending-sign-in";
 import { Suspense, useEffect, useEffectEvent, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
@@ -124,6 +125,8 @@ function GoogleLogin({
 
   const start = () => {
     setError(null);
+    // If the app comes back without the result (installed app), the login page looks for it.
+    markGoogleSignInStarted();
     if (redirectError) router.replace("/app/login");
     if (prefersFullPageLogin() || !openSocialPopup(START_URL)) {
       router.push(START_URL);

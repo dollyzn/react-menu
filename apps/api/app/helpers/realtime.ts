@@ -26,3 +26,11 @@ export function broadcastUserEvent(event: UserEvent) {
 export function broadcastOrderTracking(publicToken: string, event: OrderTrackingEvent) {
   transmit.broadcast(channels.orderTracking(publicToken), event)
 }
+
+/**
+ * After the commit: what the menu offers changed (an item sold out by hand,
+ * stock tracking turned on): panels with the menu open read it again.
+ */
+export function broadcastMenuChanged(storeId: string) {
+  broadcastStoreEvent({ type: 'menu.changed', storeId })
+}

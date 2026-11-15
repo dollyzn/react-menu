@@ -1,5 +1,6 @@
 "use client";
 
+import { clearSavedTickets } from "@/lib/pos-ticket-storage";
 import type { LoginProps, SessionContextType, SessionProviderProps, TwoFactorInput } from "@/types/session";
 
 import { createContext, useCallback, useContext, useRef, useState } from "react";
@@ -133,6 +134,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
         }
       }
       await clearSessionCookie().catch(() => undefined);
+      // A kept POS ticket holds a customer's name and phone.
+      clearSavedTickets();
       forgetReturnPath();
       closeTransmit();
       dispatch(setUser(null));
@@ -170,6 +173,8 @@ export function SessionProvider({ children }: SessionProviderProps) {
         const path = window.location.pathname;
         if (path.startsWith("/app") && path !== "/app/login") {
           await clearSessionCookie().catch(() => undefined);
+          // A kept POS ticket holds a customer's name and phone.
+          clearSavedTickets();
         }
       }
       return null;

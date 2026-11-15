@@ -89,6 +89,11 @@ test.group('Two-factor sign-in', (group) => {
     const locked = await verify(code)
     locked.assertStatus(429)
     locked.assertBodyContains({ code: 'E_TWO_FACTOR_LOCKED' })
+    // The login page asking by itself doesn't bring a locked one back.
+    const lookup = await client
+      .get('/api/v1/auth/two-factor?ifAny=1')
+      .withCookie(CHALLENGE_COOKIE, challenge)
+    lookup.assertBodyContains({ data: { twoFactor: null } })
 
     const second = await client
       .post('/api/v1/auth/login')

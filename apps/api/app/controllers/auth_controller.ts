@@ -1,4 +1,3 @@
-import AppException from '#exceptions/app_exception'
 import type { HttpContext } from '@adonisjs/core/http'
 import { touchLastSeen } from '#helpers/user_activity'
 import { inject } from '@adonisjs/core'
@@ -31,25 +30,20 @@ export default class AuthController {
     return ok(result)
   }
 
-  /** The pending second step of this browser (after "Entrar com Google"). */
   /**
    * The sign-in waiting for its code (cookie). `?ifAny=1`: the login page asks
    * on its own, because Google may have finished somewhere it can't hear
-   * (the installed app reopens on its start page after the browser tab):
-   * none waiting is then `null`, not an error.
+   * (the installed app reopens on its start page after the browser tab): none
+   * waiting (or one locked by wrong codes) is then `null`, not an error.
    */
   async twoFactorChallenge({ request, response }: HttpContext) {
-    if (!request.input('ifAny')) {
-      return ok({ twoFactor: await this.twoFactor.current({ request, response }) })
-    }
-    try {
-      return ok({ twoFactor: await this.twoFactor.current({ request, response }) })
-    } catch (error) {
-      if (error instanceof AppException && error.code === 'E_TWO_FACTOR_EXPIRED') {
-        return ok({ twoFactor: null })
-      }
-      throw error
-    }
+    const ctx = { request, response }
+    return ok({
+      twoFactor:
+        request.input('ifAny') === '1'
+          ? await this.twoFactor.pending(ctx)
+          : await this.twoFactor.current(ctx),
+    })
   }
 
   async verifyTwoFactor({ request, response, auth }: HttpContext) {

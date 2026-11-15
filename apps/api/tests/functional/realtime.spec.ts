@@ -109,4 +109,26 @@ test.group('Realtime (Transmit)', (group) => {
     counted.assertStatus(200)
     assert.deepEqual(broadcasts, [{ type: 'stock.changed', storeId: store.id }])
   })
+
+  test('an item sold out by hand is told to the store, so open menus drop it', async ({
+    client,
+    assert,
+    cleanup,
+  }) => {
+    const { default: StoreRole } = await import('#enums/store_role')
+    const { createMenuStore, linkUser } = await import('#tests/helpers/fixtures')
+    const manager = await createUser()
+    const { store, coca } = await createMenuStore()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const broadcasts: unknown[] = []
+    cleanup(transmit.on('broadcast', ({ payload }) => broadcasts.push(payload)))
+
+    const soldOut = await client
+      .put(`/api/v1/stores/${store.id}/items/${coca.id}`)
+      .json({ isAvailable: false })
+      .loginAs(manager)
+
+    soldOut.assertStatus(200)
+    assert.deepEqual(broadcasts, [{ type: 'menu.changed', storeId: store.id }])
+  })
 })

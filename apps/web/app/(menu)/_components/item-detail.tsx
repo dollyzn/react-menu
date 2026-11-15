@@ -76,7 +76,7 @@ export type CustomizedLine = Omit<CartLine, "key">;
  * saved (a required choice gone shows as missing) instead of being stuck on
  * an option that can't be unticked.
  */
-function restorePicks(item: PublicMenuItem, addons: CustomizedLine["addons"]) {
+export function restorePicks(item: PublicMenuItem, addons: CustomizedLine["addons"]) {
   const addonIds = addons
     .filter((addon) => !addon.groupId && item.addons.some((offered) => offered.id === addon.id && offered.isAvailable))
     .map((addon) => addon.id);
@@ -91,6 +91,34 @@ function restorePicks(item: PublicMenuItem, addons: CustomizedLine["addons"]) {
     choices[group.id] = [...picked, addon.id];
   }
   return { addonIds, choices };
+}
+
+/**
+ * A kept line as the item is now (the POS ticket restored after a reload):
+ * its picks that still fit, at today's prices (pick order included). Null
+ * when it can't be sold as it is: the item is off, or a required choice is
+ * gone.
+ */
+export function rebuildLine<L extends CustomizedLine>(item: PublicMenuItem, line: L): L | null {
+  if (!item.isAvailable) return null;
+  const { addonIds, choices } = restorePicks(item, line.addons);
+  const groups = item.optionGroups ?? [];
+  if (groups.some((group) => (choices[group.id] ?? []).length < group.minChoices)) return null;
+  const addons = [
+    ...groups.flatMap((group) =>
+      pricedPicks(group, choices[group.id] ?? []).map((option) => ({
+        id: option.id,
+        name: option.name,
+        price: option.price,
+        groupId: group.id,
+        groupName: group.name,
+      }))
+    ),
+    ...item.addons
+      .filter((addon) => addonIds.includes(addon.id))
+      .map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
+  ];
+  return { ...line, name: item.name, unitPrice: item.price, addons };
 }
 
 /**
