@@ -146,6 +146,40 @@ test.group('Pagar depois (fiado)', (group) => {
     onCancelled.assertStatus(409)
   })
 
+  test('who to charge can be corrected; a cancelled one is refused, not "marked"', async ({
+    client,
+    assert,
+  }) => {
+    const { store, coca, attendant, manager } = await setup()
+    const orders = `/api/v1/stores/${store.id}/orders`
+    const sent = await client
+      .post(orders)
+      .json({
+        customer: { name: 'Zé', phone: '13999990000' },
+        lines: [{ itemId: coca.id, quantity: 1 }],
+        payLater: true,
+      })
+      .loginAs(attendant)
+    const id = sent.body().data.id as string
+    const markedAt = sent.body().data.payLaterAt
+
+    const corrected = await client
+      .post(`${orders}/${id}/pay-later`)
+      .json({ name: 'José Silva', phone: '13911112222' })
+      .loginAs(attendant)
+    corrected.assertStatus(200)
+    corrected.assertBodyContains({
+      data: { customerName: 'José Silva', customerPhone: '5513911112222', payLaterAt: markedAt },
+    })
+
+    await client.post(`${orders}/${id}/cancel`).loginAs(manager)
+    const onCancelled = await client.post(`${orders}/${id}/pay-later`).json({}).loginAs(attendant)
+    onCancelled.assertStatus(409)
+    onCancelled.assertBodyContains({ code: 'E_ORDER_CANCELLED' })
+    const list = await client.get(`${orders}/pay-later`).loginAs(manager)
+    assert.lengthOf(list.body().data, 0)
+  })
+
   test('the list is for managers of this store; marking is for its front of house', async ({
     client,
     assert,

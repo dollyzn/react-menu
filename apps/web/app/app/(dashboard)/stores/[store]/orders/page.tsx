@@ -61,7 +61,7 @@ export default function OrdersPage() {
   const history = view === "historico" && isManager;
   // "Pagar depois" (fiado) still open, any day: managers follow them.
   const payLater = view === "pagar-depois" && isManager;
-  const { data: owed = [] } = useGetPayLaterOrdersQuery(storeId, { skip: role !== "manager" });
+  const { data: owed = [] } = useGetPayLaterOrdersQuery(storeId, { skip: role !== "manager", pollingInterval: 60_000 });
   /** A charge on the card machine, opened from the "Na maquininha" bar. */
   const [resuming, setResuming] = useState<PointCharge | null>(null);
 

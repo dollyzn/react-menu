@@ -37,13 +37,25 @@ export function groupByCustomer(orders: PayLaterOrder[]): Customer[] {
  * cards or the card machine) and the order leaves the list.
  */
 export function PayLaterList({ storeId }: { storeId: string }) {
-  const { data: orders = [], isLoading } = useGetPayLaterOrdersQuery(storeId, { pollingInterval: 60_000 });
+  const { data: orders = [], isLoading, isError, refetch } = useGetPayLaterOrdersQuery(storeId, { pollingInterval: 60_000 });
   const customers = useMemo(() => groupByCustomer(orders), [orders]);
   const total = customers.reduce((sum, customer) => sum + customer.due, 0);
   const [receiving, setReceiving] = useState<PayLaterOrder | null>(null);
   const shown = useLastValue(receiving);
 
   if (isLoading) return <Skeleton className="h-48 rounded-2xl" />;
+
+  // Never "Ninguém devendo" when the list couldn't be read.
+  if (isError && orders.length === 0) {
+    return (
+      <div role="alert" className="flex flex-col items-center gap-3 rounded-2xl border border-dashed p-10 text-center">
+        <p className="text-sm text-muted-foreground">Não foi possível carregar os pedidos para pagar depois.</p>
+        <Button variant="outline" size="sm" onClick={() => void refetch()}>
+          Tentar de novo
+        </Button>
+      </div>
+    );
+  }
 
   if (customers.length === 0) {
     return (

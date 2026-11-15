@@ -681,13 +681,14 @@ export default class OrderService {
 
   /**
    * Turns an unpaid order into "Pagar depois" (sent as "receber depois", the
-   * customer will settle another day). The phone is who to charge: the
-   * order's, or given now. Repeating it is a success.
+   * customer will settle another day). Name and phone are who to charge: the
+   * order's, or corrected now (also on an order already "pagar depois").
+   * Repeating it is a success.
    */
   async markPayLater(
     storeId: string,
     orderId: string,
-    input: { phone?: string | null },
+    input: { name?: string | null; phone?: string | null },
     actor?: User
   ) {
     const order = await this.find(storeId, orderId)
@@ -697,29 +698,38 @@ export default class OrderService {
     }
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
-      if (order.payLaterAt && order.paymentStatus !== PaymentStatus.PAID) return false
       if (order.status === OrderStatus.CANCELLED) {
         throw new AppException('Este pedido foi cancelado.', 409, 'E_ORDER_CANCELLED')
       }
       if (order.paymentStatus === PaymentStatus.PAID) {
         throw new AppException('Este pedido já está pago.', 409, 'E_ALREADY_PAID')
       }
+      const name = input.name?.trim() || order.customerName
+      const phone = given ?? order.customerPhone
+      // Already "pagar depois": a repeat, or a correction of who to charge.
+      if (
+        order.payLaterAt &&
+        name === order.customerName &&
+        phone === order.customerPhone &&
+        order.customerId
+      ) {
+        return false
+      }
       // Waiting for its online payment or the card machine (held from the kitchen).
-      if (order.status === OrderStatus.PENDING_PAYMENT) {
+      if (!order.payLaterAt && order.status === OrderStatus.PENDING_PAYMENT) {
         throw new AppException(
           'Este pedido ainda espera o pagamento. Ele não pode ficar para pagar depois.',
           409,
           'E_ORDER_NOT_IN_QUEUE'
         )
       }
-      if (await Payment.waitingOnMachine(order.id, trx)) {
+      if (!order.payLaterAt && (await Payment.waitingOnMachine(order.id, trx))) {
         throw new AppException(
           'Há uma cobrança na maquininha para este pedido. Termine ou cancele essa cobrança antes.',
           409,
           'E_CHARGE_WAITING'
         )
       }
-      const phone = given ?? order.customerPhone
       if (!phone) {
         throw new AppException(
           'Informe o telefone de quem vai pagar depois.',
@@ -727,17 +737,21 @@ export default class OrderService {
           'E_PHONE_REQUIRED'
         )
       }
-      if (phone !== order.customerPhone) {
+      // Linked to the customer of that phone (named as the counter says), like a POS order.
+      if (phone !== order.customerPhone || name !== order.customerName || !order.customerId) {
         const customer = await Customer.updateOrCreate(
           { storeId, phone },
-          { name: order.customerName },
+          { name },
           { client: trx }
         )
+        order.customerName = name
         order.customerPhone = phone
         order.customerId = customer.id
       }
-      order.payLaterAt = DateTime.now()
-      order.payLaterById = actor?.id ?? null
+      if (!order.payLaterAt) {
+        order.payLaterAt = DateTime.now()
+        order.payLaterById = actor?.id ?? null
+      }
       await order.useTransaction(trx).save()
       return true
     })

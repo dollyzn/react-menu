@@ -87,6 +87,7 @@ const posOrderValidator = vine.create(
 /** "Pagar depois" on an order already sent: the phone when the order has none. */
 const payLaterValidator = vine.create(
   vine.object({
+    name: customerName.optional(),
     phone: vine.string().trim().maxLength(25).optional(),
   })
 )

@@ -313,11 +313,15 @@ export default function PosPage() {
    */
   const createFromTicket = async (
     counterMethod?: CounterPaymentMethod,
-    { payOnMachine = false, payLater = false, phone }: { payOnMachine?: boolean; payLater?: boolean; phone?: string } = {}
+    {
+      payOnMachine = false,
+      payLater = false,
+      who,
+    }: { payOnMachine?: boolean; payLater?: boolean; who?: { name: string; phone: string } } = {}
   ) => {
     const input = {
-      // "Pagar depois" asks the phone in its dialog (who to charge).
-      customer: { name: customerName.trim() || "Balcão", phone: phone || customerPhone || undefined },
+      // "Pagar depois" asks who to charge in its dialog.
+      customer: who ?? { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       // Paid as it was sent (cash, Pix, credit, debit); left out: received later.
       ...(counterMethod ? { counterMethod } : {}),
       // Charged on the card machine next: the store may hold it from the kitchen until approved.
@@ -332,7 +336,8 @@ export default function PosPage() {
       input,
       // The key follows the ticket, not how it was paid: resending after a lost
       // response with another method (or "receber depois") finds the same order.
-      idempotencyKey: stableIdempotencyKey(keyScope, { customer: input.customer, lines: input.lines }),
+      // The phone stays out: "Pagar depois" asks it after an attempt that may have gone.
+      idempotencyKey: stableIdempotencyKey(keyScope, { customer: { name: input.customer.name }, lines: input.lines }),
     }).unwrap();
     releaseIdempotencyKey(keyScope);
     setLines([]);
@@ -461,12 +466,15 @@ export default function PosPage() {
   const [payingLater, setPayingLater] = useState(false);
   const [payLaterError, setPayLaterError] = useState<string | null>(null);
   const payingLaterTotal = useLastValue(total, () => payingLater);
-  const payingLaterName = useLastValue(customerName.trim() || "Balcão", () => payingLater);
-  const sendPayLater = async (phone: string) => {
-    if (blocked || addTo) return;
+  const payingLaterCount = useLastValue(count, () => payingLater);
+  const sendPayLater = async (who: { name: string; phone: string }) => {
     setPayLaterError(null);
+    if (blocked) {
+      setPayLaterError("Este pedido não pode ser enviado agora.");
+      return;
+    }
     try {
-      const order = await createFromTicket(undefined, { payLater: true, phone });
+      const order = await createFromTicket(undefined, { payLater: true, who });
       setPayingLater(false);
       toast.success(`Pedido #${order.number} enviado · pagar depois`, POS_TOAST);
     } catch (error) {
@@ -745,13 +753,14 @@ export default function PosPage() {
       <PayLaterDialog
         open={payingLater}
         onClose={() => setPayingLater(false)}
-        badge={`Novo pedido · ${payingLaterName}`}
+        badge={`Novo pedido · ${payingLaterCount} ${payingLaterCount === 1 ? "item" : "itens"}`}
         total={payingLaterTotal}
+        name={customerName}
         phone={customerPhone || null}
         verb="Enviar para pagar depois"
         busy={sending}
         error={payLaterError}
-        onConfirm={(phone) => void sendPayLater(phone)}
+        onConfirm={(who) => void sendPayLater(who)}
       />
 
       <ReceivePaymentDialog
@@ -1119,10 +1128,10 @@ function Ticket({
           </div>
         </div>
         {/* Unpaid now: at pickup (the counter receives it), or another day (fiado). */}
-        <div className={cn("grid gap-1.5", !addingTo && "grid-cols-2")}>
+        <div className="flex flex-wrap gap-1.5">
           <Button
             variant="ghost"
-            className="w-full px-2 text-muted-foreground"
+            className="min-w-fit flex-1 px-2 text-muted-foreground"
             disabled={lines.length === 0 || blocked}
             loading={sending}
             onClick={() => onSend()}
@@ -1132,7 +1141,7 @@ function Ticket({
           {!addingTo && (
             <Button
               variant="ghost"
-              className="w-full px-2 text-muted-foreground"
+              className="min-w-fit flex-1 px-2 text-muted-foreground"
               disabled={lines.length === 0 || blocked || sending}
               onClick={onPayLater}
             >

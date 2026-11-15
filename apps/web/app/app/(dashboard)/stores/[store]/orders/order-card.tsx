@@ -207,14 +207,15 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
           onClose={() => setAskingPayLater(false)}
           badge={`Pedido #${order.number} · ${order.customerName}`}
           total={order.amountDue}
+          name={order.customerName}
           phone={order.customerPhone}
           verb="Deixar para pagar depois"
           busy={markingPayLater}
           error={payLaterError}
-          onConfirm={async (phone) => {
+          onConfirm={async (who) => {
             setPayLaterError(null);
             try {
-              await markPayLater({ storeId, orderId: order.id, phone }).unwrap();
+              await markPayLater({ storeId, orderId: order.id, ...who }).unwrap();
               setAskingPayLater(false);
               toast.success(`Pedido #${order.number} fica para pagar depois`);
             } catch (error) {

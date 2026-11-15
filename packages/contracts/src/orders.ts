@@ -268,8 +268,8 @@ export type PayLaterOrder = Order & {
   payLaterBy: { id: string; name: string | null } | null;
 };
 
-/** POST /orders/:id/pay-later: the phone when the order has none. */
-export type PayLaterInput = { phone?: string };
+/** POST /orders/:id/pay-later: who to charge, when the order lacks it or it is corrected. */
+export type PayLaterInput = { name?: string; phone?: string };
 
 /** POST /orders/:id/items: items added to an order still in the queue. */
 export type AddOrderItemsInput = {
