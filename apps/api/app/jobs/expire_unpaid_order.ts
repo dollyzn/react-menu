@@ -11,7 +11,10 @@ import Store from '#models/store'
 import OrderService from '#services/order_service'
 import PaymentService from '#services/payment_service'
 
-/** Online orders nobody paid are cancelled after this (a Pix lasts 30 min). */
+/**
+ * Orders nobody paid are cancelled after this: online (a Pix lasts 30 min),
+ * and POS orders held for the card machine (a charge lasts 10 min).
+ */
 export const UNPAID_ORDER_TTL = '40m'
 /** Never keep an order waiting longer than this, even with a card in review. */
 const MAX_WAIT_HOURS = 6
@@ -19,8 +22,8 @@ const MAX_WAIT_HOURS = 6
 type Payload = { orderId: string }
 
 /**
- * Cancels an online order that was never paid, so it doesn't linger on the
- * board. A payment still in progress (a Pix generated late, a card in
+ * Cancels an order that was never paid (online, or a POS order waiting for
+ * the card machine), so it doesn't linger on the board. A payment still in progress (a Pix generated late, a card in
  * review) postpones it instead.
  */
 @inject()
@@ -66,6 +69,6 @@ export default class ExpireUnpaidOrder extends AppJob<Payload> {
     if (current.status !== OrderStatus.PENDING_PAYMENT) return
 
     await this.orders.cancel(order.storeId, order.id)
-    logger.info({ orderId: order.id }, 'unpaid online order cancelled')
+    logger.info({ orderId: order.id, channel: order.channel }, 'unpaid order cancelled')
   }
 }

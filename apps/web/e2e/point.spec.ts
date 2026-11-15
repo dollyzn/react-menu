@@ -105,3 +105,74 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
     await page.request.delete(`${API_URL}/api/v1/stores/${storeId}/point/terminals/${FAKE_TERMINAL}`);
   }
 });
+
+test("card machine, kitchen after payment: a refused card keeps the order off the kitchen", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const menu = (await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json()).data;
+  const storeId = menu.store.id as string;
+  const settings = (kitchenAfterPayment: boolean) =>
+    page.request.put(`${API_URL}/api/v1/stores/${storeId}/point/settings`, {
+      data: { paymentTypes: ["credit_card", "debit_card"], maxInstallments: 1, printTicket: true, kitchenAfterPayment },
+    });
+
+  try {
+    await login(page);
+    await apiSignIn(page.request);
+    const enabled = await page.request.post(`${API_URL}/api/v1/stores/${storeId}/point/terminals`, {
+      data: { terminalId: FAKE_TERMINAL, name: "Caixa" },
+    });
+    expect(enabled.ok()).toBeTruthy();
+
+    // The switch on the store page.
+    await page.goto(`/app/stores/${storeId}`);
+    const toggle = page.getByRole("switch", { name: "Mandar para a cozinha só depois do pagamento na maquininha" });
+    await expect(toggle).not.toBeChecked();
+    await toggle.click();
+    await expect(toggle).toBeChecked();
+    await expect(page.getByText(/vai para a cozinha quando o pagamento for aprovado/)).toBeVisible();
+
+    await page.goto(`/app/stores/${storeId}/pos`);
+    const charging = page.getByRole("dialog", { name: /Cobrar/ });
+    const chargeTicket = async (customer: string) => {
+      await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
+      await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
+      await page.getByLabel("Nome do cliente").fill(customer);
+      await page.getByRole("button", { name: "Cobrar na maquininha e enviar" }).click();
+      await charging.getByRole("button", { name: /^Cobrar R\$/ }).click();
+      await expect(charging.getByText("Aguardando pagamento na maquininha")).toBeVisible();
+      await expect(charging.getByText(/vai para a cozinha quando o pagamento for aprovado/)).toBeVisible();
+    };
+
+    // Refused: it stays off the kitchen, waiting on the board.
+    await chargeTicket("Recusado");
+    await charging.getByRole("button", { name: "Simular recusa" }).click();
+    await expect(charging.getByText(/ainda não foi para a cozinha/)).toBeVisible();
+    await charging.getByRole("button", { name: "Agora não" }).click();
+    await expect(charging).toBeHidden();
+
+    // Approved: it goes to the kitchen.
+    await chargeTicket("Aprovado");
+    await charging.getByRole("button", { name: "Simular aprovação" }).click();
+    await expect(charging.getByText(/pago na .+ e enviado para a cozinha/)).toBeVisible();
+    await charging.getByRole("button", { name: "Concluir" }).click();
+
+    await page.goto(`/app/stores/${storeId}/orders`);
+    const waiting = page.getByRole("region", { name: /Aguardando pagamento/ });
+    const refused = waiting.getByRole("article", { name: /de Recusado/ });
+    await expect(refused).toBeVisible();
+    await expect(waiting.getByRole("article", { name: /de Aprovado/ })).toBeHidden();
+    // Paid: on the board's columns (a drink-only order is ready at once).
+    await expect(page.getByRole("article", { name: /de Aprovado/ })).toBeVisible();
+
+    // The counter drops it (nothing was paid, the kitchen never saw it).
+    await refused.getByRole("button", { name: /Mais ações do pedido/ }).click();
+    await page.getByRole("menuitem", { name: "Descartar pedido" }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Descartar pedido" }).click();
+    await expect(waiting).toBeHidden();
+  } finally {
+    // The other POS tests expect no machine and the default flow.
+    await apiSignIn(page.request);
+    await settings(false);
+    await page.request.delete(`${API_URL}/api/v1/stores/${storeId}/point/terminals/${FAKE_TERMINAL}`);
+  }
+});

@@ -101,6 +101,13 @@ export default class Store extends BaseModel {
   @column()
   declare pointPrintTicket: boolean
 
+  /**
+   * Card machine: a POS order charged on it waits for the approval before
+   * it reaches the kitchen (off: it goes at once and is charged meanwhile).
+   */
+  @column()
+  declare pointKitchenAfterPayment: boolean
+
   /** Opens and closes by itself following `openingHours`. */
   @column()
   declare scheduleEnabled: boolean

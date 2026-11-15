@@ -15,6 +15,7 @@ import { fakeQueue, runJob } from '#tests/helpers/queue'
 import RefundOrder from '#jobs/refund_order'
 import RefundDuplicatePayment from '#jobs/refund_duplicate_payment'
 import SettlePointCharge from '#jobs/settle_point_charge'
+import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 
 const TOKEN = 'TEST-1234567890-abcdef' // gitleaks:allow (fake test credential)
 const SECRET = 'webhook-secret-123'
@@ -87,6 +88,12 @@ function signature(dataId: string, requestId: string) {
     .update(`id:${dataId};request-id:${requestId};ts:${ts};`)
     .digest('hex')
   return `ts=${ts},v1=${v1}`
+}
+
+/** The order's status as stored now. */
+async function statusOf(orderId: string) {
+  const order = await Order.findOrFail(orderId)
+  return order.status
 }
 
 async function pointStore() {
@@ -327,6 +334,165 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     const unpaid = await Order.findOrFail(order.id)
     assert.equal(unpaid.paymentStatus, 'pending')
     assert.equal(unpaid.paymentMethod, 'counter')
+  })
+
+  test('kitchen after payment: a POS order charged on the machine waits for the approval', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const off = await client.get(`/api/v1/stores/${store.id}/point`).loginAs(attendant)
+    const turnedOn = await client
+      .put(`/api/v1/stores/${store.id}/point/settings`)
+      .json({
+        paymentTypes: ['credit_card', 'debit_card'],
+        maxInstallments: 1,
+        printTicket: true,
+        kitchenAfterPayment: true,
+      })
+      .loginAs(manager)
+    off.assertBodyContains({ data: { kitchenAfterPayment: false } })
+    turnedOn.assertBodyContains({ data: { kitchenAfterPayment: true } })
+
+    const create = (payOnMachine?: boolean) =>
+      client
+        .post(`/api/v1/stores/${store.id}/orders`)
+        .json({
+          customer: { name: 'Mesa 3' },
+          lines: [{ itemId: carne.id, quantity: 2 }],
+          payOnMachine,
+        })
+        .loginAs(attendant)
+    const held = await create(true)
+    // "Receber depois" still goes at once.
+    const later = await create()
+    held.assertBodyContains({ data: { status: 'pending_payment', paymentStatus: 'pending' } })
+    later.assertBodyContains({ data: { status: 'received' } })
+    const heldId = held.body().data.id as string
+
+    const queue = async () => {
+      const response = await client.get(`/api/v1/stores/${store.id}/kitchen/queue`).loginAs(manager)
+      return response.body().data
+    }
+    assert.notInclude(JSON.stringify(await queue()), heldId)
+
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${heldId}/point-charges`)
+      .json({ paymentType: 'debit_card' })
+      .loginAs(attendant)
+    fake.set('ORD2001', 'processed', 'accredited')
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('ORD2001', 'req-1'))
+      .header('x-request-id', 'req-1')
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD2001' } })
+
+    const paid = await Order.findOrFail(heldId)
+    assert.equal(paid.status, 'received')
+    assert.equal(paid.paymentStatus, 'paid')
+    assert.include(JSON.stringify(await queue()), heldId)
+  })
+
+  test('kitchen after payment off: the machine order goes at once, as before', async ({
+    client,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    await enable(client, store, manager)
+    const order = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({
+        customer: { name: 'Mesa 3' },
+        lines: [{ itemId: carne.id, quantity: 1 }],
+        payOnMachine: true,
+      })
+      .loginAs(attendant)
+    order.assertBodyContains({ data: { status: 'received' } })
+  })
+
+  test('kitchen after payment: a refused card leaves it waiting; received, discarded or expired', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne, manager, attendant } = await pointStore()
+    const other = await pointStore()
+    await enable(client, store, manager)
+    store.pointKitchenAfterPayment = true
+    await store.save()
+    const create = async () => {
+      const response = await client
+        .post(`/api/v1/stores/${store.id}/orders`)
+        .json({
+          customer: { name: 'Mesa 3' },
+          lines: [{ itemId: carne.id, quantity: 1 }],
+          payOnMachine: true,
+        })
+        .loginAs(attendant)
+      return response.body().data.id as string
+    }
+    const refuse = async (orderId: string, mercadoPagoId: string) => {
+      const charge = await client
+        .post(`/api/v1/stores/${store.id}/orders/${orderId}/point-charges`)
+        .json({ paymentType: 'debit_card' })
+        .loginAs(attendant)
+      fake.set(mercadoPagoId, 'failed', 'insufficient_amount')
+      await client
+        .get(
+          `/api/v1/stores/${store.id}/orders/${orderId}/point-charges/${charge.body().data.id}?check=1`
+        )
+        .loginAs(attendant)
+    }
+
+    // Paid in cash after the card was refused: now it goes to the kitchen.
+    const cash = await create()
+    await refuse(cash, 'ORD2001')
+    assert.equal(await statusOf(cash), 'pending_payment')
+    const received = await client
+      .post(`/api/v1/stores/${store.id}/orders/${cash}/payment`)
+      .json({ method: 'cash', amount: 15 })
+      .loginAs(attendant)
+    received.assertStatus(200)
+    assert.equal(await statusOf(cash), 'received')
+
+    // Dropped by the attendant (not while a charge waits on the machine).
+    const dropped = await create()
+    await client
+      .post(`/api/v1/stores/${store.id}/orders/${dropped}/point-charges`)
+      .json({ paymentType: 'debit_card' })
+      .loginAs(attendant)
+    const whileWaiting = await client
+      .post(`/api/v1/stores/${store.id}/orders/${dropped}/cancel`)
+      .loginAs(attendant)
+    whileWaiting.assertStatus(409)
+    whileWaiting.assertBodyContains({ code: 'E_CHARGE_WAITING' })
+    fake.set('ORD2002', 'failed', 'insufficient_amount')
+    const charge = await Payment.query().where('orderId', dropped).firstOrFail()
+    await client
+      .get(`/api/v1/stores/${store.id}/orders/${dropped}/point-charges/${charge.id}?check=1`)
+      .loginAs(attendant)
+    const byOtherStore = await client
+      .post(`/api/v1/stores/${store.id}/orders/${dropped}/cancel`)
+      .loginAs(other.attendant)
+    const discarded = await client
+      .post(`/api/v1/stores/${store.id}/orders/${dropped}/cancel`)
+      .loginAs(attendant)
+    assert.include([403, 404], byOtherStore.status())
+    discarded.assertStatus(200)
+    assert.equal(await statusOf(dropped), 'cancelled')
+
+    // An order already in the kitchen stays the managers' to cancel.
+    const inKitchen = await client
+      .post(`/api/v1/stores/${store.id}/orders/${cash}/cancel`)
+      .loginAs(attendant)
+    inKitchen.assertStatus(403)
+    inKitchen.assertBodyContains({ code: 'E_NOT_DISCARDABLE' })
+    assert.equal(await statusOf(cash), 'received')
+
+    // Left alone: cancelled by the unpaid-order expiry.
+    const forgotten = await create()
+    await refuse(forgotten, 'ORD2003')
+    await runJob(ExpireUnpaidOrder, { orderId: forgotten })
+    assert.equal(await statusOf(forgotten), 'cancelled')
   })
 
   test('a charge is cancelled from the POS, or on the machine once it is there', async ({

@@ -77,6 +77,8 @@ const posOrderValidator = vine.create(
     notes,
     /** Paid as it was sent: how. Left out: paid later (or on the card machine). */
     counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
+    /** About to be charged on the card machine (the store may hold it until approved). */
+    payOnMachine: vine.boolean().optional(),
   })
 )
 
