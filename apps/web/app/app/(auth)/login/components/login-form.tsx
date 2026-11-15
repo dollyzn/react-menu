@@ -25,7 +25,11 @@ import { cn } from "@/lib/utils";
 import * as z from "zod";
 import { AnimatePresence, motion } from "motion/react";
 import type { TwoFactorChallenge } from "@react-menu/contracts";
-import { useLazyTwoFactorChallengeQuery, useTwoFactorChallengeQuery } from "@/redux/features/auth/authApi";
+import {
+  useLazyPendingTwoFactorQuery,
+  useLazyTwoFactorChallengeQuery,
+  useTwoFactorChallengeQuery,
+} from "@/redux/features/auth/authApi";
 import type { SocialProvider } from "@react-menu/contracts";
 import { SocialLogin, type SocialLoginStatus } from "./social-login";
 import { TwoFactorStep } from "./two-factor-step";
@@ -95,6 +99,28 @@ export function LoginForm({ socialProviders }: { socialProviders: SocialProvider
   useEffect(() => {
     if (cameFromGoogle) window.history.replaceState(null, "", "/app/login");
   }, [cameFromGoogle]);
+
+  // Google may finish where this page can't hear it: the installed app sends
+  // it to a browser tab (the API is outside the app's scope) and reopens on
+  // its start page, without ?etapa=codigo, while the code was already sent.
+  // So the page asks by itself when it opens and whenever it comes back.
+  // One the person turned down ("Voltar para o login") doesn't come back.
+  const [findPending] = useLazyPendingTwoFactorQuery();
+  useEffect(() => {
+    if (cameFromGoogle) return;
+    const look = async () => {
+      if (document.visibilityState !== "visible") return;
+      const pending = (await findPending()).data?.twoFactor;
+      if (pending && pending.expiresAt !== readDismissed()) setChallenge((shown) => shown ?? pending);
+    };
+    void look();
+    document.addEventListener("visibilitychange", look);
+    window.addEventListener("pageshow", look);
+    return () => {
+      document.removeEventListener("visibilitychange", look);
+      window.removeEventListener("pageshow", look);
+    };
+  }, [cameFromGoogle, findPending]);
 
 
   useEffect(() => {
@@ -173,6 +199,7 @@ export function LoginForm({ socialProviders }: { socialProviders: SocialProvider
           <TwoFactorStep
             challenge={current}
             onBack={() => {
+              rememberDismissed(current.expiresAt);
               setChallenge(null);
               setArrivalDone(true);
               form.resetField("password");
@@ -320,4 +347,21 @@ export function LoginForm({ socialProviders }: { socialProviders: SocialProvider
     </AnimatePresence>
     </div>
   );
+}
+
+/** A pending code step the person turned down ("Voltar para o login"), for this tab. */
+const DISMISSED_KEY = "two-factor:dismissed";
+function readDismissed() {
+  try {
+    return sessionStorage.getItem(DISMISSED_KEY);
+  } catch {
+    return null;
+  }
+}
+function rememberDismissed(expiresAt: string) {
+  try {
+    sessionStorage.setItem(DISMISSED_KEY, expiresAt);
+  } catch {
+    // Without storage it may come back on the next visit, which is harmless.
+  }
 }

@@ -41,6 +41,17 @@ test.group('Two-factor sign-in', (group) => {
     const { code } = message as SignInCodeNotification
     assert.match(code, /^\d{6}$/)
 
+    // The login page asks by itself whether a sign-in waits for its code.
+    const waiting = await client
+      .get('/api/v1/auth/two-factor?ifAny=1')
+      .withCookie(CHALLENGE_COOKIE, challenge)
+    waiting.assertBodyContains({ data: { twoFactor: { method: 'email' } } })
+    const none = await client.get('/api/v1/auth/two-factor?ifAny=1')
+    none.assertStatus(200)
+    none.assertBodyContains({ data: { twoFactor: null } })
+    const plain = await client.get('/api/v1/auth/two-factor')
+    plain.assertStatus(410)
+
     const verify = (body: object) =>
       client.post('/api/v1/auth/two-factor').withCookie(CHALLENGE_COOKIE, challenge).json(body)
     const wrong = await verify({ code: code === '000000' ? '111111' : '000000' })
