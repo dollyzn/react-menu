@@ -17,7 +17,6 @@ import Item from '#models/item'
 import Order from '#models/order'
 import OrderReceipt from '#models/order_receipt'
 import Payment from '#models/payment'
-import PaymentAttemptStatus from '#enums/payment_attempt_status'
 import OrderItem from '#models/order_item'
 import OrderItemAddon from '#models/order_item_addon'
 import { optionPrice, pickPrice, type default as OptionGroup } from '#models/option_group'
@@ -44,6 +43,12 @@ export type CreateOrderInput = {
   paymentMethod: PaymentMethod
   /** POS: paid at the counter as the order was sent (cash, Pix, credit, debit). */
   counterMethod?: CounterPaymentMethod | null
+  /**
+   * POS: about to be charged on the card machine. With the store's
+   * `pointKitchenAfterPayment`, it waits for the approval (`pending_payment`)
+   * instead of going to the kitchen at once.
+   */
+  payOnMachine?: boolean
   lines: OrderLineInput[]
   notes?: string | null
   /** From the Idempotency-Key header: a retry returns the same order. */
@@ -164,8 +169,14 @@ export default class OrderService {
 
       await this.history(created, null, OrderStatus.PENDING_PAYMENT, trx, actor)
 
-      // Online payments wait for approval; counter orders go to the kitchen.
-      if (!isOnlinePayment(input.paymentMethod)) {
+      // Online payments wait for approval, and so does a POS order charged
+      // on the machine when the store says so; the rest go to the kitchen.
+      const waitsForMachine =
+        input.channel === OrderChannel.POS &&
+        Boolean(input.payOnMachine) &&
+        !input.counterMethod &&
+        store.pointKitchenAfterPayment
+      if (!isOnlinePayment(input.paymentMethod) && !waitsForMachine) {
         await this.enterKitchen(created, trx, actor)
       }
       return { order: created, replayed: false }
@@ -333,14 +344,7 @@ export default class OrderService {
       }
       this.assertInQueue(order)
       // A charge waiting on the card machine was sent for the old total.
-      const waiting = await Payment.query({ client: trx })
-        .where({
-          orderId: order.id,
-          method: PaymentMethod.POINT,
-          status: PaymentAttemptStatus.PENDING,
-        })
-        .where('expiresAt', '>', DateTime.now().toSQL()!)
-        .first()
+      const waiting = await Payment.waitingOnMachine(order.id, trx)
       if (waiting) {
         throw new AppException(
           'Há uma cobrança na maquininha para este pedido. Termine ou cancele essa cobrança antes de adicionar.',
@@ -455,7 +459,12 @@ export default class OrderService {
           ? ['Este pedido foi cancelado.', 'E_ORDER_CANCELLED']
           : order.status === OrderStatus.COMPLETED
             ? ['Este pedido já foi entregue.', 'E_ORDER_OVER']
-            : ['Este pedido ainda espera o pagamento online.', 'E_ORDER_NOT_IN_QUEUE']
+            : order.channel === OrderChannel.POS
+              ? [
+                  'Este pedido ainda espera o pagamento na maquininha. Receba-o antes de adicionar.',
+                  'E_ORDER_NOT_IN_QUEUE',
+                ]
+              : ['Este pedido ainda espera o pagamento online.', 'E_ORDER_NOT_IN_QUEUE']
     throw new AppException(message, 409, code)
   }
 
@@ -599,7 +608,17 @@ export default class OrderService {
     return order
   }
 
-  async cancel(storeId: string, orderId: string, actor?: User) {
+  /**
+   * `onlyUnpaid`: the counter dropping an order that never reached the
+   * kitchen nor took any money (a POS order whose card was refused). Checked
+   * under the lock, so an approval landing meanwhile wins: 403, nothing to refund.
+   */
+  async cancel(
+    storeId: string,
+    orderId: string,
+    actor?: User,
+    { onlyUnpaid = false }: { onlyUnpaid?: boolean } = {}
+  ) {
     const order = await this.find(storeId, orderId)
     // Idempotent: cancelling twice (a double tap, the expiry job meanwhile)
     // must not reverse the stock twice.
@@ -607,6 +626,34 @@ export default class OrderService {
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
       if (order.status === OrderStatus.CANCELLED) return false
+      // Online orders wait for the customer's Pix or card: the managers' call.
+      if (
+        onlyUnpaid &&
+        (order.channel !== OrderChannel.POS ||
+          order.status !== OrderStatus.PENDING_PAYMENT ||
+          order.amountPaid > 0)
+      ) {
+        throw new AppException(
+          order.amountPaid > 0
+            ? 'Este pedido já foi pago. Só um gerente pode cancelá-lo.'
+            : order.channel !== OrderChannel.POS
+              ? 'Pedido online aguardando o pagamento do cliente. Só um gerente pode cancelá-lo.'
+              : 'Este pedido já foi para a cozinha. Só um gerente pode cancelá-lo.',
+          403,
+          'E_NOT_DISCARDABLE'
+        )
+      }
+      // The customer may still pay it on the machine: that charge ends first.
+      if (onlyUnpaid) {
+        const waiting = await Payment.waitingOnMachine(order.id, trx)
+        if (waiting) {
+          throw new AppException(
+            'A cobrança deste pedido ainda está na maquininha. Cancele a cobrança antes de descartar.',
+            409,
+            'E_CHARGE_WAITING'
+          )
+        }
+      }
       await this.transition(order, OrderStatus.CANCELLED, trx, actor)
       await this.inventory.reverseForOrder(order, trx)
       await order.save()

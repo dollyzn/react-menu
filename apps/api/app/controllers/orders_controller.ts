@@ -7,6 +7,7 @@ import PaymentMethod from '#enums/payment_method'
 import { ok, updated, created } from '#helpers/api_response'
 import OrderService, { BUSINESS_TIMEZONE } from '#services/order_service'
 import RefundOrder from '#jobs/refund_order'
+import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 import PaymentService from '#services/payment_service'
 import Store from '#models/store'
 import type Order from '#models/order'
@@ -141,7 +142,11 @@ export default class OrdersController {
     }
   }
 
-  /** Point of sale: paid at the counter, goes straight to the kitchen. */
+  /**
+   * Point of sale: paid at the counter or later, goes straight to the
+   * kitchen; charged on the card machine, it may wait for the approval
+   * (`Store.pointKitchenAfterPayment`).
+   */
   async store({ params, request, auth }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const input = await request.validateUsing(posOrderValidator)
@@ -153,10 +158,13 @@ export default class OrdersController {
         channel: OrderChannel.POS,
         paymentMethod: PaymentMethod.COUNTER,
         counterMethod: input.counterMethod,
+        payOnMachine: input.payOnMachine,
         idempotencyKey: request.header('idempotency-key'),
       },
       auth.getUserOrFail()
     )
+    // Waiting for the card machine: dropped by itself if nobody charges it.
+    if (order.status === OrderStatus.PENDING_PAYMENT) await ExpireUnpaidOrder.scheduleFor(order)
 
     return created(order, `Pedido #${order.number} criado`)
   }
@@ -170,11 +178,19 @@ export default class OrdersController {
     return updated(order, `Pedido #${order.number} entregue`)
   }
 
-  async cancel({ params, auth }: HttpContext) {
+  /**
+   * Managers cancel any order (a paid one is refunded). Attendants only drop
+   * one that is still waiting for its payment with nothing received (a POS
+   * order whose card was refused on the machine).
+   */
+  async cancel({ params, auth, bouncer }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const orderId = await uuidValidator.validate(params.orderId)
+    const manager = await bouncer.allows('hasStoreRole', storeId, [StoreRole.MANAGER])
 
-    const order = await this.orders.cancel(storeId, orderId, auth.getUserOrFail())
+    const order = await this.orders.cancel(storeId, orderId, auth.getUserOrFail(), {
+      onlyUnpaid: !manager,
+    })
     // A charge still waiting on the card machine leaves it.
     const { default: PointService } = await import('#services/point_service')
     const point = await app.container.make(PointService)

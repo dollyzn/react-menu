@@ -423,6 +423,11 @@ export interface PointConfig {
   paymentTypes: PointPaymentType[];
   maxInstallments: number;
   printTicket: boolean;
+  /**
+   * A POS order charged on the machine reaches the kitchen only once it is
+   * approved (`pending_payment` until then); off, it goes at once.
+   */
+  kitchenAfterPayment: boolean;
 }
 
 /** GET /stores/:id/point/terminals: every machine of the Mercado Pago account. */
@@ -442,6 +447,7 @@ export interface PointSettingsInput {
   paymentTypes: PointPaymentType[];
   maxInstallments: number;
   printTicket: boolean;
+  kitchenAfterPayment?: boolean;
 }
 
 export interface PointChargeInput {

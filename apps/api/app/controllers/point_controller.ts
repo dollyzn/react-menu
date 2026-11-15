@@ -75,6 +75,9 @@ export default class PointController {
       pointPaymentTypes: data.paymentTypes,
       pointMaxInstallments: data.maxInstallments,
       pointPrintTicket: data.printTicket,
+      ...(data.kitchenAfterPayment !== undefined && {
+        pointKitchenAfterPayment: data.kitchenAfterPayment,
+      }),
     })
     await store.save()
     return updated(this.config(store, await this.point.enabledTerminals(store)), 'Maquininha salva')
@@ -179,6 +182,7 @@ export default class PointController {
       paymentTypes: store.pointPaymentTypes,
       maxInstallments: store.pointMaxInstallments,
       printTicket: store.pointPrintTicket,
+      kitchenAfterPayment: store.pointKitchenAfterPayment,
     }
   }
 

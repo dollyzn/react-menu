@@ -72,6 +72,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
         paymentTypes: config.paymentTypes,
         maxInstallments: config.maxInstallments,
         printTicket: config.printTicket,
+        kitchenAfterPayment: config.kitchenAfterPayment,
         ...edit,
       },
     });
@@ -247,6 +248,23 @@ export function PointSettingsCard({ store }: { store: Store }) {
                       checked={config.printTicket}
                       onCheckedChange={(checked) => change({ printTicket: checked })}
                       aria-label="Imprimir o comprovante na maquininha"
+                    />
+                  </label>
+                </li>
+                <li>
+                  <label className="flex items-center justify-between gap-3 p-3">
+                    <span>
+                      <span className="block text-sm font-medium">Cozinha só depois do pagamento</span>
+                      <span className="block text-xs text-muted-foreground">
+                        {config.kitchenAfterPayment
+                          ? "O pedido do PDV cobrado na maquininha vai para a cozinha quando o pagamento for aprovado. Recusado, ele espera no quadro de pedidos."
+                          : "O pedido do PDV vai para a cozinha na hora e é cobrado na maquininha enquanto isso."}
+                      </span>
+                    </span>
+                    <Switch
+                      checked={config.kitchenAfterPayment}
+                      onCheckedChange={(checked) => change({ kitchenAfterPayment: checked })}
+                      aria-label="Mandar para a cozinha só depois do pagamento na maquininha"
                     />
                   </label>
                 </li>

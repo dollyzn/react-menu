@@ -33,7 +33,14 @@ so no second application is needed.
   `point_payment_types` (credit_card, debit_card, qr),
   `point_max_installments` and `point_print_ticket`.
 - **The charge is an action on an order**, not a payment method chosen when
-  it is created. A POS order goes to the kitchen at once, as before. "Enviar
+  it is created. A POS order goes to the kitchen at once, as before, unless
+  the store turns on "Cozinha só depois do pagamento"
+  (`point_kitchen_after_payment`, added later: a card refused after the
+  kitchen started got in the way). Then the order charged from the ticket
+  stays `pending_payment` like an online one and goes to the kitchen on the
+  approval; a refusal leaves it on the board to be charged again, received
+  another way, or discarded by the counter; left alone, the unpaid-order
+  expiry cancels it. "Enviar
   e cobrar na maquininha" opens the charge dialog on the ticket. The order is
   created only when the charge is sent, so closing the dialog before that
   leaves the ticket as it was. The dialog doesn't close on a tap outside,

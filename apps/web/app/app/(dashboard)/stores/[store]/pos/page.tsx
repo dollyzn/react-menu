@@ -310,11 +310,13 @@ export default function PosPage() {
    * The ticket becomes an order (it goes to the kitchen) and the ticket
    * empties. Re-sending after a dropped connection never creates a second.
    */
-  const createFromTicket = async (counterMethod?: CounterPaymentMethod) => {
+  const createFromTicket = async (counterMethod?: CounterPaymentMethod, { payOnMachine = false } = {}) => {
     const input = {
       customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
       // Paid as it was sent (cash, Pix, credit, debit); left out: received later.
       ...(counterMethod ? { counterMethod } : {}),
+      // Charged on the card machine next: the store may hold it from the kitchen until approved.
+      ...(payOnMachine ? { payOnMachine } : {}),
       lines: linesInput(lines),
     };
     const keyScope = `pos:${storeId}`;
@@ -455,7 +457,7 @@ export default function PosPage() {
    */
   const [chargingTicket, setChargingTicket] = useState<{
     total: number;
-    create: () => Promise<{ id: string; number: number; total: number }>;
+    create: () => Promise<{ id: string; number: number; total: number; status: Order["status"] }>;
   } | null>(null);
   /**
    * "Enviar pago em": the method can't be changed once the order goes, so a
@@ -479,14 +481,15 @@ export default function PosPage() {
             const order = await addFromTicket(addTo);
             // The ticket went into the order: the next customer starts a new one.
             leaveAdding();
-            return { id: order.id, number: order.number, total: order.amountDue };
+            return { id: order.id, number: order.number, total: order.amountDue, status: order.status };
           } catch (error) {
             if (addRefused(error, addTo)) setChargingTicket(null);
             throw error;
           }
         }
-        const order = await createFromTicket();
-        return { id: order.id, number: order.number, total: order.total };
+        const order = await createFromTicket(undefined, { payOnMachine: true });
+        // The status says whether the store held it from the kitchen until paid.
+        return { id: order.id, number: order.number, total: order.total, status: order.status };
       },
     });
 
@@ -511,6 +514,8 @@ export default function PosPage() {
     onClear: clearTicket,
     onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
     onSendAndCharge: canCharge ? sendAndCharge : undefined,
+    // The store sends a machine order to the kitchen only once it is approved.
+    chargeFirst: Boolean(point?.kitchenAfterPayment) && !addTo,
     sending,
     blocked,
     addingTo: addTo,
@@ -854,6 +859,7 @@ function Ticket({
   onClear,
   onSend,
   onSendAndCharge,
+  chargeFirst = false,
   sending,
   blocked,
   addingTo,
@@ -878,6 +884,8 @@ function Ticket({
   onSend: (method?: CounterPaymentMethod) => void;
   /** With a card machine on: send, then charge it there. */
   onSendAndCharge?: () => void;
+  /** The machine charges first; the kitchen gets the order once it is approved. */
+  chargeFirst?: boolean;
   sending: boolean;
   /** Nothing can be sent (the order being added to isn't ready for it). */
   blocked: boolean;
@@ -1029,7 +1037,12 @@ function Ticket({
         </div>
         {onSendAndCharge && (
           <Button size="lg" className="h-12 w-full rounded-xl text-base" disabled={lines.length === 0 || sending || blocked} onClick={onSendAndCharge}>
-            <SmartphoneNfc /> {addingTo ? "Adicionar e cobrar na maquininha" : "Enviar e cobrar na maquininha"}
+            <SmartphoneNfc />{" "}
+            {addingTo
+              ? "Adicionar e cobrar na maquininha"
+              : chargeFirst
+                ? "Cobrar na maquininha e enviar"
+                : "Enviar e cobrar na maquininha"}
           </Button>
         )}
         {/* Already paid another way: confirmed in a dialog (the method can't change afterwards). */}

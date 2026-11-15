@@ -41,7 +41,10 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [receiving, setReceiving] = useState(false);
   // Cancelling refunds a paid order: managers only (the API refuses the rest).
-  const canCancel = useStoreRole(storeId) === "manager";
+  // The counter may drop one still waiting for its payment with nothing
+  // received (the card was refused on the machine and it never reached the kitchen).
+  const discard = order.status === "pending_payment" && order.amountPaid <= 0;
+  const canCancel = useStoreRole(storeId) === "manager" || discard;
 
   const waiting = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60_000));
   const late = waiting >= etaMinutes && order.status !== "ready";
@@ -150,7 +153,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                 )}
                 {canCancel && (
                   <DropdownMenuItem variant="destructive" onClick={() => setConfirmCancel(true)}>
-                    <Ban /> Cancelar pedido
+                    <Ban /> {discard ? "Descartar pedido" : "Cancelar pedido"}
                   </DropdownMenuItem>
                 )}
               </DropdownMenuContent>
@@ -169,17 +172,19 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         open={confirmCancel}
         onOpenChange={setConfirmCancel}
         loading={cancelling}
-        title={`Cancelar o pedido #${order.number}?`}
+        title={discard ? `Descartar o pedido #${order.number}?` : `Cancelar o pedido #${order.number}?`}
         description={
-          order.amountPaid > 0
+          discard
+            ? "O pedido ainda não foi para a cozinha e nada foi pago. Ele sai do quadro. Esta ação não pode ser desfeita."
+            : order.amountPaid > 0
             ? "O pedido sai da cozinha e o estoque usado é devolvido. Pagamentos online e na maquininha voltam sozinhos; o que foi recebido no balcão, devolva em mãos. Esta ação não pode ser desfeita."
             : "O pedido sai da cozinha e o estoque usado é devolvido. Esta ação não pode ser desfeita."
         }
-        confirmLabel="Cancelar pedido"
+        confirmLabel={discard ? "Descartar pedido" : "Cancelar pedido"}
         onConfirm={async () => {
           await cancel({ storeId, orderId: order.id }).unwrap();
           setConfirmCancel(false);
-          toast.success(`Pedido #${order.number} cancelado`);
+          toast.success(`Pedido #${order.number} ${discard ? "descartado" : "cancelado"}`);
         }}
       />
     </motion.article>

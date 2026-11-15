@@ -17,7 +17,7 @@ import {
   Wallet,
   X,
 } from "lucide-react";
-import type { PointCharge, PointPaymentType } from "@react-menu/contracts";
+import type { OrderStatus, PointCharge, PointPaymentType } from "@react-menu/contracts";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { Button } from "@/components/ui/button";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -74,7 +74,13 @@ const POLL_MS = 2000;
 /** Every this many polls, ask Mercado Pago too (the webhook may be slow or blocked). */
 const CHECK_EVERY = 5;
 
-type ChargeOrder = { id: string; number: number; total: number };
+type ChargeOrder = {
+  id: string;
+  number: number;
+  total: number;
+  /** As the API left it: `pending_payment` = held from the kitchen until paid. */
+  status?: OrderStatus;
+};
 
 /** A ticket not sent yet: the order is created only on "Enviar para a maquininha". */
 type Prepare = { total: number; create: () => Promise<ChargeOrder> };
@@ -170,6 +176,12 @@ function ChargeFlow({
   const [cancel, { isLoading: cancelling }] = useCancelPointChargeMutation();
   const [simulate, { isLoading: simulating }] = useSimulatePointChargeMutation();
 
+  /**
+   * Created from the POS ticket and held by the API ("Cozinha só depois do
+   * pagamento"): the kitchen sees it once this charge is approved. Read from
+   * the order itself, not the setting, so the text matches what happened.
+   */
+  const held = created?.status === "pending_payment";
   const types = config?.paymentTypes ?? [];
   const choices: Choice[] = types;
   const [choice, setChoice] = useState<Choice | null>(null);
@@ -242,7 +254,8 @@ function ChargeFlow({
     setBusy(null);
     let target = order;
     if (!target) {
-      // The ticket becomes an order now (it goes to the kitchen, as "Enviar" does).
+      // The ticket becomes an order now: in the kitchen at once, as "Enviar"
+      // does, or (held) once the machine approves it.
       setCreating(true);
       try {
         target = await prepare!.create();
@@ -521,7 +534,13 @@ function ChargeFlow({
                   </p>
                 )}
               </div>
-              <Footer hint="A cobrança continua na maquininha e fica na barra “Na maquininha”.">
+              <Footer
+                hint={
+                  held
+                    ? "O pedido vai para a cozinha quando o pagamento for aprovado. A cobrança continua na maquininha e fica na barra “Na maquininha”."
+                    : "A cobrança continua na maquininha e fica na barra “Na maquininha”."
+                }
+              >
                 {/* Once on the machine only the machine cancels it: no button that can't. */}
                 <div className={cn("grid w-full gap-2", !onTerminalCharges.has(charge.id) && "grid-cols-2")}>
                   {!onTerminalCharges.has(charge.id) && (
@@ -547,7 +566,11 @@ function ChargeFlow({
               <Outcome
                 tone="success"
                 title="Pagamento aprovado"
-                text={`Pedido #${charge.order.number} pago na ${machine}.`}
+                text={
+                  held
+                    ? `Pedido #${charge.order.number} pago na ${machine} e enviado para a cozinha.`
+                    : `Pedido #${charge.order.number} pago na ${machine}.`
+                }
               />
               <Footer>
                 <Button size="lg" className="h-12 w-full rounded-xl text-base" onClick={onClose}>
@@ -562,7 +585,11 @@ function ChargeFlow({
               <Outcome
                 tone={step === "rejected" ? "danger" : "muted"}
                 title={step === "rejected" ? "Pagamento recusado" : "Cobrança encerrada"}
-                text={chargeProblem(charge)}
+                text={
+                  held
+                    ? `${chargeProblem(charge)} O pedido ainda não foi para a cozinha: tente de novo, ou receba de outro jeito no quadro de pedidos.`
+                    : chargeProblem(charge)
+                }
               />
               <Footer>
                 <Button size="lg" className="h-12 w-full rounded-xl text-base" onClick={() => setCharge(null)}>

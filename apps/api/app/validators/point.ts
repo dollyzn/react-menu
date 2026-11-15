@@ -13,6 +13,7 @@ const pointSettingsValidator = vine.create(
     paymentTypes: vine.array(vine.enum(POINT_PAYMENT_TYPES)).minLength(1).distinct(),
     maxInstallments: vine.number().withoutDecimals().min(1).max(12),
     printTicket: vine.boolean(),
+    kitchenAfterPayment: vine.boolean().optional(),
   })
 )
 

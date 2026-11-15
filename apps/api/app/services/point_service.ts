@@ -150,6 +150,11 @@ export default class PointService {
     if ((order.paymentStatus as PaymentStatus) === PaymentStatus.PAID) {
       throw new AppException('Este pedido já está pago.', 409, 'E_NOT_PAYABLE')
     }
+    // Held from the kitchen until paid ("Cozinha só depois do pagamento"):
+    // its stock isn't taken yet, so it is checked before the customer pays.
+    if (order.status === OrderStatus.PENDING_PAYMENT) {
+      await this.payments.assertStillInStock(order, store)
+    }
     if (!store.pointPaymentTypes.includes(input.paymentType)) {
       throw new AppException('Esta forma de pagamento não está ativa na maquininha.', 422)
     }
@@ -312,15 +317,7 @@ export default class PointService {
 
   /** The order's charge still waiting on a machine, if any. */
   async pending(order: Order) {
-    return await Payment.query()
-      .where({
-        orderId: order.id,
-        method: PaymentMethod.POINT,
-        status: PaymentAttemptStatus.PENDING,
-      })
-      .where('expiresAt', '>', DateTime.now().toSQL()!)
-      .orderBy('createdAt', 'desc')
-      .first()
+    return await Payment.waitingOnMachine(order.id)
   }
 
   /** One of the order's machine charges (the POS follows it). */
