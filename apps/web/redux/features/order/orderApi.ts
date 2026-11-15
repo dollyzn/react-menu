@@ -10,6 +10,8 @@ import type {
   CustomerSuggestion,
   Order,
   OrderStatus,
+  PayLaterInput,
+  PayLaterOrder,
   ProductionBatch,
 } from "@react-menu/contracts";
 
@@ -39,6 +41,23 @@ export const orderApi = baseApi.injectEndpoints({
           sort: sort?.slice(0, 1),
         }),
       providesTags: (_res, _err, { storeId }) => [ordersTag(storeId)],
+    }),
+
+    /** Managers: "Pagar depois" (fiado) still open, any day, oldest first. */
+    getPayLaterOrders: build.query<PayLaterOrder[], string>({
+      query: (storeId) => `stores/${storeId}/orders/pay-later`,
+      // Receiving or marking one invalidates the store's orders; so do realtime events.
+      providesTags: (_res, _err, storeId) => [ordersTag(storeId)],
+    }),
+
+    /** "Pagar depois" on an order sent unpaid (the phone when it has none). */
+    markPayLater: build.mutation<Order, { storeId: string; orderId: string; phone?: string }>({
+      query: ({ storeId, orderId, phone }) => ({
+        url: `stores/${storeId}/orders/${orderId}/pay-later`,
+        method: "POST",
+        body: (phone ? { phone } : {}) satisfies PayLaterInput,
+      }),
+      invalidatesTags: (_res, _err, { storeId, orderId }) => [ordersTag(storeId), orderTag(orderId)],
     }),
 
     /** One order with its status history (who changed what). */
@@ -129,6 +148,8 @@ export const {
   useGetOrdersQuery,
   useGetOrdersPageQuery,
   useGetOrderQuery,
+  useGetPayLaterOrdersQuery,
+  useMarkPayLaterMutation,
   useSearchCustomersQuery,
   useCreatePosOrderMutation,
   useAddOrderItemsMutation,

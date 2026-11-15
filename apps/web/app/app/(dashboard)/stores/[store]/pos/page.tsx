@@ -8,9 +8,10 @@ import Image from "@/components/app/image";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { toast } from "sonner";
-import { Clock, ListPlus, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed, X } from "lucide-react";
+import { Clock, HandCoins, ListPlus, Minus, Pencil, Phone, Plus, ReceiptText, SearchX, SlidersHorizontal, SmartphoneNfc, Trash2, UtensilsCrossed, X } from "lucide-react";
 import type { CounterPaymentMethod } from "@react-menu/contracts";
 import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
+import { PayLaterDialog } from "@/components/app/payments/pay-later-dialog";
 import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
 import type { Order, PointCharge, PublicMenuItem } from "@react-menu/contracts";
 import { ItemCustomizer, rebuildLine, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
@@ -310,13 +311,19 @@ export default function PosPage() {
    * The ticket becomes an order (it goes to the kitchen) and the ticket
    * empties. Re-sending after a dropped connection never creates a second.
    */
-  const createFromTicket = async (counterMethod?: CounterPaymentMethod, { payOnMachine = false } = {}) => {
+  const createFromTicket = async (
+    counterMethod?: CounterPaymentMethod,
+    { payOnMachine = false, payLater = false, phone }: { payOnMachine?: boolean; payLater?: boolean; phone?: string } = {}
+  ) => {
     const input = {
-      customer: { name: customerName.trim() || "Balcão", phone: customerPhone || undefined },
+      // "Pagar depois" asks the phone in its dialog (who to charge).
+      customer: { name: customerName.trim() || "Balcão", phone: phone || customerPhone || undefined },
       // Paid as it was sent (cash, Pix, credit, debit); left out: received later.
       ...(counterMethod ? { counterMethod } : {}),
       // Charged on the card machine next: the store may hold it from the kitchen until approved.
       ...(payOnMachine ? { payOnMachine } : {}),
+      // "Pagar depois" (fiado): handed over unpaid, settled another day.
+      ...(payLater ? { payLater } : {}),
       lines: linesInput(lines),
     };
     const keyScope = `pos:${storeId}`;
@@ -450,6 +457,30 @@ export default function PosPage() {
     }
   };
 
+  /** "Pagar depois" (fiado): the dialog asks the phone, then the order goes. */
+  const [payingLater, setPayingLater] = useState(false);
+  const [payLaterError, setPayLaterError] = useState<string | null>(null);
+  const payingLaterTotal = useLastValue(total, () => payingLater);
+  const payingLaterName = useLastValue(customerName.trim() || "Balcão", () => payingLater);
+  const sendPayLater = async (phone: string) => {
+    if (blocked || addTo) return;
+    setPayLaterError(null);
+    try {
+      const order = await createFromTicket(undefined, { payLater: true, phone });
+      setPayingLater(false);
+      toast.success(`Pedido #${order.number} enviado · pagar depois`, POS_TOAST);
+    } catch (error) {
+      if (errorCode(error) === "E_IDEMPOTENCY_KEY_REUSED" || isConnectionError(error)) {
+        setPayingLater(false);
+        sendFailed(error, { scope: `pos:${storeId}`, adding: false });
+        return;
+      }
+      setPayLaterError(
+        getErrorMessage(error as { data?: { error?: string } }, "Não foi possível enviar o pedido.")
+      );
+    }
+  };
+
   /**
    * "Enviar e cobrar na maquininha": the dialog opens on the ticket as it
    * is; the order is created only when the charge is sent, so closing the
@@ -514,6 +545,10 @@ export default function PosPage() {
     onClear: clearTicket,
     onSend: (method?: CounterPaymentMethod) => (method ? setPaying(method) : void send()),
     onSendAndCharge: canCharge ? sendAndCharge : undefined,
+    onPayLater: () => {
+      setPayLaterError(null);
+      setPayingLater(true);
+    },
     // The store sends a machine order to the kitchen only once it is approved.
     chargeFirst: Boolean(point?.kitchenAfterPayment) && !addTo,
     sending,
@@ -707,6 +742,18 @@ export default function PosPage() {
         )}
       </ResponsiveModal>
 
+      <PayLaterDialog
+        open={payingLater}
+        onClose={() => setPayingLater(false)}
+        badge={`Novo pedido · ${payingLaterName}`}
+        total={payingLaterTotal}
+        phone={customerPhone || null}
+        verb="Enviar para pagar depois"
+        busy={sending}
+        error={payLaterError}
+        onConfirm={(phone) => void sendPayLater(phone)}
+      />
+
       <ReceivePaymentDialog
         open={paying !== null}
         onClose={() => setPaying(null)}
@@ -859,6 +906,7 @@ function Ticket({
   onClear,
   onSend,
   onSendAndCharge,
+  onPayLater,
   chargeFirst = false,
   sending,
   blocked,
@@ -886,6 +934,8 @@ function Ticket({
   onSendAndCharge?: () => void;
   /** The machine charges first; the kitchen gets the order once it is approved. */
   chargeFirst?: boolean;
+  /** "Pagar depois" (fiado): opens its dialog (the phone), then sends. */
+  onPayLater: () => void;
   sending: boolean;
   /** Nothing can be sent (the order being added to isn't ready for it). */
   blocked: boolean;
@@ -1068,15 +1118,28 @@ function Ticket({
             })}
           </div>
         </div>
-        <Button
-          variant="ghost"
-          className="w-full text-muted-foreground"
-          disabled={lines.length === 0 || blocked}
-          loading={sending}
-          onClick={() => onSend()}
-        >
-          <Clock /> {addingTo ? "Adicionar e receber depois" : "Enviar e receber depois"}
-        </Button>
+        {/* Unpaid now: at pickup (the counter receives it), or another day (fiado). */}
+        <div className={cn("grid gap-1.5", !addingTo && "grid-cols-2")}>
+          <Button
+            variant="ghost"
+            className="w-full px-2 text-muted-foreground"
+            disabled={lines.length === 0 || blocked}
+            loading={sending}
+            onClick={() => onSend()}
+          >
+            <Clock /> {addingTo ? "Adicionar e receber depois" : "Enviar e receber depois"}
+          </Button>
+          {!addingTo && (
+            <Button
+              variant="ghost"
+              className="w-full px-2 text-muted-foreground"
+              disabled={lines.length === 0 || blocked || sending}
+              onClick={onPayLater}
+            >
+              <HandCoins /> Pagar depois (fiado)
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );

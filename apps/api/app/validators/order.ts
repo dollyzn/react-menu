@@ -79,6 +79,15 @@ const posOrderValidator = vine.create(
     counterMethod: vine.enum(COUNTER_PAYMENT_METHODS).optional(),
     /** About to be charged on the card machine (the store may hold it until approved). */
     payOnMachine: vine.boolean().optional(),
+    /** "Pagar depois" (fiado): handed over unpaid, settled another day (needs the phone). */
+    payLater: vine.boolean().optional(),
+  })
+)
+
+/** "Pagar depois" on an order already sent: the phone when the order has none. */
+const payLaterValidator = vine.create(
+  vine.object({
+    phone: vine.string().trim().maxLength(25).optional(),
   })
 )
 
@@ -158,6 +167,7 @@ export {
   publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,
+  payLaterValidator,
   addOrderItemsValidator,
   receivePaymentValidator,
   orderPushValidator,

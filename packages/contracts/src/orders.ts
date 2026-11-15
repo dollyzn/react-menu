@@ -77,6 +77,11 @@ export type Order = {
   paidAt: string | null;
   /** Who received a counter payment. */
   paidById: string | null;
+  /**
+   * "Pagar depois" (fiado): when it was sent that way. Handed over unpaid and
+   * settled another day; open while `paymentStatus` isn't `paid`.
+   */
+  payLaterAt: string | null;
   subtotal: number;
   total: number;
   /** Received so far (all receipts); paid when it covers the total. */
@@ -251,7 +256,20 @@ export type CreatePosOrderInput = {
   notes?: string;
   /** Paid as it was sent; left out: paid later or on the card machine. */
   counterMethod?: CounterPaymentMethod;
+  /** About to be charged on the card machine (the store may hold it from the kitchen). */
+  payOnMachine?: boolean;
+  /** "Pagar depois" (fiado): handed over unpaid, settled another day; needs the phone. */
+  payLater?: boolean;
 };
+
+/** GET /orders/pay-later (managers): open "pagar depois" orders, any day, oldest first. */
+export type PayLaterOrder = Order & {
+  /** Who sent it as "pagar depois". */
+  payLaterBy: { id: string; name: string | null } | null;
+};
+
+/** POST /orders/:id/pay-later: the phone when the order has none. */
+export type PayLaterInput = { phone?: string };
 
 /** POST /orders/:id/items: items added to an order still in the queue. */
 export type AddOrderItemsInput = {

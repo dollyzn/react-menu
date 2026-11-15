@@ -8,6 +8,11 @@ const CustomersController = () => import('#controllers/customers_controller')
 export default function registerStoreOrderRoutes() {
   router.get('/orders', [OrdersController, 'index']).as('orders.index')
   router.post('/orders', [OrdersController, 'store']).as('orders.store').use(frontOfHouse)
+  // "Pagar depois" (fiado) still open, any day: managers (before /:orderId).
+  router
+    .get('/orders/pay-later', [OrdersController, 'payLaterList'])
+    .as('orders.payLater.index')
+    .use(managersOnly)
   router.get('/orders/:orderId', [OrdersController, 'show']).as('orders.show')
   router
     .post('/orders/:orderId/complete', [OrdersController, 'complete'])
@@ -28,6 +33,11 @@ export default function registerStoreOrderRoutes() {
   router
     .post('/orders/:orderId/items', [OrdersController, 'addItems'])
     .as('orders.addItems')
+    .use(frontOfHouse)
+  // An order sent unpaid becomes "pagar depois" (front of house, like the POS).
+  router
+    .post('/orders/:orderId/pay-later', [OrdersController, 'payLater'])
+    .as('orders.payLater')
     .use(frontOfHouse)
   router
     .post('/orders/:orderId/payment', [OrdersController, 'markPaid'])
