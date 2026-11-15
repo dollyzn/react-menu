@@ -14,7 +14,7 @@ import {
   type OpeningInterval,
 } from '#helpers/opening_hours'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
-import { broadcastStoreEvent } from '#helpers/realtime'
+import { broadcastMenuChanged, broadcastStoreEvent } from '#helpers/realtime'
 import StoreRepository from '#repositories/store_repository'
 import NotificationService from '#services/notification_service'
 import type User from '#models/user'
@@ -50,9 +50,12 @@ export default class StoreService {
   }
 
   async update(id: string, data: Partial<Store>) {
-    return await db.transaction(async (trx) => {
+    const store = await db.transaction(async (trx) => {
       return await this.repo.update(id, data, trx)
     })
+    // Stock tracking on or off changes what the menu offers.
+    if (data.inventoryEnabled !== undefined) broadcastMenuChanged(id)
+    return store
   }
 
   /**

@@ -1,5 +1,6 @@
 import "server-only";
 import type { ApiSuccess, PublicMenu } from "@react-menu/contracts";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { serverApiBase, visitorHeaders } from "@/lib/server-api";
 import { STORE_SLUG } from "@/utils/string";
@@ -12,7 +13,9 @@ import { STORE_SLUG } from "@/utils/string";
 export async function fetchMenu(slug?: string, { track = true } = {}): Promise<PublicMenu | null> {
   // Not a store's slug (a scanner trying /config.json): no need to ask the API.
   if (slug !== undefined && !STORE_SLUG.test(slug)) return null;
-  const query = track ? "" : "?preview=1";
+  // A visit is a page load: the menu re-reading itself while open (an RSC
+  // refresh, see MenuView) or moving around the app isn't another visitor.
+  const query = track && !(await headers()).get("rsc") ? "" : "?preview=1";
   const response = await fetch(`${serverApiBase()}public/menu${slug ? `/${slug}` : ""}${query}`, {
     cache: "no-store",
     headers: await visitorHeaders(),

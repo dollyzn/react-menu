@@ -1,3 +1,4 @@
+import { broadcastMenuChanged } from '#helpers/realtime'
 import { inject } from '@adonisjs/core'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import db from '@adonisjs/lucid/services/db'
@@ -86,7 +87,7 @@ export default class ItemService {
     id: string,
     data: Partial<Item> & { addonIds?: string[]; optionGroupIds?: string[] }
   ) {
-    return await db.transaction(async (trx) => {
+    const updated = await db.transaction(async (trx) => {
       const current = await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       const { addonIds, optionGroupIds, ...itemData } = data
       if (itemData.categoryId !== undefined && itemData.categoryId !== current.categoryId) {
@@ -116,6 +117,8 @@ export default class ItemService {
       await item.load('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
       return item
     })
+    broadcastMenuChanged(storeId)
+    return updated
   }
 
   async reorderInCategory(storeId: string, categoryId: number, ids: string[]) {
@@ -165,7 +168,7 @@ export default class ItemService {
     if (changes.some((change) => change.price !== undefined && change.price <= 0)) {
       throw new AppException('O preço de um item deve ser maior que zero.', 422, 'E_INVALID_PRICE')
     }
-    return await db.transaction(async (trx) => {
+    const saved = await db.transaction(async (trx) => {
       const items = await Item.query({ client: trx })
         .whereIn(
           'id',
@@ -177,6 +180,8 @@ export default class ItemService {
         .forUpdate()
       return await applyBulkChanges(items, changes, trx)
     })
+    broadcastMenuChanged(storeId)
+    return saved
   }
 
   async bulkDeleteForStore(storeId: string, ids: string[]) {

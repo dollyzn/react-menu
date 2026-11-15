@@ -1,3 +1,4 @@
+import { broadcastMenuChanged } from '#helpers/realtime'
 import { inject } from '@adonisjs/core'
 import type { MultipartFile } from '@adonisjs/core/bodyparser'
 import db from '@adonisjs/lucid/services/db'
@@ -49,10 +50,12 @@ export default class AddonService {
   }
 
   async updateInStore(storeId: string, id: string, data: Partial<Addon>) {
-    return await db.transaction(async (trx) => {
+    const addon = await db.transaction(async (trx) => {
       await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       return await this.repo.update(id, data, trx)
     })
+    broadcastMenuChanged(storeId)
+    return addon
   }
 
   async removeInStore(storeId: string, id: string) {
@@ -83,7 +86,7 @@ export default class AddonService {
 
   /** Prices/availability of many add-ons at once, all or nothing (see applyBulkChanges). */
   async bulkUpdateForStore(storeId: string, changes: BulkChange[]) {
-    return await db.transaction(async (trx) => {
+    const saved = await db.transaction(async (trx) => {
       const addons = await Addon.query({ client: trx })
         .whereIn(
           'id',
@@ -93,6 +96,8 @@ export default class AddonService {
         .forUpdate()
       return await applyBulkChanges(addons, changes, trx)
     })
+    broadcastMenuChanged(storeId)
+    return saved
   }
 
   async bulkDeleteForStore(storeId: string, ids: string[]) {

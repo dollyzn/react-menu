@@ -154,16 +154,33 @@ export default class TwoFactorService {
     return { challenge: await this.describe(row.id) }
   }
 
-  /** The pending challenge of this browser (the login page after Google). */
   /** Who the pending second step is for (refused like `verify` when there's none). */
   async pendingUser(ctx: Ctx) {
     const row = await this.findChallenge(ctx)
     return await User.findOrFail(row.user_id)
   }
 
+  /** The pending challenge of this browser (the login page after Google). */
   async current(ctx: Ctx) {
     const row = await this.findChallenge(ctx)
     return this.describe(row.id)
+  }
+
+  /**
+   * The challenge waiting in this browser, or null: none, expired, or locked
+   * by too many wrong codes (nothing the person could finish).
+   */
+  async pending(ctx: Ctx) {
+    const token = ctx.request.cookie(CHALLENGE_COOKIE)
+    if (!token) return null
+    const row: ChallengeRow | null = await db
+      .from('login_challenges')
+      .where('token_hash', sha256(token))
+      .whereNull('consumed_at')
+      .where('expires_at', '>', new Date())
+      .where('attempts', '<', MAX_ATTEMPTS)
+      .first()
+    return row ? await this.describe(row.id) : null
   }
 
   /**

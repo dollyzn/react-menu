@@ -18,29 +18,37 @@ export function useStoreRealtime(storeId: string) {
     const transmit = getTransmit();
     const subscription = transmit.subscription(`stores/${storeId}`);
 
+    // The menu as the panel sees it (availability, "Restam N") and the stock list.
+    const menuTags = [
+      { type: "Item" as const, id: "PUBLIC_MENU" },
+      { type: "Ingredient" as const, id: `store-${storeId}` },
+    ];
+    // Back after a gap: anything missed is read again, the menu included.
     const refresh = () =>
       dispatch(
         baseApi.util.invalidateTags([
           { type: "Store", id: storeId },
           { type: "Order", id: `store-${storeId}` },
           { type: "Kitchen", id: storeId },
+          ...menuTags,
         ])
       );
 
-    // Orders consume stock and stock counts change it: the menus open here
-    // (the POS) read what is still available again, or a sold-out item stays
-    // on sale until someone reloads.
-    const menuTag = { type: "Item" as const, id: "PUBLIC_MENU" };
     const stopListening = subscription.onMessage<StoreEvent>((event) => {
       if (event.type === "store.status_changed") refresh();
-      else if (event.type === "stock.changed")
-        dispatch(baseApi.util.invalidateTags([menuTag, { type: "Ingredient", id: `store-${storeId}` }]));
+      // Sold out by hand, a stock count, a recipe: what can be sold changed.
+      else if (event.type === "stock.changed" || event.type === "menu.changed")
+        dispatch(baseApi.util.invalidateTags(menuTags));
       else
         dispatch(
           baseApi.util.invalidateTags([
             { type: "Order", id: `store-${storeId}` },
             { type: "Kitchen", id: storeId },
-            menuTag,
+            // Stock moves when an order is placed, gets items or is
+            // cancelled; not on every kitchen tap, payment or hand-over.
+            ...(event.type === "order.created" || event.status === "received" || event.status === "cancelled"
+              ? menuTags
+              : []),
           ])
         );
     });

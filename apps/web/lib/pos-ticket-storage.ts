@@ -43,3 +43,14 @@ export function saveTicket(storeId: string, ticket: Omit<SavedTicket, "savedAt">
     // Without storage the ticket lives only on this screen.
   }
 }
+
+/** Signing out: a ticket (with a customer's name and phone) doesn't outlive the session on the device. */
+export function clearSavedTickets() {
+  try {
+    for (const name of Object.keys(localStorage)) {
+      if (name.startsWith("pos-ticket:")) localStorage.removeItem(name);
+    }
+  } catch {
+    // Nothing kept, nothing to clear.
+  }
+}

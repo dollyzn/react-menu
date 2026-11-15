@@ -13,7 +13,7 @@ import type { CounterPaymentMethod } from "@react-menu/contracts";
 import { ReceivePaymentDialog } from "@/components/app/payments/receive-payment-dialog";
 import { COUNTER_METHOD_ORDER, COUNTER_METHODS, paidWith } from "@/components/app/payments/counter-methods";
 import type { Order, PointCharge, PublicMenuItem } from "@react-menu/contracts";
-import { ItemCustomizer, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
+import { ItemCustomizer, rebuildLine, type CustomizedLine } from "@/app/(menu)/_components/item-detail";
 import { AnimatedPrice } from "@/components/app/animated-price";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
 import { SearchInput } from "@/components/app/search-input";
@@ -146,30 +146,51 @@ export default function PosPage() {
    */
   const hydrated = useHydrated();
   const [restoredFor, setRestoredFor] = useState<string | null>(null);
-  /** Units brought back, for the "Comanda recuperada" toast. */
-  const [recovered, setRecovered] = useState(0);
-  // Not while adding to an order: a ticket kept for another customer must
-  // never go into it. Nor over a ticket already on screen (left "adding").
+  /** What came back, for the "Comanda recuperada" toast. */
+  const [recovered, setRecovered] = useState<{ units: number; dropped: number } | null>(null);
+  /**
+   * A ticket was already on screen (left "adding" with its lines, as a new
+   * order) while another was kept: the kept one waits, unsaved over, until
+   * this one goes.
+   */
+  const [keptAside, setKeptAside] = useState(false);
+  const restoreKept = () => {
+    const saved = readTicket(storeId);
+    if (!saved) return;
+    const kept = saved.lines.flatMap((line) => {
+      const item = itemsById.get(line.itemId);
+      const rebuilt = item ? rebuildLine(item, line) : null;
+      return rebuilt ? [rebuilt] : [];
+    });
+    if (kept.length === 0 && !saved.customerName) return;
+    setLines(kept);
+    setCustomerName(saved.customerName);
+    setCustomerPhone(saved.customerPhone);
+    setRecovered({
+      units: kept.reduce((sum, line) => sum + line.quantity, 0),
+      dropped: saved.lines.length - kept.length,
+    });
+  };
+  // Never while adding to an order: a ticket kept for another customer must
+  // not go into it.
   if (hydrated && menu && !addingTo && restoredFor !== storeId) {
     setRestoredFor(storeId);
-    const saved = lines.length === 0 ? readTicket(storeId) : null;
-    const kept = (saved?.lines ?? []).flatMap((line) => {
-      const item = itemsById.get(line.itemId);
-      return item ? [{ ...line, name: item.name, unitPrice: item.price }] : [];
-    });
-    if (saved && (kept.length > 0 || saved.customerName)) {
-      setLines(kept);
-      setCustomerName(saved.customerName);
-      setCustomerPhone(saved.customerPhone);
-      setRecovered(kept.reduce((sum, line) => sum + line.quantity, 0));
-    }
+    if (lines.length === 0) restoreKept();
+    else if (readTicket(storeId)) setKeptAside(true);
+  }
+  if (keptAside && !addingTo && lines.length === 0) {
+    setKeptAside(false);
+    restoreKept();
   }
   useEffect(() => {
-    if (recovered === 0) return;
+    if (!recovered || (recovered.units === 0 && recovered.dropped === 0)) return;
+    const { units, dropped } = recovered;
     toast("Comanda recuperada", {
       ...POS_TOAST,
       id: "ticket-restored",
-      description: `${recovered} ${recovered === 1 ? "item" : "itens"} de antes`,
+      description:
+        `${units} ${units === 1 ? "item" : "itens"} de antes` +
+        (dropped > 0 ? ` · ${dropped} ${dropped === 1 ? "saiu" : "saíram"} (fora do cardápio agora)` : ""),
       action: {
         label: "Limpar",
         onClick: () => {
@@ -183,9 +204,9 @@ export default function PosPage() {
   useEffect(() => {
     // Not before restoring (the empty first render would erase what was
     // kept), and not while adding to an order (that ticket is the order's).
-    if (restoredFor !== storeId || addingTo) return;
+    if (restoredFor !== storeId || addingTo || keptAside) return;
     saveTicket(storeId, { lines, customerName, customerPhone });
-  }, [restoredFor, storeId, lines, customerName, customerPhone, addingTo]);
+  }, [restoredFor, storeId, lines, customerName, customerPhone, addingTo, keptAside]);
 
   /** Units the stock still allows for an item, after what the ticket holds (null = no limit). */
   const leftFor = (itemId: string) => unitsLeft(itemsById.get(itemId)?.stockLeft ?? null, inTicket.get(itemId) ?? 0);
@@ -1001,7 +1022,7 @@ function Ticket({
         </ul>
       )}
 
-      <div className={cn("flex flex-col gap-3 border-t bg-card p-4", inModal && "sticky bottom-0")}>
+      <div className={cn("flex flex-col gap-3 border-t bg-card p-4", inModal && "tall:sticky tall:bottom-0")}>
         <div className="flex items-center justify-between font-semibold">
           <span>{addingTo ? "A adicionar" : "Total"}</span>
           <AnimatedPrice value={total} className="text-xl" />

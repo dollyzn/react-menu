@@ -1,9 +1,10 @@
 "use client";
 
+import { googleSignInRecentlyStarted, readDismissed, rememberDismissed } from "@/lib/pending-sign-in";
 import { useSession } from "@/contexts/session-provider";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Controller, useForm } from "react-hook-form";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowBigUpDash, Eye, EyeOff, Lock, ShieldAlert, User } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -103,17 +104,29 @@ export function LoginForm({ socialProviders }: { socialProviders: SocialProvider
   // Google may finish where this page can't hear it: the installed app sends
   // it to a browser tab (the API is outside the app's scope) and reopens on
   // its start page, without ?etapa=codigo, while the code was already sent.
-  // So the page asks by itself when it opens and whenever it comes back.
-  // One the person turned down ("Voltar para o login") doesn't come back.
+  // So after a Google start on this device the page asks by itself when it
+  // opens and whenever it comes back (lib/pending-sign-in.ts). Not while a
+  // code step is on screen, and one question at a time.
   const [findPending] = useLazyPendingTwoFactorQuery();
+  const showing = useRef(false);
   useEffect(() => {
-    if (cameFromGoogle) return;
+    showing.current = current !== null;
+  }, [current]);
+  useEffect(() => {
+    let asking = false;
     const look = async () => {
-      if (document.visibilityState !== "visible") return;
-      const pending = (await findPending()).data?.twoFactor;
-      if (pending && pending.expiresAt !== readDismissed()) setChallenge((shown) => shown ?? pending);
+      if (document.visibilityState !== "visible" || showing.current || asking) return;
+      if (!googleSignInRecentlyStarted()) return;
+      asking = true;
+      try {
+        const pending = (await findPending()).data?.twoFactor;
+        if (pending && pending.expiresAt !== readDismissed()) setChallenge((shown) => shown ?? pending);
+      } finally {
+        asking = false;
+      }
     };
-    void look();
+    // Arriving with ?etapa=codigo the arrival query asks; later returns still look.
+    if (!cameFromGoogle) void look();
     document.addEventListener("visibilitychange", look);
     window.addEventListener("pageshow", look);
     return () => {
@@ -197,6 +210,8 @@ export function LoginForm({ socialProviders }: { socialProviders: SocialProvider
           transition={{ duration: 0.2 }}
         >
           <TwoFactorStep
+            // Another challenge (a newer sign-in) starts the step over.
+            key={current.expiresAt}
             challenge={current}
             onBack={() => {
               rememberDismissed(current.expiresAt);
@@ -347,21 +362,4 @@ export function LoginForm({ socialProviders }: { socialProviders: SocialProvider
     </AnimatePresence>
     </div>
   );
-}
-
-/** A pending code step the person turned down ("Voltar para o login"), for this tab. */
-const DISMISSED_KEY = "two-factor:dismissed";
-function readDismissed() {
-  try {
-    return sessionStorage.getItem(DISMISSED_KEY);
-  } catch {
-    return null;
-  }
-}
-function rememberDismissed(expiresAt: string) {
-  try {
-    sessionStorage.setItem(DISMISSED_KEY, expiresAt);
-  } catch {
-    // Without storage it may come back on the next visit, which is harmless.
-  }
 }

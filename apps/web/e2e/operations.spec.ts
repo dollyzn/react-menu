@@ -918,3 +918,44 @@ test("POS: a kept ticket never goes into an order being added to", async ({ page
   await expect(page.getByLabel("Nome do cliente")).toHaveValue("Guardada");
   await expect(ticket.getByRole("button", { name: new RegExp(`^Editar ${drink.name}`) })).toHaveCount(1);
 });
+
+test("POS: a kept ticket comes back at today's prices, and signing out forgets it", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await login(page, DEMO_STAFF.attendant);
+  const storePath = new URL(page.url()).pathname.replace(/\/orders$/, "");
+  const storeId = storePath.split("/")[3];
+  const menu = (await (await page.request.get(`${API_URL}/api/v1/public/menu?preview=1`)).json()).data;
+  const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
+
+  // A ticket kept before a price change (stored as it was then).
+  await page.goto(`${storePath}/pos`);
+  await page.evaluate(
+    ({ storeId, drink }) =>
+      localStorage.setItem(
+        `pos-ticket:${storeId}`,
+        JSON.stringify({
+          lines: [
+            { key: "kept-1", itemId: drink.id, name: "Nome antigo", photoUrl: null, unitPrice: 0.5, addons: [], notes: "", quantity: 2 },
+            { key: "kept-2", itemId: "item-que-saiu", name: "Saiu do cardápio", photoUrl: null, unitPrice: 9, addons: [], notes: "", quantity: 1 },
+          ],
+          customerName: "Antes",
+          customerPhone: "",
+          savedAt: Date.now(),
+        })
+      ),
+    { storeId, drink }
+  );
+  await page.reload();
+  await expect(page.getByText("Comanda recuperada")).toBeVisible();
+  await expect(page.getByText(/1 saiu/)).toBeVisible();
+  const ticket = page.getByRole("complementary", { name: "Comanda" });
+  await expect(ticket.getByRole("button", { name: new RegExp(`^Editar ${drink.name}`) })).toBeVisible();
+  await expect(ticket.getByText("Nome antigo")).toHaveCount(0);
+  await expect(ticket.getByText(new RegExp(`2 × R\\$\\s?${drink.price.toFixed(2).replace(".", ",")}`))).toBeVisible();
+
+  // Signing out: the customer's name and phone don't stay on the device.
+  await page.getByRole("button", { name: "Menu do usuário" }).click();
+  await page.getByRole("menuitem", { name: "Sair" }).click();
+  await expect(page).toHaveURL(/\/app\/login/, { timeout: 15_000 });
+  expect(await page.evaluate((id) => localStorage.getItem(`pos-ticket:${id}`), storeId)).toBeNull();
+});
