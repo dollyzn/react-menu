@@ -34,7 +34,7 @@ import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/strin
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
-import { CustomerAutocomplete } from "./customer-autocomplete";
+import { CustomerAutocomplete } from "@/components/app/customers/customer-autocomplete";
 import { addonLabels } from "@/lib/addon-label";
 import { lineAddonsInput } from "@/redux/slices/cart";
 import { readTicket, saveTicket } from "@/lib/pos-ticket-storage";
@@ -772,6 +772,7 @@ export default function PosPage() {
       </ResponsiveModal>
 
       <SendUnpaidDialog
+        storeId={storeId}
         open={sendingUnpaid}
         onClose={() => setSendingUnpaid(false)}
         badge={`Novo pedido · ${unpaidCount} ${unpaidCount === 1 ? "item" : "itens"}`}

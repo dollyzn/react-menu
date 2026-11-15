@@ -1,4 +1,6 @@
-import { test, expect, login, DEMO_STAFF } from "./fixtures";
+import { test, expect, login, apiSignIn, DEMO_STAFF } from "./fixtures";
+import { request as playwrightRequest } from "@playwright/test";
+import { API_URL, E2E_ADMIN } from "../playwright.config";
 
 test("pagar depois: sent as fiado, handed over unpaid, received later from the managers' list", async ({ page, browser }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -99,4 +101,38 @@ test("pagar depois: an order sent as \"receber depois\" becomes fiado from the c
   await card.getByRole("button", { name: "Entregar" }).click();
   await page.getByRole("alertdialog").getByRole("button", { name: "Sim, entregar" }).click();
   await expect(page.getByText(`Pedido #${number} entregue`)).toBeVisible();
+});
+
+test("pagar depois: who to charge comes from the store's customers, like the ticket", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const regular = `Cliente fiel ${Date.now() % 100000}`;
+  // A customer the store already knows (an earlier order with a phone), from
+  // its own API session (the page signs in as the attendant).
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drink = menu.categories
+    .flatMap((category: { items: { id: string; name: string }[] }) => category.items)
+    .find((item: { name: string }) => /^Coca-Cola/.test(item.name));
+  const known = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: regular, phone: "13955554444" }, lines: [{ itemId: drink.id, quantity: 1 }], counterMethod: "cash" },
+  });
+  expect(known.ok()).toBeTruthy();
+  await api.dispose();
+
+  await login(page, DEMO_STAFF.attendant);
+  await page.getByRole("link", { name: "Novo pedido" }).first().click();
+  await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
+  await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
+  await page.getByRole("button", { name: "Enviar e receber depois" }).click();
+  const asking = page.getByRole("dialog", { name: "Enviar sem receber agora" });
+  await asking.getByRole("button", { name: /^Pagar depois \(fiado\)/ }).click();
+  await asking.getByLabel("Quem vai pagar").fill(regular.slice(0, 12));
+  await asking.getByRole("option", { name: new RegExp(regular) }).click();
+  await expect(asking.getByLabel("Quem vai pagar")).toHaveValue(regular);
+  await expect(asking.getByLabel("Celular com DDD")).toHaveValue("(13) 95555-4444");
+  // Editing the name away drops the phone the pick filled.
+  await asking.getByLabel("Quem vai pagar").fill("Outra pessoa");
+  await expect(asking.getByLabel("Celular com DDD")).toHaveValue("");
+  await asking.getByRole("button", { name: "Voltar" }).click();
 });

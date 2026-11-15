@@ -206,6 +206,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
 
       {canOperate && (
         <SendUnpaidDialog
+          storeId={storeId}
           open={askingPayLater}
           onClose={() => setAskingPayLater(false)}
           badge={`Pedido #${order.number} · ${order.customerName}`}

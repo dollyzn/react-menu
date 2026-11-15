@@ -4,11 +4,12 @@ import { useMemo } from "react";
 import { Controller, useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Check, Clock, HandCoins, Phone, ReceiptText, TriangleAlert, User } from "lucide-react";
+import { Check, Clock, HandCoins, Phone, ReceiptText, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import { ResponsiveModal } from "@/components/app/responsive-modal";
+import { CustomerAutocomplete } from "@/components/app/customers/customer-autocomplete";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { cn } from "@/lib/utils";
 
@@ -51,10 +52,12 @@ type Values = z.infer<typeof Schema>;
  * Sending without receiving now, confirmed like the other payment methods:
  * "Receber na retirada" (the counter receives it on "Entregar") or "Pagar
  * depois (fiado)", which asks who to charge (name and phone) and leaves the
- * order in the managers' "Pagar depois". With one choice (an order already
- * sent), it opens straight on it.
+ * order in the managers' "Pagar depois". The name suggests the store's
+ * customers like the POS ticket (picking one fills the phone). With one
+ * choice (an order already sent), it opens straight on it.
  */
 export function SendUnpaidDialog({
+  storeId,
   open,
   onClose,
   badge,
@@ -67,6 +70,7 @@ export function SendUnpaidDialog({
   error,
   onConfirm,
 }: {
+  storeId: string;
   open: boolean;
   onClose: () => void;
   /** The pill over the amount ("Novo pedido · 2 itens", "Pedido #12 · Ana"). */
@@ -192,20 +196,29 @@ export function SendUnpaidDialog({
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
                     <FieldLabel htmlFor="unpaid-name">Quem vai pagar</FieldLabel>
-                    <InputGroup>
-                      <InputGroupAddon>
-                        <User />
-                      </InputGroupAddon>
-                      <InputGroupInput
-                        {...field}
-                        id="unpaid-name"
-                        autoComplete="off"
-                        maxLength={80}
-                        disabled={busy}
-                        placeholder="Nome do cliente"
-                        aria-invalid={fieldState.invalid}
-                      />
-                    </InputGroup>
+                    {/* Like the ticket: the store's customers by name or phone; a pick fills the phone. */}
+                    <CustomerAutocomplete
+                      storeId={storeId}
+                      id="unpaid-name"
+                      name={field.value}
+                      onNameChange={field.onChange}
+                      onPick={(customer) => {
+                        field.onChange(customer.name);
+                        form.setValue("phone", customer.phone, { shouldValidate: form.formState.isSubmitted });
+                      }}
+                      onUnpick={(customer) => {
+                        if (form.getValues("phone") === customer.phone) form.setValue("phone", "");
+                      }}
+                      onClear={() => {
+                        field.onChange("");
+                        form.setValue("phone", "");
+                      }}
+                      placeholder="Nome ou celular do cliente"
+                      inputClassName="h-9"
+                      invalid={fieldState.invalid}
+                      disabled={busy}
+                      inline
+                    />
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                   </Field>
                 )}
