@@ -14,6 +14,8 @@ const standalone =
 const nextConfig: NextConfig = {
   // Bottom-left is where the sidebar keeps the account menu.
   devIndicators: { position: "bottom-right" },
+  // Set by `next upgrade --agent=security` (Next.js 16.4.3 → 16.4.6).
+  experimental: { agentUpgrade: "security" },
   ...standalone,
   // E2E runs its own `next dev` in a separate build dir so it can coexist
   // with a developer's running dev server.
