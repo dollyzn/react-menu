@@ -54,10 +54,9 @@ test("pagar depois: sent as fiado, handed over unpaid, received later from the m
   await expect(owed.getByRole("link", { name: `WhatsApp de ${customer}` })).toHaveAttribute("href", "https://wa.me/5513988887777");
   // Searching (on the API, kept in the URL) by another phone hides it; by its own, it is back.
   const search = async (text: string) => {
-    await manager.getByText("Cliente, telefone ou número").first().click();
-    await manager.getByPlaceholder("Digite para filtrar...").fill(text);
-    await manager.getByPlaceholder("Digite para filtrar...").press("Enter");
-    await manager.keyboard.press("Escape");
+    const field = manager.getByRole("searchbox", { name: "Buscar por cliente, telefone ou número" });
+    await field.fill(text);
+    await field.press("Enter");
   };
   await search("00000000");
   await expect(owed).toBeHidden();

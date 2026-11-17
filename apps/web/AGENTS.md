@@ -108,6 +108,23 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   links keep the view; filter/sort changes go back to page 1. When writing
   the URL yourself use `history.replaceState(null, …)`: Next only syncs
   `useSearchParams` for app-made entries, not its own state object.
+- Desktop tables (`data-table-toolbar.tsx`): the searchable column as a field
+  (`data-table-search.tsx`, shared with phones; "/" focuses it), every filter
+  beside it, always on screen, "Limpar filtros" while one is set, the count
+  on the right. The table sits in one bordered card with its pagination
+  ("21–40 de 134", pages by number with "…", "Por página"; a new page
+  scrolls back to the list's top); the header sticks while a long page
+  scrolls inside it; pinned columns (TanStack `columnPinningFeature`, the
+  `pinnedColumns` prop: `{ start, end }` ids, default the first and last
+  visible; their measured widths set the offsets, and `DataTableColumnCell`
+  applies them through `PinnedCellContext`, so every cell must use it) draw a
+  divider while something scrolls under them; the table is a card on the
+  page (`bg-card`), lines live on the cells (a row border under opaque pinned
+  cells shows in another shade); filter popovers open with a small muted
+  title (`PopoverHeading`); the first load shows skeleton rows (cards); rows with
+  `onRowClick` take Tab, Enter and the arrows; one empty state for every
+  table (filtered: "Limpar busca e filtros"). Server-side tables pass
+  `fetching={table.loading}`.
 - On phones (below 768px, after hydration) the `DataTable` swaps its toolbar
   and pages for `data-table-mobile-toolbar.tsx` and `data-table-load-more.tsx`
   (the root isn't clipped there: overflow would stop the sticky row and cut

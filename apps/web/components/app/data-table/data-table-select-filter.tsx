@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { FilterGroup, FilterOption } from ".";
-import { FilterOptionRow, FilterTrigger, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
+import { FilterOptionRow, FilterTrigger, PopoverHeading, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
 interface DataTableSelectFilterProps<TData extends RowData, TValue> {
   column?: Column<TData, TValue>;
@@ -63,6 +63,7 @@ export function DataTableSelectFilter<TData extends RowData, TValue>({
       <FilterTrigger label={columnName} active={selectedValue !== undefined} loading={loading} summary={selectedLabel} />
       <PopoverContent className="w-auto min-w-56 max-w-80 p-0" align="start" sideOffset={8}>
         <Command>
+          <PopoverHeading>{columnName}</PopoverHeading>
           {all.length >= SEARCH_THRESHOLD && <CommandInput placeholder={`Buscar ${columnName.toLowerCase()}…`} />}
           <CommandList>
             <CommandEmpty>Nenhum resultado.</CommandEmpty>
@@ -75,7 +76,7 @@ export function DataTableSelectFilter<TData extends RowData, TValue>({
               : <CommandGroup>{renderOptions((options as FilterOption[]) ?? [])}</CommandGroup>}
           </CommandList>
           {selectedValue !== undefined && (
-            <div className="flex justify-end border-t px-3 py-2">
+            <div className="flex justify-end border-t px-2 py-1.5">
               <Button variant="ghost" size="xs" onClick={() => choose(undefined)}>
                 <X /> Limpar
               </Button>

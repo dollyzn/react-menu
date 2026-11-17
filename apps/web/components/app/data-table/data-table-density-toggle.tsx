@@ -4,7 +4,7 @@ import { Command, CommandGroup, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { DensityOption } from ".";
-import { FilterOptionRow, ToolbarTrigger } from "./data-table-filter-parts";
+import { FilterOptionRow, ToolbarTrigger, PopoverHeading } from "./data-table-filter-parts";
 
 /** Three rows drawn with the density's spacing, so the options read at a glance. */
 function glyph(gap: string) {
@@ -50,8 +50,9 @@ export function DataTableDensityToggle({ setDensity, currentDensity }: DataTable
       />
       <PopoverContent align="end" className="w-64 p-0" sideOffset={8}>
         <Command>
+          <PopoverHeading>Densidade das linhas</PopoverHeading>
           <CommandList className="max-h-[min(28rem,60vh)]">
-            <CommandGroup heading="Densidade das linhas">
+            <CommandGroup>
               {OPTIONS.map((option) => (
                 <FilterOptionRow
                   key={option.value}

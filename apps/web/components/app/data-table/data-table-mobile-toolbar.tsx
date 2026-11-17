@@ -21,6 +21,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { SearchInput } from "@/components/app/search-input";
+import { DataTableSearch } from "./data-table-search";
 import { useLastValue } from "@/hooks/use-last-value";
 import { cn } from "@/lib/utils";
 import type { ColumnsConfig, DataTableInstance, FilterGroup, FilterOption, ViewMode } from ".";
@@ -85,7 +86,14 @@ export function DataTableMobileToolbar<TData extends RowData>({
           stuck && "shadow-[0_1px_0_var(--border)]"
         )}
       >
-        {searchConfig && <MobileSearch table={table} columnId={searchConfig.key} />}
+        {searchConfig && (
+          <DataTableSearch
+            table={table}
+            columnId={searchConfig.key}
+            wrapperClassName="min-w-0 flex-1"
+            className="h-9"
+          />
+        )}
 
         {filterConfigs.length === 0 && hasCardView ? (
           // Nothing to filter: no drawer with a lone section, the view switches here.
@@ -220,56 +228,6 @@ function useStuck() {
     return () => observer.disconnect();
   }, []);
   return [sentinel, value] as const;
-}
-
-/* ---------- Search ---------- */
-
-/** The searchable column as a field: applies after a pause or on Enter. */
-function MobileSearch<TData extends RowData>({ table, columnId }: { table: DataTableInstance<TData>; columnId: string }) {
-  const column = table.getColumn(columnId);
-  const applied = (column?.getFilterValue() as string | undefined) ?? "";
-  const [text, setText] = useState(applied);
-  const [seen, setSeen] = useState(applied);
-  // What this field applied itself: its own value coming back must not
-  // replace what was typed since (a trailing space, the next letters).
-  const [mine, setMine] = useState(applied);
-  // Cleared or changed elsewhere ("Limpar filtros", a shared link): show it.
-  if (applied !== seen) {
-    setSeen(applied);
-    if (applied !== mine) setText(applied);
-  }
-
-  const apply = (value: string) => {
-    setMine(value.trim());
-    table.getColumn(columnId)?.setFilterValue(value.trim() || undefined);
-  };
-
-  useEffect(() => {
-    if (text.trim() === applied) return;
-    const timer = setTimeout(() => apply(text), 400);
-    return () => clearTimeout(timer);
-    // `apply` reads the table, whose reference never changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, applied]);
-
-  const label = column?.columnDef.meta?.name ?? "Buscar";
-  return (
-    <SearchInput
-      value={text}
-      onValueChange={setText}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.currentTarget.blur();
-          apply(text);
-        }
-      }}
-      placeholder={label}
-      aria-label={`Buscar por ${label.toLowerCase()}`}
-      enterKeyHint="search"
-      wrapperClassName="min-w-0 flex-1"
-      className="h-9 text-ellipsis"
-    />
-  );
 }
 
 /* ---------- Chips ---------- */

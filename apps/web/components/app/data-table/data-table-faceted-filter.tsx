@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { FilterGroup, FilterOption } from ".";
-import { FilterOptionRow, FilterTrigger, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
+import { FilterOptionRow, FilterTrigger, PopoverHeading, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
 interface DataTableFacetedFilterProps<TData extends RowData, TValue> {
   column?: Column<TData, TValue>;
@@ -81,6 +81,7 @@ export function DataTableFacetedFilter<TData extends RowData, TValue>({
       <FilterTrigger label={columnName} active={count > 0} loading={loading} summary={summary} />
       <PopoverContent className="w-auto min-w-56 max-w-80 p-0" align="start" sideOffset={8}>
         <Command>
+          <PopoverHeading hint={count > 0 ? `${count} ${count === 1 ? "selecionado" : "selecionados"}` : undefined}>{columnName}</PopoverHeading>
           {all.length >= SEARCH_THRESHOLD && <CommandInput placeholder={`Buscar ${columnName.toLowerCase()}…`} />}
           <CommandList>
             <CommandEmpty>Nenhum resultado.</CommandEmpty>
@@ -108,10 +109,7 @@ export function DataTableFacetedFilter<TData extends RowData, TValue>({
               : <CommandGroup>{renderOptions((options as FilterOption[]) ?? [])}</CommandGroup>}
           </CommandList>
           {count > 0 && (
-            <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
-              <span className="tabular-nums">
-                {count} {count === 1 ? "selecionado" : "selecionados"}
-              </span>
+            <div className="flex justify-end border-t px-2 py-1.5">
               <Button variant="ghost" size="xs" onClick={() => setSelection(new Set())}>
                 <X /> Limpar
               </Button>

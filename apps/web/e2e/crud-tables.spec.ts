@@ -30,17 +30,16 @@ test("item edit, sold out and URL-persisted filters", async ({ page }) => {
   await expect(page.getByText("Pastel de carne marcado como esgotado")).toBeVisible();
 
   // Filter by name: lives in the URL and survives a reload.
-  await page.getByRole("button", { name: "Filtrar por nome" }).click();
-  await page.getByPlaceholder("Digite para filtrar...").fill("carne");
-  await page.getByRole("button", { name: "Aplicar filtro" }).click();
+  const search = page.getByRole("searchbox", { name: "Buscar por nome" });
+  await search.fill("carne");
   await expect(page).toHaveURL(/f\.name=carne/);
   await expect(guarana).toBeHidden();
   await page.reload();
   await expect(carne).toBeVisible();
   await expect(guarana).toBeHidden();
-  await expect(page.getByRole("button", { name: "Filtrar por nome" })).toContainText("carne");
+  await expect(search).toHaveValue("carne");
 
-  await page.getByRole("button", { name: "Limpar" }).click();
+  await page.getByRole("button", { name: "Limpar busca" }).click();
   await expect(page).not.toHaveURL(/f\.name/);
   await expect(guarana).toBeVisible();
 

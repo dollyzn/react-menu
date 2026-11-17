@@ -1,6 +1,7 @@
 import {
   columnFacetingFeature,
   columnFilteringFeature,
+  columnPinningFeature,
   columnVisibilityFeature,
   createFacetedRowModel,
   createFacetedUniqueValues,
@@ -54,6 +55,7 @@ export const dataTableFeatures = tableFeatures({
   columnVisibilityFeature,
   columnFilteringFeature,
   columnFacetingFeature,
+  columnPinningFeature,
   rowSortingFeature,
   rowPaginationFeature,
   rowSelectionFeature,

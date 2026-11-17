@@ -122,9 +122,7 @@ test("orders history: search, open the detail and see who did what", async ({ pa
   await page.getByRole("tab", { name: "Histórico" }).click();
   await expect(page).toHaveURL(/view=historico/);
 
-  await page.getByRole("button", { name: "Filtrar por número, cliente ou telefone" }).click();
-  await page.getByPlaceholder("Digite para filtrar...").fill(customer);
-  await page.getByRole("button", { name: "Aplicar filtro" }).click();
+  await page.getByRole("searchbox", { name: "Buscar por número, cliente ou telefone" }).fill(customer);
   const row = page.getByRole("row", { name: new RegExp(customer) });
   await expect(row).toBeVisible();
   await row.click();

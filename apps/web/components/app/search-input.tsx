@@ -4,7 +4,7 @@ import * as React from "react";
 import { Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { cn, mergeRefs } from "@/lib/utils";
 
 interface SearchInputProps
   extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
@@ -24,6 +24,7 @@ export function SearchInput({
   wrapperClassName,
   className,
   onKeyDown,
+  ref,
   ...props
 }: SearchInputProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
@@ -40,7 +41,7 @@ export function SearchInput({
         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
       />
       <Input
-        ref={inputRef}
+        ref={mergeRefs(inputRef, ref)}
         type="search"
         inputMode="search"
         autoComplete="off"

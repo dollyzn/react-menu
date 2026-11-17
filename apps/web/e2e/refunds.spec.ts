@@ -30,9 +30,7 @@ test("a cancelled Pix order shows the pending refund and a manager refunds it", 
 
   await login(page);
   await page.goto(`/app/stores/${menu.store.id}/orders?view=historico`);
-  await page.getByRole("button", { name: "Filtrar por número, cliente ou telefone" }).click();
-  await page.getByPlaceholder("Digite para filtrar...").fill(customer);
-  await page.getByRole("button", { name: "Aplicar filtro" }).click();
+  await page.getByRole("searchbox", { name: "Buscar por número, cliente ou telefone" }).fill(customer);
   await page.getByRole("row", { name: new RegExp(customer) }).click();
 
   const detail = page.getByRole("dialog");

@@ -9,9 +9,7 @@ test("inventory: cards by default, paginated, searchable, counts and low-stock f
   await expect(page.getByRole("article", { name: "Azeitona" })).toBeVisible();
   await expect(page.getByRole("article")).toHaveCount(10);
 
-  await page.getByRole("button", { name: "Filtrar por ingrediente" }).click();
-  await page.getByPlaceholder("Digite para filtrar...").fill("carne");
-  await page.getByRole("button", { name: "Aplicar filtro" }).click();
+  await page.getByRole("searchbox", { name: "Buscar por ingrediente" }).fill("carne");
   await expect(page).toHaveURL(/f\.name=carne/);
   const card = page.getByRole("article", { name: "Carne moída" });
   await expect(card).toBeVisible();
