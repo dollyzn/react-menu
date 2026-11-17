@@ -97,6 +97,16 @@ export function ToolbarTrigger({
   );
 }
 
+/** A popover's title: what it filters or sets, above its search and options. */
+export function PopoverHeading({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 px-3 pt-2.5 pb-1">
+      <p className="text-xs font-medium text-muted-foreground first-letter:uppercase">{children}</p>
+      {hint && <span className="text-xs text-muted-foreground tabular-nums">{hint}</span>}
+    </div>
+  );
+}
+
 /**
  * One option: the check on the left (square for multiple choice, round for a
  * single choice), the label without wrapping and the count on the right.
@@ -125,7 +135,7 @@ export function FilterOptionRow({
       value={value}
       onSelect={onSelect}
       data-checked={selected}
-      className="cursor-pointer gap-2.5 py-2 [&>svg:last-child]:hidden"
+      className="cursor-pointer gap-2.5 py-1.5 [&>svg:last-child]:hidden"
     >
       <span
         aria-hidden

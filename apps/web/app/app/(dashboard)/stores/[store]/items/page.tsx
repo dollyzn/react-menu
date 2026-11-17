@@ -73,6 +73,8 @@ export default function Items() {
       action={<CreateItemDialog />}
     >
       <DataTable<Item>
+        // The checkbox and the name stay while the rest scrolls sideways.
+        pinnedColumns={{ start: ["select", "name"], end: ["actions"] }}
         tableId={`items-${storeId}`}
         loading={table.loading && table.data.length === 0}
         fetching={table.loading}

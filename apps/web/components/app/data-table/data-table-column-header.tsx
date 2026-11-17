@@ -61,13 +61,14 @@ export function DataTableColumnHeader<TData extends RowData, TValue>({
               />
             }
           >
-            <span className={cn(COLUMN_TITLE, titleClassName)}>{title}</span>
+            {/* The sorted column stands out: its title in the text color, the arrow in the brand's. */}
+            <span className={cn(COLUMN_TITLE, column.getIsSorted() && "text-foreground", titleClassName)}>{title}</span>
             {column.getIsSorted() === "desc" ? (
-              <ArrowDown />
+              <ArrowDown className="text-primary" />
             ) : column.getIsSorted() === "asc" ? (
-              <ArrowUp />
+              <ArrowUp className="text-primary" />
             ) : (
-              <ChevronsUpDown />
+              <ChevronsUpDown className="opacity-50" />
             )}
           </DropdownMenuTrigger>
           {column.getIsSorted() && (

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/command";
 import { Popover, PopoverContent } from "@/components/ui/popover";
 import type { DataTableInstance } from ".";
-import { FilterOptionRow, SEARCH_THRESHOLD, ToolbarTrigger } from "./data-table-filter-parts";
+import { FilterOptionRow, PopoverHeading, SEARCH_THRESHOLD, ToolbarTrigger } from "./data-table-filter-parts";
 
 interface DataTableCardsSortSelectorProps<TData extends RowData> {
   table: DataTableInstance<TData>;
@@ -49,10 +49,11 @@ export default function DataTableCardsSortSelector<TData extends RowData>({
       />
       <PopoverContent align="end" className="w-auto min-w-60 max-w-80 p-0" sideOffset={8}>
         <Command>
+          <PopoverHeading>Ordenar</PopoverHeading>
           {columns.length >= SEARCH_THRESHOLD && <CommandInput placeholder="Buscar colunas…" />}
           <CommandList className="max-h-[min(28rem,60vh)]">
             <CommandEmpty>Nenhuma coluna encontrada.</CommandEmpty>
-            <CommandGroup heading="Ordenar por">
+            <CommandGroup heading="Coluna">
               {columns.map((column) => (
                 <FilterOptionRow
                   key={column.id}
@@ -87,7 +88,7 @@ export default function DataTableCardsSortSelector<TData extends RowData>({
             )}
           </CommandList>
           {sorted && (
-            <div className="flex items-center justify-between gap-2 border-t px-3 py-2 text-xs text-muted-foreground">
+            <div className="flex items-center justify-between gap-2 border-t px-2 py-1.5 text-xs text-muted-foreground">
               <span>Por {nameOf(sorted).toLowerCase()}</span>
               <Button variant="ghost" size="xs" onClick={() => table.resetSorting(true)}>
                 <X /> Limpar
