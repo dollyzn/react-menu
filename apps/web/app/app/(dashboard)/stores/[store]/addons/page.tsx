@@ -40,6 +40,7 @@ export default function Addons() {
       <DataTable
         tableId={`addons-${storeId}`}
         loading={table.loading}
+        fetching={table.loading}
         data={table.data}
         rowCount={table.rowCount}
         // Selection follows the row, not its index (bulk edit refetches).

@@ -16,10 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { format, isEqual, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange, Matcher } from "react-day-picker";
-import {
-  presets as defaultPresets,
-  type DatePreset,
-} from "./constants/date-preset";
+import { datePresets, type DatePreset } from "./constants/date-preset";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import {
   Drawer,
@@ -39,7 +36,7 @@ interface DataTableDateRangeFilterProps<TData extends RowData, TValue> {
 export function DataTableDateRangeFilter<TData extends RowData, TValue>({
   column,
   title,
-  presets = defaultPresets,
+  presets = datePresets(),
 }: DataTableDateRangeFilterProps<TData, TValue>) {
   // The column filter (from the URL) is the source of truth: no local copy
   // that "Limpar" or a reload could leave stale.
@@ -97,7 +94,7 @@ export function DataTableDateRangeFilter<TData extends RowData, TValue>({
 export function DateRangePicker({
   value,
   onChange,
-  presets = defaultPresets,
+  presets = datePresets(),
   title,
   description = "Selecione um período de data",
   trigger,
@@ -298,12 +295,12 @@ function DatePresets({
  * A range is a preset when the days match: the one read back from the URL is
  * at midnight, the preset's ends at the end of the day.
  */
-function samePeriod(range: DateRange | undefined, from: Date, to: Date) {
+export function samePeriod(range: DateRange | undefined, from: Date, to: Date) {
   return Boolean(range?.from && range.to && isSameDay(range.from, from) && isSameDay(range.to, to));
 }
 
 /** "8 – 14 de nov." / "8 de nov." / "A partir de 8 de nov.": the footer's summary. */
-function rangeSummary(range: DateRange) {
+export function rangeSummary(range: DateRange) {
   const day = (date: Date) => format(date, "d 'de' MMM", { locale: ptBR });
   if (range.from && range.to) {
     if (isEqual(range.from, range.to)) return day(range.from);

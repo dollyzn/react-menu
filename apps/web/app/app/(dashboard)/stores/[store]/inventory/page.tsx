@@ -107,6 +107,7 @@ export default function InventoryPage() {
         <DataTable
           tableId={`ingredients-${storeId}`}
           loading={table.loading}
+          fetching={table.loading}
           data={table.data}
           rowCount={table.rowCount}
           columns={columns}

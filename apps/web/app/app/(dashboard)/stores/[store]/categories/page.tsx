@@ -44,6 +44,7 @@ export default function Categories() {
       <DataTable<Category>
         tableId={`categories-${storeId}`}
         loading={table.loading}
+        fetching={table.loading}
         data={table.data}
         rowCount={table.rowCount}
         columns={columns}

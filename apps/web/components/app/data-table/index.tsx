@@ -24,6 +24,10 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
+import { DataTableMobileToolbar } from "./data-table-mobile-toolbar";
+import { DataTableLoadMore } from "./data-table-load-more";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { AlertCircle, Search } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
@@ -105,6 +109,13 @@ interface DataTableProps<TData extends RowData> {
   onExternalRowSelectionChange?: React.Dispatch<
     React.SetStateAction<RowSelectionState>
   >;
+  /** The most rows the API returns at once: phones stop "Carregar mais" there. */
+  maxPageSize?: number;
+  /**
+   * A request is in flight (server-side tables: `useTableQuery`'s `loading`).
+   * Phones tell a slow "Carregar mais" from a failed one by it.
+   */
+  fetching?: boolean;
 }
 
 export function DataTable<TData extends RowData>({
@@ -133,6 +144,8 @@ export function DataTable<TData extends RowData>({
   onExternalColumnFiltersChange,
   onExternalPaginationChange,
   onExternalRowSelectionChange,
+  maxPageSize,
+  fetching,
 }: DataTableProps<TData>) {
   const storageBaseName = env.NEXT_PUBLIC_STORAGE_BASE_NAME;
 
@@ -242,6 +255,32 @@ export function DataTable<TData extends RowData>({
     },
   });
 
+  // Phones get their own toolbar and "Carregar mais" instead of pages
+  // (after hydration: the server renders the desktop one).
+  const isMobile = useIsMobile();
+  const compact = useHydrated() && isMobile;
+  const { pageIndex, pageSize } = table.state.pagination;
+
+  // A link to page 3 opened on a phone: the list from the top through it.
+  useEffect(() => {
+    if (!compact || pageIndex === 0) return;
+    table.setPagination({
+      pageIndex: 0,
+      pageSize: Math.min((pageIndex + 1) * pageSize, maxPageSize ?? Number.POSITIVE_INFINITY),
+    });
+  }, [compact, pageIndex, pageSize, maxPageSize, table]);
+
+  // A phone's grown size (a shared link) on a desktop: the nearest size the
+  // pages offer, so "Linhas por página" shows one of its own.
+  const hydrated = useHydrated();
+  useEffect(() => {
+    if (!hydrated || isMobile || !onExternalPaginationChange) return;
+    const sizes: number[] = env.NEXT_PUBLIC_PAGE_SIZES;
+    if (sizes.length === 0 || sizes.includes(pageSize)) return;
+    const nearest = sizes.reduce((best, size) => (Math.abs(size - pageSize) < Math.abs(best - pageSize) ? size : best));
+    table.setPagination({ pageIndex: 0, pageSize: nearest });
+  }, [hydrated, isMobile, pageSize, onExternalPaginationChange, table]);
+
   const densityClasses = {
     spacious: "[&>td]:py-4 [&>td]:text-base",
     comfortable: "[&>td]:py-3",
@@ -251,16 +290,29 @@ export function DataTable<TData extends RowData>({
   };
 
   return (
-    <div className="overflow-x-hidden">
-      <DataTableToolbar
-        table={table}
-        columnsConfig={columnsConfig}
-        setDensity={setDensity}
-        currentDensity={density}
-        hasCardView={!!renderCard}
-        viewMode={viewMode}
-        setViewMode={chooseViewMode}
-      />
+    // Phones: no clipping at all, so the toolbar can stick to the top of the
+    // page (overflow makes a scroll box) and focus rings aren't cut.
+    <div className={cn(!compact && "overflow-x-hidden")}>
+      {compact ? (
+        <DataTableMobileToolbar
+          table={table}
+          columnsConfig={columnsConfig}
+          hasCardView={!!renderCard}
+          viewMode={viewMode}
+          setViewMode={chooseViewMode}
+          loading={loading}
+        />
+      ) : (
+        <DataTableToolbar
+          table={table}
+          columnsConfig={columnsConfig}
+          setDensity={setDensity}
+          currentDensity={density}
+          hasCardView={!!renderCard}
+          viewMode={viewMode}
+          setViewMode={chooseViewMode}
+        />
+      )}
 
       <div className="flex flex-col gap-4 relative">
         <ScrollArea
@@ -454,9 +506,13 @@ export function DataTable<TData extends RowData>({
             style={{ bottom: "-15px" }}
           />
         </ScrollArea>
-        <div className="sticky bottom-0 bg-background/40 rounded-md py-2 px-1 backdrop-blur-xs ">
-          <DataTablePagination table={table} />
-        </div>
+        {compact ? (
+          <DataTableLoadMore table={table} maxPageSize={maxPageSize} fetching={fetching} />
+        ) : (
+          <div className="sticky bottom-0 bg-background/40 rounded-md py-2 px-1 backdrop-blur-xs ">
+            <DataTablePagination table={table} />
+          </div>
+        )}
       </div>
     </div>
   );

@@ -15,47 +15,51 @@ export type DatePreset = {
   shortcut: string;
 };
 
-export const presets = [
+/**
+ * The quick periods, worked out from `now`: built when the picker renders,
+ * never once at load (a panel left open overnight kept yesterday's "Hoje").
+ */
+export const datePresets = (now = new Date()): DatePreset[] => [
   {
     label: "Hoje",
-    from: startOfDay(new Date()),
-    to: endOfDay(new Date()),
+    from: startOfDay(now),
+    to: endOfDay(now),
     shortcut: "h", // dia
   },
   {
     label: "Ontem",
-    from: startOfDay(addDays(new Date(), -1)),
-    to: endOfDay(addDays(new Date(), -1)),
+    from: startOfDay(addDays(now, -1)),
+    to: endOfDay(addDays(now, -1)),
     shortcut: "o",
   },
   {
     label: "Últimos 7 dias",
-    from: startOfDay(addDays(new Date(), -7)),
-    to: endOfDay(new Date()),
+    from: startOfDay(addDays(now, -7)),
+    to: endOfDay(now),
     shortcut: "s", // semana
   },
   {
     label: "Últimos 30 dias",
-    from: startOfDay(addDays(new Date(), -30)),
-    to: endOfDay(new Date()),
+    from: startOfDay(addDays(now, -30)),
+    to: endOfDay(now),
     shortcut: "u", // mês (genérico)
   },
   {
     label: "Este mês",
-    from: startOfMonth(new Date()),
-    to: endOfMonth(new Date()),
+    from: startOfMonth(now),
+    to: endOfMonth(now),
     shortcut: "m",
   },
   {
     label: "Mês passado",
-    from: startOfMonth(addDays(startOfMonth(new Date()), -1)),
-    to: endOfMonth(addDays(startOfMonth(new Date()), -1)),
+    from: startOfMonth(addDays(startOfMonth(now), -1)),
+    to: endOfMonth(addDays(startOfMonth(now), -1)),
     shortcut: "p",
   },
   {
     label: "Este ano",
-    from: startOfYear(new Date()),
-    to: endOfYear(new Date()),
+    from: startOfYear(now),
+    to: endOfYear(now),
     shortcut: "a",
   },
-] satisfies DatePreset[];
+];

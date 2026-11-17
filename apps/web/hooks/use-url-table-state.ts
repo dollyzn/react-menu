@@ -4,6 +4,8 @@ import { useCallback, useMemo } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import type { ColumnFiltersState, PaginationState, SortingState } from "@/components/app/data-table/features";
 import { format, isValid, parse } from "date-fns";
+import { useHydrated } from "@/hooks/use-hydrated";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 /**
  * Table state (page, page size, sorting, filters) kept in the URL, so a
@@ -13,7 +15,9 @@ import { format, isValid, parse } from "date-fns";
  *
  * Date ranges are `f.createdAt=2026-10-01~2026-10-20`. Writes use
  * history.replaceState (Next keeps useSearchParams in sync, no refetch of the
- * page). Changing filters or sorting goes back to the first page.
+ * page). Changing filters or sorting goes back to the first page; on phones,
+ * where the list grows instead of paging ("Carregar mais"), also back to the
+ * first size, so a new search doesn't ask for everything loaded before.
  */
 export interface TableUrlDefaults {
   pageSize?: number;
@@ -56,6 +60,9 @@ export function useUrlTableState(defaults: TableUrlDefaults = {}) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const defaultPageSize = defaults.pageSize ?? 10;
+  // The DataTable's phone mode (same breakpoint, after hydration).
+  const isMobile = useIsMobile();
+  const growing = useHydrated() && isMobile;
 
   const state = useMemo(() => {
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
@@ -122,15 +129,19 @@ export function useUrlTableState(defaults: TableUrlDefaults = {}) {
     (updater: Updater<PaginationState>) => write({ ...state, pagination: resolve(updater, state.pagination) }),
     [state, write]
   );
+  const firstPage = useMemo(
+    () => ({ pageIndex: 0, pageSize: growing ? defaultPageSize : state.pagination.pageSize }),
+    [growing, defaultPageSize, state.pagination.pageSize]
+  );
   const setSorting = useCallback(
     (updater: Updater<SortingState>) =>
-      write({ ...state, sorting: resolve(updater, state.sorting), pagination: { ...state.pagination, pageIndex: 0 } }),
-    [state, write]
+      write({ ...state, sorting: resolve(updater, state.sorting), pagination: firstPage }),
+    [state, write, firstPage]
   );
   const setFilters = useCallback(
     (updater: Updater<ColumnFiltersState>) =>
-      write({ ...state, filters: resolve(updater, state.filters), pagination: { ...state.pagination, pageIndex: 0 } }),
-    [state, write]
+      write({ ...state, filters: resolve(updater, state.filters), pagination: firstPage }),
+    [state, write, firstPage]
   );
 
   return { ...state, setPagination, setSorting, setFilters };
