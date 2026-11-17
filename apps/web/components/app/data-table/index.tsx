@@ -111,6 +111,11 @@ interface DataTableProps<TData extends RowData> {
   >;
   /** The most rows the API returns at once: phones stop "Carregar mais" there. */
   maxPageSize?: number;
+  /**
+   * A request is in flight (server-side tables: `useTableQuery`'s `loading`).
+   * Phones tell a slow "Carregar mais" from a failed one by it.
+   */
+  fetching?: boolean;
 }
 
 export function DataTable<TData extends RowData>({
@@ -140,6 +145,7 @@ export function DataTable<TData extends RowData>({
   onExternalPaginationChange,
   onExternalRowSelectionChange,
   maxPageSize,
+  fetching,
 }: DataTableProps<TData>) {
   const storageBaseName = env.NEXT_PUBLIC_STORAGE_BASE_NAME;
 
@@ -263,6 +269,17 @@ export function DataTable<TData extends RowData>({
       pageSize: Math.min((pageIndex + 1) * pageSize, maxPageSize ?? Number.POSITIVE_INFINITY),
     });
   }, [compact, pageIndex, pageSize, maxPageSize, table]);
+
+  // A phone's grown size (a shared link) on a desktop: the nearest size the
+  // pages offer, so "Linhas por página" shows one of its own.
+  const hydrated = useHydrated();
+  useEffect(() => {
+    if (!hydrated || isMobile || !onExternalPaginationChange) return;
+    const sizes: number[] = env.NEXT_PUBLIC_PAGE_SIZES;
+    if (sizes.length === 0 || sizes.includes(pageSize)) return;
+    const nearest = sizes.reduce((best, size) => (Math.abs(size - pageSize) < Math.abs(best - pageSize) ? size : best));
+    table.setPagination({ pageIndex: 0, pageSize: nearest });
+  }, [hydrated, isMobile, pageSize, onExternalPaginationChange, table]);
 
   const densityClasses = {
     spacious: "[&>td]:py-4 [&>td]:text-base",
@@ -490,7 +507,7 @@ export function DataTable<TData extends RowData>({
           />
         </ScrollArea>
         {compact ? (
-          <DataTableLoadMore table={table} maxPageSize={maxPageSize} />
+          <DataTableLoadMore table={table} maxPageSize={maxPageSize} fetching={fetching} />
         ) : (
           <div className="sticky bottom-0 bg-background/40 rounded-md py-2 px-1 backdrop-blur-xs ">
             <DataTablePagination table={table} />

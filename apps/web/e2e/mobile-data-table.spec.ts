@@ -61,6 +61,8 @@ test("phones: the table's search stays on screen, filters live in a drawer and t
   // Typing searches after a pause; clearing shows everything again.
   await search.fill("carne");
   await expect(page).toHaveURL(/f\.name=carne/);
+  // A new search starts from the first size again (it doesn't ask for all loaded before).
+  await expect(page).not.toHaveURL(/size=/);
   await expect(count).not.toHaveText(`${total} resultados`);
   await page.getByRole("button", { name: "Limpar busca" }).click();
   await expect(count).toHaveText(`${total} resultados`);
@@ -77,7 +79,7 @@ test("phones: the history's period and sorting in the drawer", async ({ page }) 
   const sort = page.getByRole("button", { name: "Ordenar: Data, mais recentes" });
   await sort.click();
   const sorting = page.getByRole("dialog", { name: "Ordenar" });
-  await // The direction belongs to the chosen column, in its own words.
+  // The direction belongs to the chosen column, in its own words.
   await expect(sorting.getByRole("radio", { name: "Data" })).toHaveAttribute("aria-checked", "true");
   await sorting.getByRole("button", { name: "Mais antigos" }).click();
   await shot(page, "mobile-table-4-sort");
@@ -100,4 +102,28 @@ test("phones: the history's period and sorting in the drawer", async ({ page }) 
 
   await page.getByRole("button", { name: "Limpar tudo" }).click();
   await expect(page.getByRole("list", { name: "Filtros em uso" })).toBeHidden();
+});
+
+test("phones: a failed \"Carregar mais\" says so and tries again", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await login(page);
+  const store = page.url().match(/\/app\/stores\/[^/?#]+/)![0];
+  // The next step fails once (422: not retried by the client).
+  let failures = 0;
+  await page.route(/\/api\/v1\/stores\/[^/]+\/items\?.*perPage=30/, async (route) => {
+    if (failures++ > 0) return route.fallback();
+    await route.fulfill({ status: 422, contentType: "application/json", body: JSON.stringify({ message: "falhou" }) });
+  });
+  await page.goto(`${store}/items`);
+  await expect(page.getByText(/^Mostrando 10 de \d+$/)).toBeVisible();
+
+  await page.getByRole("button", { name: /^Carregar mais \d+$/ }).click();
+  await expect(page.getByText("Não deu para carregar mais.")).toBeVisible();
+  // Never stuck on "Carregando mais…".
+  await expect(page.getByText("Carregando mais…")).toBeHidden();
+
+  // Back to the rows on screen; the end of the list is in view, so it asks again by itself.
+  await page.getByRole("button", { name: "Tentar de novo" }).click();
+  await expect(page.getByText(/^Mostrando (30|50) de \d+$/)).toBeVisible();
+  expect(failures).toBeGreaterThan(1);
 });

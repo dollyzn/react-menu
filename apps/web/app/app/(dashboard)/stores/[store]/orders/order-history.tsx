@@ -183,6 +183,7 @@ export function OrderHistory({ storeId, onOpen }: { storeId: string; onOpen: (or
       maxPageSize={100}
       tableId={`orders-history-${storeId}`}
       loading={table.loading && table.data.length === 0}
+      fetching={table.loading}
       data={table.data}
       rowCount={table.rowCount}
       columns={columns}

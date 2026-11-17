@@ -10,6 +10,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Drawer,
   DrawerContent,
@@ -22,7 +23,7 @@ import { SearchInput } from "@/components/app/search-input";
 import { useLastValue } from "@/hooks/use-last-value";
 import { cn } from "@/lib/utils";
 import type { ColumnsConfig, DataTableInstance, FilterGroup, FilterOption, ViewMode } from ".";
-import { presets } from "./constants/date-preset";
+import { datePresets } from "./constants/date-preset";
 import { rangeSummary, samePeriod } from "./data-table-date-range-filter";
 import { SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
@@ -65,11 +66,10 @@ export function DataTableMobileToolbar<TData extends RowData>({
   const sortable = sortableColumns(table);
   const sorted = sortable.find((column) => column.getIsSorted());
   const direction = sorted?.getIsSorted();
-  const activeCount = table.state.columnFilters.filter(
-    (filter) => filter.id !== searchConfig?.key && hasValue(filter.value)
-  ).length;
-  const clearFilters = () =>
-    table.setColumnFilters((filters) => filters.filter((filter) => filter.id === searchConfig?.key));
+  // Only what the drawer shows: the count, its chips and both "Limpar" agree.
+  const own = (id: string) => filterConfigs.some((config) => config.key === id);
+  const activeCount = table.state.columnFilters.filter((filter) => own(filter.id) && hasValue(filter.value)).length;
+  const clearFilters = () => table.setColumnFilters((filters) => filters.filter((filter) => !own(filter.id)));
   const count = loading && table.getRowCount() === 0 ? "Carregando…" : plural(table.getRowCount());
 
   useFilterDefaults(table, filterConfigs);
@@ -127,7 +127,7 @@ export function DataTableMobileToolbar<TData extends RowData>({
       </div>
 
       <div className="flex min-h-7 items-start gap-2 pb-3">
-        <ActiveFilterChips table={table} configs={filterConfigs} />
+        <ActiveFilterChips table={table} configs={filterConfigs} onClear={clearFilters} />
         <p
           className="ml-auto flex h-6 shrink-0 items-center gap-1.5 text-xs text-muted-foreground tabular-nums"
           aria-live="polite"
@@ -218,13 +218,19 @@ function MobileSearch<TData extends RowData>({ table, columnId }: { table: DataT
   const applied = (column?.getFilterValue() as string | undefined) ?? "";
   const [text, setText] = useState(applied);
   const [seen, setSeen] = useState(applied);
-  // Cleared or changed elsewhere ("Limpar filtros"): show it.
+  // What this field applied itself: its own value coming back must not
+  // replace what was typed since (a trailing space, the next letters).
+  const [mine, setMine] = useState(applied);
+  // Cleared or changed elsewhere ("Limpar filtros", a shared link): show it.
   if (applied !== seen) {
     setSeen(applied);
-    setText(applied);
+    if (applied !== mine) setText(applied);
   }
 
-  const apply = (value: string) => table.getColumn(columnId)?.setFilterValue(value.trim() || undefined);
+  const apply = (value: string) => {
+    setMine(value.trim());
+    table.getColumn(columnId)?.setFilterValue(value.trim() || undefined);
+  };
 
   useEffect(() => {
     if (text.trim() === applied) return;
@@ -260,9 +266,11 @@ function MobileSearch<TData extends RowData>({ table, columnId }: { table: DataT
 function ActiveFilterChips<TData extends RowData>({
   table,
   configs,
+  onClear,
 }: {
   table: DataTableInstance<TData>;
   configs: ColumnsConfig[];
+  onClear: () => void;
 }) {
   const chips = table.state.columnFilters.flatMap((filter) => {
     const config = configs.find((c) => c.key === filter.id);
@@ -313,7 +321,7 @@ function ActiveFilterChips<TData extends RowData>({
             variant="ghost"
             size="xs"
             className="text-muted-foreground"
-            onClick={() => table.setColumnFilters((filters) => filters.filter((f) => !configs.some((c) => c.key === f.id)))}
+            onClick={onClear}
           >
             Limpar tudo
           </Button>
@@ -488,6 +496,8 @@ function PeriodSection<TData extends RowData>({
   column: NonNullable<ReturnType<DataTableInstance<TData>["getColumn"]>>;
 }) {
   const range = column.getFilterValue() as DateRange | undefined;
+  // Worked out now: a panel left open overnight still means today.
+  const presets = datePresets();
   const preset = presets.find((p) => samePeriod(range, p.from, p.to));
   const custom = range && !preset ? rangeSummary(range) : null;
   const [calendar, setCalendar] = useState(false);
@@ -499,8 +509,8 @@ function PeriodSection<TData extends RowData>({
         {presets.map((p) => (
           <Option
             key={p.label}
-            pressed={p === preset}
-            onPressedChange={() => set(p === preset ? undefined : { from: p.from, to: p.to })}
+            pressed={p.label === preset?.label}
+            onPressedChange={() => set(p.label === preset?.label ? undefined : { from: p.from, to: p.to })}
           >
             {p.label}
           </Option>
@@ -541,31 +551,25 @@ function SortSection<TData extends RowData>({ table }: { table: DataTableInstanc
   const sorted = columns.find((column) => column.getIsSorted());
   const direction = sorted?.getIsSorted() || undefined;
   return (
-    <div role="radiogroup" aria-label="Ordenar por" className="flex flex-col divide-y overflow-hidden rounded-lg border">
+    <RadioGroup
+      aria-label="Ordenar por"
+      value={sorted?.id ?? null}
+      onValueChange={(id) => {
+        const column = columns.find((c) => c.id === id);
+        column?.toggleSorting(FIRST_DESC[sortKind(table, column.id)]);
+      }}
+      className="gap-0 divide-y overflow-hidden rounded-lg border"
+    >
       {columns.map((column) => {
         const on = column === sorted;
         const kind = sortKind(table, column.id);
         const labels = DIRECTIONS[kind];
         return (
           <div key={column.id} className={cn("flex min-h-11 items-center gap-2 pr-1.5", on && "bg-muted/50")}>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={on}
-              className="flex h-11 min-w-0 flex-1 items-center gap-3 px-3 text-left text-sm outline-none focus-visible:bg-muted"
-              onClick={() => !on && column.toggleSorting(FIRST_DESC[kind])}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
-                  on ? "border-primary" : "border-muted-foreground/40"
-                )}
-              >
-                {on && <span className="size-2 rounded-full bg-primary" />}
-              </span>
+            <label className="flex h-11 min-w-0 flex-1 cursor-pointer items-center gap-3 px-3 text-sm">
+              <RadioGroupItem value={column.id} />
               <span className={cn("truncate", on && "font-medium")}>{nameOf(column)}</span>
-            </button>
+            </label>
             {on && direction && (
               <ToggleGroup
                 aria-label={`Direção de ${nameOf(column).toLowerCase()}`}
@@ -586,7 +590,7 @@ function SortSection<TData extends RowData>({ table }: { table: DataTableInstanc
           </div>
         );
       })}
-    </div>
+    </RadioGroup>
   );
 }
 
@@ -642,16 +646,23 @@ function hasValue(value: unknown) {
 function useFilterDefaults<TData extends RowData>(table: DataTableInstance<TData>, configs: ColumnsConfig[]) {
   const applied = useRef(new Set<string>());
   useEffect(() => {
+    const defaults: { id: string; value: unknown }[] = [];
     for (const config of configs) {
       if (applied.current.has(config.key) || config.type === "date-range") continue;
-      const defaults = flattenOptions(config.filterOptions, config.grouped).filter((o) => o?.defaultOption);
-      if (defaults.length === 0) continue;
+      const options = flattenOptions(config.filterOptions, config.grouped).filter((o) => o?.defaultOption);
+      if (options.length === 0) continue;
       applied.current.add(config.key);
-      const column = table.getColumn(config.key);
-      if (!column || column.getFilterValue()) continue;
-      column.setFilterValue(
-        config.type === "select" ? String(defaults[0].value) : defaults.map((o) => String(o.value))
-      );
+      defaults.push({
+        id: config.key,
+        value: config.type === "select" ? String(options[0].value) : options.map((o) => String(o.value)),
+      });
     }
+    if (defaults.length === 0) return;
+    // One write: the URL state resolves each call against the same state, so
+    // one call per column would keep only the last.
+    table.setColumnFilters((filters) => [
+      ...filters,
+      ...defaults.filter((d) => !filters.some((f) => f.id === d.id && hasValue(f.value))),
+    ]);
   }, [configs, table]);
 }

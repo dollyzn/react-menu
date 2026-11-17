@@ -2,7 +2,7 @@
 
 import type { RowData } from "@tanstack/react-table";
 import { useEffect, useRef } from "react";
-import { ArrowUp, ChevronDown } from "lucide-react";
+import { ArrowUp, ChevronDown, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { DataTableInstance } from ".";
@@ -18,32 +18,35 @@ export const LOAD_MORE_STEP = 20;
  *
  * It grows the page size on page 1, so the URL keeps it (a reload shows the
  * same rows) and server-side tables need nothing new. `maxPageSize` is what
- * the API accepts; past it the list says how to reach the others.
+ * the API accepts; past it the list says how to reach the others. With
+ * `fetching` (the request state) a failed step says so and can be retried;
+ * without it, fewer rows than asked for count as still loading.
  */
 export function DataTableLoadMore<TData extends RowData>({
   table,
   maxPageSize,
+  fetching,
 }: {
   table: DataTableInstance<TData>;
   maxPageSize?: number;
+  fetching?: boolean;
 }) {
   const total = table.getRowCount();
   const shown = table.getRowModel().rows.length;
   const { pageSize } = table.state.pagination;
-  const capped = maxPageSize !== undefined && pageSize >= maxPageSize;
-  // The bigger page is on its way: the rows already shown stay meanwhile.
-  const fetching = shown < Math.min(pageSize, total);
-  const more = shown > 0 && shown < total && !capped;
+  const limit = maxPageSize ?? Number.POSITIVE_INFINITY;
+  const capped = pageSize >= limit;
+  // Fewer rows than the page asks for: the bigger page is on its way (the
+  // rows already shown stay meanwhile), or its request failed.
+  const short = shown < Math.min(pageSize, total);
+  const failed = short && fetching === false;
+  const loadingMore = short && !failed;
+  const next = Math.min(LOAD_MORE_STEP, total - shown, limit - pageSize);
+  const more = shown > 0 && shown < total && !capped && !short;
 
-  // The size already asked for: until the table reaches it, the button and
-  // reaching the end can't both add a step.
-  const asked = useRef(0);
-  const grow = () => {
-    if (asked.current > pageSize) return;
-    const next = Math.min(pageSize + LOAD_MORE_STEP, maxPageSize ?? Number.POSITIVE_INFINITY);
-    asked.current = next;
-    table.setPagination({ pageIndex: 0, pageSize: next });
-  };
+  // From the size on screen: the button and reaching the end, both in the
+  // same moment, ask for the same size.
+  const grow = () => table.setPagination({ pageIndex: 0, pageSize: Math.min(pageSize + LOAD_MORE_STEP, limit) });
   const growRef = useRef(grow);
   useEffect(() => {
     growRef.current = grow;
@@ -53,13 +56,13 @@ export function DataTableLoadMore<TData extends RowData>({
   const end = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const node = end.current;
-    if (!node || !more || fetching) return;
+    if (!node || !more) return;
     const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && growRef.current(), {
       rootMargin: "0px 0px 240px 0px",
     });
     observer.observe(node);
     return () => observer.disconnect();
-  }, [more, fetching]);
+  }, [more]);
 
   if (total === 0 || shown === 0) return null;
 
@@ -110,17 +113,30 @@ export function DataTableLoadMore<TData extends RowData>({
         </p>
       </div>
 
-      {capped ? (
-        <p className="max-w-72 text-center text-xs text-balance text-muted-foreground">
-          Para ver os outros, use a busca, os filtros ou inverta a ordem.
-        </p>
-      ) : fetching ? (
+      {failed ? (
+        <div role="alert" className="flex flex-col items-center gap-1">
+          <p className="text-xs text-muted-foreground">Não deu para carregar mais.</p>
+          {/* Back to the rows on screen; the next step asks again. */}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={() => table.setPagination({ pageIndex: 0, pageSize: shown })}
+          >
+            <RotateCw /> Tentar de novo
+          </Button>
+        </div>
+      ) : loadingMore ? (
         <p className="flex h-7 items-center gap-2 text-sm text-muted-foreground" aria-live="polite">
           <Spinner className="size-3.5" aria-hidden /> Carregando mais…
         </p>
+      ) : capped ? (
+        <p className="max-w-72 text-center text-xs text-balance text-muted-foreground">
+          Para ver os outros, use a busca, os filtros ou inverta a ordem.
+        </p>
       ) : (
         <Button variant="ghost" size="sm" className="text-muted-foreground" onClick={grow}>
-          <ChevronDown /> Carregar mais {Math.min(LOAD_MORE_STEP, total - shown)}
+          <ChevronDown /> Carregar mais {next}
         </Button>
       )}
     </div>

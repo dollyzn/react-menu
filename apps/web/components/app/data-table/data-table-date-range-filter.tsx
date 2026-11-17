@@ -16,10 +16,7 @@ import { Separator } from "@/components/ui/separator";
 import { format, isEqual, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { DateRange, Matcher } from "react-day-picker";
-import {
-  presets as defaultPresets,
-  type DatePreset,
-} from "./constants/date-preset";
+import { datePresets, type DatePreset } from "./constants/date-preset";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import {
   Drawer,
@@ -39,7 +36,7 @@ interface DataTableDateRangeFilterProps<TData extends RowData, TValue> {
 export function DataTableDateRangeFilter<TData extends RowData, TValue>({
   column,
   title,
-  presets = defaultPresets,
+  presets = datePresets(),
 }: DataTableDateRangeFilterProps<TData, TValue>) {
   // The column filter (from the URL) is the source of truth: no local copy
   // that "Limpar" or a reload could leave stale.
@@ -97,7 +94,7 @@ export function DataTableDateRangeFilter<TData extends RowData, TValue>({
 export function DateRangePicker({
   value,
   onChange,
-  presets = defaultPresets,
+  presets = datePresets(),
   title,
   description = "Selecione um período de data",
   trigger,
