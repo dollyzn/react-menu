@@ -3,6 +3,7 @@ import type { DataTableInstance } from ".";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
   SelectContent,
@@ -17,6 +18,8 @@ interface DataTablePaginationProps<TData extends RowData> {
   table: DataTableInstance<TData>;
   /** After a page change (the DataTable scrolls the list back to its top). */
   onPageChange?: () => void;
+  /** The first rows are on their way: no "0–0 de 0", no pages yet. */
+  loading?: boolean;
 }
 
 /**
@@ -26,6 +29,7 @@ interface DataTablePaginationProps<TData extends RowData> {
 export function DataTablePagination<TData extends RowData>({
   table,
   onPageChange,
+  loading = false,
 }: DataTablePaginationProps<TData>) {
   const { pageIndex, pageSize } = table.state.pagination;
   const total = table.getRowCount();
@@ -41,14 +45,18 @@ export function DataTablePagination<TData extends RowData>({
 
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-      <p className="text-sm text-muted-foreground tabular-nums">
-        <span className="font-medium text-foreground">
-          {from}–{to}
-        </span>{" "}
-        de {total}
-      </p>
+      {loading ? (
+        <Skeleton aria-hidden className="h-4 w-20" />
+      ) : (
+        <p className="text-sm text-muted-foreground tabular-nums">
+          <span className="font-medium text-foreground">
+            {from}–{to}
+          </span>{" "}
+          de {total}
+        </p>
+      )}
 
-      <nav aria-label="Páginas" className="ml-auto flex items-center gap-0.5">
+      <nav aria-label="Páginas" className={cn("ml-auto flex items-center gap-0.5", loading && "invisible")}>
         <Button
           variant="ghost"
           size="icon"

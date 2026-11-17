@@ -334,6 +334,16 @@ export function DataTable<TData extends RowData>({
     "ultra-compact": "[&>td]:py-0 [&>td]:text-xs",
   };
 
+  // Placeholder rows as tall as real ones at each density (real cells hold
+  // two lines or a button), so nothing jumps when the rows arrive.
+  const skeletonHeights = {
+    spacious: "[&>td]:h-15",
+    comfortable: "[&>td]:h-14",
+    default: "[&>td]:h-12",
+    compact: "[&>td]:h-10",
+    "ultra-compact": "[&>td]:h-8",
+  };
+
   const isTable = viewMode === "table" || !renderCard;
   const rows = table.getRowModel().rows;
   // Nothing on screen yet: placeholders shaped like the rows, not a spinner.
@@ -548,7 +558,12 @@ export function DataTable<TData extends RowData>({
                     <TableRow
                       key={index}
                       aria-hidden
-                      className={cn("border-0 hover:bg-transparent [&>td]:border-b", edgePadding, densityClasses[density])}
+                      className={cn(
+                        "border-0 hover:bg-transparent [&>td]:border-b [&>td]:bg-card",
+                        edgePadding,
+                        densityClasses[density],
+                        skeletonHeights[density]
+                      )}
                     >
                       {orderedHeaders.map(({ column }, cellIndex) => (
                         <TableCell key={column.id} style={pinnedStyle(pins[column.id] ?? null)}>
@@ -629,7 +644,7 @@ export function DataTable<TData extends RowData>({
         ) : (
           (rows.length > 0 || firstLoad || table.getRowCount() > 0) && (
             <div className={cn(isTable ? "border-t bg-card px-4 py-2" : "px-1")}>
-              <DataTablePagination table={table} onPageChange={toTop} />
+              <DataTablePagination table={table} onPageChange={toTop} loading={firstLoad} />
             </div>
           )
         )}
