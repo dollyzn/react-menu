@@ -462,9 +462,14 @@ export function DataTable<TData extends RowData>({
         {isTable ? (
           <ScrollArea
             ref={scroller}
+            // The bars show while scrolling only: always there, the thin
+            // vertical one read as a stray line beside the last column.
+            type="scroll"
+            scrollHideDelay={700}
             className={cn(
-              // The header stays while a long page scrolls inside.
-              "relative [&>[data-slot=scroll-area-viewport]]:max-h-[max(28rem,calc(100dvh-12rem))]",
+              // The header stays while a long page scrolls inside; the bars
+              // pass over the pinned columns, never under them.
+              "relative [&>[data-slot=scroll-area-scrollbar]]:z-10 [&>[data-slot=scroll-area-viewport]]:max-h-[max(28rem,calc(100dvh-12rem))]",
               wrapperClassName
             )}
           >
@@ -548,7 +553,7 @@ export function DataTable<TData extends RowData>({
                 )}
               </TableBody>
             </Table>
-            <ScrollBar orientation="horizontal" />
+            <ScrollBar orientation="horizontal" className="z-10" />
           </ScrollArea>
         ) : (
           <div
