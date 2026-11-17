@@ -127,3 +127,16 @@ test("phones: a failed \"Carregar mais\" says so and tries again", async ({ page
   await expect(page.getByText(/^Mostrando (30|50) de \d+$/)).toBeVisible();
   expect(failures).toBeGreaterThan(1);
 });
+
+test("phones: a table with only a search has no filters drawer, just the view switch", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  await login(page);
+  const store = page.url().match(/\/app\/stores\/[^/?#]+/)![0];
+  await page.goto(`${store}/categories`);
+  await expect(page.getByRole("searchbox", { name: "Buscar por nome" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Filtros/ })).toHaveCount(0);
+  await page.getByRole("button", { name: "Exibir como tabela" }).click();
+  await expect(page.getByRole("table")).toBeVisible();
+  await page.getByRole("button", { name: "Exibir como cartões" }).click();
+  await expect(page.getByRole("table")).toBeHidden();
+});

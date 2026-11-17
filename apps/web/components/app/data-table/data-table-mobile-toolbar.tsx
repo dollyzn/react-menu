@@ -2,6 +2,7 @@
 
 import type { RowData } from "@tanstack/react-table";
 import { useEffect, useId, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { ArrowDown, ArrowUp, Check, ChevronDown, LayoutGrid, ListFilter, Table2, X } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
@@ -86,7 +87,18 @@ export function DataTableMobileToolbar<TData extends RowData>({
       >
         {searchConfig && <MobileSearch table={table} columnId={searchConfig.key} />}
 
-        {(filterConfigs.length > 0 || hasCardView) && (
+        {filterConfigs.length === 0 && hasCardView ? (
+          // Nothing to filter: no drawer with a lone section, the view switches here.
+          <Button
+            variant="outline"
+            size="icon-lg"
+            className="shrink-0"
+            aria-label={viewMode === "cards" ? "Exibir como tabela" : "Exibir como cartões"}
+            onClick={() => setViewMode(viewMode === "cards" ? "table" : "cards")}
+          >
+            {viewMode === "cards" ? <Table2 /> : <LayoutGrid />}
+          </Button>
+        ) : filterConfigs.length > 0 && (
           <Button
             variant="outline"
             size="icon-lg"
@@ -501,6 +513,7 @@ function PeriodSection<TData extends RowData>({
   const preset = presets.find((p) => samePeriod(range, p.from, p.to));
   const custom = range && !preset ? rangeSummary(range) : null;
   const [calendar, setCalendar] = useState(false);
+  const reduceMotion = useReducedMotion();
   const set = (next: DateRange | undefined) => column.setFilterValue(next?.from || next?.to ? next : undefined);
 
   return (
@@ -526,18 +539,29 @@ function PeriodSection<TData extends RowData>({
         <span className={cn(!custom && "text-muted-foreground")}>{custom ?? "Escolher datas"}</span>
         <ChevronDown className={cn("text-muted-foreground transition-transform", calendar && "rotate-180")} />
       </Button>
-      {calendar && (
-        <Calendar
-          mode="range"
-          defaultMonth={range?.from}
-          selected={range}
-          onSelect={(next) => set(next?.from && !next.to ? { from: next.from, to: next.from } : next)}
-          numberOfMonths={1}
-          locale={ptBR}
-          // The drawer's own background, and days as wide as the phone allows.
-          className="mx-auto bg-transparent p-0 [--cell-size:clamp(2.25rem,11vw,2.75rem)]"
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {calendar && (
+          <motion.div
+            key="calendar"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.25, 0.1, 0.25, 1] }}
+            className="overflow-hidden"
+          >
+            <Calendar
+              mode="range"
+              defaultMonth={range?.from}
+              selected={range}
+              onSelect={(next) => set(next?.from && !next.to ? { from: next.from, to: next.from } : next)}
+              numberOfMonths={1}
+              locale={ptBR}
+              // The drawer's own background, and days as wide as the phone allows.
+              className="mx-auto bg-transparent p-0 pt-1 [--cell-size:clamp(2.25rem,11vw,2.75rem)]"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Section>
   );
 }
