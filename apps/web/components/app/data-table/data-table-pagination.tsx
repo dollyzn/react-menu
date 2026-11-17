@@ -117,17 +117,26 @@ export function DataTablePagination<TData extends RowData>({
   );
 }
 
-/** Page indexes to show: all up to 7, else the first, the last and the current's neighbours, `null` for "…". */
+/**
+ * Page indexes to show: all up to 7; else the first, the last and the
+ * current's neighbours, with `null` for "…" only where it hides two or more
+ * pages (a gap of one shows that page instead).
+ */
 export function pageList(current: number, pages: number): (number | null)[] {
   if (pages <= 7) return Array.from({ length: pages }, (_, index) => index);
   let start = Math.max(1, current - 1);
   let end = Math.min(pages - 2, current + 1);
   if (current <= 2) [start, end] = [1, 3];
   if (current >= pages - 3) [start, end] = [pages - 4, pages - 2];
-  const list: (number | null)[] = [0];
-  if (start > 1) list.push(null);
-  for (let page = start; page <= end; page++) list.push(page);
-  if (end < pages - 2) list.push(null);
-  list.push(pages - 1);
+  const shown = [0];
+  for (let page = start; page <= end; page++) shown.push(page);
+  shown.push(pages - 1);
+  const list: (number | null)[] = [];
+  shown.forEach((page, index) => {
+    const previous = shown[index - 1];
+    if (previous !== undefined && page - previous === 2) list.push(previous + 1);
+    else if (previous !== undefined && page - previous > 2) list.push(null);
+    list.push(page);
+  });
   return list;
 }

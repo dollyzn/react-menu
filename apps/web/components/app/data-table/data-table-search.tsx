@@ -58,8 +58,14 @@ export function DataTableSearch<TData extends RowData>({
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "/" || event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      // Not while typing somewhere, nor with a dialog open.
-      if (target?.closest("input, textarea, select, [contenteditable=true], [role=dialog]")) return;
+      // Not while typing somewhere, nor inside a dialog, menu or list.
+      if (
+        target?.isContentEditable ||
+        target?.closest(
+          "input, textarea, select, [role=dialog], [role=alertdialog], [role=menu], [role=listbox], [role=combobox]"
+        )
+      )
+        return;
       event.preventDefault();
       input.current?.focus();
     };

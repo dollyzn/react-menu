@@ -44,6 +44,11 @@ test("desktop tables: the search is a field, filters are always there and the pa
   await page.getByRole("button", { name: "Limpar filtros" }).click();
   await expect(page).not.toHaveURL(/f\.category\.name/);
 
+  // A page past the end (an old link): back to the last page, never "nothing here yet".
+  await page.goto(`${store}/items?page=99`);
+  await expect(range).toHaveText(new RegExp(`^\\d+–${total} de ${total}$`));
+  await expect(page.getByText("Nenhum registro encontrado")).toHaveCount(0);
+
   // No results: one empty state, which clears the search and filters.
   await search.fill("zzzz-nada");
   await expect(page.getByText("Nenhum resultado para essa busca")).toBeVisible();

@@ -28,6 +28,8 @@ export function SearchInput({
   ...props
 }: SearchInputProps) {
   const inputRef = React.useRef<HTMLInputElement>(null);
+  // Stable: a new callback each render would detach and attach the ref on every keystroke.
+  const mergedRef = React.useMemo(() => mergeRefs(inputRef, ref), [ref]);
 
   const clear = () => {
     onValueChange("");
@@ -41,7 +43,7 @@ export function SearchInput({
         className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
       />
       <Input
-        ref={mergeRefs(inputRef, ref)}
+        ref={mergedRef}
         type="search"
         inputMode="search"
         autoComplete="off"

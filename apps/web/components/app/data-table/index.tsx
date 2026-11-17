@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flexRender, useTable, type ReactTable, type RowData } from "@tanstack/react-table";
 import {
   dataTableFeatures,
@@ -36,6 +36,23 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocalStorage } from "usehooks-ts";
 import { env } from "@/lib/env";
+
+/**
+ * Leaf columns with the ids TanStack gives them (`id`, else the accessorKey
+ * with "." as "_", else a string header), group columns flattened.
+ */
+function leafColumns<TData extends RowData>(defs: ColumnDef<TData>[]): { id: string; meta?: { isFilterOnly?: boolean } }[] {
+  return defs.flatMap((def) => {
+    const group = (def as { columns?: ColumnDef<TData>[] }).columns;
+    if (group?.length) return leafColumns(group);
+    const accessorKey = (def as { accessorKey?: unknown }).accessorKey;
+    const header = (def as { header?: unknown }).header;
+    const id =
+      def.id ??
+      (accessorKey !== undefined ? String(accessorKey).replaceAll(".", "_") : typeof header === "string" ? header : "");
+    return [{ id, meta: def.meta as { isFilterOnly?: boolean } | undefined }];
+  });
+}
 
 /** The line under the header, which a pinned header's own shadow must keep. */
 const HEADER_LINE = "inset 0 -1px 0 var(--color-border)";
@@ -237,16 +254,21 @@ export function DataTable<TData extends RowData>({
     }
   }, [defaultCardsOnMobile, renderCard, setViewMode, viewMode, viewModeChosen]);
 
-  // Pinning is derived (props and visibility), never stored: TanStack only reads it.
-  const leafIds = columns.map((column) => (column.id ?? (column as { accessorKey?: string }).accessorKey) as string);
-  const shownIds = leafIds.filter(
-    (id, index) =>
-      id && columnVisibility[id] !== false && !(columns[index].meta as { isFilterOnly?: boolean } | undefined)?.isFilterOnly
-  );
-  const columnPinning = {
-    start: pinnedColumns ? (pinnedColumns.start ?? []) : shownIds.slice(0, 1),
-    end: pinnedColumns ? (pinnedColumns.end ?? []) : shownIds.length > 1 ? shownIds.slice(-1) : [],
-  };
+  // Pinning is derived (props and visibility), never stored: TanStack only
+  // reads it. Kept stable by value, so the table doesn't redo its pinned
+  // headers and cells on every render.
+  const shownKey = leafColumns(columns)
+    .filter(({ id, meta }) => id && columnVisibility[id] !== false && !meta?.isFilterOnly)
+    .map(({ id }) => id)
+    .join("|");
+  const pinStart = pinnedColumns?.start?.join("|");
+  const pinEnd = pinnedColumns?.end?.join("|");
+  const pinAll = pinnedColumns !== undefined;
+  const columnPinning = useMemo(() => {
+    const shown = shownKey ? shownKey.split("|") : [];
+    if (pinAll) return { start: pinStart ? pinStart.split("|") : [], end: pinEnd ? pinEnd.split("|") : [] };
+    return { start: shown.slice(0, 1), end: shown.length > 1 ? shown.slice(-1) : [] };
+  }, [shownKey, pinAll, pinStart, pinEnd]);
 
   const table = useTable({
     features: dataTableFeatures,
@@ -343,10 +365,12 @@ export function DataTable<TData extends RowData>({
   // Pinned columns' real widths: each one sticks after the ones before it.
   const headRow = useRef<HTMLTableRowElement>(null);
   const [widths, setWidths] = useState<Record<string, number>>({});
+  const pinnedKey = [...columnPinning.start, ...columnPinning.end].join("|");
   useEffect(() => {
     const viewport = scroller.current?.querySelector<HTMLElement>("[data-slot=scroll-area-viewport]");
     if (!viewport) return;
-    const update = () => {
+    // Scrolling only moves the edges; widths can't change meanwhile.
+    const updateEdges = () =>
       setEdges((prev) => {
         const next = {
           start: viewport.scrollLeft > 1,
@@ -354,10 +378,14 @@ export function DataTable<TData extends RowData>({
         };
         return prev.start === next.start && prev.end === next.end ? prev : next;
       });
+    const pinnedIds = new Set(pinnedKey ? pinnedKey.split("|") : []);
+    const pinnedHeaders = () =>
+      [...(headRow.current?.querySelectorAll<HTMLElement>("th[data-column-id]") ?? [])].filter((th) =>
+        pinnedIds.has(th.dataset.columnId!)
+      );
+    const updateWidths = () => {
       const measured: Record<string, number> = {};
-      headRow.current?.querySelectorAll<HTMLElement>("th[data-column-id]").forEach((th) => {
-        measured[th.dataset.columnId!] = th.getBoundingClientRect().width;
-      });
+      pinnedHeaders().forEach((th) => (measured[th.dataset.columnId!] = th.getBoundingClientRect().width));
       setWidths((prev) =>
         Object.keys(measured).length === Object.keys(prev).length &&
         Object.entries(measured).every(([id, width]) => Math.abs((prev[id] ?? -1) - width) < 0.5)
@@ -365,16 +393,22 @@ export function DataTable<TData extends RowData>({
           : measured
       );
     };
-    update();
-    viewport.addEventListener("scroll", update, { passive: true });
-    const observer = new ResizeObserver(update);
+    updateEdges();
+    updateWidths();
+    viewport.addEventListener("scroll", updateEdges, { passive: true });
+    // The pinned headers themselves too: columns can change width while the table keeps its own.
+    const observer = new ResizeObserver(() => {
+      updateEdges();
+      updateWidths();
+    });
     observer.observe(viewport);
     if (viewport.firstElementChild) observer.observe(viewport.firstElementChild);
+    pinnedHeaders().forEach((th) => observer.observe(th));
     return () => {
-      viewport.removeEventListener("scroll", update);
+      viewport.removeEventListener("scroll", updateEdges);
       observer.disconnect();
     };
-  }, [isTable]);
+  }, [isTable, pinnedKey]);
 
   const startPinned = table.getStartVisibleLeafColumns().filter((column) => isShown(column.columnDef.meta));
   const endPinned = table.getEndVisibleLeafColumns().filter((column) => isShown(column.columnDef.meta));
@@ -416,6 +450,15 @@ export function DataTable<TData extends RowData>({
 
   // A little more room at the table's two edges.
   const edgePadding = "[&>*:first-child]:pl-4 [&>*:last-child]:pr-4";
+
+  // A page past the end (its last row deleted, an old link): back to the last one.
+  const total = table.getRowCount();
+  const busy = Boolean(loading || fetching);
+  const { pageIndex: currentPage } = table.state.pagination;
+  useEffect(() => {
+    if (busy || compact || rows.length > 0 || total === 0 || currentPage === 0) return;
+    table.setPageIndex(Math.max(table.getPageCount() - 1, 0));
+  }, [busy, compact, rows.length, total, currentPage, table]);
 
   const emptyState = (
     <EmptyState filtered={filtered} onClear={clearFilters} />
@@ -462,9 +505,9 @@ export function DataTable<TData extends RowData>({
         {isTable ? (
           <ScrollArea
             ref={scroller}
-            // The bars show while scrolling only: always there, the thin
-            // vertical one read as a stray line beside the last column.
-            type="scroll"
+            // The bars show on hover and while scrolling: always there, the
+            // thin vertical one read as a stray line beside the last column.
+            type="hover"
             scrollHideDelay={700}
             className={cn(
               // The header stays while a long page scrolls inside; the bars
@@ -507,8 +550,8 @@ export function DataTable<TData extends RowData>({
                       aria-hidden
                       className={cn("border-0 hover:bg-transparent [&>td]:border-b", edgePadding, densityClasses[density])}
                     >
-                      {visibleColumns.map((column, cellIndex) => (
-                        <TableCell key={column.id}>
+                      {orderedHeaders.map(({ column }, cellIndex) => (
+                        <TableCell key={column.id} style={pinnedStyle(pins[column.id] ?? null)}>
                           <Skeleton
                             className="h-3.5"
                             style={{ width: `${48 + ((index * 7 + cellIndex * 13) % 40)}%` }}
@@ -584,7 +627,7 @@ export function DataTable<TData extends RowData>({
         {compact ? (
           <DataTableLoadMore table={table} maxPageSize={maxPageSize} fetching={fetching} />
         ) : (
-          (rows.length > 0 || firstLoad) && (
+          (rows.length > 0 || firstLoad || table.getRowCount() > 0) && (
             <div className={cn(isTable ? "border-t bg-card px-4 py-2" : "px-1")}>
               <DataTablePagination table={table} onPageChange={toTop} />
             </div>
