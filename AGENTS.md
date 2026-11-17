@@ -131,6 +131,11 @@ Conventional Commits (`feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `ci:`;
 decision that is hard to reverse, update this file and add an ADR in
 `docs/decisions/`.
 
+PR descriptions and release notes follow `CONTRIBUTING.md` ("Pull requests
+and releases"): Why / What / Tests / Deploy notes for PRs; New / Changed /
+Fixed / Security / Deploy notes for releases. Describe the final state; no
+"Review" or "Review fixes" sections.
+
 ## Known debt (don't copy these patterns)
 
 - See `docs/development/roadmap.md` for the full list.
