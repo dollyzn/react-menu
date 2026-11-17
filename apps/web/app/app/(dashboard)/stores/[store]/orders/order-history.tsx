@@ -179,6 +179,8 @@ export function OrderHistory({ storeId, onOpen }: { storeId: string; onOpen: (or
 
   return (
     <DataTable<Order>
+      // The API answers at most 100 orders at once.
+      maxPageSize={100}
       tableId={`orders-history-${storeId}`}
       loading={table.loading && table.data.length === 0}
       data={table.data}

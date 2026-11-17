@@ -88,6 +88,7 @@ export function PayLaterList({ storeId }: { storeId: string }) {
 
       <PayLaterActionsContext.Provider value={actions}>
         <DataTable<PayLaterOrder>
+          maxPageSize={100}
           tableId={`orders-pay-later-${storeId}`}
           loading={table.loading && table.data.length === 0}
           data={table.data}

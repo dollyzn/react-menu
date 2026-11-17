@@ -108,6 +108,15 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   links keep the view; filter/sort changes go back to page 1. When writing
   the URL yourself use `history.replaceState(null, …)`: Next only syncs
   `useSearchParams` for app-made entries, not its own state object.
+- On phones (below 768px, after hydration) the `DataTable` swaps its toolbar
+  and pages for `data-table-mobile-toolbar.tsx` and `data-table-load-more.tsx`:
+  the searchable column as a field that sticks under the header, "Filtros" /
+  "Ordenar" opening a drawer built from the same `columnsConfig` (options as
+  toggles, the quick periods and a calendar on demand, sorting, cards or
+  table; the drawer keeps its content while it closes (`useLastValue`);
+  filters apply as picked), the filters in use as chips, and "Carregar mais",
+  which grows the page size on page 1 (kept in the URL). Pass `maxPageSize`
+  when the API caps `perPage` (orders: 100). Nothing per screen changes.
 - Tables are TanStack Table 9: features are registered in
   `components/app/data-table/features.ts` (an API exists only if its feature
   is there; client row models and `'auto'` filter/sort functions too) and

@@ -157,32 +157,28 @@ test("orders history: the period filter picks days on the calendar", async ({ pa
   );
 });
 
-test("orders history on a phone: the period filter is a button like the others and opens the dates", async ({ page }) => {
+test("orders history on a phone: the period is in the filters drawer, with quick periods and the dates", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   const storePath = new URL(page.url()).pathname.match(/^\/app\/stores\/[^/]+/)![0];
   await page.goto(`${storePath}/orders?view=historico`);
 
-  const period = page.getByRole("button", { name: "Filtrar por período" });
-  const status = page.getByRole("button", { name: "Filtrar por status" });
-  await expect(period).toBeVisible();
-  // Same height as its neighbours (it used to render unstyled, stacked).
-  const [periodBox, statusBox] = [await period.boundingBox(), await status.boundingBox()];
-  expect(Math.abs(periodBox!.height - statusBox!.height)).toBeLessThan(2);
-  await page.screenshot({ path: process.env.SHOT ?? "test-results/period-filter-phone.png" });
-
-  await period.click();
-  const drawer = page.getByRole("dialog", { name: "Filtrar por Período" });
-  await expect(drawer.getByRole("grid").first()).toBeVisible();
-  // Quick periods are chips (a Select's list opened outside the drawer and swallowed the taps).
-  await drawer.getByRole("group", { name: "Períodos rápidos" }).getByRole("button", { name: "Hoje" }).click();
+  await page.getByRole("button", { name: /^Filtros/ }).click();
+  const drawer = page.getByRole("dialog", { name: "Filtros" });
+  // Quick periods are toggles (a Select's list opened outside the drawer and swallowed the taps).
+  const today = drawer.getByRole("group", { name: "Períodos rápidos" }).getByRole("button", { name: "Hoje" });
+  await today.click();
   const iso = new Date().toLocaleDateString("sv-SE");
   await expect(page).toHaveURL(new RegExp(`f\\.createdAt=${iso}(~|%7E)${iso}`));
-  await expect(drawer.getByRole("button", { name: "Hoje" })).toHaveAttribute("aria-pressed", "true");
-  await page.screenshot({ path: (process.env.SHOT ?? "test-results/period-filter-phone.png").replace(".png", "-open.png") });
-  await drawer.getByRole("button", { name: "Aplicar" }).click();
+  await expect(today).toHaveAttribute("aria-pressed", "true");
+  // The calendar opens on demand.
+  await drawer.getByRole("button", { name: "Escolher datas" }).click();
+  await expect(drawer.getByRole("grid").first()).toBeVisible();
+  await page.screenshot({ path: process.env.SHOT ?? "test-results/period-filter-phone.png" });
+  await drawer.getByRole("button", { name: /^Ver / }).click();
   await expect(drawer).toBeHidden();
-  await expect(period).toContainText(new Date().toLocaleDateString("pt-BR"));
+  // In use: a chip under the search.
+  await expect(page.getByRole("button", { name: /^Tirar o filtro Período: / })).toBeVisible();
 });
 
 test("kitchen: swipe right finishes the batch", async ({ page }) => {
@@ -493,24 +489,31 @@ test("orders board: today's finished orders, in a collapsed list that opens them
   await expect(page).toHaveURL(new RegExp(`pedido=${order.id}`));
 });
 
-test("orders history on a phone: the view toggle switches to the table and stays", async ({ page }) => {
+test("orders history on a phone: the view switches to the table in the drawer and stays", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await login(page);
   const storePath = new URL(page.url()).pathname.match(/^\/app\/stores\/[^/]+/)![0];
   await page.goto(`${storePath}/orders?view=historico`);
 
+  const filters = page.getByRole("button", { name: /^Filtros/ });
+  const drawer = page.getByRole("dialog", { name: "Filtros" });
+  const view = drawer.getByRole("group", { name: "Exibir como" });
   // Phones start on cards.
-  await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
-  await page.getByRole("button", { name: "Exibir como tabela" }).click();
+  await filters.click();
+  await expect(view.getByRole("button", { name: "Cartões" })).toHaveAttribute("aria-pressed", "true");
+  await view.getByRole("button", { name: "Tabela" }).click();
+  await drawer.getByRole("button", { name: /^Ver / }).click();
   // It used to snap back to cards at once.
-  await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
   await expect(page.getByRole("table")).toBeVisible();
 
   // Kept on this device.
   await page.reload();
-  await expect(page.getByRole("button", { name: "Exibir como cartões" })).toBeVisible();
-  await page.getByRole("button", { name: "Exibir como cartões" }).click();
-  await expect(page.getByRole("button", { name: "Exibir como tabela" })).toBeVisible();
+  await expect(page.getByRole("table")).toBeVisible();
+  await filters.click();
+  await expect(view.getByRole("button", { name: "Tabela" })).toHaveAttribute("aria-pressed", "true");
+  await view.getByRole("button", { name: "Cartões" }).click();
+  await drawer.getByRole("button", { name: /^Ver / }).click();
+  await expect(page.getByRole("table")).toBeHidden();
 });
 
 test("attendants: today's board only, no cancelling, and Entregar takes the payment first", async ({ page }) => {

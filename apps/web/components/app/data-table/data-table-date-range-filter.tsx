@@ -298,12 +298,12 @@ function DatePresets({
  * A range is a preset when the days match: the one read back from the URL is
  * at midnight, the preset's ends at the end of the day.
  */
-function samePeriod(range: DateRange | undefined, from: Date, to: Date) {
+export function samePeriod(range: DateRange | undefined, from: Date, to: Date) {
   return Boolean(range?.from && range.to && isSameDay(range.from, from) && isSameDay(range.to, to));
 }
 
 /** "8 – 14 de nov." / "8 de nov." / "A partir de 8 de nov.": the footer's summary. */
-function rangeSummary(range: DateRange) {
+export function rangeSummary(range: DateRange) {
   const day = (date: Date) => format(date, "d 'de' MMM", { locale: ptBR });
   if (range.from && range.to) {
     if (isEqual(range.from, range.to)) return day(range.from);
