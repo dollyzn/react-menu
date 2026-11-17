@@ -273,9 +273,9 @@ export function DataTable<TData extends RowData>({
   };
 
   return (
-    // clip, not hidden: hidden would make it a scroll box and the phone's
-    // toolbar couldn't stick to the top of the page.
-    <div className="overflow-x-clip">
+    // Phones: no clipping at all, so the toolbar can stick to the top of the
+    // page (overflow makes a scroll box) and focus rings aren't cut.
+    <div className={cn(!compact && "overflow-x-hidden")}>
       {compact ? (
         <DataTableMobileToolbar
           table={table}

@@ -2,13 +2,14 @@
 
 import type { RowData } from "@tanstack/react-table";
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowDown, ArrowUp, Check, ChevronDown, ListFilter, X } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, ChevronDown, LayoutGrid, ListFilter, Table2, X } from "lucide-react";
 import { ptBR } from "date-fns/locale";
 import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Spinner } from "@/components/ui/spinner";
 import { Toggle } from "@/components/ui/toggle";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Drawer,
   DrawerContent,
@@ -113,8 +114,8 @@ export function DataTableMobileToolbar<TData extends RowData>({
             className="max-w-32 min-w-0 shrink-0"
             aria-haspopup="dialog"
             aria-label={
-              sorted
-                ? `Ordenar: ${nameOf(sorted)}, ${direction === "desc" ? "decrescente" : "crescente"}`
+              sorted && direction
+                ? `Ordenar: ${nameOf(sorted)}, ${DIRECTIONS[sortKind(table, sorted.id)][direction].toLowerCase()}`
                 : "Ordenar"
             }
             onClick={() => setPanel("sort")}
@@ -155,16 +156,25 @@ export function DataTableMobileToolbar<TData extends RowData>({
           <div className="flex flex-col gap-6 overflow-y-auto px-4 pb-2">
             {shown === "filters" &&
               filterConfigs.map((config) => <FilterSection key={config.key} table={table} config={config} />)}
-            {sortable.length > 0 && shown && <SortSection table={table} heading={shown === "sort" ? null : "Ordenar por"} />}
+            {shown === "sort" && <SortSection table={table} />}
             {shown === "filters" && hasCardView && (
               <Section title="Exibir como">
-                <Options label="Exibir como">
-                  {(["cards", "table"] as const).map((mode) => (
-                    <Option key={mode} pressed={viewMode === mode} onPressedChange={() => setViewMode(mode)}>
-                      {mode === "cards" ? "Cartões" : "Tabela"}
-                    </Option>
-                  ))}
-                </Options>
+                <ToggleGroup
+                  aria-label="Exibir como"
+                  variant="outline"
+                  size="lg"
+                  spacing={0}
+                  className="w-full"
+                  value={[viewMode]}
+                  onValueChange={(value) => value[0] && setViewMode(value[0] as ViewMode)}
+                >
+                  <ToggleGroupItem value="cards" className="flex-1">
+                    <LayoutGrid /> Cartões
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="table" className="flex-1">
+                    <Table2 /> Tabela
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </Section>
             )}
           </div>
@@ -514,49 +524,94 @@ function PeriodSection<TData extends RowData>({
           onSelect={(next) => set(next?.from && !next.to ? { from: next.from, to: next.from } : next)}
           numberOfMonths={1}
           locale={ptBR}
-          className="mx-auto rounded-lg border [--cell-size:--spacing(9)]"
+          // The drawer's own background, and days as wide as the phone allows.
+          className="mx-auto bg-transparent p-0 [--cell-size:clamp(2.25rem,11vw,2.75rem)]"
         />
       )}
     </Section>
   );
 }
 
-/** Ordering: a column, then the direction (the same columns as the cards' sorting). */
-function SortSection<TData extends RowData>({
-  table,
-  heading,
-}: {
-  table: DataTableInstance<TData>;
-  heading: string | null;
-}) {
+/**
+ * Ordering as a list of columns; the chosen one holds its direction, named
+ * by what the column holds ("Mais recentes", "Maior", "A–Z").
+ */
+function SortSection<TData extends RowData>({ table }: { table: DataTableInstance<TData> }) {
   const columns = sortableColumns(table);
   const sorted = columns.find((column) => column.getIsSorted());
-  const direction = sorted?.getIsSorted();
+  const direction = sorted?.getIsSorted() || undefined;
   return (
-    <Section title={heading}>
-      <Options label="Ordenar por">
-        {columns.map((column) => (
-          <Option
-            key={column.id}
-            pressed={column === sorted}
-            onPressedChange={() => column.toggleSorting(direction === "desc")}
-          >
-            {nameOf(column)}
-          </Option>
-        ))}
-      </Options>
-      {sorted && (
-        <Options label="Direção">
-          <Option pressed={direction === "asc"} onPressedChange={() => sorted.toggleSorting(false)}>
-            Crescente
-          </Option>
-          <Option pressed={direction === "desc"} onPressedChange={() => sorted.toggleSorting(true)}>
-            Decrescente
-          </Option>
-        </Options>
-      )}
-    </Section>
+    <div role="radiogroup" aria-label="Ordenar por" className="flex flex-col divide-y overflow-hidden rounded-lg border">
+      {columns.map((column) => {
+        const on = column === sorted;
+        const kind = sortKind(table, column.id);
+        const labels = DIRECTIONS[kind];
+        return (
+          <div key={column.id} className={cn("flex min-h-11 items-center gap-2 pr-1.5", on && "bg-muted/50")}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={on}
+              className="flex h-11 min-w-0 flex-1 items-center gap-3 px-3 text-left text-sm outline-none focus-visible:bg-muted"
+              onClick={() => !on && column.toggleSorting(FIRST_DESC[kind])}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  "flex size-4 shrink-0 items-center justify-center rounded-full border transition-colors",
+                  on ? "border-primary" : "border-muted-foreground/40"
+                )}
+              >
+                {on && <span className="size-2 rounded-full bg-primary" />}
+              </span>
+              <span className={cn("truncate", on && "font-medium")}>{nameOf(column)}</span>
+            </button>
+            {on && direction && (
+              <ToggleGroup
+                aria-label={`Direção de ${nameOf(column).toLowerCase()}`}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                className="shrink-0 bg-background"
+                value={[direction]}
+                onValueChange={(value) => value[0] && column.toggleSorting(value[0] === "desc")}
+              >
+                {(FIRST_DESC[kind] ? (["desc", "asc"] as const) : (["asc", "desc"] as const)).map((dir) => (
+                  <ToggleGroupItem key={dir} value={dir} className="px-2">
+                    {labels[dir]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
+}
+
+type SortKind = "date" | "number" | "text";
+
+/** The direction in the column's own words. */
+const DIRECTIONS: Record<SortKind, Record<"asc" | "desc", string>> = {
+  date: { desc: "Mais recentes", asc: "Mais antigos" },
+  number: { desc: "Maior", asc: "Menor" },
+  text: { asc: "A–Z", desc: "Z–A" },
+};
+/** Where a column starts when picked: newest and biggest first, text from A. */
+const FIRST_DESC: Record<SortKind, boolean> = { date: true, number: true, text: false };
+
+/** What a column holds, read from the first row (dates come as ISO strings), or from its id. */
+function sortKind<TData extends RowData>(table: DataTableInstance<TData>, columnId: string): SortKind {
+  const value = table.getCoreRowModel().rows[0]?.getValue(columnId);
+  if (typeof value === "number") return "number";
+  if (value instanceof Date || (typeof value === "string" && /^\d{4}-\d{2}-\d{2}T/.test(value))) return "date";
+  if (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))) return "number";
+  if (value !== undefined && value !== null) return "text";
+  // No rows to look at: the column's name tells.
+  if (/(At|date|Date)$/.test(columnId)) return "date";
+  if (/(price|total|amount|due|paid|count|quantity|stock)/i.test(columnId)) return "number";
+  return "text";
 }
 
 /* ---------- Helpers ---------- */

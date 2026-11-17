@@ -5,6 +5,7 @@ const PHONE = { width: 390, height: 844 };
 
 async function shot(page: Page, name: string) {
   if (!process.env.SHOTS) return;
+  if (process.env.SHOTS_SCHEME === "dark") await page.emulateMedia({ colorScheme: "dark" });
   await page.waitForTimeout(400);
   await page.screenshot({ path: `${process.env.SHOTS}/${name}.png` });
 }
@@ -30,6 +31,10 @@ test("phones: the table's search stays on screen, filters live in a drawer and t
   await page.getByRole("button", { name: /^Carregar mais \d+$/ }).click();
   await expect(page.getByText(`Mostrando ${Math.min(30, total)} de ${total}`)).toBeVisible();
   await expect(page).toHaveURL(/size=30/);
+  if (process.env.SHOTS) {
+    await page.getByText(/^Mostrando \d+ de \d+$/).scrollIntoViewIfNeeded();
+    await shot(page, "mobile-table-1b-more");
+  }
 
   // Filters from the page's own config, applied as they are picked.
   await page.getByRole("button", { name: /^Filtros/ }).click();
@@ -69,14 +74,16 @@ test("phones: the history's period and sorting in the drawer", async ({ page }) 
   await expect(page.getByRole("searchbox", { name: "Buscar por número, cliente ou telefone" })).toBeVisible();
 
   // Sorting shows what is in use and changes from its own drawer.
-  const sort = page.getByRole("button", { name: "Ordenar: Data, decrescente" });
+  const sort = page.getByRole("button", { name: "Ordenar: Data, mais recentes" });
   await sort.click();
   const sorting = page.getByRole("dialog", { name: "Ordenar" });
-  await sorting.getByRole("button", { name: "Crescente", exact: true }).click();
+  await // The direction belongs to the chosen column, in its own words.
+  await expect(sorting.getByRole("radio", { name: "Data" })).toHaveAttribute("aria-checked", "true");
+  await sorting.getByRole("button", { name: "Mais antigos" }).click();
   await shot(page, "mobile-table-4-sort");
   await sorting.getByRole("button", { name: /^Ver / }).click();
   await expect(page).toHaveURL(/sort=createdAt\.asc/);
-  await expect(page.getByRole("button", { name: "Ordenar: Data, crescente" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ordenar: Data, mais antigos" })).toBeVisible();
 
   // The period: the same quick periods; the calendar on demand.
   await page.getByRole("button", { name: /^Filtros/ }).click();
