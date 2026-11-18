@@ -21,6 +21,9 @@ export const CHECKOUT_METHODS: Record<
  */
 export function cardRejection(detail: string | null) {
   switch (detail) {
+    // The API gave back a charge made as another card type than the one chosen.
+    case "card_type_mismatch":
+      return "O tipo do cartão não conferiu com o escolhido e o valor foi devolvido. Escolha crédito ou débito de novo e tente outra vez.";
     case "insufficient_amount":
     case "card_insufficient_amount":
     case "cc_rejected_insufficient_amount":

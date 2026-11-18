@@ -31,7 +31,7 @@ import {
 import { stockHint, unitsLeft } from "@/lib/stock";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL, formatPhoneBR, normalizeSearch } from "@/utils/string";
-import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
+import { errorCode, getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
 import { cn } from "@/lib/utils";
 import { CustomerAutocomplete } from "@/components/app/customers/customer-autocomplete";
@@ -54,7 +54,6 @@ const linesInput = (lines: TicketLine[]) =>
     ...lineAddonsInput(line.addons),
     notes: line.notes || undefined,
   }));
-const errorCode = (error: unknown) => (error as { data?: { code?: string } }).data?.code;
 /** Same item, picks (in the order chosen: it sets their prices) and notes. */
 const sameLine = (a: CustomizedLine, b: CustomizedLine) =>
   a.itemId === b.itemId &&

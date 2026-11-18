@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
-import { cardFee } from "@/lib/card-fee";
+import { cardFee, withCardFee } from "@/lib/card-fee";
 import { useUpdatePaymentSettingsMutation } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { UnsavedChangesBar } from "./unsaved-changes-bar";
@@ -18,16 +18,27 @@ import { useFollowSaved } from "./use-follow-saved";
 
 /** "4,99" or "4.99" → 4.99; NaN when it isn't a number. */
 const parsePercent = (value: string) => (value.trim() ? Number(value.trim().replace(",", ".")) : 0);
-const percent = z
-  .string()
-  .refine((value) => /^(\d{1,2}([.,]\d{1,2})?)?$/.test(value.trim()), "Use um número como 4,99.")
-  .refine((value) => parsePercent(value) <= 20, "No máximo 20%.");
+/** Why a percent field is refused, or null when it is fine. */
+const percentError = (value: string) =>
+  !/^(\d{1,2}([.,]\d{1,2})?)?$/.test(value.trim())
+    ? "Use um número como 4,99."
+    : parsePercent(value) > 20
+      ? "No máximo 20%."
+      : null;
 
+// The percents are checked only while the fee is on: the fields are disabled
+// when it is off, and an error there could not be fixed.
 const Schema = z
-  .object({ enabled: z.boolean(), credit: percent, debit: percent })
-  .refine((values) => !values.enabled || parsePercent(values.credit) > 0 || parsePercent(values.debit) > 0, {
-    path: ["credit"],
-    message: "Informe a taxa de pelo menos um tipo de cartão.",
+  .object({ enabled: z.boolean(), credit: z.string(), debit: z.string() })
+  .superRefine((values, ctx) => {
+    if (!values.enabled) return;
+    for (const name of ["credit", "debit"] as const) {
+      const message = percentError(values[name]);
+      if (message) ctx.addIssue({ code: "custom", path: [name], message });
+    }
+    if (!(parsePercent(values.credit) > 0) && !(parsePercent(values.debit) > 0)) {
+      ctx.addIssue({ code: "custom", path: ["credit"], message: "Informe a taxa de pelo menos um tipo de cartão." });
+    }
   });
 type Values = z.infer<typeof Schema>;
 
@@ -61,8 +72,9 @@ export function CardFeeCard({ store }: { store: Store }) {
         id: store.id,
         data: {
           cardFeeEnabled: data.enabled,
-          cardCreditFeePercent: parsePercent(data.credit),
-          cardDebitFeePercent: parsePercent(data.debit),
+          // Turned off with a half-typed percent: the saved one stays.
+          cardCreditFeePercent: percentError(data.credit) ? store.cardCreditFeePercent : parsePercent(data.credit),
+          cardDebitFeePercent: percentError(data.debit) ? store.cardDebitFeePercent : parsePercent(data.debit),
         },
       }).unwrap();
       form.reset(toForm({ ...store, ...saved }));
@@ -74,9 +86,8 @@ export function CardFeeCard({ store }: { store: Store }) {
 
   const example = (text: string) => {
     const value = parsePercent(text);
-    return Number.isFinite(value) && value > 0
-      ? `${formatCurrencyBRL(EXAMPLE + cardFee(EXAMPLE, value))} (+${formatCurrencyBRL(cardFee(EXAMPLE, value))})`
-      : formatCurrencyBRL(EXAMPLE);
+    if (!(Number.isFinite(value) && value > 0)) return formatCurrencyBRL(EXAMPLE);
+    return `${formatCurrencyBRL(withCardFee(EXAMPLE, value))} (+${formatCurrencyBRL(cardFee(EXAMPLE, value))})`;
   };
 
   return (

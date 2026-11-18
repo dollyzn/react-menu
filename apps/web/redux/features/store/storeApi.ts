@@ -27,8 +27,11 @@ export const storeApi = baseApi.injectEndpoints({
         method: "PUT",
         body: data,
       }),
-      // Settings like kitchen batching change the kitchen queue too.
-      invalidatesTags: (_res, _err, { id }) => [storeTag(id), { type: "Kitchen", id }],
+      // The store page shows the error in its forms.
+      extraOptions: { quiet: true },
+      // Kitchen batching changes the kitchen queue too; the rest doesn't.
+      invalidatesTags: (_res, _err, { id, data }) =>
+        data.kitchenBatchLookahead === undefined ? [storeTag(id)] : [storeTag(id), { type: "Kitchen", id }],
     }),
 
     updateStoreImages: build.mutation<

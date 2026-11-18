@@ -19,7 +19,7 @@ import { publicApi, usePayOrderMutation, useSimulatePaymentMutation } from "@/re
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { rememberEmail } from "@/redux/slices/customer";
 import { useCopied } from "@/hooks/use-copied";
-import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
+import { errorCode, getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cardFee, formatPercent, withCardFee, type CardType } from "@/lib/card-fee";
 import { CHECKOUT_METHODS, cardRejection } from "../_lib/payment-methods";
@@ -252,9 +252,10 @@ function CardPayment({
       if (input.payer.email) dispatch(rememberEmail(input.payer.email));
     } catch (err) {
       setError(errorText(err));
-      // The store changed its card fee meanwhile: read the order again, so the
-      // new total shows and the next try sends it.
-      if ((err as { data?: { code?: string } }).data?.code === "E_AMOUNT_CHANGED") {
+      // The store changed its card fee meanwhile, or the card was charged as
+      // another type (and given back): read the order again, so the total
+      // shown is current and the next try sends it.
+      if (errorCode(err) === "E_AMOUNT_CHANGED" || errorCode(err) === "E_CARD_TYPE_CHANGED") {
         dispatch(publicApi.util.invalidateTags([{ type: "PublicOrder", id: order.publicToken }]));
       }
     }
