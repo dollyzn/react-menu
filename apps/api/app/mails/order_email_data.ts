@@ -3,6 +3,7 @@ import { DateTime } from 'luxon'
 import env from '#start/env'
 import type Order from '#models/order'
 import { formatMoney } from '#mails/layout'
+import { addMoney } from '#payments/card_fee'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
 
 /** What the customer e-mails show of an order, already formatted. */
@@ -31,7 +32,7 @@ export function orderEmailData(
     totals.push({ label: 'Subtotal', value: formatMoney(order.subtotal) })
   }
   if (cardFee > 0) totals.push({ label: 'Taxa do cartão', value: formatMoney(cardFee) })
-  const paid = Math.round((order.total + cardFee) * 100) / 100
+  const paid = addMoney(order.total, cardFee)
   totals.push({ label: 'Total', value: formatMoney(paid), strong: true })
 
   return {

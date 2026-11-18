@@ -14,12 +14,13 @@ import { cardFee } from "@/lib/card-fee";
 import { useUpdatePaymentSettingsMutation } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { UnsavedChangesBar } from "./unsaved-changes-bar";
+import { useFollowSaved } from "./use-follow-saved";
 
 /** "4,99" or "4.99" → 4.99; NaN when it isn't a number. */
 const parsePercent = (value: string) => (value.trim() ? Number(value.trim().replace(",", ".")) : 0);
 const percent = z
   .string()
-  .refine((value) => /^\d{0,2}([.,]\d{0,2})?$/.test(value.trim()), "Use um número como 4,99.")
+  .refine((value) => /^(\d{1,2}([.,]\d{1,2})?)?$/.test(value.trim()), "Use um número como 4,99.")
   .refine((value) => parsePercent(value) <= 20, "No máximo 20%.");
 
 const Schema = z
@@ -48,6 +49,7 @@ const EXAMPLE = 50;
 export function CardFeeCard({ store }: { store: Store }) {
   const [save, { isLoading }] = useUpdatePaymentSettingsMutation();
   const form = useForm<Values>({ resolver: zodResolver(Schema), defaultValues: toForm(store) });
+  useFollowSaved(form, () => toForm(store), store.updatedAt);
   const values = useWatch({ control: form.control }) as Values;
   const busy = form.formState.isSubmitting || isLoading;
   const cardOn = store.mercadoPagoEnabled && Boolean(store.mercadoPagoPublicKey);

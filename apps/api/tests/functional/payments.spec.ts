@@ -1087,6 +1087,18 @@ test.group('Payments (in-app checkout)', (group) => {
     })
     stale.assertStatus(409)
     stale.assertBodyContains({ code: 'E_AMOUNT_CHANGED' })
+    // A page that never showed the fee (no total sent) doesn't charge it either.
+    const unseen = await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'tk',
+        installments: 1,
+        paymentMethodId: 'master',
+        paymentTypeId: 'credit_card',
+      },
+    })
+    unseen.assertStatus(409)
     assert.lengthOf(fake.created, 0, 'nothing charged')
 
     const pix = await client

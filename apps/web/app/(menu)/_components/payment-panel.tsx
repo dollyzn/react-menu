@@ -15,13 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNow } from "@/hooks/use-now";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
-import { usePayOrderMutation, useSimulatePaymentMutation } from "@/redux/features/public/publicApi";
+import { publicApi, usePayOrderMutation, useSimulatePaymentMutation } from "@/redux/features/public/publicApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { rememberEmail } from "@/redux/slices/customer";
 import { useCopied } from "@/hooks/use-copied";
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
-import { cardFee, formatPercent, type CardType } from "@/lib/card-fee";
+import { cardFee, formatPercent, withCardFee, type CardType } from "@/lib/card-fee";
 import { CHECKOUT_METHODS, cardRejection } from "../_lib/payment-methods";
 import { CardChallenge } from "./card-challenge";
 
@@ -237,7 +237,7 @@ function CardPayment({
   if (!publicKey) return null;
 
   const fee = cardFees ? cardFee(order.total, cardFees[type]) : 0;
-  const amount = Math.round((order.total + fee) * 100) / 100;
+  const amount = cardFees ? withCardFee(order.total, cardFees[type]) : order.total;
 
   const onPay = async (input: PublicPaymentRequest) => {
     setError(null);
@@ -252,6 +252,11 @@ function CardPayment({
       if (input.payer.email) dispatch(rememberEmail(input.payer.email));
     } catch (err) {
       setError(errorText(err));
+      // The store changed its card fee meanwhile: read the order again, so the
+      // new total shows and the next try sends it.
+      if ((err as { data?: { code?: string } }).data?.code === "E_AMOUNT_CHANGED") {
+        dispatch(publicApi.util.invalidateTags([{ type: "PublicOrder", id: order.publicToken }]));
+      }
     }
   };
 
@@ -318,6 +323,8 @@ function CardPayment({
       )}
       {payment?.status !== "pending" && (
         <CardPaymentForm
+          // Another type rebuilds the Brick: a new instance shows its loading state again.
+          key={type}
           publicKey={publicKey}
           amount={amount}
           maxInstallments={maxInstallments}

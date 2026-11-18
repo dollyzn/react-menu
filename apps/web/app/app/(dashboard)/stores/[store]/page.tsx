@@ -188,7 +188,7 @@ export default function StorePage() {
             </TabsContent>
             <TabsContent value="pagamentos" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <PaymentSettingsCard store={data} />
-              <CardFeeCard key={data.id} store={data} />
+              <CardFeeCard store={data} />
               <PointSettingsCard store={data} />
             </TabsContent>
           </Tabs>

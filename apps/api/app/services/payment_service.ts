@@ -23,7 +23,7 @@ import FakeGateway from '#payments/fake_gateway'
 import type { GatewayPayment, PaymentGateway } from '#payments/gateway'
 import MercadoPagoClient, { isValidWebhookSignature } from '#payments/mercado_pago_client'
 import MercadoPagoGateway from '#payments/mercado_pago_gateway'
-import { cardFee, cardTypeOf } from '#payments/card_fee'
+import { addMoney, cardFee, cardTypeOf } from '#payments/card_fee'
 import OrderService from '#services/order_service'
 import InventoryService from '#services/inventory_service'
 
@@ -197,8 +197,11 @@ export default class PaymentService {
       input.method === PaymentMethod.CARD
         ? cardFee(store, order.total, cardTypeOf(input.card?.paymentTypeId))
         : 0
-    const charged = Math.round((order.total + fee) * 100) / 100
-    if (input.amount !== undefined && Math.abs(input.amount - charged) > 0.005) {
+    const charged = addMoney(order.total, fee)
+    // With a fee, the total the customer saw is required: a page that never
+    // showed it (loaded before the store turned the fee on) must not charge it.
+    const unseen = fee > 0 && input.amount === undefined
+    if (unseen || (input.amount !== undefined && Math.abs(input.amount - charged) > 0.005)) {
       throw new AppException(
         'O valor a pagar mudou. Confira o novo total e tente de novo.',
         409,
@@ -221,6 +224,18 @@ export default class PaymentService {
             expiresAt: DateTime.now().plus({ minutes: PIX_TTL_MINUTES }),
           })
         : await gateway.createCard({ ...request, card: input.card! })
+
+    // The rate came from the type the page sent; the gateway knows the real one.
+    if (
+      fee > 0 &&
+      result.cardType &&
+      cardTypeOf(result.cardType) !== cardTypeOf(input.card?.paymentTypeId)
+    ) {
+      logger.warn(
+        { orderId: order.id, sent: input.card?.paymentTypeId, charged: result.cardType },
+        'card fee priced for another card type'
+      )
+    }
 
     const payment = await Payment.create({
       orderId: order.id,
@@ -319,10 +334,11 @@ export default class PaymentService {
           status: result.status,
           statusDetail: result.statusDetail,
           amount: order.total,
-          // A card fee the customer paid on top: what Mercado Pago charged beyond the order.
+          // A card fee the customer paid on top: what Mercado Pago charged
+          // beyond the order (online orders aren't repriced while unpaid). Pix has none.
           fee:
-            result.amount !== undefined
-              ? Math.max(0, Math.round((result.amount - order.total) * 100) / 100)
+            !result.pix && result.amount !== undefined
+              ? Math.max(0, addMoney(result.amount, -order.total))
               : 0,
         })
         logger.warn(
@@ -401,7 +417,10 @@ export default class PaymentService {
     // The card fee the customer paid goes back with the payment.
     const refunded = targets.reduce(
       (sum, target) =>
-        sum + (target.payment ? target.payment.amount + target.payment.fee : order.total),
+        addMoney(
+          sum,
+          target.payment ? addMoney(target.payment.amount, target.payment.fee) : order.total
+        ),
       0
     )
     const payerEmail = targets.find((target) => target.payment?.payerEmail)?.payment?.payerEmail
@@ -414,7 +433,7 @@ export default class PaymentService {
           ...orderEmailData(
             order,
             undefined,
-            targets.reduce((sum, target) => sum + (target.payment?.fee ?? 0), 0)
+            targets.reduce((sum, target) => addMoney(sum, target.payment?.fee ?? 0), 0)
           ),
           // What went back: the gateway's part (items added later and paid
           // at the counter, or not paid, aren't in it).

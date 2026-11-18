@@ -30,6 +30,8 @@ export type GatewayPayment = {
   gatewayPaymentId: string
   status: PaymentAttemptStatus
   statusDetail: string | null
+  /** Card: the type the gateway charged it as (credit_card, debit_card…), when it says. */
+  cardType?: string
   /** What the gateway charged, when it says (Mercado Pago orders). */
   amount?: number
   /** Order the payment refers to (external reference), when the gateway knows. */

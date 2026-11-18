@@ -14,6 +14,9 @@ export function cardFeePercents(store: Store): Record<CardType, number> | null {
   return percents.credit > 0 || percents.debit > 0 ? percents : null
 }
 
+/** `a + b` to the cent: what was charged, order plus fee. */
+export const addMoney = (a: number, b: number) => Math.round((a + b) * 100) / 100
+
 /**
  * What the customer pays on top of `amount` for a card of this type, to the
  * cent (half up). Zero when the store keeps the fee.
