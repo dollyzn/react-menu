@@ -13,9 +13,12 @@ test("the store page: profile and operation saved from their tabs, menu order si
   await expect(page.getByRole("tab", { name: "Perfil" })).toHaveAttribute("aria-selected", "true");
 
   // Perfil: the basic information, right on the page.
+  // Nothing changed: no save bar. The preview follows what is typed.
   const save = page.getByRole("button", { name: "Salvar", exact: true });
-  await expect(save).toBeDisabled();
+  await expect(save).toBeHidden();
   await page.getByLabel("Descrição").fill("Pastéis feitos na hora.");
+  await expect(page.getByRole("region", { name: "Alterações não salvas" })).toBeVisible();
+  await expect(page.getByLabel("Prévia do topo do cardápio")).toContainText("Pastéis feitos na hora.");
   await page.getByLabel("Telefone").fill("13991234567");
   await expect(page.getByLabel("Telefone")).toHaveValue("(13) 99123-4567");
   await page.getByLabel("Instagram").fill("https://example.com/loja");
@@ -24,7 +27,7 @@ test("the store page: profile and operation saved from their tabs, menu order si
   await page.getByLabel("Instagram").fill("https://www.instagram.com/abas");
   await save.click();
   await expect(page.getByText("Informações da loja salvas")).toBeVisible();
-  await expect(save).toBeDisabled();
+  await expect(save).toBeHidden();
   const profile = await read();
   expect([profile.description, profile.phone, profile.instagramUrl]).toEqual([
     "Pastéis feitos na hora.",
@@ -38,7 +41,7 @@ test("the store page: profile and operation saved from their tabs, menu order si
   const operation = page.getByText("Pedidos e cozinha").locator("xpath=ancestor::*[@data-slot='card']");
   await operation.getByRole("button", { name: "Aumentar minutos de retirada" }).click();
   await operation.getByRole("switch", { name: "Controlar estoque" }).click();
-  await operation.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByText("Operação da loja salva")).toBeVisible();
   const saved = await read();
   expect([saved.pickupEtaMinutes, saved.inventoryEnabled]).toEqual([profile.pickupEtaMinutes + 1, !profile.inventoryEnabled]);

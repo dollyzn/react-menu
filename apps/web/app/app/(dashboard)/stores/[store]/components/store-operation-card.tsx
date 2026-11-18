@@ -6,12 +6,12 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Settings2 } from "lucide-react";
 import { NumberStepper } from "@/components/app/number-stepper";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldSeparator } from "@/components/ui/field";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { UnsavedChangesBar } from "./unsaved-changes-bar";
 import { useSaveStore } from "./use-save-store";
 
 const Schema = z.object({
@@ -53,14 +53,14 @@ export function StoreOperationCard({ store }: { store: Store }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings2 className="size-4 text-primary" /> Pedidos e cozinha
-        </CardTitle>
-        <CardDescription>Como os pedidos chegam, são pagos e preparados.</CardDescription>
-      </CardHeader>
-      <form noValidate onSubmit={form.handleSubmit(submit)} className="contents">
+    <form noValidate onSubmit={form.handleSubmit(submit)} className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings2 className="size-4 text-primary" /> Pedidos e cozinha
+          </CardTitle>
+          <CardDescription>Como os pedidos chegam, são pagos e preparados.</CardDescription>
+        </CardHeader>
         <CardContent>
           <FieldGroup>
             <Controller
@@ -156,20 +156,8 @@ export function StoreOperationCard({ store }: { store: Store }) {
             )}
           </FieldGroup>
         </CardContent>
-        <CardFooter className="justify-end gap-2 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || !form.formState.isDirty}
-            onClick={() => form.reset(toForm(store))}
-          >
-            Desfazer alterações
-          </Button>
-          <Button type="submit" loading={busy} disabled={!form.formState.isDirty}>
-            Salvar
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+      </Card>
+      <UnsavedChangesBar dirty={form.formState.isDirty} busy={busy} onReset={() => form.reset(toForm(store))} />
+    </form>
   );
 }

@@ -9,6 +9,7 @@ import { PageHeader } from "@/components/app/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs as TabsPrimitive } from "@base-ui/react/tabs";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryParam } from "@/hooks/use-query-param";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
@@ -157,28 +158,34 @@ export default function StorePage() {
           <Tabs value={tab} onValueChange={(value) => setTabParam(value === "perfil" ? null : String(value))} className="gap-4">
             {/* Scrolls sideways on narrow phones instead of squeezing the labels. */}
             <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
-              <TabsList variant="line" className="w-max min-w-full justify-start border-b">
+              <TabsList variant="line" className="relative w-max min-w-full justify-start border-b">
                 {TABS.map(({ value, label, icon: Icon }) => (
-                  <TabsTrigger key={value} value={value} className="flex-none px-3">
+                  <TabsTrigger
+                    key={value}
+                    value={value}
+                    className="flex-none px-3 transition-colors after:hidden data-active:text-primary dark:data-active:text-primary"
+                  >
                     <Icon className="max-sm:hidden" />
                     {label}
                   </TabsTrigger>
                 ))}
+                {/* One bar that slides to the active tab. */}
+                <TabsPrimitive.Indicator className="absolute bottom-[-1px] left-0 h-0.5 w-(--active-tab-width) translate-x-(--active-tab-left) rounded-full bg-primary transition-[translate,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none" />
               </TabsList>
             </div>
 
             {/* Kept mounted: a half-edited form survives switching tabs. */}
-            <TabsContent value="perfil" keepMounted className="text-base">
+            <TabsContent value="perfil" keepMounted className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <StoreProfileForm key={data.id} store={data} />
             </TabsContent>
-            <TabsContent value="cardapio" keepMounted className="text-base">
+            <TabsContent value="cardapio" keepMounted className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <MenuOrder storeId={data.id} />
             </TabsContent>
-            <TabsContent value="funcionamento" keepMounted className="flex flex-col gap-4 text-base">
+            <TabsContent value="funcionamento" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <StoreOperationCard key={data.id} store={data} />
               <OpeningHoursCard key={data.updatedAt} store={data} />
             </TabsContent>
-            <TabsContent value="pagamentos" keepMounted className="flex flex-col gap-4 text-base">
+            <TabsContent value="pagamentos" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <PaymentSettingsCard store={data} />
               <PointSettingsCard store={data} />
             </TabsContent>
