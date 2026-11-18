@@ -40,7 +40,7 @@ export function PaymentSettingsCard({ store }: { store: Store }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex flex-wrap items-center gap-2">
           <CreditCard className="size-5 text-primary" /> Pagamentos online
           <Badge variant={enabled ? "default" : "secondary"}>{enabled ? "Ativo" : "Desligado"}</Badge>
         </CardTitle>

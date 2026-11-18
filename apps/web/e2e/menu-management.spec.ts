@@ -49,7 +49,7 @@ test("reorder categories with the keyboard on the store page", async ({ page }) 
   }
   await page.context().clearCookies();
   await login(page);
-  await page.goto(`/app/stores/${store.id}`);
+  await page.goto(`/app/stores/${store.id}?aba=cardapio`);
 
   const reorderResponse = page.waitForResponse(
     (res) => res.url().endsWith("/categories/order") && res.request().method() === "PUT"

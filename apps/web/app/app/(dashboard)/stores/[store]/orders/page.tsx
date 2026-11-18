@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, usePathname, useSearchParams } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useQueryParam } from "@/hooks/use-query-param";
 import { AnimatePresence, motion } from "motion/react";
 import { HandCoins, History, Plus, Radio } from "lucide-react";
 import type { Order, OrderStatus, PointCharge } from "@react-menu/contracts";
@@ -29,22 +30,6 @@ const COLUMNS: { status: OrderStatus; title: string; tab: string; empty: string 
   { status: "preparing", title: "Em preparo", tab: "Preparo", empty: "A cozinha está livre." },
   { status: "ready", title: "Prontos para retirada", tab: "Prontos", empty: "Nada para entregar." },
 ];
-
-/** Sets or clears one query param without a navigation (Next keeps useSearchParams in sync). */
-function useQueryParam(key: string) {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const set = (value: string | null, extra?: (params: URLSearchParams) => void) => {
-    const params = new URLSearchParams(window.location.search);
-    if (value === null) params.delete(key);
-    else params.set(key, value);
-    extra?.(params);
-    const query = params.toString();
-    // null state: Next syncs useSearchParams only for app-made history entries.
-    window.history.replaceState(null, "", query ? `${pathname}?${query}` : pathname);
-  };
-  return [searchParams.get(key), set] as const;
-}
 
 export default function OrdersPage() {
   const { store: storeId } = useParams<{ store: string }>();

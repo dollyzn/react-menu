@@ -143,4 +143,51 @@ test.group('Store settings', (group) => {
     assert.isTrue(store.inventoryEnabled)
     assert.isFalse(store.counterPaymentEnabled)
   })
+
+  test('the operation settings save on their own, without the profile', async ({
+    client,
+    assert,
+  }) => {
+    const store = await createStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    const response = await client
+      .put(`/api/v1/stores/${store.id}`)
+      .json({ pickupEtaMinutes: 35, kitchenBatchLookahead: 1 })
+      .loginAs(manager)
+
+    response.assertStatus(200)
+    const slug = store.slug
+    await store.refresh()
+    assert.equal(store.pickupEtaMinutes, 35)
+    assert.equal(store.kitchenBatchLookahead, 1)
+    assert.equal(store.slug, slug)
+  })
+
+  test('a cleared profile field is saved empty', async ({ client, assert }) => {
+    const store = await createStore()
+    store.merge({
+      description: 'Pastéis crocantes',
+      address: 'Rua A, 1',
+      phone: '11912345678',
+      instagramUrl: 'https://www.instagram.com/loja',
+      ifoodUrl: 'https://www.ifood.com.br/loja',
+    })
+    await store.save()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    const response = await client
+      .put(`/api/v1/stores/${store.id}`)
+      .json({ description: '', address: '', phone: '', instagramUrl: '', ifoodUrl: '' })
+      .loginAs(manager)
+
+    response.assertStatus(200)
+    await store.refresh()
+    assert.deepEqual(
+      [store.description, store.address, store.phone, store.instagramUrl, store.ifoodUrl],
+      [null, null, null, null, null]
+    )
+  })
 })

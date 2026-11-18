@@ -11,7 +11,7 @@ test("card machine: turn it on, charge a POS order and see it paid", async ({ pa
 
   try {
     await login(page);
-    await page.goto(`/app/stores/${storeId}`);
+    await page.goto(`/app/stores/${storeId}?aba=pagamentos`);
 
     // Settings: the account's machines; turn the pretend one on for the POS.
     const card = page.getByText("Maquininhas (Mercado Pago Point)").locator("xpath=ancestor::*[@data-slot='card']");
@@ -124,7 +124,7 @@ test("card machine, kitchen after payment: a refused card keeps the order off th
     expect(enabled.ok()).toBeTruthy();
 
     // The switch on the store page.
-    await page.goto(`/app/stores/${storeId}`);
+    await page.goto(`/app/stores/${storeId}?aba=pagamentos`);
     const toggle = page.getByRole("switch", { name: "Mandar para a cozinha só depois do pagamento na maquininha" });
     await expect(toggle).not.toBeChecked();
     await toggle.click();

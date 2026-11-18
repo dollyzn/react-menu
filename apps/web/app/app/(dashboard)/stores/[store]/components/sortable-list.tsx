@@ -36,6 +36,8 @@ interface SortableListProps<T extends SortableEntry> {
   onReorder: (items: T[]) => Promise<unknown>;
   /** Extra content for each row (thumbnail, counts, actions). */
   renderRow?: (item: T) => React.ReactNode;
+  /** Rows come in one after the other when the list mounts. */
+  stagger?: boolean;
 }
 
 type RowProps<T extends SortableEntry> = {
@@ -43,6 +45,13 @@ type RowProps<T extends SortableEntry> = {
   disabled?: boolean;
   renderRow?: (item: T) => React.ReactNode;
 };
+
+/** Entrance of row `index`: capped so a long list doesn't keep coming in. */
+const enterStyle = (index: number): React.CSSProperties => ({
+  animationDelay: `${Math.min(index, 10) * 35}ms`,
+  // Backwards only: once in, the drag transform is the row's own again.
+  animationFillMode: "backwards",
+});
 
 function RowContent<T extends SortableEntry>({
   item,
@@ -74,15 +83,22 @@ function RowContent<T extends SortableEntry>({
 const rowClassName =
   "flex items-center gap-2 rounded-lg border bg-card p-2 pr-3 transition-shadow";
 
-function SortableRow<T extends SortableEntry>(props: RowProps<T>) {
+function SortableRow<T extends SortableEntry>({
+  enter,
+  ...props
+}: RowProps<T> & { enter?: React.CSSProperties }) {
   const { setNodeRef, transform, transition, isDragging, attributes, listeners } =
     useSortable({ id: props.item.id, disabled: props.disabled });
 
   return (
     <li
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={cn(rowClassName, isDragging && "opacity-40")}
+      style={{ ...enter, transform: CSS.Transform.toString(transform), transition }}
+      className={cn(
+        rowClassName,
+        enter && "animate-in fade-in-0 slide-in-from-bottom-2 duration-300 ease-out motion-reduce:animate-none",
+        isDragging && "opacity-40"
+      )}
     >
       <RowContent {...props} handleProps={{ ...attributes, ...listeners }} />
     </li>
@@ -94,6 +110,7 @@ export default function SortableList<T extends SortableEntry>({
   disabled,
   onReorder,
   renderRow,
+  stagger,
 }: SortableListProps<T>) {
   // Optimistic copy; reset whenever the server list changes.
   const [localItems, setLocalItems] = useState(items);
@@ -150,12 +167,13 @@ export default function SortableList<T extends SortableEntry>({
         disabled={disabled}
       >
         <ul className="flex flex-col gap-2">
-          {localItems.map((item) => (
+          {localItems.map((item, index) => (
             <SortableRow
               key={item.id}
               item={item}
               disabled={disabled}
               renderRow={renderRow}
+              enter={stagger ? enterStyle(index) : undefined}
             />
           ))}
         </ul>

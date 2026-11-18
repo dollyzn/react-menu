@@ -34,9 +34,16 @@ import { MAX_KITCHEN_LOOKAHEAD } from '#kitchen/production_queue'
 import StoreStatus from '../enums/store_status.js'
 
 const name = vine.string().trim()
-const address = vine.string().trim().optional()
-const instagramUrl = vine.string().url().startsWith('https://www.instagram.com').optional()
-const ifoodUrl = vine.string().url().startsWith('https://www.ifood.com.br').optional()
+// Nullable: a field cleared in the form arrives as null (empty strings become
+// null in the body parser) and must clear the column, not be skipped.
+const address = vine.string().trim().nullable().optional()
+const instagramUrl = vine
+  .string()
+  .url()
+  .startsWith('https://www.instagram.com')
+  .nullable()
+  .optional()
+const ifoodUrl = vine.string().url().startsWith('https://www.ifood.com.br').nullable().optional()
 const isDefault = vine.boolean().optional()
 
 const storeValidator = vine.create(
@@ -78,15 +85,19 @@ const updateValidator = vine.create(
           .first()
 
         return !match
-      }),
+      })
+      // The store page saves its profile and its operation separately.
+      .optional(),
     isDefault,
     phone: vine
       .string()
       .trim()
       .maxLength(25)
-      .transform((value) => value.replace(/\D/g, '') || null)
+      // Runs for null too (a cleared field).
+      .transform((value) => (value ?? '').replace(/\D/g, '') || null)
+      .nullable()
       .optional(),
-    description: vine.string().trim().maxLength(500).optional(),
+    description: vine.string().trim().maxLength(500).nullable().optional(),
     pickupEtaMinutes: vine.number().withoutDecimals().min(1).max(240).optional(),
     inventoryEnabled: vine.boolean().optional(),
     counterPaymentEnabled: vine.boolean().optional(),
