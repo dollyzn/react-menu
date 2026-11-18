@@ -27,6 +27,23 @@ updates:
       # Types follow the Node runtime in .nvmrc (24); bump them together.
       - dependency-name: '@types/node'
         update-types: [version-update:semver-major]
+      # @vercel/otel 2.3 takes the OpenTelemetry SDK 2.x / 0.2xx line only, and
+      # SDK 2.x takes @opentelemetry/api below 1.10 (1.10 goes with SDK 3).
+      # Move them all together once @vercel/otel supports SDK 3.
+      - dependency-name: '@opentelemetry/api'
+        versions: ['>=1.10.0']
+      - dependency-name: '@opentelemetry/resources'
+        versions: ['>=3.0.0']
+      - dependency-name: '@opentelemetry/sdk-metrics'
+        versions: ['>=3.0.0']
+      - dependency-name: '@opentelemetry/sdk-trace-base'
+        versions: ['>=3.0.0']
+      - dependency-name: '@opentelemetry/sdk-logs'
+        versions: ['>=0.300.0']
+      - dependency-name: '@opentelemetry/api-logs'
+        versions: ['>=0.300.0']
+      - dependency-name: '@opentelemetry/instrumentation'
+        versions: ['>=0.300.0']
   - package-ecosystem: github-actions
     directory: /
     schedule:
