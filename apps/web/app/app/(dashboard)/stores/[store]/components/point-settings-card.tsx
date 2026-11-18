@@ -81,7 +81,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle className="flex flex-wrap items-center gap-2">
           <Smartphone className="size-5 text-primary" /> Maquininhas (Mercado Pago Point)
           {config && config.terminals.length > 0 && <Badge>{config.terminals.length} ativa{config.terminals.length > 1 ? "s" : ""}</Badge>}
         </CardTitle>

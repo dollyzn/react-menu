@@ -31,7 +31,7 @@ test("a store on a schedule opens and closes by itself; 'Fechar agora' pauses it
   const day = DAYS[dayOf(start)];
   await page.context().clearCookies();
   await login(page);
-  await page.goto(`/app/stores/${store.id}`, { timeout: 30_000 });
+  await page.goto(`/app/stores/${store.id}?aba=funcionamento`, { timeout: 30_000 });
   await page.getByText("Abrir e fechar sozinha pelo horário").click();
   await page.getByRole("checkbox", { name: `Abre ${day}` }).click();
   await page.getByRole("combobox", { name: `Abre às (${day})` }).click();

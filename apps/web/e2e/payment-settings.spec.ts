@@ -8,7 +8,7 @@ test("Mercado Pago settings validate in the form and keep saved secrets", async 
   await page.setViewportSize({ width: 1280, height: 900 });
   const menu = await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json();
   await login(page);
-  await page.goto(`/app/stores/${menu.data.store.id}`);
+  await page.goto(`/app/stores/${menu.data.store.id}?aba=pagamentos`);
 
   await page.getByRole("button", { name: "Configurar" }).click();
   const dialog = page.getByRole("dialog", { name: "Mercado Pago" });

@@ -111,7 +111,7 @@ export function UpdateBannerDialog({ storeId }: UpdateBannerDialogProps) {
           <Button
             variant="secondary"
             size="sm"
-            className="absolute bottom-4 right-4"
+            className="absolute top-3 right-3"
           >
             <Camera data-icon="inline-start" />
             Alterar banner

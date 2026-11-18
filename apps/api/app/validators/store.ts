@@ -78,7 +78,9 @@ const updateValidator = vine.create(
           .first()
 
         return !match
-      }),
+      })
+      // The store page saves its profile and its operation separately.
+      .optional(),
     isDefault,
     phone: vine
       .string()

@@ -143,4 +143,25 @@ test.group('Store settings', (group) => {
     assert.isTrue(store.inventoryEnabled)
     assert.isFalse(store.counterPaymentEnabled)
   })
+
+  test('the operation settings save on their own, without the profile', async ({
+    client,
+    assert,
+  }) => {
+    const store = await createStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    const response = await client
+      .put(`/api/v1/stores/${store.id}`)
+      .json({ pickupEtaMinutes: 35, kitchenBatchLookahead: 1 })
+      .loginAs(manager)
+
+    response.assertStatus(200)
+    const slug = store.slug
+    await store.refresh()
+    assert.equal(store.pickupEtaMinutes, 35)
+    assert.equal(store.kitchenBatchLookahead, 1)
+    assert.equal(store.slug, slug)
+  })
 })
