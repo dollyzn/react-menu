@@ -27,6 +27,9 @@ export function getErrorMessage(error: unknown, defaultMessage?: string): string
   );
 }
 
+/** The API's error code (`E_AMOUNT_CHANGED`…), when it sent one. */
+export const errorCode = (error: unknown) => (error as { data?: { code?: unknown } } | null)?.data?.code;
+
 /** The request never got an answer (offline, dropped or too slow). */
 export function isConnectionError(error: unknown) {
   const status = (error as { status?: unknown } | null)?.status;

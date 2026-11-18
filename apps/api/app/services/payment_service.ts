@@ -31,6 +31,8 @@ import InventoryService from '#services/inventory_service'
 const PIX_TTL_MINUTES = 30
 /** Mercado Pago's limit for the payer to finish a 3-D Secure challenge. */
 const CHALLENGE_TTL_MINUTES = 40
+/** A card charge priced with another card type's fee: it goes back (see giveBackMispriced). */
+const MISPRICED = 'card_type_mismatch'
 
 type WebhookInput = {
   type: string | undefined
@@ -225,18 +227,13 @@ export default class PaymentService {
           })
         : await gateway.createCard({ ...request, card: input.card! })
 
-    // The rate came from the type the page sent; the gateway knows the real one.
-    if (
+    // The rate came from the type the page sent; the gateway knows the one it
+    // charged. A charge priced for another rate isn't kept: it goes back and
+    // the customer tries again (a card form changed by hand, a combo card).
+    const mispriced =
       fee > 0 &&
-      result.cardType &&
-      cardTypeOf(result.cardType) !== cardTypeOf(input.card?.paymentTypeId)
-    ) {
-      logger.warn(
-        { orderId: order.id, sent: input.card?.paymentTypeId, charged: result.cardType },
-        'card fee priced for another card type'
-      )
-    }
-
+      result.cardType !== undefined &&
+      cardFee(store, order.total, cardTypeOf(result.cardType)) !== fee
     const payment = await Payment.create({
       orderId: order.id,
       storeId: store.id,
@@ -256,6 +253,19 @@ export default class PaymentService {
         (result.challengeUrl ? DateTime.now().plus({ minutes: CHALLENGE_TTL_MINUTES }) : null),
       payerEmail: input.payer.email.trim().toLowerCase(),
     })
+
+    if (mispriced) {
+      logger.warn(
+        { orderId: order.id, sent: input.card?.paymentTypeId, charged: result.cardType },
+        'card fee priced for another card type: the charge goes back'
+      )
+      await this.giveBackMispriced(payment, store)
+      throw new AppException(
+        'O tipo do cartão não confere com o escolhido. O valor foi devolvido: escolha crédito ou débito de novo e tente outra vez.',
+        409,
+        'E_CARD_TYPE_CHANGED'
+      )
+    }
 
     if (order.paymentMethod !== input.method) {
       order.paymentMethod = input.method
@@ -333,13 +343,7 @@ export default class PaymentService {
           gatewayPaymentId: result.gatewayPaymentId,
           status: result.status,
           statusDetail: result.statusDetail,
-          amount: order.total,
-          // A card fee the customer paid on top: what Mercado Pago charged
-          // beyond the order (online orders aren't repriced while unpaid). Pix has none.
-          fee:
-            !result.pix && result.amount !== undefined
-              ? Math.max(0, addMoney(result.amount, -order.total))
-              : 0,
+          ...this.lateAttemptAmounts(order, result),
         })
         logger.warn(
           { orderId: order.id, paymentId: recorded.id },
@@ -512,7 +516,8 @@ export default class PaymentService {
 
   async update(payment: Payment, result: GatewayPayment) {
     payment.status = result.status
-    payment.statusDetail = result.statusDetail
+    // A mispriced charge keeps its mark: settle gives it back.
+    if (payment.statusDetail !== MISPRICED) payment.statusDetail = result.statusDetail
     // The challenge page only matters while the payer still has to confirm.
     const challengeUrl =
       result.status === PaymentAttemptStatus.PENDING ? (result.challengeUrl ?? null) : null
@@ -526,7 +531,8 @@ export default class PaymentService {
 
   /**
    * Gives back an approved payment the order didn't need: it was already
-   * paid by another one. Throws when the gateway fails (the job retries).
+   * paid by another one, or mispriced (giveBackMispriced). Throws when the
+   * gateway fails (the job retries).
    */
   async refundDuplicate(payment: Payment, store: Store) {
     if (payment.status !== PaymentAttemptStatus.APPROVED || !payment.gatewayPaymentId) return
@@ -537,16 +543,64 @@ export default class PaymentService {
       await gateway.refund(payment.gatewayPaymentId, `refund-${payment.gatewayPaymentId}`)
     }
     payment.status = PaymentAttemptStatus.REFUNDED
-    payment.statusDetail = 'duplicate_refunded'
+    const mispriced = payment.statusDetail === MISPRICED
+    payment.statusDetail = mispriced ? MISPRICED : 'duplicate_refunded'
     await payment.save()
     logger.warn(
       { orderId: payment.orderId, paymentId: payment.id },
-      'order paid twice: the extra payment was refunded'
+      mispriced
+        ? 'card charge priced for another card type was refunded'
+        : 'order paid twice: the extra payment was refunded'
     )
+  }
+
+  /**
+   * The order's part and the card fee of an attempt first seen in its
+   * webhook. While nothing was received the order is as it was priced
+   * (online orders aren't repriced while unpaid): what Mercado Pago charged
+   * beyond it is the fee. Once something was received the order may have
+   * changed since (items added or removed), and the attempt goes back as a
+   * duplicate: it is recorded whole, with no fee to split from it.
+   */
+  private lateAttemptAmounts(order: Order, result: GatewayPayment) {
+    if (result.pix || result.amount === undefined) return { amount: order.total, fee: 0 }
+    if ((order.amountPaid ?? 0) > 0) return { amount: result.amount, fee: 0 }
+    return { amount: order.total, fee: Math.max(0, addMoney(result.amount, -order.total)) }
+  }
+
+  /**
+   * Gives back a card charge priced with another card type's fee. Approved:
+   * refunded now, or by the job when Mercado Pago doesn't answer. Rejected:
+   * nothing was charged. Waiting for 3-D Secure: shown as refused (no
+   * challenge to finish); if the bank approves it anyway, settle gives it back.
+   */
+  private async giveBackMispriced(payment: Payment, store: Store) {
+    payment.statusDetail = MISPRICED
+    if (payment.status === PaymentAttemptStatus.PENDING) {
+      payment.status = PaymentAttemptStatus.REJECTED
+      payment.challengeUrl = null
+      payment.expiresAt = null
+    }
+    await payment.save()
+    if (payment.status !== PaymentAttemptStatus.APPROVED) return
+    try {
+      await this.refundDuplicate(payment, store)
+    } catch (error) {
+      logger.warn({ err: error, paymentId: payment.id }, 'mispriced card charge: refund queued')
+      const { default: RefundDuplicatePayment } = await import('#jobs/refund_duplicate_payment')
+      await RefundDuplicatePayment.dispatchFor(payment)
+    }
   }
 
   /** Mirrors the attempt on the order (only the latest attempt decides). */
   async settle(order: Order, payment: Payment) {
+    if (payment.statusDetail === MISPRICED) {
+      if (payment.status === PaymentAttemptStatus.APPROVED && payment.gateway === 'mercado_pago') {
+        const { default: RefundDuplicatePayment } = await import('#jobs/refund_duplicate_payment')
+        await RefundDuplicatePayment.dispatchFor(payment)
+      }
+      return
+    }
     if (payment.status === PaymentAttemptStatus.APPROVED) {
       await this.orders.markPaid(order, { payment })
       await order.refresh()

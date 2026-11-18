@@ -17,6 +17,7 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 import RefundOrder from '#jobs/refund_order'
+import RefundDuplicatePayment from '#jobs/refund_duplicate_payment'
 import SendOrderReceipt from '#jobs/send_order_receipt'
 import mail from '@adonisjs/mail/services/main'
 import OrderReceiptNotification from '#mails/order_receipt_notification'
@@ -36,6 +37,10 @@ class FakeMercadoPago extends MercadoPagoClient {
   /** Attempts made before the Orders API (numeric ids). */
   legacyPayments = new Map<string, MercadoPagoPayment>()
   nextCardStatus: 'processed' | 'failed' = 'processed'
+  /** The card type Mercado Pago charges as; the one sent when unset. */
+  chargeCardAs?: string
+  /** Charges, then the answer never arrives (a timeout). */
+  loseAnswer = false
   failing = false
 
   async createOrder(_token: string, input: OrderInput, idempotencyKey: string) {
@@ -79,6 +84,7 @@ class FakeMercadoPago extends MercadoPagoClient {
                     status_detail: 'pending_challenge',
                     payment_method: {
                       id: method.id,
+                      type: this.chargeCardAs ?? method.type,
                       transaction_security: {
                         url: `https://3ds.mp/challenge/${id}`,
                         status: 'pending',
@@ -93,6 +99,7 @@ class FakeMercadoPago extends MercadoPagoClient {
               status: this.nextCardStatus,
               status_detail: this.nextCardStatus === 'processed' ? 'accredited' : 'failed',
               external_reference: input.external_reference,
+              total_amount: input.total_amount,
               transactions: {
                 payments: [
                   {
@@ -100,11 +107,13 @@ class FakeMercadoPago extends MercadoPagoClient {
                     status: this.nextCardStatus,
                     status_detail:
                       this.nextCardStatus === 'processed' ? 'accredited' : 'rejected_by_issuer',
+                    payment_method: { id: method.id, type: this.chargeCardAs ?? method.type },
                   },
                 ],
               },
             }
     this.orders.set(id, order)
+    if (this.loseAnswer) throw new AppException('timeout', 504, 'E_PAYMENT_PROVIDER')
     return order
   }
 
@@ -1107,5 +1116,136 @@ test.group('Payments (in-app checkout)', (group) => {
     pix.assertStatus(200)
     assert.equal(Number(fake.created[0].input.total_amount), order.total)
     assert.equal(pix.body().data.payment.fee, 0)
+  })
+  test('card fee: a charge Mercado Pago made as another card type goes back', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    store.merge({ cardFeeEnabled: true, cardCreditFeePercent: 5, cardDebitFeePercent: 2 })
+    await store.save()
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    const order = await Order.findByOrFail('publicToken', token)
+    const debitFee = Math.round(order.total * 2) / 100
+    // The page said debit (and showed the debit total); Mercado Pago charged it as credit.
+    fake.chargeCardAs = 'credit_card'
+
+    const pay = await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'tk',
+        installments: 1,
+        paymentMethodId: 'master',
+        paymentTypeId: 'debit_card',
+      },
+      amount: order.total + debitFee,
+    })
+    pay.assertStatus(409)
+    pay.assertBodyContains({ code: 'E_CARD_TYPE_CHANGED' })
+    assert.deepEqual(fake.refunds, ['ORD1001'])
+    const attempt = await Payment.query().where('orderId', order.id).firstOrFail()
+    assert.equal(attempt.status, 'refunded')
+    assert.equal(attempt.statusDetail, 'card_type_mismatch')
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'pending')
+    assert.equal(order.status, 'pending_payment')
+
+    // Its webhook later doesn't pay the order either.
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('ORD1001', 'req-mispriced'))
+      .header('x-request-id', 'req-mispriced')
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1001' } })
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'pending')
+
+    // Waiting for 3-D Secure: refused on the spot, no challenge to finish.
+    const challenged = await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'challenge',
+        installments: 1,
+        paymentMethodId: 'master',
+        paymentTypeId: 'debit_card',
+      },
+      amount: order.total + debitFee,
+    })
+    challenged.assertStatus(409)
+    const waiting = await Payment.findByOrFail('gatewayPaymentId', 'ORD1002')
+    assert.equal(waiting.status, 'rejected')
+    assert.isNull(waiting.challengeUrl)
+    // The bank approves it anyway: it never pays the order and goes back.
+    fake.approve('ORD1002')
+    await client
+      .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+      .header('x-signature', signature('ORD1002', 'req-mispriced-2'))
+      .header('x-request-id', 'req-mispriced-2')
+      .json({ type: 'order', action: 'order.processed', data: { id: 'ORD1002' } })
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'pending')
+    await runJob(RefundDuplicatePayment, { paymentId: waiting.id })
+    assert.deepEqual(fake.refunds, ['ORD1001', 'ORD1002'])
+    await waiting.refresh()
+    assert.deepInclude(waiting.serialize(), {
+      status: 'refunded',
+      statusDetail: 'card_type_mismatch',
+    })
+  })
+
+  test('card fee: an attempt first seen in its webhook splits the fee only while nothing was received', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    store.merge({ cardFeeEnabled: true, cardCreditFeePercent: 5, cardDebitFeePercent: 0 })
+    await store.save()
+    const card = {
+      token: 'tk',
+      installments: 1,
+      paymentMethodId: 'master',
+      paymentTypeId: 'credit_card',
+    }
+    const withFee = (total: number) => total + Math.round(total * 5) / 100
+    const webhook = (id: string, requestId: string) =>
+      client
+        .post(`/api/v1/webhooks/mercado-pago/${store.id}`)
+        .header('x-signature', signature(id, requestId))
+        .header('x-request-id', requestId)
+        .json({ type: 'order', action: 'order.processed', data: { id } })
+    // Mercado Pago charges, the answer is lost: no attempt here.
+    fake.loseAnswer = true
+
+    // Nothing received yet: the order is as it was priced, the rest is the fee.
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    const order = await Order.findByOrFail('publicToken', token)
+    const lost1 = await client
+      .post(`/api/v1/public/orders/${token}/payments`)
+      .json({ method: 'card', payer, card, amount: withFee(order.total) })
+    lost1.assertStatus(504)
+    await webhook('ORD1001', 'req-late-1')
+    const recorded = await Payment.query().where('orderId', order.id).firstOrFail()
+    assert.equal(recorded.amount, order.total)
+    assert.equal(recorded.fee, withFee(order.total) - order.total)
+
+    // Paid another way meanwhile and changed since: recorded whole, no fee to split.
+    const other = await placeOrder(client, store.slug, carne.id, 'card')
+    const changed = await Order.findByOrFail('publicToken', other)
+    const charged = withFee(changed.total)
+    const lost2 = await client
+      .post(`/api/v1/public/orders/${other}/payments`)
+      .json({ method: 'card', payer, card, amount: charged })
+    lost2.assertStatus(504)
+    changed.merge({
+      total: changed.total + 10,
+      amountPaid: changed.total + 10,
+      paymentStatus: 'paid',
+    })
+    await changed.save()
+    await webhook('ORD1002', 'req-late-2')
+    const whole = await Payment.query().where('orderId', changed.id).firstOrFail()
+    assert.equal(whole.amount, charged)
+    assert.equal(whole.fee, 0)
   })
 })

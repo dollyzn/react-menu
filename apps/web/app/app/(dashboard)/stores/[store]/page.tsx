@@ -3,6 +3,7 @@
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, Store as StoreIcon } from "lucide-react";
+import { useState } from "react";
 import Image from "@/components/app/image";
 import { Icons } from "@/components/app/icons";
 import { PageHeader } from "@/components/app/layout/page-header";
@@ -145,6 +146,9 @@ export default function StorePage() {
   const loading = isLoading || (isFetching && !data);
   const [tabParam, setTabParam] = useQueryParam("aba");
   const tab: Tab = isTab(tabParam) ? tabParam : "perfil";
+  // The menu loads on its first visit, then stays (the open category survives switching tabs).
+  const [menuVisited, setMenuVisited] = useState(tab === "cardapio");
+  if (tab === "cardapio" && !menuVisited) setMenuVisited(true);
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
@@ -175,11 +179,11 @@ export default function StorePage() {
               </TabsList>
             </div>
 
-            {/* Kept mounted: a half-edited form survives switching tabs. */}
+            {/* Forms are kept mounted: a half-edited form survives switching tabs. */}
             <TabsContent value="perfil" keepMounted className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <StoreProfileForm store={data} />
             </TabsContent>
-            <TabsContent value="cardapio" keepMounted className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
+            <TabsContent value="cardapio" keepMounted={menuVisited} className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <MenuOrder storeId={data.id} />
             </TabsContent>
             <TabsContent value="funcionamento" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
