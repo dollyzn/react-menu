@@ -27,6 +27,7 @@ an accepted ADR, supersede it with a new one.
 | [0019](0019-csrf-and-csp-without-shield.md) | CSRF and CSP without @adonisjs/shield and @adonisjs/session | Accepted |
 | [0020](0020-mercado-pago-point.md) | Card machines (Mercado Pago Point) charged from the POS | Accepted |
 | [0021](0021-order-receipts.md) | Orders paid in more than one go (receipts) | Accepted |
+| [0022](0022-card-fee-pass-through.md) | Card fee passed on to the customer (online checkout) | Accepted |
 
 ## Template
 

@@ -43,6 +43,8 @@ function fromOrder(order: MercadoPagoOrder, fallbackExpiry?: DateTime): GatewayP
   return {
     gatewayPaymentId: order.id,
     status: orderStatus(order),
+    amount: order.total_amount ? Number(order.total_amount) : undefined,
+    cardType: qrCode ? undefined : (transaction?.payment_method?.type ?? undefined),
     // The transaction says why a card failed (rejected_by_issuer…); the order only "failed".
     statusDetail: transaction?.status_detail ?? order.status_detail ?? null,
     // Card machine charges carry a suffix ("<order id>_<attempt>").

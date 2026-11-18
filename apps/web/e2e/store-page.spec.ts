@@ -80,3 +80,36 @@ test("the store page fits a phone: tabs scroll sideways, a category opens in pla
   await page.getByRole("button", { name: "Voltar às categorias" }).click();
   await expect(page.getByRole("button", { name: /^Bebidas/ })).toBeVisible();
 });
+
+test("the card fee is set in the Pagamentos tab and stays saved when turned off", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const store = await createStoreViaApi(page, "Taxa");
+  const read = async () => (await (await page.request.get(`${API_URL}/api/v1/stores/${store.id}`)).json()).data;
+
+  await page.goto(`/app/stores/${store.id}?aba=pagamentos`);
+  const card = page
+    .locator("[data-slot=card]")
+    .filter({ has: page.getByRole("switch", { name: "Repassar a taxa ao cliente" }) });
+  await expect(card.getByText("Paga pela loja")).toBeVisible();
+  await expect(card.getByLabel("Taxa no crédito")).toBeDisabled();
+
+  await card.getByRole("switch", { name: "Repassar a taxa ao cliente" }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await expect(card.getByText("Informe a taxa de pelo menos um tipo de cartão.")).toBeVisible();
+
+  await card.getByLabel("Taxa no crédito").fill("4,99");
+  await card.getByLabel("Taxa no débito").fill("1,99");
+  // The example follows what is typed: R$ 50,00 + 4,99% = R$ 52,50.
+  await expect(card.getByText(/R\$\s52,50/)).toBeVisible();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await expect(page.getByText("Taxa do cartão salva")).toBeVisible();
+  await expect(card.getByText("Repassada ao cliente")).toBeVisible();
+  const saved = await read();
+  expect([saved.cardFeeEnabled, saved.cardCreditFeePercent, saved.cardDebitFeePercent]).toEqual([true, 4.99, 1.99]);
+
+  await card.getByRole("switch", { name: "Repassar a taxa ao cliente" }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  await expect(page.getByText("Taxa do cartão desligada")).toBeVisible();
+  const off = await read();
+  expect([off.cardFeeEnabled, off.cardCreditFeePercent]).toEqual([false, 4.99]);
+});

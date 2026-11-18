@@ -4,6 +4,7 @@ import type PaymentMethod from '#enums/payment_method'
 import type Order from '#models/order'
 import type Payment from '#models/payment'
 import type Store from '#models/store'
+import { cardFeePercents } from '#payments/card_fee'
 
 /** What the tracking page needs to pay: the latest attempt and the options. */
 export type CheckoutState = {
@@ -19,6 +20,8 @@ function publicPayment(payment: Payment) {
     status: payment.status,
     statusDetail: payment.statusDetail,
     amount: payment.amount,
+    /** Card fee paid on top of `amount` (0 when the store keeps it). */
+    fee: payment.fee,
     pix:
       payment.pixQrCode && pending
         ? {
@@ -89,6 +92,8 @@ export function publicOrder(order: Order, store: Store, checkout?: CheckoutState
             methods: checkout.methods,
             mercadoPagoPublicKey: store.mercadoPagoPublicKey,
             maxInstallments: store.maxInstallments,
+            /** Percent per card type the customer pays on top; null: no fee. */
+            cardFees: cardFeePercents(store),
           }
         : null,
   }

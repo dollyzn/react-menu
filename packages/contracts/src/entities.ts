@@ -36,6 +36,10 @@ export type Store = {
   mercadoPagoPublicKey: string | null;
   /** Card installments offered at checkout (1 = à vista). */
   maxInstallments: number;
+  /** Online checkout: the customer pays the card fee on top (percent per type). */
+  cardFeeEnabled: boolean;
+  cardCreditFeePercent: number;
+  cardDebitFeePercent: number;
   /** Opens and closes by itself following `openingHours`. */
   scheduleEnabled: boolean;
   openingHours: OpeningInterval[];

@@ -973,4 +973,139 @@ test.group('Payments (in-app checkout)', (group) => {
     await order.refresh()
     assert.equal(order.status, 'pending_payment', 'its own attempt settles it, not this notice')
   })
+
+  test('card fee: the manager sets it and the menu and the checkout show it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    const manager = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+
+    const settings = await client
+      .put(`/api/v1/stores/${store.id}/payment-settings`)
+      .json({ cardFeeEnabled: true, cardCreditFeePercent: 4.99, cardDebitFeePercent: 1.99 })
+      .loginAs(manager)
+    settings.assertStatus(200)
+    settings.assertBodyContains({
+      data: { cardFeeEnabled: true, cardCreditFeePercent: 4.99, cardDebitFeePercent: 1.99 },
+    })
+
+    const menu = await client.get(`/api/v1/public/menu/${store.slug}`)
+    assert.deepEqual(menu.body().data.store.cardFees, { credit: 4.99, debit: 1.99 })
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    const order = await client.get(`/api/v1/public/orders/${token}`)
+    assert.deepEqual(order.body().data.checkout.cardFees, { credit: 4.99, debit: 1.99 })
+
+    // Turned off, the percentages stay saved but nobody pays them.
+    await client
+      .put(`/api/v1/stores/${store.id}/payment-settings`)
+      .json({ cardFeeEnabled: false })
+      .loginAs(manager)
+    const off = await client.get(`/api/v1/public/menu/${store.slug}`)
+    assert.isNull(off.body().data.store.cardFees)
+    await store.refresh()
+    assert.equal(store.cardDebitFeePercent, 1.99)
+  })
+
+  test('card fee: out of range percentages are refused, and attendants cannot set it', async ({
+    client,
+  }) => {
+    const { store } = await onlinePaymentStore()
+    const manager = await createUser()
+    const attendant = await createUser()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    await linkUser(store, attendant, StoreRole.ATTENDANT)
+
+    const tooHigh = await client
+      .put(`/api/v1/stores/${store.id}/payment-settings`)
+      .json({ cardFeeEnabled: true, cardCreditFeePercent: 25 })
+      .loginAs(manager)
+    tooHigh.assertStatus(422)
+    const denied = await client
+      .put(`/api/v1/stores/${store.id}/payment-settings`)
+      .json({ cardFeeEnabled: true, cardCreditFeePercent: 3 })
+      .loginAs(attendant)
+    denied.assertStatus(403)
+  })
+
+  test('card fee: charged on top by card type, kept apart from what the order received', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    store.merge({ cardFeeEnabled: true, cardCreditFeePercent: 5, cardDebitFeePercent: 2 })
+    await store.save()
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    const order = await Order.findByOrFail('publicToken', token)
+    const debitFee = Math.round(order.total * 2) / 100
+
+    const pay = await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'tk',
+        installments: 1,
+        paymentMethodId: 'debelo',
+        paymentTypeId: 'debit_card',
+      },
+      amount: order.total + debitFee,
+    })
+    pay.assertStatus(200)
+    assert.equal(Number(fake.created[0].input.total_amount), order.total + debitFee)
+    assert.deepInclude(pay.body().data.payment, { amount: order.total, fee: debitFee })
+
+    // Paid: the receipt holds the order's amount and the fee apart.
+    await order.refresh()
+    assert.equal(order.paymentStatus, 'paid')
+    assert.equal(order.amountPaid, order.total)
+    await order.load('receipts')
+    assert.deepInclude(order.receipts[0].serialize(), { amount: order.total, fee: debitFee })
+  })
+
+  test('card fee: a changed total is refused before charging; Pix never pays it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, carne } = await onlinePaymentStore()
+    store.merge({ cardFeeEnabled: true, cardCreditFeePercent: 5, cardDebitFeePercent: 2 })
+    await store.save()
+    const token = await placeOrder(client, store.slug, carne.id, 'card')
+    const order = await Order.findByOrFail('publicToken', token)
+
+    // The page showed the debit total, the card form says credit.
+    const stale = await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'tk',
+        installments: 1,
+        paymentMethodId: 'master',
+        paymentTypeId: 'credit_card',
+      },
+      amount: order.total + Math.round(order.total * 2) / 100,
+    })
+    stale.assertStatus(409)
+    stale.assertBodyContains({ code: 'E_AMOUNT_CHANGED' })
+    // A page that never showed the fee (no total sent) doesn't charge it either.
+    const unseen = await client.post(`/api/v1/public/orders/${token}/payments`).json({
+      method: 'card',
+      payer,
+      card: {
+        token: 'tk',
+        installments: 1,
+        paymentMethodId: 'master',
+        paymentTypeId: 'credit_card',
+      },
+    })
+    unseen.assertStatus(409)
+    assert.lengthOf(fake.created, 0, 'nothing charged')
+
+    const pix = await client
+      .post(`/api/v1/public/orders/${token}/payments`)
+      .json({ method: 'pix', payer, amount: order.total })
+    pix.assertStatus(200)
+    assert.equal(Number(fake.created[0].input.total_amount), order.total)
+    assert.equal(pix.body().data.payment.fee, 0)
+  })
 })

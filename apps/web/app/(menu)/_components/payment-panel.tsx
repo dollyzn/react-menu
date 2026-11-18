@@ -5,7 +5,7 @@ import { Spinner } from "@/components/ui/spinner";
 import dynamic from "next/dynamic";
 import { QRCodeSVG } from "qrcode.react";
 import { AlertTriangle, Check, Copy, FlaskConical, Lock, QrCode } from "lucide-react";
-import type { OnlinePaymentMethod, PublicOrder, PublicPaymentRequest } from "@react-menu/contracts";
+import type { CardFees, OnlinePaymentMethod, PublicOrder, PublicPaymentRequest } from "@react-menu/contracts";
 import { Radio } from "@base-ui/react/radio";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup } from "@/components/ui/radio-group";
@@ -15,12 +15,13 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNow } from "@/hooks/use-now";
 import { randomId, releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
-import { usePayOrderMutation, useSimulatePaymentMutation } from "@/redux/features/public/publicApi";
+import { publicApi, usePayOrderMutation, useSimulatePaymentMutation } from "@/redux/features/public/publicApi";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { rememberEmail } from "@/redux/slices/customer";
 import { useCopied } from "@/hooks/use-copied";
 import { getErrorMessage, isConnectionError } from "@/utils/get-error-message";
 import { formatCurrencyBRL } from "@/utils/string";
+import { cardFee, formatPercent, withCardFee, type CardType } from "@/lib/card-fee";
 import { CHECKOUT_METHODS, cardRejection } from "../_lib/payment-methods";
 import { CardChallenge } from "./card-challenge";
 
@@ -89,6 +90,7 @@ export function PaymentPanel({ order }: { order: PublicOrder }) {
             order={order}
             publicKey={checkout.mercadoPagoPublicKey}
             maxInstallments={checkout.maxInstallments}
+            cardFees={checkout.cardFees ?? null}
           />
         )}
       </div>
@@ -208,31 +210,53 @@ function PixPayment({ order }: { order: PublicOrder }) {
   );
 }
 
+const CARD_TYPES: { value: CardType; label: string; paymentType: "credit_card" | "debit_card" }[] = [
+  { value: "credit", label: "Crédito", paymentType: "credit_card" },
+  { value: "debit", label: "Débito", paymentType: "debit_card" },
+];
+
 function CardPayment({
   order,
   publicKey,
   maxInstallments,
+  cardFees,
 }: {
   order: PublicOrder;
   publicKey: string | null;
   maxInstallments: number;
+  /** The store passes the card fee on: the customer picks the type to see it. */
+  cardFees: CardFees | null;
 }) {
   const dispatch = useAppDispatch();
   const savedEmail = useAppSelector((state) => state.customer.email);
   const [error, setError] = useState<string | null>(null);
+  const [type, setType] = useState<CardType>("credit");
   const [pay] = usePayOrderMutation();
   const payment = order.payment?.method === "card" ? order.payment : null;
 
   if (!publicKey) return null;
 
+  const fee = cardFees ? cardFee(order.total, cardFees[type]) : 0;
+  const amount = cardFees ? withCardFee(order.total, cardFees[type]) : order.total;
+
   const onPay = async (input: PublicPaymentRequest) => {
     setError(null);
     try {
-      // The card token is single use: every submit is a new operation.
-      await pay({ token: order.publicToken, input, idempotencyKey: randomId() }).unwrap();
+      // The card token is single use: every submit is a new operation. With
+      // a fee, the total shown goes along: the API refuses it if it changed.
+      await pay({
+        token: order.publicToken,
+        input: cardFees ? { ...input, amount } : input,
+        idempotencyKey: randomId(),
+      }).unwrap();
       if (input.payer.email) dispatch(rememberEmail(input.payer.email));
     } catch (err) {
       setError(errorText(err));
+      // The store changed its card fee meanwhile: read the order again, so the
+      // new total shows and the next try sends it.
+      if ((err as { data?: { code?: string } }).data?.code === "E_AMOUNT_CHANGED") {
+        dispatch(publicApi.util.invalidateTags([{ type: "PublicOrder", id: order.publicToken }]));
+      }
     }
   };
 
@@ -254,11 +278,57 @@ function CardPayment({
         </p>
       )}
       {error && <p className="text-sm text-destructive">{error}</p>}
+      {payment?.status !== "pending" && cardFees && (
+        <div className="flex flex-col gap-3">
+          <RadioGroup
+            aria-label="Tipo de cartão"
+            value={type}
+            onValueChange={(value) => setType(value as CardType)}
+            className="grid-cols-2"
+          >
+            {CARD_TYPES.map((option) => {
+              const optionFee = cardFee(order.total, cardFees[option.value]);
+              return (
+                <Radio.Root
+                  key={option.value}
+                  value={option.value}
+                  className="flex flex-col items-center gap-0.5 rounded-xl border p-2.5 text-sm font-medium transition-colors outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary/5 data-checked:text-primary"
+                >
+                  {option.label}
+                  <span className="text-xs font-normal text-muted-foreground tabular-nums">
+                    {optionFee > 0 ? `+ ${formatCurrencyBRL(optionFee)} de taxa` : "sem taxa"}
+                  </span>
+                </Radio.Root>
+              );
+            })}
+          </RadioGroup>
+          <dl className="flex flex-col gap-1 rounded-xl bg-muted/50 p-3 text-sm tabular-nums">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Pedido</dt>
+              <dd>{formatCurrencyBRL(order.total)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">
+                Taxa do cartão ({type === "credit" ? "crédito" : "débito"}, {formatPercent(cardFees[type])})
+              </dt>
+              <dd>{formatCurrencyBRL(fee)}</dd>
+            </div>
+            <div className="flex justify-between gap-3 font-semibold">
+              <dt>Total no cartão</dt>
+              <dd aria-live="polite">{formatCurrencyBRL(amount)}</dd>
+            </div>
+          </dl>
+          <p className="text-xs text-muted-foreground">No Pix não há taxa.</p>
+        </div>
+      )}
       {payment?.status !== "pending" && (
         <CardPaymentForm
+          // Another type rebuilds the Brick: a new instance shows its loading state again.
+          key={type}
           publicKey={publicKey}
-          amount={order.total}
+          amount={amount}
           maxInstallments={maxInstallments}
+          paymentType={cardFees ? CARD_TYPES.find((option) => option.value === type)!.paymentType : undefined}
           email={savedEmail}
           onPay={onPay}
         />

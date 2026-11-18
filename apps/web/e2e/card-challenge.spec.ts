@@ -24,13 +24,13 @@ test("a card the bank wants to confirm: the challenge, then the paid order", asy
   const real = (await placed.json()).data as PublicOrder;
   await api.dispose();
 
-  const payment = { method: "card" as const, amount: real.total, pix: null, simulated: false };
+  const payment = { method: "card" as const, amount: real.total, fee: 0, pix: null, simulated: false };
   const waiting: PublicOrder = {
     ...real,
     status: "pending_payment",
     paymentMethod: "card",
     paymentStatus: "pending",
-    checkout: { methods: ["card"], mercadoPagoPublicKey: "TEST-0b7c6a2e-3d4f-4a1b-9c8d-123456789abc", maxInstallments: 1 },
+    checkout: { methods: ["card"], mercadoPagoPublicKey: "TEST-0b7c6a2e-3d4f-4a1b-9c8d-123456789abc", maxInstallments: 1, cardFees: null },
     payment: {
       ...payment,
       status: "pending",

@@ -118,6 +118,7 @@ export default class OrdersController {
         status: payment.status,
         statusDetail: payment.statusDetail,
         amount: payment.amount,
+        fee: payment.fee,
         createdAt: payment.createdAt.toISO(),
       })),
       // Paid online and cancelled, but the money hasn't gone back yet.
@@ -127,6 +128,7 @@ export default class OrdersController {
       paidBy: order.paidBy ? { id: order.paidBy.id, name: order.paidBy.name } : null,
       receipts: order.receipts.map((receipt) => ({
         amount: receipt.amount,
+        fee: receipt.fee,
         paymentMethod: receipt.paymentMethod,
         counterMethod: receipt.counterMethod,
         receivedAt: receipt.receivedAt.toISO(),

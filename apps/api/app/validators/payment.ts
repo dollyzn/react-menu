@@ -18,6 +18,10 @@ const paymentSettingsValidator = vine.create(
       .nullable()
       .optional(),
     maxInstallments: vine.number().withoutDecimals().min(1).max(12).optional(),
+    /** Card fee passed on to the customer online, in percent per card type. */
+    cardFeeEnabled: vine.boolean().optional(),
+    cardCreditFeePercent: vine.number().min(0).max(20).decimal([0, 2]).optional(),
+    cardDebitFeePercent: vine.number().min(0).max(20).decimal([0, 2]).optional(),
     mercadoPagoWebhookSecret: vine
       .string()
       .trim()

@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon'
+import { decimal } from '#helpers/columns'
 import { BaseModel, beforeSave, column, computed, hasMany, manyToMany } from '@adonisjs/lucid/orm'
 import encryption from '@adonisjs/core/services/encryption'
 import type { HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
@@ -84,6 +85,16 @@ export default class Store extends BaseModel {
   /** Card installments offered at checkout (1 = à vista only). */
   @column()
   declare maxInstallments: number
+
+  /** Online checkout: the customer pays the card fee on top (percent per type below). */
+  @column()
+  declare cardFeeEnabled: boolean
+
+  @column(decimal)
+  declare cardCreditFeePercent: number
+
+  @column(decimal)
+  declare cardDebitFeePercent: number
 
   /** Public key for the card form (Card Payment Brick); safe to expose. */
   @column()

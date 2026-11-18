@@ -28,6 +28,7 @@ export default function CardPaymentForm({
   publicKey,
   amount,
   maxInstallments,
+  paymentType,
   email,
   onPay,
 }: {
@@ -35,6 +36,8 @@ export default function CardPaymentForm({
   amount: number;
   /** The store's limit (1 = à vista). */
   maxInstallments: number;
+  /** Only this card type (the customer chose it to see its fee); any when missing. */
+  paymentType?: "credit_card" | "debit_card";
   email?: string;
   onPay: (input: PublicPaymentRequest) => Promise<void>;
 }) {
@@ -55,8 +58,14 @@ export default function CardPaymentForm({
     return () => cancelAnimationFrame(frame);
   }, [resolvedTheme]);
   const customization = useMemo(
-    () => ({ paymentMethods: { maxInstallments }, visual: { hideFormTitle: true, style: style ?? undefined } }),
-    [maxInstallments, style]
+    () => ({
+      paymentMethods: {
+        maxInstallments: paymentType === "debit_card" ? 1 : maxInstallments,
+        ...(paymentType && { types: { included: [paymentType] } }),
+      },
+      visual: { hideFormTitle: true, style: style ?? undefined },
+    }),
+    [maxInstallments, paymentType, style]
   );
   const latest = useRef({ onPay, email });
   useEffect(() => {

@@ -13,6 +13,8 @@ export type MercadoPagoOrder = {
   /** e.g. accredited, waiting_transfer, failed, expired, refunded */
   status_detail?: string | null
   external_reference?: string | null
+  /** What the order charges, as a decimal string ("12.50"). */
+  total_amount?: string
   transactions?: {
     payments?: {
       id?: string
