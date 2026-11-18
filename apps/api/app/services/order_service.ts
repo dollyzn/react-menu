@@ -291,6 +291,7 @@ export default class OrderService {
       {
         orderId: order.id,
         amount,
+        fee: meta.payment?.fee ?? 0,
         paymentMethod: method,
         counterMethod: meta.counterMethod ?? null,
         paymentId: meta.payment?.id ?? null,

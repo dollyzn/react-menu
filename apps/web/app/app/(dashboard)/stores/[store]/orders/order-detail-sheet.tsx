@@ -52,6 +52,7 @@ export function OrderDetailSheet({
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const show = order && order.id === shownId ? order : null;
+  const cardFeePaid = (show?.receipts ?? []).reduce((sum, receipt) => sum + (receipt.fee ?? 0), 0);
   const phone = show?.customerPhone?.replace(/^55/, "");
 
   return (
@@ -165,6 +166,13 @@ export function OrderDetailSheet({
                     <span>Total</span>
                     <span className="tabular-nums">{formatCurrencyBRL(show.total)}</span>
                   </li>
+                  {cardFeePaid > 0 && (
+                    // Paid on top by the customer: covers the gateway's fee, not part of the sale.
+                    <li className="flex justify-between gap-3 p-3 text-muted-foreground">
+                      <span>Taxa do cartão paga pelo cliente</span>
+                      <span className="tabular-nums">+ {formatCurrencyBRL(cardFeePaid)}</span>
+                    </li>
+                  )}
                 </ul>
                 {show.notes && <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-sm">{show.notes}</p>}
               </section>
@@ -235,6 +243,7 @@ export function OrderDetailSheet({
                             {PAYMENT[payment.method]}{" "}
                             <span className="text-xs text-muted-foreground tabular-nums">
                               · {format(parseISO(payment.createdAt), "HH:mm")}
+                              {payment.fee > 0 && ` · + ${formatCurrencyBRL(payment.fee)} de taxa`}
                             </span>
                           </span>
                           <span

@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryParam } from "@/hooks/use-query-param";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
+import { CardFeeCard } from "./components/card-fee-card";
 import { MenuOrder } from "./components/menu-order";
 import { CommentRatings } from "./components/rating";
 import { OpeningHoursCard } from "./components/opening-hours-card";
@@ -187,6 +188,7 @@ export default function StorePage() {
             </TabsContent>
             <TabsContent value="pagamentos" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <PaymentSettingsCard store={data} />
+              <CardFeeCard key={data.id} store={data} />
               <PointSettingsCard store={data} />
             </TabsContent>
           </Tabs>

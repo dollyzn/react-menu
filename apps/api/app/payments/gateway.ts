@@ -30,6 +30,8 @@ export type GatewayPayment = {
   gatewayPaymentId: string
   status: PaymentAttemptStatus
   statusDetail: string | null
+  /** What the gateway charged, when it says (Mercado Pago orders). */
+  amount?: number
   /** Order the payment refers to (external reference), when the gateway knows. */
   orderId: string | null
   pix?: { qrCode: string; ticketUrl: string | null; expiresAt: DateTime | null }

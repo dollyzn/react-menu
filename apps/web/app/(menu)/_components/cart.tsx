@@ -48,6 +48,7 @@ import { useRehydrated } from "@/hooks/use-rehydrated";
 import { formatCurrencyBRL, formatPhoneBR } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { cn } from "@/lib/utils";
+import { formatPercent } from "@/lib/card-fee";
 import { CHECKOUT_METHODS } from "../_lib/payment-methods";
 
 type Store = PublicMenu["store"];
@@ -392,7 +393,17 @@ function CheckoutFlow({
 
   // The API lists what this store accepts; online methods are paid on the
   // order page right after (no redirect).
-  const methods = store.paymentMethods.map((value) => ({ value, ...CHECKOUT_METHODS[value] }));
+  // A card fee passed on is told here, before the order is placed.
+  const methods = store.paymentMethods.map((value) => {
+    const method = { value, ...CHECKOUT_METHODS[value] };
+    const fees = store.cardFees;
+    if (value !== "card" || !fees) return method;
+    const parts = [
+      fees.credit > 0 && `${formatPercent(fees.credit)} no crédito`,
+      fees.debit > 0 && `${formatPercent(fees.debit)} no débito`,
+    ].filter(Boolean);
+    return { ...method, hint: `Aqui mesmo no app · taxa de ${parts.join(" e ")}` };
+  });
 
   const form = useForm<CheckoutValues>({
     resolver: zodResolver(CheckoutSchema),

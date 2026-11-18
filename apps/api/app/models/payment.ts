@@ -36,6 +36,10 @@ export default class Payment extends BaseModel {
   @column(decimal)
   declare amount: number
 
+  /** Card fee the customer paid on top (online checkout); not part of `amount`. */
+  @column(decimal)
+  declare fee: number
+
   @column()
   declare pixQrCode: string | null
 

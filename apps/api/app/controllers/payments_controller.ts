@@ -39,6 +39,9 @@ export default class PaymentsController {
       mercadoPagoEnabled: store.mercadoPagoEnabled,
       mercadoPagoPublicKey: store.mercadoPagoPublicKey,
       maxInstallments: store.maxInstallments,
+      cardFeeEnabled: store.cardFeeEnabled,
+      cardCreditFeePercent: store.cardCreditFeePercent,
+      cardDebitFeePercent: store.cardDebitFeePercent,
     })
   }
 }

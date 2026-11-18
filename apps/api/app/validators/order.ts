@@ -63,6 +63,8 @@ const publicPaymentValidator = vine.create(
       })
       .optional()
       .requiredWhen('method', '=', PaymentMethod.CARD),
+    /** The total the customer saw (order plus card fee); a changed one is refused. */
+    amount: vine.number().min(0).decimal([0, 2]).optional(),
   })
 )
 

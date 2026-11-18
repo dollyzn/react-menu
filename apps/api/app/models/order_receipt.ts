@@ -21,6 +21,10 @@ export default class OrderReceipt extends BaseModel {
   @column(decimal)
   declare amount: number
 
+  /** Card fee the customer paid on top (online checkout); not part of `amount`. */
+  @column(decimal)
+  declare fee: number
+
   /** How: counter, pix, card, point… (like Order.paymentMethod). */
   @column()
   declare paymentMethod: PaymentMethod

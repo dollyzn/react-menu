@@ -7,7 +7,8 @@ import Store from '#models/store'
 import type Addon from '#models/addon'
 import InventoryService from '#services/inventory_service'
 import PaymentService from '#services/payment_service'
-import type PaymentMethod from '#enums/payment_method'
+import PaymentMethod from '#enums/payment_method'
+import { cardFeePercents } from '#payments/card_fee'
 
 /** Public store fields; never includes credentials or internal settings. */
 export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
@@ -36,6 +37,8 @@ export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
     updatedAt: store.updatedAt.toISO()!,
     /** Checkout options, in display order (online first). */
     paymentMethods,
+    /** Card fee the customer pays on top online (percent per type); null: none. */
+    cardFees: paymentMethods.includes(PaymentMethod.CARD) ? cardFeePercents(store) : null,
   }
 }
 

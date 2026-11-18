@@ -46,7 +46,7 @@ export default class SendOrderReceipt extends AppJob<Payload> {
       new OrderReceiptNotification(
         payment.payerEmail,
         { ...storeBrand(order.store), pickupEtaMinutes: order.store.pickupEtaMinutes },
-        orderEmailData(order, payment.updatedAt)
+        orderEmailData(order, payment.updatedAt, payment.fee)
       )
     )
     payment.receiptSentAt = DateTime.now()

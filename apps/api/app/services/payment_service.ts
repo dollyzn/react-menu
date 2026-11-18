@@ -23,6 +23,7 @@ import FakeGateway from '#payments/fake_gateway'
 import type { GatewayPayment, PaymentGateway } from '#payments/gateway'
 import MercadoPagoClient, { isValidWebhookSignature } from '#payments/mercado_pago_client'
 import MercadoPagoGateway from '#payments/mercado_pago_gateway'
+import { cardFee, cardTypeOf } from '#payments/card_fee'
 import OrderService from '#services/order_service'
 import InventoryService from '#services/inventory_service'
 
@@ -45,9 +46,13 @@ export type PayInput = {
     token: string
     installments: number
     paymentMethodId: string
+    /** credit_card or debit_card: sets the card fee when the store passes it on. */
+    paymentTypeId?: string
     issuerId?: string
     identification?: { type: string; number: string }
   }
+  /** What the customer saw to pay (order plus card fee): refused when it changed. */
+  amount?: number
   idempotencyKey?: string
 }
 
@@ -187,9 +192,23 @@ export default class PaymentService {
       if (open) return open
     }
 
+    // The store may pass the card fee on: charged on top, kept apart from the order.
+    const fee =
+      input.method === PaymentMethod.CARD
+        ? cardFee(store, order.total, cardTypeOf(input.card?.paymentTypeId))
+        : 0
+    const charged = Math.round((order.total + fee) * 100) / 100
+    if (input.amount !== undefined && Math.abs(input.amount - charged) > 0.005) {
+      throw new AppException(
+        'O valor a pagar mudou. Confira o novo total e tente de novo.',
+        409,
+        'E_AMOUNT_CHANGED'
+      )
+    }
+
     const request = {
       orderId: order.id,
-      amount: order.total,
+      amount: charged,
       description: `Pedido #${order.number} · ${store.name}`,
       payer: { name: order.customerName, email: input.payer.email },
       statementDescriptor: store.name,
@@ -212,6 +231,7 @@ export default class PaymentService {
       status: result.status,
       statusDetail: result.statusDetail,
       amount: order.total,
+      fee,
       pixQrCode: result.pix?.qrCode ?? null,
       pixTicketUrl: result.pix?.ticketUrl ?? null,
       challengeUrl: result.challengeUrl ?? null,
@@ -299,6 +319,11 @@ export default class PaymentService {
           status: result.status,
           statusDetail: result.statusDetail,
           amount: order.total,
+          // A card fee the customer paid on top: what Mercado Pago charged beyond the order.
+          fee:
+            result.amount !== undefined
+              ? Math.max(0, Math.round((result.amount - order.total) * 100) / 100)
+              : 0,
         })
         logger.warn(
           { orderId: order.id, paymentId: recorded.id },
@@ -373,8 +398,10 @@ export default class PaymentService {
     order.paymentStatus = PaymentStatus.REFUNDED
     await order.save()
 
+    // The card fee the customer paid goes back with the payment.
     const refunded = targets.reduce(
-      (sum, target) => sum + (target.payment?.amount ?? order.total),
+      (sum, target) =>
+        sum + (target.payment ? target.payment.amount + target.payment.fee : order.total),
       0
     )
     const payerEmail = targets.find((target) => target.payment?.payerEmail)?.payment?.payerEmail
@@ -384,7 +411,11 @@ export default class PaymentService {
       )
       await mail.sendLater(
         new OrderRefundNotification(payerEmail, storeBrand(store), {
-          ...orderEmailData(order),
+          ...orderEmailData(
+            order,
+            undefined,
+            targets.reduce((sum, target) => sum + (target.payment?.fee ?? 0), 0)
+          ),
           // What went back: the gateway's part (items added later and paid
           // at the counter, or not paid, aren't in it).
           totalLabel: formatMoney(refunded),

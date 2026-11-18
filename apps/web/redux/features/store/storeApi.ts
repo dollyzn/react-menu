@@ -72,7 +72,15 @@ export const storeApi = baseApi.injectEndpoints({
 
     /** Set or clear (null) the store's Mercado Pago credentials. */
     updatePaymentSettings: build.mutation<
-      { mercadoPagoEnabled: boolean; mercadoPagoPublicKey: string | null; maxInstallments: number },
+      Pick<
+        Store,
+        | "mercadoPagoEnabled"
+        | "mercadoPagoPublicKey"
+        | "maxInstallments"
+        | "cardFeeEnabled"
+        | "cardCreditFeePercent"
+        | "cardDebitFeePercent"
+      >,
       {
         id: string;
         data: {
@@ -80,6 +88,9 @@ export const storeApi = baseApi.injectEndpoints({
           mercadoPagoWebhookSecret?: string | null;
           mercadoPagoPublicKey?: string | null;
           maxInstallments?: number;
+          cardFeeEnabled?: boolean;
+          cardCreditFeePercent?: number;
+          cardDebitFeePercent?: number;
         };
       }
     >({

@@ -111,6 +111,8 @@ export type Order = {
 /** Money received for an order (it may be paid in more than one go). */
 export type OrderReceipt = {
   amount: number;
+  /** Card fee the customer paid on top (online checkout); not part of `amount`. */
+  fee: number;
   paymentMethod: PaymentMethod;
   counterMethod: CounterPaymentMethod | null;
   receivedAt: string;
@@ -124,6 +126,8 @@ export type StaffPayment = {
   status: PaymentAttemptStatus;
   statusDetail: string | null;
   amount: number;
+  /** Card fee the customer paid on top of `amount`. */
+  fee: number;
   createdAt: string;
 };
 
@@ -174,8 +178,13 @@ export type PublicOrder = Pick<
     mercadoPagoPublicKey: string | null;
     /** Card installments the store offers (1 = à vista). */
     maxInstallments: number;
+    /** Card fee the customer pays on top, in percent per type; null: none. */
+    cardFees: CardFees | null;
   } | null;
 };
+
+/** Percent of the order the customer pays on top for each card type. */
+export type CardFees = { credit: number; debit: number };
 
 /** A payment attempt as the customer sees it (no gateway ids). */
 export type PublicPayment = {
@@ -183,7 +192,10 @@ export type PublicPayment = {
   status: PaymentAttemptStatus;
   /** Gateway detail, e.g. `cc_rejected_insufficient_amount`. */
   statusDetail: string | null;
+  /** What went to the order. */
   amount: number;
+  /** Card fee paid on top of `amount` (0: none). */
+  fee: number;
   /** Pix to pay, while it is pending. */
   pix: { qrCode: string; ticketUrl: string | null; expiresAt: string | null } | null;
   /** 3-D Secure: the bank's page where the payer confirms the card (pending only). */
@@ -205,6 +217,8 @@ export type PublicPaymentRequest = {
     issuerId?: string;
     identification?: { type: string; number: string };
   };
+  /** The total shown to the customer (order plus card fee); 409 `E_AMOUNT_CHANGED` when it changed. */
+  amount?: number;
 };
 
 /** Response of placing a public order. */
@@ -372,6 +386,8 @@ export type PublicMenu = {
     updatedAt: string;
     /** Checkout options, online first. */
     paymentMethods: CheckoutPaymentMethod[];
+    /** Card fee the customer pays on top online; null: none. */
+    cardFees: CardFees | null;
   };
   categories: PublicMenuCategory[];
 };

@@ -269,7 +269,13 @@ export function OrderTracking({ token }: { token: string }) {
               ? "Pago no balcão"
               : "Pagamento na retirada"
             : order.paymentStatus === "paid"
-              ? `Pago online${order.paymentMethod === "pix" ? " com Pix" : order.paymentMethod === "card" ? " com cartão" : ""}`
+              ? `Pago online${order.paymentMethod === "pix" ? " com Pix" : order.paymentMethod === "card" ? " com cartão" : ""}${
+                  order.payment?.status === "approved" && order.payment.fee > 0
+                    ? ` · + ${formatCurrencyBRL(order.payment.fee)} de taxa do cartão (total ${formatCurrencyBRL(
+                        order.payment.amount + order.payment.fee
+                      )})`
+                    : ""
+                }`
               : order.paymentStatus === "refunded"
                 ? "Pagamento devolvido"
                 : "Pagamento online pendente"}
