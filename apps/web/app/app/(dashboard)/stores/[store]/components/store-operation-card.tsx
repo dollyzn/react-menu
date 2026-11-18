@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { UnsavedChangesBar } from "./unsaved-changes-bar";
+import { useFollowSaved } from "./use-follow-saved";
 import { useSaveStore } from "./use-save-store";
 
 const Schema = z.object({
@@ -38,6 +39,7 @@ const toForm = (store: Store): Values => ({
 export function StoreOperationCard({ store }: { store: Store }) {
   const [save, { isLoading }] = useSaveStore();
   const form = useForm<Values>({ resolver: zodResolver(Schema), defaultValues: toForm(store) });
+  useFollowSaved(form, () => toForm(store), store.updatedAt);
   const busy = form.formState.isSubmitting || isLoading;
 
   const submit = async (values: Values) => {

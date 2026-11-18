@@ -155,7 +155,7 @@ export default function StorePage() {
         <>
           <StoreSummary store={data} />
 
-          <Tabs value={tab} onValueChange={(value) => setTabParam(value === "perfil" ? null : String(value))} className="gap-4">
+          <Tabs key={data.id} value={tab} onValueChange={(value) => setTabParam(value === "perfil" ? null : String(value))} className="gap-4">
             {/* Scrolls sideways on narrow phones instead of squeezing the labels. */}
             <div className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] md:mx-0 md:px-0">
               <TabsList variant="line" className="relative w-max min-w-full justify-start border-b">
@@ -176,14 +176,14 @@ export default function StorePage() {
 
             {/* Kept mounted: a half-edited form survives switching tabs. */}
             <TabsContent value="perfil" keepMounted className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
-              <StoreProfileForm key={data.id} store={data} />
+              <StoreProfileForm store={data} />
             </TabsContent>
             <TabsContent value="cardapio" keepMounted className="text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <MenuOrder storeId={data.id} />
             </TabsContent>
             <TabsContent value="funcionamento" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
-              <StoreOperationCard key={data.id} store={data} />
-              <OpeningHoursCard key={data.updatedAt} store={data} />
+              <StoreOperationCard store={data} />
+              <OpeningHoursCard store={data} />
             </TabsContent>
             <TabsContent value="pagamentos" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <PaymentSettingsCard store={data} />

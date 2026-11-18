@@ -18,6 +18,7 @@ import { DAY_NAMES, WEEK_ORDER, formatWhen } from "@/lib/opening-hours";
 import { cn } from "@/lib/utils";
 import { useUpdateStoreHoursMutation } from "@/redux/features/store/storeApi";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { useFollowSaved } from "./use-follow-saved";
 
 const DEFAULT_INTERVAL = { opens: "18:00", closes: "23:00" };
 /** "O dia todo": midnight to 23:59 (the API refuses equal times). */
@@ -130,6 +131,7 @@ const toHours = (values: Values): OpeningInterval[] =>
 export function OpeningHoursCard({ store }: { store: Store }) {
   const [save, { isLoading }] = useUpdateStoreHoursMutation();
   const form = useForm<Values>({ resolver: zodResolver(Schema), defaultValues: toForm(store) });
+  useFollowSaved(form, () => toForm(store), store.updatedAt);
   const values = useWatch({ control: form.control }) as Values;
   const errors = form.formState.errors;
 

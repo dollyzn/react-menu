@@ -41,8 +41,12 @@ test("the store page: profile and operation saved from their tabs, menu order si
   const operation = page.getByText("Pedidos e cozinha").locator("xpath=ancestor::*[@data-slot='card']");
   await operation.getByRole("button", { name: "Aumentar minutos de retirada" }).click();
   await operation.getByRole("switch", { name: "Controlar estoque" }).click();
-  await page.getByRole("button", { name: "Salvar", exact: true }).click();
+  // An unsaved change in the hours card below must survive this save.
+  const schedule = page.getByRole("switch", { name: "Abrir e fechar sozinha pelo horário" });
+  await schedule.click();
+  await operation.locator("xpath=ancestor::form").getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByText("Operação da loja salva")).toBeVisible();
+  await expect(schedule).toBeChecked();
   const saved = await read();
   expect([saved.pickupEtaMinutes, saved.inventoryEnabled]).toEqual([profile.pickupEtaMinutes + 1, !profile.inventoryEnabled]);
 

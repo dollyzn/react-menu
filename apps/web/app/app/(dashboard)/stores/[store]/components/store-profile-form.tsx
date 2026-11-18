@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { formatPhoneBR, STORE_SLUG } from "@/utils/string";
 import { UnsavedChangesBar } from "./unsaved-changes-bar";
+import { useFollowSaved } from "./use-follow-saved";
 import { useSaveStore } from "./use-save-store";
 
 const DESCRIPTION_MAX = 500;
@@ -110,6 +111,7 @@ function IconField({
 export function StoreProfileForm({ store }: { store: Store }) {
   const [save, { isLoading }] = useSaveStore();
   const form = useForm<Values>({ resolver: zodResolver(Schema), defaultValues: toForm(store) });
+  useFollowSaved(form, () => toForm(store), store.updatedAt);
   const values = useWatch({ control: form.control }) as Values;
   const busy = form.formState.isSubmitting || isLoading;
   const disabled = busy;
