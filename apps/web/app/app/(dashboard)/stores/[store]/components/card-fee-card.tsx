@@ -6,14 +6,14 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Percent } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { Switch } from "@/components/ui/switch";
 import { cardFee } from "@/lib/card-fee";
 import { useUpdatePaymentSettingsMutation } from "@/redux/features/store/storeApi";
 import { formatCurrencyBRL } from "@/utils/string";
+import { UnsavedChangesBar } from "./unsaved-changes-bar";
 
 /** "4,99" or "4.99" → 4.99; NaN when it isn't a number. */
 const parsePercent = (value: string) => (value.trim() ? Number(value.trim().replace(",", ".")) : 0);
@@ -78,18 +78,18 @@ export function CardFeeCard({ store }: { store: Store }) {
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex flex-wrap items-center gap-2">
-          <Percent className="size-4 text-primary" /> Taxa do cartão
-          <Badge variant={active ? "default" : "secondary"}>{active ? "Repassada ao cliente" : "Paga pela loja"}</Badge>
-        </CardTitle>
-        <CardDescription>
-          No pagamento online com cartão, o cliente pode pagar a taxa por cima do pedido. Ele vê o valor antes de
-          pagar; o Pix continua sem taxa.
-        </CardDescription>
-      </CardHeader>
-      <form noValidate onSubmit={form.handleSubmit(submit)} className="contents">
+    <form noValidate onSubmit={form.handleSubmit(submit)} className="flex flex-col gap-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex flex-wrap items-center gap-2">
+            <Percent className="size-4 text-primary" /> Taxa do cartão
+            <Badge variant={active ? "default" : "secondary"}>{active ? "Repassada ao cliente" : "Paga pela loja"}</Badge>
+          </CardTitle>
+          <CardDescription>
+            No pagamento online com cartão, o cliente pode pagar a taxa por cima do pedido. Ele vê o valor antes de
+            pagar; o Pix continua sem taxa.
+          </CardDescription>
+        </CardHeader>
         <CardContent>
           {!cardOn && (
             <p className="mb-4 rounded-xl bg-muted/60 p-3 text-sm text-muted-foreground">
@@ -155,20 +155,8 @@ export function CardFeeCard({ store }: { store: Store }) {
             </p>
           </FieldGroup>
         </CardContent>
-        <CardFooter className="justify-end gap-2 border-t">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || !form.formState.isDirty}
-            onClick={() => form.reset(toForm(store))}
-          >
-            Desfazer alterações
-          </Button>
-          <Button type="submit" loading={busy} disabled={!form.formState.isDirty}>
-            Salvar
-          </Button>
-        </CardFooter>
-      </form>
-    </Card>
+      </Card>
+      <UnsavedChangesBar dirty={form.formState.isDirty} busy={busy} onReset={() => form.reset(toForm(store))} />
+    </form>
   );
 }

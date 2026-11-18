@@ -94,21 +94,21 @@ test("the card fee is set in the Pagamentos tab and stays saved when turned off"
   await expect(card.getByLabel("Taxa no crédito")).toBeDisabled();
 
   await card.getByRole("switch", { name: "Repassar a taxa ao cliente" }).click();
-  await card.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(card.getByText("Informe a taxa de pelo menos um tipo de cartão.")).toBeVisible();
 
   await card.getByLabel("Taxa no crédito").fill("4,99");
   await card.getByLabel("Taxa no débito").fill("1,99");
   // The example follows what is typed: R$ 50,00 + 4,99% = R$ 52,50.
   await expect(card.getByText(/R\$\s52,50/)).toBeVisible();
-  await card.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByText("Taxa do cartão salva")).toBeVisible();
   await expect(card.getByText("Repassada ao cliente")).toBeVisible();
   const saved = await read();
   expect([saved.cardFeeEnabled, saved.cardCreditFeePercent, saved.cardDebitFeePercent]).toEqual([true, 4.99, 1.99]);
 
   await card.getByRole("switch", { name: "Repassar a taxa ao cliente" }).click();
-  await card.getByRole("button", { name: "Salvar", exact: true }).click();
+  await page.getByRole("button", { name: "Salvar", exact: true }).click();
   await expect(page.getByText("Taxa do cartão desligada")).toBeVisible();
   const off = await read();
   expect([off.cardFeeEnabled, off.cardCreditFeePercent]).toEqual([false, 4.99]);
