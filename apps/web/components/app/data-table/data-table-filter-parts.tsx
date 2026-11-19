@@ -1,6 +1,8 @@
 "use client";
 
 import { Check, ChevronsUpDown, ListFilter, Minus } from "lucide-react";
+import { animate, motion, useMotionValue, useReducedMotion, useTransform } from "motion/react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { CommandItem } from "@/components/ui/command";
 import { PopoverTrigger } from "@/components/ui/popover";
@@ -97,6 +99,35 @@ export function ToolbarTrigger({
   );
 }
 
+/**
+ * An option's count: fades in when it first arrives, dims while it is being
+ * recounted (other filters picked) and then rolls to the new number, instead
+ * of blinking out and back.
+ */
+export function FacetCount({ value, stale = false, className }: { value: number; stale?: boolean; className?: string }) {
+  const reduce = useReducedMotion();
+  const shown = useMotionValue(value);
+  const text = useTransform(shown, (current) => String(Math.round(current)));
+  useEffect(() => {
+    if (reduce) {
+      shown.set(value);
+      return;
+    }
+    const controls = animate(shown, value, { duration: 0.45, ease: [0.22, 1, 0.36, 1] });
+    return () => controls.stop();
+  }, [shown, value, reduce]);
+  return (
+    <motion.span
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: stale ? 0.45 : 1 }}
+      transition={{ duration: 0.2 }}
+      className={cn("text-xs text-muted-foreground tabular-nums", className)}
+    >
+      {text}
+    </motion.span>
+  );
+}
+
 /** A popover's title: what it filters or sets, above its search and options. */
 export function PopoverHeading({ children, hint }: { children: React.ReactNode; hint?: React.ReactNode }) {
   return (
@@ -120,7 +151,7 @@ export function FilterOptionRow({
   value,
   onSelect,
 }: {
-  option: Pick<FilterOption, "label" | "icon" | "iconClassName" | "quantity"> & {
+  option: Pick<FilterOption, "label" | "icon" | "iconClassName" | "quantity" | "quantityStale"> & {
     /** A second line under the label. */
     description?: string;
   };
@@ -136,7 +167,7 @@ export function FilterOptionRow({
       onSelect={onSelect}
       data-checked={selected}
       className={cn(
-        "cursor-pointer gap-2.5 py-1.5 [&>svg:last-child]:hidden",
+        "cursor-pointer gap-2.5 py-1.5 transition-colors [&>svg:last-child]:hidden",
         // No rows behind it (with the other filters as they are): quieter.
         option.quantity === 0 && !selected && "text-muted-foreground"
       )}
@@ -166,9 +197,7 @@ export function FilterOptionRow({
       ) : (
         <span className="flex-1 whitespace-nowrap">{option.label}</span>
       )}
-      {option.quantity !== undefined && (
-        <span className="text-xs text-muted-foreground tabular-nums">{option.quantity}</span>
-      )}
+      {option.quantity !== undefined && <FacetCount value={option.quantity} stale={option.quantityStale} />}
     </CommandItem>
   );
 }

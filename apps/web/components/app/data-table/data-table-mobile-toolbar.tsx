@@ -27,7 +27,7 @@ import { cn } from "@/lib/utils";
 import type { ColumnsConfig, DataTableInstance, FilterGroup, FilterOption, ViewMode } from ".";
 import { datePresets } from "./constants/date-preset";
 import { rangeSummary, samePeriod } from "./data-table-date-range-filter";
-import { SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
+import { FacetCount, SEARCH_THRESHOLD, flattenOptions } from "./data-table-filter-parts";
 
 type Panel = "filters" | "sort";
 
@@ -456,7 +456,7 @@ function OptionList({
                   // A space before it, so "Combo 2" with 5 never reads "Combo 25".
                   <>
                     {" "}
-                    <span className="ml-0.5 text-xs text-muted-foreground tabular-nums">{option.quantity}</span>
+                    <FacetCount value={option.quantity} stale={option.quantityStale} className="ml-0.5" />
                   </>
                 )}
               </Option>

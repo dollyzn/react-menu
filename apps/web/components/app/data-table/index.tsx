@@ -39,11 +39,12 @@ import { env } from "@/lib/env";
 import type { FacetCounts } from "@react-menu/contracts";
 
 /** Each option of a filter with its count, when the API sent counts for that filter. */
-function withCounts(configs: ColumnsConfig[] | undefined, facets: FacetCounts | undefined) {
+function withCounts(configs: ColumnsConfig[] | undefined, facets: FacetCounts | undefined, stale: boolean) {
   if (!configs || !facets) return configs;
   const count = (key: string) => (option: FilterOption) => ({
     ...option,
     quantity: facets[key]?.[String(option.value)] ?? 0,
+    quantityStale: stale,
   });
   return configs.map((config) => {
     // The API keys counts by its filter name: "category.name" goes as "category_name".
@@ -81,6 +82,8 @@ export interface FilterOption {
   label: string;
   value: string;
   quantity?: number;
+  /** The count is from other filters: the new one is loading (shown dimmed). */
+  quantityStale?: boolean;
   defaultOption?: boolean;
   icon?: React.ComponentType<{ className?: string }>;
   iconClassName?: string;
@@ -168,6 +171,8 @@ interface DataTableProps<TData extends RowData> {
    * next to each option, keyed by the config's `key` and the option's value.
    */
   facets?: FacetCounts;
+  /** `useTableQuery`'s `facetsStale`: the counts shown are being recounted. */
+  facetsStale?: boolean;
 }
 
 export function DataTable<TData extends RowData>({
@@ -200,6 +205,7 @@ export function DataTable<TData extends RowData>({
   fetching,
   pinnedColumns,
   facets,
+  facetsStale = false,
 }: DataTableProps<TData>) {
   const storageBaseName = env.NEXT_PUBLIC_STORAGE_BASE_NAME;
 
@@ -332,7 +338,10 @@ export function DataTable<TData extends RowData>({
   const compact = useHydrated() && isMobile;
 
   // The API's counts on the filters' options ("Entregue 112").
-  const countedConfig = useMemo(() => withCounts(columnsConfig, facets), [columnsConfig, facets]);
+  const countedConfig = useMemo(
+    () => withCounts(columnsConfig, facets, facetsStale),
+    [columnsConfig, facets, facetsStale]
+  );
   const { pageIndex, pageSize } = table.state.pagination;
 
   // A link to page 3 opened on a phone: the list from the top through it.

@@ -109,6 +109,7 @@ export default function InventoryPage() {
           loading={table.loading}
           fetching={table.loading}
           facets={table.facets}
+          facetsStale={table.facetsStale}
           data={table.data}
           rowCount={table.rowCount}
           columns={columns}
