@@ -73,8 +73,11 @@ export default class OrdersController {
 
     // History (paginated, any period) or the live board (one business day).
     if (filters.page) {
+      // How many orders each filter option would show, when the table asks
+      // (its first page; the next pages reuse them).
       const page = await this.orders.listHistory(storeId, filters)
-      return ok(page.all(), page.getMeta())
+      const facets = filters.facets ? await this.orders.historyFacets(storeId, filters) : undefined
+      return ok(page.all(), { ...page.getMeta(), facets })
     }
     return ok(
       await this.orders.list(storeId, {

@@ -78,6 +78,7 @@ export default function Items() {
         tableId={`items-${storeId}`}
         loading={table.loading && table.data.length === 0}
         fetching={table.loading}
+        facets={table.facets}
         data={table.data}
         rowCount={table.rowCount}
         // Selection follows the row, not its index (bulk edit refetches).

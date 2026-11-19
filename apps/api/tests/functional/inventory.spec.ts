@@ -242,6 +242,44 @@ test.group('Inventory', (group) => {
     )
   })
 
+  test('ingredients list counts each unit and stock status option', async ({ client, assert }) => {
+    const { store, manager } = await stockedStore()
+    await Ingredient.create({
+      storeId: store.id,
+      name: 'Queijo',
+      unit: 'g',
+      stockQuantity: 50,
+      minStock: 100,
+    })
+    const facets = async (qs: Record<string, string>) => {
+      const response = await client
+        .get(`/api/v1/stores/${store.id}/ingredients`)
+        .qs({ facets: '1', ...qs })
+        .loginAs(manager)
+      response.assertStatus(200)
+      return response.body().meta.facets as {
+        unit: Record<string, number>
+        stock: { low: number; ok: number }
+      }
+    }
+
+    assert.deepEqual(await facets({}), { unit: { un: 1, g: 3 }, stock: { low: 1, ok: 3 } })
+    // Each filter leaves its own choice out and follows the other.
+    assert.deepEqual(await facets({ unit: 'g' }), {
+      unit: { un: 1, g: 3 },
+      stock: { low: 1, ok: 2 },
+    })
+    const lowOnly = await facets({ stock: 'low' })
+    assert.deepEqual(lowOnly.unit, { g: 1 })
+
+    // Not asked (the "acabando" badge, the recipe picker): no counts run.
+    const badge = await client
+      .get(`/api/v1/stores/${store.id}/ingredients`)
+      .qs({ stock: 'low', perPage: 1 })
+      .loginAs(manager)
+    assert.notProperty(badge.body().meta, 'facets')
+  })
+
   test("another store's member can't list the ingredients", async ({ client }) => {
     const { store } = await stockedStore()
     const outsider = await stockedStore()

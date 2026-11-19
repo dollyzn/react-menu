@@ -41,7 +41,8 @@ test("phones: the table's search stays on screen, filters live in a drawer and t
   const drawer = page.getByRole("dialog", { name: "Filtros" });
   const categories = drawer.getByRole("group", { name: "Categoria" });
   const first = categories.getByRole("button").first();
-  const category = (await first.textContent())!.trim();
+  // The option reads "Bebidas 12": the name, then how many items it would show.
+  const category = (await first.textContent())!.replace(/\s*\d+$/, "").trim();
   await first.click();
   await expect(first).toHaveAttribute("aria-pressed", "true");
   await shot(page, "mobile-table-2-drawer");

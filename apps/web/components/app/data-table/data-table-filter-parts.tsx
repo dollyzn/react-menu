@@ -135,7 +135,11 @@ export function FilterOptionRow({
       value={value}
       onSelect={onSelect}
       data-checked={selected}
-      className="cursor-pointer gap-2.5 py-1.5 [&>svg:last-child]:hidden"
+      className={cn(
+        "cursor-pointer gap-2.5 py-1.5 [&>svg:last-child]:hidden",
+        // No rows behind it (with the other filters as they are): quieter.
+        option.quantity === 0 && !selected && "text-muted-foreground"
+      )}
     >
       <span
         aria-hidden

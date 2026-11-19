@@ -35,6 +35,12 @@ export function parsePositiveInt(value: string | string[] | undefined): number |
   return n
 }
 
+/** `?facets=1`: the list also counts each filter option (`meta.facets`); only tables ask. */
+export function wantsFacets(q: QueryStringRecord) {
+  const value = [q.facets].flat()[0]
+  return value === '1' || value === 'true'
+}
+
 export function parsePagination(q: QueryStringRecord) {
   return {
     page: parsePositiveInt(q.page),

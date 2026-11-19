@@ -157,6 +157,8 @@ const orderListValidator = vine.create(
     sort: vine.enum(['createdAt:desc', 'createdAt:asc', 'total:desc', 'total:asc']).optional(),
     page: vine.number().withoutDecimals().min(1).optional(),
     perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+    /** Also count each filter option (`meta.facets`): only the table asks, on its first page. */
+    facets: vine.boolean().optional(),
   })
 )
 

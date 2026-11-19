@@ -138,14 +138,40 @@ export default class ItemRepository {
       options?.preload === undefined
         ? (['category'] as ItemPreloadKey[])
         : resolveItemPreloadKeys(options.preload)
-    const { categoryId, name, categoryName } = options?.filters ?? {}
-
-    const query = this.query().whereHas('category', (q) => {
-      q.where('store_id', storeId)
-    })
+    const query = this.filteredInStore(storeId, options?.filters)
     applyItemPreloads(query, keys)
     query.withCount('addons', (q) => {
       q.as('addonsCount')
+    })
+
+    for (const { column, direction } of options?.sort ?? []) query.orderBy(column, direction)
+    return await query.orderBy('created_at', 'desc').paginate(page, perPage)
+  }
+
+  /**
+   * How many items each category filter option would show (by category name,
+   * as the filter takes it): the list's other filters apply, the category
+   * choice doesn't.
+   */
+  async categoryFacetInStore(storeId: string, filters: ItemListOptions['filters'] = {}) {
+    const rows = await this.filteredInStore(storeId, filters, 'categoryName')
+      .join('categories', 'categories.id', 'items.category_id')
+      .select('categories.name as category')
+      .count('* as total')
+      .groupBy('categories.name')
+      .pojo<{ category: string; total: string | number }>()
+    return Object.fromEntries(rows.map((row) => [row.category, Number(row.total)]))
+  }
+
+  /** The store's items with the list's filters; `except` leaves one out (for its counts). */
+  private filteredInStore(
+    storeId: string,
+    filters: ItemListOptions['filters'] = {},
+    except?: 'categoryName'
+  ) {
+    const { categoryId, name, categoryName } = filters ?? {}
+    const query = this.query().whereHas('category', (q) => {
+      q.where('store_id', storeId)
     })
 
     if (categoryId !== undefined) {
@@ -157,23 +183,17 @@ export default class ItemRepository {
       }
     }
 
-    whereLikeAnyColumn(query, 'name', name)
+    whereLikeAnyColumn(query, 'items.name', name)
 
-    if (categoryName !== undefined) {
+    if (except !== 'categoryName' && categoryName !== undefined) {
       const names = Array.isArray(categoryName) ? categoryName : [categoryName]
-      if (names.length === 1) {
-        query.whereHas('category', (cq) => {
-          cq.where('store_id', storeId).where('name', names[0]!)
-        })
-      } else if (names.length > 1) {
+      if (names.length > 0) {
         query.whereHas('category', (cq) => {
           cq.where('store_id', storeId).whereIn('name', names)
         })
       }
     }
-
-    for (const { column, direction } of options?.sort ?? []) query.orderBy(column, direction)
-    return await query.orderBy('created_at', 'desc').paginate(page, perPage)
+    return query
   }
 
   async create(data: Partial<Item>, trx?: TransactionClientContract) {

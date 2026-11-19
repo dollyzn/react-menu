@@ -16,7 +16,12 @@ import {
   updateValidator,
 } from '#validators/item'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
+import {
+  parsePagination,
+  parseSort,
+  pickQueryFilters,
+  wantsFacets,
+} from '#helpers/query_string_parser'
 
 @inject()
 export default class ItemsController {
@@ -28,7 +33,7 @@ export default class ItemsController {
 
     // Query string uses snake_case (`category_name`); the repository camelCase.
     const { name, category_name: categoryName } = pickQueryFilters(q, ['name', 'category_name'])
-    const items = await this.itemService.listInStore(storeId, {
+    const options = {
       ...parsePagination(q),
       sort: parseSort(q, {
         name: 'name',
@@ -38,9 +43,14 @@ export default class ItemsController {
         price: 'price',
       }),
       filters: { name, categoryName },
-    })
+    }
+    const items = await this.itemService.listInStore(storeId, options)
+    // Counts per filter option only when the table asks (its first page).
+    const facets = wantsFacets(q)
+      ? await this.itemService.facetsInStore(storeId, options)
+      : undefined
 
-    return ok(items.all(), items.getMeta())
+    return ok(items.all(), { ...items.getMeta(), facets })
   }
 
   async indexByCategory({ params }: HttpContext) {

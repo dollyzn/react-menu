@@ -329,10 +329,13 @@ function Options({ children, label }: { children: React.ReactNode; label?: strin
 function Option({
   pressed,
   onPressedChange,
+  quiet = false,
   children,
 }: {
   pressed: boolean;
   onPressedChange: () => void;
+  /** No rows behind it (with the other filters as they are). */
+  quiet?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -341,7 +344,10 @@ function Option({
       size="lg"
       pressed={pressed}
       onPressedChange={onPressedChange}
-      className="max-w-full rounded-full px-3 font-normal aria-pressed:border-primary/40 aria-pressed:bg-primary/5"
+      className={cn(
+        "max-w-full rounded-full px-3 font-normal aria-pressed:border-primary/40 aria-pressed:bg-primary/5",
+        quiet && !pressed && "text-muted-foreground"
+      )}
     >
       {pressed && <Check className="text-primary" />}
       <span className="truncate">{children}</span>
@@ -443,10 +449,15 @@ function OptionList({
                 key={String(option.value)}
                 pressed={selected.has(String(option.value))}
                 onPressedChange={() => onToggle(String(option.value))}
+                quiet={option.quantity === 0}
               >
                 {option.label}
                 {option.quantity !== undefined && (
-                  <span className="ml-1 text-xs text-muted-foreground tabular-nums">{option.quantity}</span>
+                  // A space before it, so "Combo 2" with 5 never reads "Combo 25".
+                  <>
+                    {" "}
+                    <span className="ml-0.5 text-xs text-muted-foreground tabular-nums">{option.quantity}</span>
+                  </>
                 )}
               </Option>
             ))}

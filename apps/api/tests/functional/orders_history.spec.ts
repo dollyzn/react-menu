@@ -61,6 +61,47 @@ test.group('Orders history', (group) => {
     assert.equal(yesterdayOnly.body().meta.total, 0)
   })
 
+  test('counts each filter option, leaving its own choice out', async ({ client, assert }) => {
+    const { manager, store } = await setup(client)
+    // Another store's orders never count.
+    const other = await createMenuStore()
+    await client.post(`/api/v1/public/menu/${other.store.slug}/orders`).json({
+      customer: { name: 'Outra Loja', phone: '(11) 90000-0000' },
+      paymentMethod: 'counter',
+      lines: [{ itemId: other.carne.id, quantity: 1 }],
+    })
+    const facets = async (qs: Record<string, unknown>) => {
+      const response = await client
+        .get(`/api/v1/stores/${store.id}/orders`)
+        .qs({ page: 1, facets: 1, ...qs })
+        .loginAs(manager)
+      response.assertStatus(200)
+      return response.body().meta.facets as Record<string, Record<string, number>>
+    }
+    const sum = (counts: Record<string, number>) => Object.values(counts).reduce((a, b) => a + b, 0)
+
+    const all = await facets({})
+    assert.deepEqual(all.channel, { online: 2, pos: 1 })
+    assert.equal(sum(all.status), 3)
+
+    // A channel picked: its own counts stay (to switch), the others follow it.
+    const pos = await facets({ channel: 'pos' })
+    assert.deepEqual(pos.channel, { online: 2, pos: 1 })
+    assert.equal(sum(pos.status), 1)
+
+    // The search applies to every count.
+    const bruno = await facets({ customerName: 'bruno' })
+    assert.deepEqual(bruno.channel, { online: 1 })
+    assert.equal(sum(bruno.status), 1)
+
+    // Only when asked (the table's first page): the next pages don't recount.
+    const plain = await client
+      .get(`/api/v1/stores/${store.id}/orders`)
+      .qs({ page: 2 })
+      .loginAs(manager)
+    assert.notProperty(plain.body().meta, 'facets')
+  })
+
   test('the detail shows who changed each status', async ({ client, assert }) => {
     const { attendant, store, posOrder } = await setup(client)
     const detail = await client

@@ -36,6 +36,26 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLocalStorage } from "usehooks-ts";
 import { env } from "@/lib/env";
+import type { FacetCounts } from "@react-menu/contracts";
+
+/** Each option of a filter with its count, when the API sent counts for that filter. */
+function withCounts(configs: ColumnsConfig[] | undefined, facets: FacetCounts | undefined) {
+  if (!configs || !facets) return configs;
+  const count = (key: string) => (option: FilterOption) => ({
+    ...option,
+    quantity: facets[key]?.[String(option.value)] ?? 0,
+  });
+  return configs.map((config) => {
+    // The API keys counts by its filter name: "category.name" goes as "category_name".
+    const key = facets[config.key] ? config.key : config.key.replaceAll(".", "_");
+    if (!config.filterOptions || !facets[key]) return config;
+    const counted = count(key);
+    const filterOptions = config.grouped
+      ? (config.filterOptions as FilterGroup[]).map((group) => ({ ...group, options: group.options.map(counted) }))
+      : (config.filterOptions as FilterOption[]).map(counted);
+    return { ...config, filterOptions };
+  });
+}
 
 /**
  * Leaf columns with the ids TanStack gives them (`id`, else the accessorKey
@@ -143,6 +163,11 @@ interface DataTableProps<TData extends RowData> {
    * Phones tell a slow "Carregar mais" from a failed one by it.
    */
   fetching?: boolean;
+  /**
+   * Counts per filter option from the API (`useTableQuery`'s `facets`): shown
+   * next to each option, keyed by the config's `key` and the option's value.
+   */
+  facets?: FacetCounts;
 }
 
 export function DataTable<TData extends RowData>({
@@ -174,6 +199,7 @@ export function DataTable<TData extends RowData>({
   maxPageSize,
   fetching,
   pinnedColumns,
+  facets,
 }: DataTableProps<TData>) {
   const storageBaseName = env.NEXT_PUBLIC_STORAGE_BASE_NAME;
 
@@ -304,6 +330,9 @@ export function DataTable<TData extends RowData>({
   // (after hydration: the server renders the desktop one).
   const isMobile = useIsMobile();
   const compact = useHydrated() && isMobile;
+
+  // The API's counts on the filters' options ("Entregue 112").
+  const countedConfig = useMemo(() => withCounts(columnsConfig, facets), [columnsConfig, facets]);
   const { pageIndex, pageSize } = table.state.pagination;
 
   // A link to page 3 opened on a phone: the list from the top through it.
@@ -482,7 +511,7 @@ export function DataTable<TData extends RowData>({
       {compact ? (
         <DataTableMobileToolbar
           table={table}
-          columnsConfig={columnsConfig}
+          columnsConfig={countedConfig}
           hasCardView={!!renderCard}
           viewMode={viewMode}
           setViewMode={chooseViewMode}
@@ -491,7 +520,7 @@ export function DataTable<TData extends RowData>({
       ) : (
         <DataTableToolbar
           table={table}
-          columnsConfig={columnsConfig}
+          columnsConfig={countedConfig}
           setDensity={setDensity}
           currentDensity={density}
           hasCardView={!!renderCard}

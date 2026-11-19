@@ -19,8 +19,8 @@ export const inventoryApi = baseApi.injectEndpoints({
   endpoints: (build) => ({
     /** Paginated; filters: `name`, `unit`, `stock` (`low` | `ok`). */
     getIngredients: build.query<PaginatedList<Ingredient>, StoreScopedListArg>({
-      query: ({ storeId, filters, pagination, sort }) =>
-        buildStoreListUrl(storeId, "ingredients", { filters, pagination, sort }),
+      query: ({ storeId, filters, pagination, sort, facets }) =>
+        buildStoreListUrl(storeId, "ingredients", { filters, pagination, sort, facets }),
       providesTags: (_res, _err, { storeId }) => [listTag(storeId)],
     }),
     createIngredient: build.mutation<Ingredient, { storeId: string; data: IngredientInput }>({

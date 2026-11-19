@@ -8,7 +8,12 @@ import {
   updateIngredientValidator,
 } from '#validators/inventory'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
+import {
+  parsePagination,
+  parseSort,
+  pickQueryFilters,
+  wantsFacets,
+} from '#helpers/query_string_parser'
 
 @inject()
 export default class IngredientsController {
@@ -19,7 +24,7 @@ export default class IngredientsController {
 
     const q = request.qs()
 
-    const ingredients = await this.inventory.list(storeId, {
+    const options = {
       ...parsePagination(q),
       sort: parseSort(q, {
         name: 'name',
@@ -29,9 +34,12 @@ export default class IngredientsController {
         updatedAt: 'updated_at',
       }),
       filters: pickQueryFilters(q, ['name', 'unit', 'stock']),
-    })
+    }
+    const ingredients = await this.inventory.list(storeId, options)
+    // Counts per filter option only when the table asks (its first page).
+    const facets = wantsFacets(q) ? await this.inventory.facets(storeId, options) : undefined
 
-    return ok(ingredients.all(), ingredients.getMeta())
+    return ok(ingredients.all(), { ...ingredients.getMeta(), facets })
   }
 
   async store({ params, request, auth }: HttpContext) {

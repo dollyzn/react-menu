@@ -184,6 +184,7 @@ export function OrderHistory({ storeId, onOpen }: { storeId: string; onOpen: (or
       tableId={`orders-history-${storeId}`}
       loading={table.loading && table.data.length === 0}
       fetching={table.loading}
+      facets={table.facets}
       data={table.data}
       rowCount={table.rowCount}
       columns={columns}
