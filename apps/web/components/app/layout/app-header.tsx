@@ -2,10 +2,12 @@ import { Suspense } from "react";
 import { Separator } from "@/components/ui/separator";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { NotificationsPopover } from "@/components/app/notifications/notifications-popover";
+import { AssistantPanel } from "@/components/app/assistant/assistant-panel";
 import { AppBreadcrumbs } from "./app-breadcrumbs";
 
 /**
- * Brand-colored bar: sidebar toggle, where you are and the notifications.
+ * Brand-colored bar: sidebar toggle, where you are, the store assistant and
+ * the notifications.
  * Account and theme live in the sidebar.
  */
 export default function AppHeader() {
@@ -19,6 +21,7 @@ export default function AppHeader() {
           <AppBreadcrumbs />
         </Suspense>
         <div className="ml-auto flex shrink-0 items-center gap-1">
+          <AssistantPanel />
           <NotificationsPopover />
         </div>
       </div>
