@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
+import { useLastValue } from "@/hooks/use-last-value";
 import { Sheet, SheetClose, SheetContent, SheetDescription, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
@@ -181,13 +183,22 @@ function AssistantSheet({
     }
   };
 
+  // Asked first (a tap beside the row is easy on a phone); the dialog keeps
+  // its title while it closes.
+  const [removing, setRemoving] = useState<{ id: string; title: string } | null>(null);
+  const shownRemoving = useLastValue(removing);
+  const [deleting, setDeleting] = useState(false);
   const remove = async (id: string) => {
+    setDeleting(true);
     try {
       await deleteConversation({ storeId, id }).unwrap();
       if (id === conversation.id) startConversation(newConversation());
       toast.success("Conversa apagada");
+      setRemoving(null);
     } catch {
       // baseApi shows the API's answer.
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -236,7 +247,7 @@ function AssistantSheet({
                         className="opacity-60 hover:opacity-100"
                         onClick={(event) => {
                           event.stopPropagation();
-                          void remove(row.id);
+                          setRemoving({ id: row.id, title: row.title ?? "Conversa" });
                         }}
                       >
                         <Trash2 />
@@ -321,6 +332,15 @@ function AssistantSheet({
           onAnswered={() => writeAssistantPrefs(storeId, { conversationId: conversation.id })}
         />
       )}
+      <AlertDialogDestructive
+        open={removing !== null}
+        onOpenChange={(open) => !open && !deleting && setRemoving(null)}
+        title="Apagar esta conversa?"
+        description={`"${shownRemoving?.title ?? ""}" sai do seu histórico de vez.`}
+        confirmLabel="Apagar"
+        loading={deleting}
+        onConfirm={() => removing && void remove(removing.id)}
+      />
     </div>
   );
 }

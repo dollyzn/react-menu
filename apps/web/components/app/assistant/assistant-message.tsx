@@ -331,14 +331,22 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+/** Writes this reply made after an approval: "Gerar de novo" would lose them. */
+export function changedData(message: AssistantUIMessage) {
+  return message.parts.some((part) => isToolPart(part) && "approval" in part && part.approval?.approved === true);
+}
+
 export function AssistantMessage({
   message,
+  last,
   streaming,
   busy,
   onRetry,
   onAnswer,
 }: {
   message: AssistantUIMessage;
+  /** The newest message: only its approvals can still be answered. */
+  last: boolean;
   /** This reply is the one streaming now. */
   streaming: boolean;
   busy: boolean;
@@ -377,17 +385,23 @@ export function AssistantMessage({
               {tools.map((part) => {
                 const preview = previewOf(message, part.toolCallId);
                 if (preview && "approval" in part && part.approval) {
+                  // Mirrors what the API keeps: a newer message declines what was left waiting.
                   const state =
                     part.state === "approval-requested"
-                      ? "waiting"
+                      ? last
+                        ? "waiting"
+                        : "skipped"
                       : part.state === "output-denied" || part.approval.approved === false
                         ? "denied"
-                        : "approved";
+                        : part.state === "output-error"
+                          ? "failed"
+                          : "approved";
                   return (
                     <ApprovalCard
                       key={part.toolCallId}
                       preview={preview}
                       state={state}
+                      error={part.state === "output-error" ? part.errorText : undefined}
                       disabled={busy}
                       onAnswer={(approved) => onAnswer(part.approval!.id, approved)}
                     />

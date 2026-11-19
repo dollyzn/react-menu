@@ -19,9 +19,9 @@ import {
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { type AssistantUIMessage, chatErrorText, suggestionsFor } from "@/lib/assistant";
 import { baseApi } from "@/redux/api/baseApi";
-import { assistantTagsAfterAnswer } from "@/redux/features/assistant/assistantApi";
+import { assistantTagsAfterAnswer, panelTagsAfterWrite } from "@/redux/features/assistant/assistantApi";
 import { useAppDispatch } from "@/redux/hooks";
-import { AssistantMessage, UserMessage } from "./assistant-message";
+import { AssistantMessage, changedData, UserMessage } from "./assistant-message";
 import { PromptInput, type PromptPhoto, type SessionContext } from "./prompt-input";
 
 /**
@@ -145,8 +145,10 @@ export function AssistantChat({
       messages: initialMessages,
       transport,
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-      onFinish: () => {
-        dispatch(baseApi.util.invalidateTags(assistantTagsAfterAnswer(storeId)));
+      onFinish: ({ message }) => {
+        // A change the assistant made: the panel's screens behind the sheet refetch.
+        const wrote = changedData(message);
+        dispatch(baseApi.util.invalidateTags([...assistantTagsAfterAnswer(storeId), ...(wrote ? panelTagsAfterWrite(storeId) : [])]));
         onAnswered?.();
       },
     });
@@ -158,6 +160,8 @@ export function AssistantChat({
   const suggestions = suggestionsFor(page, role);
   const errorText = chatErrorText(error);
   const session = sessionOf(messages, models, model);
+  const lastMessage = messages.at(-1);
+  const lastChanged = lastMessage?.role === "assistant" && changedData(lastMessage);
 
   const send = (text: string, photos: PromptPhoto[] = []) => {
     clearError();
@@ -178,8 +182,9 @@ export function AssistantChat({
               </EmptyMedia>
               <EmptyTitle>Como posso ajudar?</EmptyTitle>
               <EmptyDescription>
-                Eu consulto o sistema por você: vendas, estoque, pedidos, fiado e cardápio. Antes de mudar qualquer
-                coisa, mostro o que vai mudar e espero você aprovar.
+                {role === "manager"
+                  ? "Eu consulto o sistema por você: vendas, estoque, pedidos, fiado e cardápio. Antes de mudar qualquer coisa, mostro o que vai mudar e espero você aprovar."
+                  : "Eu consulto por você os pedidos de agora, o cardápio e se a loja está aberta."}
               </EmptyDescription>
             </EmptyHeader>
             <EmptyContent className="w-full max-w-sm">
@@ -213,9 +218,11 @@ export function AssistantChat({
                         ) : (
                           <AssistantMessage
                             message={message}
+                            last={last}
                             streaming={busy && last}
                             busy={busy}
-                            onRetry={last ? () => void regenerate({ messageId: message.id }) : undefined}
+                            // Not after a change went through: asking again would lose it.
+                            onRetry={last && !changedData(message) ? () => void regenerate({ messageId: message.id }) : undefined}
                             onAnswer={(id, approved) => void addToolApprovalResponse({ id, approved })}
                           />
                         )}
@@ -236,7 +243,7 @@ export function AssistantChat({
             <TriangleAlert />
             <AlertTitle>Não deu certo</AlertTitle>
             <AlertDescription>{errorText}</AlertDescription>
-            {messages.length > 0 && !limitReached && (
+            {messages.length > 0 && !limitReached && !lastChanged && (
               <AlertAction>
                 <Button size="sm" variant="outline" onClick={() => void regenerate()}>
                   <RotateCw data-icon="inline-start" />

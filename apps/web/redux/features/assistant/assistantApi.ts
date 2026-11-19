@@ -9,6 +9,7 @@ import type {
   AssistantStatus,
 } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
+import { storeApi } from "@/redux/features/store/storeApi";
 
 const statusTag = (storeId: string) => ({ type: "Assistant" as const, id: `status-${storeId}` });
 const listTag = (storeId: string) => ({ type: "Assistant" as const, id: `list-${storeId}` });
@@ -44,6 +45,23 @@ export const assistantApi = baseApi.injectEndpoints({
     >({
       query: ({ storeId, data }) => ({ url: `stores/${storeId}/assistant-settings`, method: "PUT", body: data }),
       invalidatesTags: (_res, _err, { storeId }) => [{ type: "Store", id: storeId }, statusTag(storeId)],
+      // The saved list goes into the store at once: the next change (made
+      // before the refetch lands) builds on it, not on the list before.
+      async onQueryStarted({ storeId }, { dispatch, queryFulfilled }) {
+        try {
+          const { data } = await queryFulfilled;
+          dispatch(
+            storeApi.util.updateQueryData("getStoreById", storeId, (store) => {
+              store.assistantEnabled = data.enabled;
+              store.assistantProviders = data.providers;
+              store.assistantModels = data.models;
+              store.assistantDefaultModel = data.defaultModel;
+            })
+          );
+        } catch {
+          // Nothing saved: nothing to change.
+        }
+      },
     }),
     /** The chat models of a key (a POST: the key goes in the body, never in a URL). */
     listAssistantModels: build.mutation<AssistantModelOption[], { storeId: string; data: AssistantModelsInput }>({
@@ -56,6 +74,19 @@ export const assistantApi = baseApi.injectEndpoints({
 
 /** After an answer: today's count and the conversation list changed. */
 export const assistantTagsAfterAnswer = (storeId: string) => [statusTag(storeId), listTag(storeId)];
+
+/**
+ * What an approved change can touch (prices, items, stock, the store, an
+ * order): the panel's lists refetch, as after their own forms.
+ */
+export const panelTagsAfterWrite = (storeId: string) => [
+  { type: "Store" as const, id: storeId },
+  { type: "Item" as const, id: `store-${storeId}` },
+  { type: "Item" as const, id: "PUBLIC_MENU" },
+  { type: "Category" as const, id: `store-${storeId}` },
+  { type: "Ingredient" as const, id: `store-${storeId}` },
+  { type: "Order" as const, id: `store-${storeId}` },
+];
 
 export const {
   useGetAssistantStatusQuery,

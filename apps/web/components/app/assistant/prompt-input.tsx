@@ -364,7 +364,10 @@ export function PromptInput({
             }
           }}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+            // Phones' keyboards have no Shift: there Enter is a new line and
+            // the send button sends (a menu list takes several lines).
+            const touch = window.matchMedia("(pointer: coarse)").matches;
+            if (event.key === "Enter" && !event.shiftKey && !touch && !event.nativeEvent.isComposing) {
               event.preventDefault();
               formRef.current?.requestSubmit();
             }

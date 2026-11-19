@@ -92,7 +92,7 @@ export function suggestionsFor(page: string | null, role: StoreRole | null): str
     Itens: ["Quais itens estão pausados?", "Aumenta R$ 1 em todos os pastéis doces"],
     Pedidos: ["Tem pedido atrasado agora?", "Quem está com fiado em aberto?", "Aumenta o tempo de retirada para 30 minutos"],
     Loja: ["A loja está aberta?", "Fecha a loja agora"],
-    PDV: ["Tem pedido atrasado agora?", "O que está acabando no estoque?"],
+    PDV: ["Tem pedido atrasado agora?", "Quais itens estão pausados?"],
   };
   const general = manager
     ? [
@@ -103,9 +103,10 @@ export function suggestionsFor(page: string | null, role: StoreRole | null): str
         "Tem pedido atrasado agora?",
         "Quais itens mais venderam no mês?",
       ]
-    : ["Tem pedido atrasado agora?", "A loja está aberta?", "O que está acabando no estoque?", "Quais itens estão pausados?"];
+    : ["Tem pedido atrasado agora?", "Quais pedidos estão prontos?", "A loja está aberta?", "Quais itens estão pausados?"];
   const forPage = (page && byPage[page]) || [];
-  const allowed = manager ? forPage : forPage.filter((text) => general.includes(text) || /atrasado|estoque|acabando|pausados|aberta|fecha a loja/i.test(text));
+  // Attendants: only what their tools answer (orders now, the menu, whether it's open).
+  const allowed = manager ? forPage : forPage.filter((text) => general.includes(text) || /atrasado|pausados|aberta\?/i.test(text));
   return [...new Set([...allowed, ...general])].slice(0, 5);
 }
 

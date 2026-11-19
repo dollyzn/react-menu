@@ -22,6 +22,7 @@ import type {
   AssistantModelPricing,
   AssistantProvider,
 } from "@react-menu/contracts";
+import { useLastValue } from "@/hooks/use-last-value";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,6 +110,7 @@ export function AssistantSettingsCard({ store }: { store: Store }) {
   const [pricing, setPricing] = useState<Model | null>(null);
   const [connecting, setConnecting] = useState<AssistantProvider | null>(null);
   const [disconnecting, setDisconnecting] = useState<AssistantProvider | null>(null);
+  const shownDisconnecting = useLastValue(disconnecting);
   const models: Model[] = store.assistantModels ?? [];
   const priceOf = (model: Model) => costs.data?.prices.find((price) => price.id === idOf(model));
   const connected = store.assistantProviders ?? [];
@@ -357,7 +359,7 @@ export function AssistantSettingsCard({ store }: { store: Store }) {
       <AlertDialogDestructive
         open={disconnecting !== null}
         onOpenChange={(open) => !open && setDisconnecting(null)}
-        title={disconnecting ? `Desconectar ${providerLabel(disconnecting)}?` : ""}
+        title={shownDisconnecting ? `Desconectar ${providerLabel(shownDisconnecting)}?` : ""}
         description="A chave é apagada e os modelos dele saem do chat."
         confirmLabel="Desconectar"
         icon={<Unplug />}
@@ -449,8 +451,8 @@ function CostSection({
 
 /** The model's price for the estimate: the list price, or the store's own (its contract, a new price). */
 function PriceDialog({
-  model,
-  current,
+  model: opened,
+  current: openedPrice,
   busy,
   onClose,
   onSave,
@@ -461,6 +463,9 @@ function PriceDialog({
   onClose: () => void;
   onSave: (pricing: AssistantModelPricing | null) => Promise<void>;
 }) {
+  // What it shows while it animates closed.
+  const model = useLastValue(opened);
+  const current = useLastValue(openedPrice);
   const [values, setValues] = useState<Record<keyof AssistantModelPricing, string> | null>(null);
   const shown =
     values ??
@@ -479,7 +484,7 @@ function PriceDialog({
     ["output", "Saída"],
   ];
   return (
-    <Dialog open={model !== null} onOpenChange={(open) => !open && !busy && onClose()} onOpenChangeComplete={(open) => !open && setValues(null)}>
+    <Dialog open={opened !== null} onOpenChange={(open) => !open && !busy && onClose()} onOpenChangeComplete={(open) => !open && setValues(null)}>
       <DialogContent className="sm:max-w-md">
         <form
           noValidate

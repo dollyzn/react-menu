@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Check, ShieldQuestion, X } from "lucide-react";
+import { ArrowRight, Check, ShieldQuestion, TriangleAlert, X } from "lucide-react";
 import type { AssistantApprovalPreview } from "@react-menu/contracts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -193,7 +193,18 @@ function PreviewBody({ preview }: { preview: AssistantApprovalPreview }) {
   }
 }
 
-type State = "waiting" | "approved" | "denied";
+/**
+ * waiting: the last reply asks; skipped: left unanswered and declined by a
+ * newer message; failed: approved, but the change didn't go through.
+ */
+type State = "waiting" | "approved" | "denied" | "skipped" | "failed";
+
+const ANSWERED: Record<Exclude<State, "waiting">, string> = {
+  approved: "Aprovado por você.",
+  denied: "Recusado: nada foi alterado.",
+  skipped: "Ficou sem resposta: nada foi alterado.",
+  failed: "Aprovado, mas não deu certo.",
+};
 
 /**
  * A write waiting for the person (the Confirmation pattern): what the
@@ -205,9 +216,12 @@ export function ApprovalCard({
   state,
   onAnswer,
   disabled,
+  error,
 }: {
   preview: AssistantApprovalPreview;
   state: State;
+  /** Why an approved change failed. */
+  error?: string;
   onAnswer?: (approved: boolean) => void;
   disabled?: boolean;
 }) {
@@ -218,13 +232,19 @@ export function ApprovalCard({
       size="sm"
       className={cn("items-start", waiting ? "border-warning/40 bg-warning/5" : "bg-muted/30")}
     >
-      <ItemMedia variant="icon" className={cn(waiting ? "text-warning" : state === "approved" ? "text-success" : "text-muted-foreground")}>
-        {waiting ? <ShieldQuestion /> : state === "approved" ? <Check /> : <X />}
+      <ItemMedia
+        variant="icon"
+        className={cn(
+          waiting ? "text-warning" : state === "approved" ? "text-success" : state === "failed" ? "text-destructive" : "text-muted-foreground"
+        )}
+      >
+        {waiting ? <ShieldQuestion /> : state === "approved" ? <Check /> : state === "failed" ? <TriangleAlert /> : <X />}
       </ItemMedia>
       <ItemContent className="min-w-0">
         <ItemTitle>{titleOf(preview)}</ItemTitle>
         <ItemDescription className="line-clamp-none">
-          {waiting ? descriptionOf(preview) : state === "approved" ? "Aprovado por você." : "Recusado: nada foi alterado."}
+          {waiting ? descriptionOf(preview) : ANSWERED[state]}
+          {state === "failed" && error && <span className="block text-destructive">{error}</span>}
         </ItemDescription>
       </ItemContent>
       {waiting && (
