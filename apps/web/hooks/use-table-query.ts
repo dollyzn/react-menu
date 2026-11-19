@@ -7,6 +7,7 @@ import { useTransformTableParams } from "@/hooks/use-transform-data-table-params
 import { useUrlTableState } from "@/hooks/use-url-table-state";
 import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { Meta, Pagination } from "@/types/request";
+import type { FacetCounts } from "@react-menu/contracts";
 import { getMetaTotal } from "@/types/paginated-list";
 
 type UseQueryResult<R> = {
@@ -27,6 +28,8 @@ export interface TableQueryReturn<T> {
   data: T[];
   loading: boolean;
   rowCount: number;
+  /** Counts per filter option, when the endpoint sends them (`meta.facets`). */
+  facets?: FacetCounts;
   pagination: PaginationState;
   sorting: SortingState;
   filters: ColumnFiltersState;
@@ -83,6 +86,7 @@ export function useTableQuery<
     data: queryData?.data ?? [],
     loading: isFetching,
     rowCount: getMetaTotal(queryData?.meta),
+    facets: queryData?.meta?.facets,
     pagination,
     sorting,
     filters,

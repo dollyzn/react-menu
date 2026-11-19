@@ -108,6 +108,7 @@ export default function InventoryPage() {
           tableId={`ingredients-${storeId}`}
           loading={table.loading}
           fetching={table.loading}
+          facets={table.facets}
           data={table.data}
           rowCount={table.rowCount}
           columns={columns}

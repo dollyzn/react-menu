@@ -36,6 +36,8 @@ test("desktop tables: the search is a field, filters are always there and the pa
 
   // A filter beside the search; "Limpar filtros" while one is set.
   await page.getByRole("button", { name: "Filtrar por categoria" }).click();
+  // Each option says how many items it would show.
+  await expect(page.getByRole("option", { name: /^Bebidas \d+$/ })).toBeVisible();
   await shot(page, "desktop-table-4-popover");
   await page.getByRole("option", { name: /^Bebidas/ }).click();
   await page.keyboard.press("Escape");
@@ -77,6 +79,12 @@ test("desktop tables: a row that opens something takes the keyboard", async ({ p
   // Switch to the table if the history opens on cards here.
   const toTable = page.getByRole("button", { name: "Exibir como tabela" });
   if (await toTable.isVisible()) await toTable.click();
+  // The status filter counts the orders of each option.
+  await page.getByRole("button", { name: "Filtrar por status" }).click();
+  await expect(page.getByRole("option", { name: /^Na fila \d+$/ })).toBeVisible();
+  await shot(page, "desktop-table-6-counts");
+  await page.keyboard.press("Escape");
+
   const first = page.locator("tbody tr[tabindex='0']").first();
   await expect(first).toBeVisible();
   await first.focus();

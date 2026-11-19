@@ -55,6 +55,13 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 - Lists use `parsePagination` + `pickQueryFilters` (+ `parseSort` with an
   allowlist of column ids; never order by a raw query value) and return
   `ok(paginator.all(), paginator.getMeta())` (camelCase meta: `total`, `perPage`, `currentPage`…).
+  Lists the panel filters by options (the order history, items, ingredients)
+  also send `meta.facets` (`FacetCounts`): per filter key, how many rows each
+  option would show, with the search and the other filters applied but not
+  the filter's own choice (one query per filter, built by the same function
+  as the list with that filter left out: `historyQuery`, `filtered`). Run
+  them one after another, never in `Promise.all` (inside a transaction they
+  share one connection).
 - Rate limiting: `throttle` must run after `middleware.auth()` or the
   request is limited as a guest (per client IP, `PUBLIC_RATE_LIMIT`, default
   120/min). `request.ip()` is the client's: X-Forwarded-For is trusted from

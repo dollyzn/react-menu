@@ -59,6 +59,19 @@ export type CreateOrderInput = {
   idempotencyKey?: string | null
 }
 
+/** The order history's filters ("Histórico"), as the list endpoint takes them. */
+export type HistoryFilters = {
+  status?: OrderStatus[]
+  channel?: OrderChannel[]
+  paymentMethod?: PaymentMethod[]
+  createdAt?: string
+  customerName?: string
+  sort?: 'createdAt:desc' | 'createdAt:asc' | 'total:desc' | 'total:asc'
+  page?: number
+  perPage?: number
+}
+type HistoryFacet = 'status' | 'channel' | 'paymentMethod'
+
 @inject()
 export default class OrderService {
   constructor(
@@ -853,34 +866,54 @@ export default class OrderService {
   }
 
   /** Paginated order history with filters (staff "Histórico"). */
-  async listHistory(
-    storeId: string,
-    filters: {
-      status?: OrderStatus[]
-      channel?: OrderChannel[]
-      paymentMethod?: PaymentMethod[]
-      createdAt?: string
-      customerName?: string
-      sort?: 'createdAt:desc' | 'createdAt:asc' | 'total:desc' | 'total:asc'
-      page?: number
-      perPage?: number
-    }
-  ) {
-    const [from, to] = (filters.createdAt ?? '~').split('~')
-    const search = filters.customerName?.trim()
-    const digits = search?.replace(/\D/g, '') ?? ''
+  async listHistory(storeId: string, filters: HistoryFilters) {
     const [column, direction] = (filters.sort ?? 'createdAt:desc').split(':') as [
       'createdAt' | 'total',
       'asc' | 'desc',
     ]
+    return await this.historyQuery(storeId, filters)
+      .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .orderBy(column === 'total' ? 'total' : 'created_at', direction)
+      .paginate(filters.page ?? 1, filters.perPage ?? 20)
+  }
 
-    return await Order.query()
+  /**
+   * How many orders each option of the history's filters would show: the
+   * search, the period and the other filters apply, the filter's own choice
+   * doesn't (so the rest of its options can still be picked).
+   */
+  async historyFacets(storeId: string, filters: HistoryFilters) {
+    const count = async (facet: HistoryFacet, column: string) => {
+      const rows = await this.historyQuery(storeId, filters, facet)
+        .whereNotNull(column)
+        .select(column)
+        .count('* as total')
+        .groupBy(column)
+        .pojo<Record<string, string | number>>()
+      return Object.fromEntries(rows.map((row) => [String(row[column]), Number(row.total)]))
+    }
+    // One after the other: inside a transaction they share one connection.
+    const status = await count('status', 'status')
+    const channel = await count('channel', 'channel')
+    const paymentMethod = await count('paymentMethod', 'payment_method')
+    return { status, channel, paymentMethod }
+  }
+
+  /** The history's filters on a query; `except` leaves one of them out (for its counts). */
+  private historyQuery(storeId: string, filters: HistoryFilters, except?: HistoryFacet) {
+    const [from, to] = (filters.createdAt ?? '~').split('~')
+    const search = filters.customerName?.trim()
+    const digits = search?.replace(/\D/g, '') ?? ''
+    const use = (facet: HistoryFacet, values?: string[]) =>
+      except !== facet && Boolean(values?.length)
+
+    return Order.query()
       .where({ storeId })
       .if(from, (query) => query.where('business_date', '>=', from))
       .if(to, (query) => query.where('business_date', '<=', to))
-      .if(filters.status?.length, (query) => query.whereIn('status', filters.status!))
-      .if(filters.channel?.length, (query) => query.whereIn('channel', filters.channel!))
-      .if(filters.paymentMethod?.length, (query) =>
+      .if(use('status', filters.status), (query) => query.whereIn('status', filters.status!))
+      .if(use('channel', filters.channel), (query) => query.whereIn('channel', filters.channel!))
+      .if(use('paymentMethod', filters.paymentMethod), (query) =>
         query.whereIn('payment_method', filters.paymentMethod!)
       )
       .if(search, (query) =>
@@ -891,9 +924,6 @@ export default class OrderService {
           if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
         })
       )
-      .preload('items', (items) => items.preload('addons').orderBy('id'))
-      .orderBy(column === 'total' ? 'total' : 'created_at', direction)
-      .paginate(filters.page ?? 1, filters.perPage ?? 20)
   }
 
   async find(storeId: string, orderId: string) {

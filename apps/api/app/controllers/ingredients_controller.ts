@@ -19,7 +19,7 @@ export default class IngredientsController {
 
     const q = request.qs()
 
-    const ingredients = await this.inventory.list(storeId, {
+    const options = {
       ...parsePagination(q),
       sort: parseSort(q, {
         name: 'name',
@@ -29,9 +29,11 @@ export default class IngredientsController {
         updatedAt: 'updated_at',
       }),
       filters: pickQueryFilters(q, ['name', 'unit', 'stock']),
-    })
+    }
+    const ingredients = await this.inventory.list(storeId, options)
+    const facets = await this.inventory.facets(storeId, options)
 
-    return ok(ingredients.all(), ingredients.getMeta())
+    return ok(ingredients.all(), { ...ingredients.getMeta(), facets })
   }
 
   async store({ params, request, auth }: HttpContext) {

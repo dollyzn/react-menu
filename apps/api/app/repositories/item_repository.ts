@@ -176,6 +176,24 @@ export default class ItemRepository {
     return await query.orderBy('created_at', 'desc').paginate(page, perPage)
   }
 
+  /**
+   * How many items each category filter option would show (by category name,
+   * as the filter takes it): the name search applies, the category choice
+   * doesn't.
+   */
+  async categoryFacetInStore(storeId: string, filters: ItemListOptions['filters'] = {}) {
+    const query = this.query()
+      .join('categories', 'categories.id', 'items.category_id')
+      .where('categories.store_id', storeId)
+    whereLikeAnyColumn(query, 'items.name', filters?.name)
+    const rows = await query
+      .select('categories.name as category')
+      .count('* as total')
+      .groupBy('categories.name')
+      .pojo<{ category: string; total: string | number }>()
+    return Object.fromEntries(rows.map((row) => [row.category, Number(row.total)]))
+  }
+
   async create(data: Partial<Item>, trx?: TransactionClientContract) {
     return await Item.create(data, trx ? { client: trx } : undefined)
   }

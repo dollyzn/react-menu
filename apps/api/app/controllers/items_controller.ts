@@ -28,7 +28,7 @@ export default class ItemsController {
 
     // Query string uses snake_case (`category_name`); the repository camelCase.
     const { name, category_name: categoryName } = pickQueryFilters(q, ['name', 'category_name'])
-    const items = await this.itemService.listInStore(storeId, {
+    const options = {
       ...parsePagination(q),
       sort: parseSort(q, {
         name: 'name',
@@ -38,9 +38,11 @@ export default class ItemsController {
         price: 'price',
       }),
       filters: { name, categoryName },
-    })
+    }
+    const items = await this.itemService.listInStore(storeId, options)
+    const facets = await this.itemService.facetsInStore(storeId, options)
 
-    return ok(items.all(), items.getMeta())
+    return ok(items.all(), { ...items.getMeta(), facets })
   }
 
   async indexByCategory({ params }: HttpContext) {

@@ -41,6 +41,25 @@ test.group('Items', (group) => {
     )
   })
 
+  test('the list counts the items of each category filter option', async ({ client, assert }) => {
+    const manager = await createUser()
+    const { store } = await createMenuStore()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    // Another store with the same category names never counts.
+    await createMenuStore()
+    const facets = async (qs: Record<string, string>) => {
+      const response = await client.get(`/api/v1/stores/${store.id}/items`).qs(qs).loginAs(manager)
+      response.assertStatus(200)
+      return response.body().meta.facets['category.name'] as Record<string, number>
+    }
+
+    assert.deepEqual(await facets({}), { Pastéis: 2, Bebidas: 1 })
+    // Its own choice is left out, so the other categories can still be picked.
+    assert.deepEqual(await facets({ category_name: 'Bebidas' }), { Pastéis: 2, Bebidas: 1 })
+    // The name search applies.
+    assert.deepEqual(await facets({ name: 'carne' }), { Pastéis: 1 })
+  })
+
   test('the list sorts by allowed columns and ignores the rest', async ({ client, assert }) => {
     const manager = await createUser()
     const { store } = await createMenuStore()

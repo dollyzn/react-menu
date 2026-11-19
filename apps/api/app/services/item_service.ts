@@ -44,6 +44,11 @@ export default class ItemService {
     return await this.repo.paginateInStore(storeId, options)
   }
 
+  /** Counts per filter option (keyed like the table's filters). */
+  async facetsInStore(storeId: string, options?: ItemListOptions) {
+    return { 'category.name': await this.repo.categoryFacetInStore(storeId, options?.filters) }
+  }
+
   async getByCategoryInStore(storeId: string, categoryId: number, options?: ItemFindOptions) {
     await this.categoryRepo.findByIdInStore(categoryId, storeId, { preload: false })
     return await this.repo.findByCategoryInStore(storeId, categoryId, options)

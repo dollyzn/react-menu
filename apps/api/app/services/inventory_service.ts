@@ -37,6 +37,11 @@ export default class InventoryService {
     return await this.repo.paginateInStore(storeId, options)
   }
 
+  /** Counts per filter option (keyed like the table's filters). */
+  async facets(storeId: string, options: IngredientListOptions = {}) {
+    return await this.repo.facetsInStore(storeId, options.filters)
+  }
+
   async create(
     storeId: string,
     data: {

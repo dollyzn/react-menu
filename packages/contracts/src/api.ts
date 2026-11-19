@@ -43,6 +43,13 @@ export type ApiError = {
   details?: unknown;
 };
 
+/**
+ * How many rows each option of a list's filters would show: filter key (as
+ * the table names it) → option value → count. Each filter's counts apply the
+ * search and the other filters, not its own choice.
+ */
+export type FacetCounts = Record<string, Record<string, number>>;
+
 /** Lucid paginator meta (snake_case naming strategy). */
 export type PaginationMeta = {
   total: number;
@@ -54,6 +61,8 @@ export type PaginationMeta = {
   last_page_url: string;
   next_page_url: string | null;
   previous_page_url: string | null;
+  /** Lists with filters (history, items, ingredients): counts per option. */
+  facets?: FacetCounts;
 };
 
 export type Paginated<T, ExtraMeta = {}> = ApiSuccess<T[], PaginationMeta & ExtraMeta>;
