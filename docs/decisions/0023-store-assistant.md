@@ -40,20 +40,25 @@ are built for the Vercel AI SDK's UI message protocol (`useChat`).
   availability (through the bulk edit and its `updatedAt` check), stock
   movements, new menu items (paused). The same tool list goes to everyone and
   each call checks the role again, so attendants get "Sem permissão" instead
-  of data. Inputs are validated with VineJS. Phone numbers leave masked.
+  of data. Attendants get what their screens show: today's orders, the menu
+  and whether the store is open; stock, reports and opening or closing the
+  store are the managers', as in the panel. Inputs are validated with VineJS. Phone numbers leave masked.
 - **Writes wait for approval.** `toolApproval` stops the turn and the panel
   shows what will change (a `data-approval` part, read from the database).
   Approving or declining is the AI SDK's approval response; the API applies
   the answers only to parts still waiting, so a repeated approval runs
-  nothing. A new message declines what was left unanswered.
+  nothing. A new message declines what was left unanswered (the panel shows
+  it so). An answer whose changes went through can't be generated again
+  (409 `E_ASSISTANT_CHANGED`): the model would make them twice.
 - **The API keeps the conversation** (`assistant_conversations.ui_messages`,
   AI SDK UI messages with the providers' reasoning metadata); the client
   sends only its newest message. Conversations belong to one person in one
   store. Each message carries a context block (store, person, role, time,
   screen) in its metadata, so earlier turns never change and stay cached.
   One request per conversation at a time (`busy_until`).
-- **Daily limit per store** (`ASSISTANT_DAILY_LIMIT`, default 200 requests a
-  business day), counted in `assistant_usages`, which also keeps the tokens
+- **Daily limit per store** (`ASSISTANT_DAILY_LIMIT`, default 200 questions a
+  business day; answering an approval doesn't count), counted in
+  `assistant_usages`, which also keeps the tokens
   (input, cached, output, reasoning). Each answer's metadata carries its
   model, tokens and the last call's input (how full the context is), and the
   server times each thought (the AI SDK doesn't) for "Pensou por 4s".
