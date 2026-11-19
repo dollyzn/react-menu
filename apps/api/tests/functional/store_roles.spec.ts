@@ -34,7 +34,7 @@ test.group('Store roles', (group) => {
     }
   })
 
-  test('attendants can open the store, kitchen staff cannot', async ({ client }) => {
+  test('only managers open and close the store', async ({ client }) => {
     const store = await createStore()
     const attendant = await createUser()
     const cook = await createUser()
@@ -50,7 +50,7 @@ test.group('Store roles', (group) => {
       .json({ status: StoreStatus.CLOSED })
       .loginAs(cook)
 
-    byAttendant.assertStatus(200)
+    byAttendant.assertStatus(403)
     byCook.assertStatus(403)
   })
 

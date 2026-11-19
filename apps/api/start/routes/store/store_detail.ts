@@ -1,4 +1,4 @@
-import { frontOfHouse, managersOnly } from '#routes/store/shared'
+import { managersOnly } from '#routes/store/shared'
 import router from '@adonisjs/core/services/router'
 
 const StoresController = () => import('#controllers/stores_controller')
@@ -14,7 +14,7 @@ export default function registerStoreDetailRoutes() {
   router
     .patch('/status', [StoresController, 'updateStatus'])
     .as('stores.updateStatus')
-    .use(frontOfHouse)
+    .use(managersOnly)
   router.put('/hours', [StoresController, 'updateHours']).as('stores.updateHours').use(managersOnly)
   router
     .put('/payment-settings', [PaymentsController, 'updateSettings'])

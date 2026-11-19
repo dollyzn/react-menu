@@ -13,8 +13,10 @@ has three jobs: running the store, serving the counter, cooking.
 `store_user.role` is `manager | attendant | kitchen` (existing links became
 managers). A `hasStoreRole` ability and `storeRole` middleware, applied after
 `storeAccess`: catalog, inventory, settings and dashboard changes are
-manager-only; POS, handing over, cancelling and opening/closing the store
-are front of house (manager, attendant); every member can read the catalog
+manager-only; POS, handing over and cancelling are front of house
+(manager, attendant); opening/closing the store is manager-only too (since
+2026-11-19: the panel only ever offered it on the managers' store page, and
+the store assistant follows the same rule); every member can read the catalog
 and mark kitchen progress. Super users act as managers. The web app adapts
 navigation and landing page to the role.
 
