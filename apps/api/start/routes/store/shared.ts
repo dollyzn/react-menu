@@ -4,10 +4,10 @@ import { throttle } from '#start/limiter'
 
 export const authThrottle = [middleware.auth(), throttle]
 
-/** Catalog, inventory and store settings changes. */
+/** Catalog, inventory and store settings changes, opening/closing the store included. */
 export const managersOnly = middleware.storeRole({ roles: [StoreRole.MANAGER] })
 
-/** Front-of-house operations (POS, opening/closing the store). */
+/** Front-of-house operations (POS, the orders board). */
 export const frontOfHouse = middleware.storeRole({
   roles: [StoreRole.MANAGER, StoreRole.ATTENDANT],
 })

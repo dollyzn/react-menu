@@ -70,6 +70,19 @@ export default await Env.create(new URL('../', import.meta.url), {
   /** Public orders per IP every 10 minutes (default 10). */
   PUBLIC_ORDER_RATE_LIMIT: Env.schema.number.optional(),
 
+  /*
+  |----------------------------------------------------------
+  | Store assistant. Each store sets its own model and API key in the panel.
+  |----------------------------------------------------------
+  */
+  /** Messages a store may send the assistant per business day (default 200). */
+  ASSISTANT_DAILY_LIMIT: Env.schema.number.optional(),
+  /**
+   * Development and e2e only (ignored in production): a scripted model that
+   * calls the tools by keyword, to try the assistant without a key.
+   */
+  ASSISTANT_FAKE_MODEL: Env.schema.boolean.optional(),
+
   GOOGLE_CLIENT_ID: Env.schema.string.optional(),
   GOOGLE_CLIENT_SECRET: Env.schema.string.optional(),
   GOOGLE_CALLBACK_URL: Env.schema.string.optional(),

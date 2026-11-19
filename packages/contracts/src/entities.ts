@@ -1,3 +1,4 @@
+import type { AssistantModelChoice, AssistantProvider } from './assistant.ts';
 /**
  * Serialized shapes of the Lucid models (camelCase, dates as ISO strings).
  * Keep in sync with apps/api/app/models/*.
@@ -32,6 +33,13 @@ export type Store = {
   kitchenBatchLookahead: number;
   /** True when Mercado Pago credentials are configured (never exposed). */
   mercadoPagoEnabled: boolean;
+  /** True when the store assistant has a model with its provider's key (keys are never exposed). */
+  assistantEnabled: boolean;
+  /** Providers with a saved key. */
+  assistantProviders: AssistantProvider[];
+  /** Models offered in the chat, and the one it starts with ("openai:gpt-6.2-sol"). */
+  assistantModels: AssistantModelChoice[];
+  assistantDefaultModel: string | null;
   /** Public key for the in-app card form (safe to expose). */
   mercadoPagoPublicKey: string | null;
   /** Card installments offered at checkout (1 = à vista). */

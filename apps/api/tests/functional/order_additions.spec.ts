@@ -43,7 +43,12 @@ async function placeOrder(
 }
 
 async function firstLineId(orderId: string) {
-  const order = await Order.query().where('id', orderId).preload('items').firstOrFail()
+  // In the order they were placed (without it, Postgres may hand back the
+  // drink added later, which the kitchen never makes).
+  const order = await Order.query()
+    .where('id', orderId)
+    .preload('items', (items) => items.orderBy('id'))
+    .firstOrFail()
   return order.items[0].id
 }
 

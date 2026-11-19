@@ -48,6 +48,8 @@ export default defineConfig({
         PUBLIC_RATE_LIMIT: "10000",
         // Local Pix gateway: the checkout runs without Mercado Pago credentials.
         PAYMENTS_FAKE_GATEWAY: "true",
+        // The store assistant answers with the scripted model (no provider key).
+        ASSISTANT_FAKE_MODEL: "true",
         // Jobs of the e2e run stay apart from the dev worker's queue.
         QUEUE_REDIS_PREFIX: "react-menu-e2e:",
         DRIVE_DISK: "fs",

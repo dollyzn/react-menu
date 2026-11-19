@@ -10,6 +10,9 @@ import User from './user.js'
 import db from '@adonisjs/lucid/services/db'
 import { availability, type OpeningInterval } from '#helpers/opening_hours'
 import type { PointPaymentType } from '#payments/point'
+import type { AssistantModelChoice, AssistantProvider } from '@react-menu/contracts'
+
+export type AssistantKeys = Partial<Record<AssistantProvider, string>>
 
 /** Same as #services/order_service (a model can't import a service). */
 const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
@@ -100,6 +103,28 @@ export default class Store extends BaseModel {
   @column()
   declare mercadoPagoPublicKey: string | null
 
+  /**
+   * Store assistant: the API key of each provider the store connected
+   * ({ anthropic?, openai?, google? }), encrypted at rest with APP_KEY as one
+   * value; never serialized (`assistantProviders` says which exist).
+   */
+  @column({
+    serializeAs: null,
+    prepare: (value: AssistantKeys | null) =>
+      value && Object.keys(value).length ? encryption.encrypt(JSON.stringify(value)) : null,
+    consume: (value: string | null) =>
+      value ? (JSON.parse(encryption.decrypt<string>(value) ?? '{}') as AssistantKeys) : {},
+  })
+  declare assistantKeys: AssistantKeys
+
+  /** The models offered in the chat, in the panel's order. */
+  @column({ prepare: (value: AssistantModelChoice[]) => JSON.stringify(value ?? []) })
+  declare assistantModels: AssistantModelChoice[]
+
+  /** The model a new conversation starts with ("openai:gpt-6.2-sol"). */
+  @column()
+  declare assistantDefaultModel: string | null
+
   /** Card machine (Point): what it offers (credit_card, debit_card, qr). */
   @column({ prepare: (value: PointPaymentType[]) => JSON.stringify(value ?? []) })
   declare pointPaymentTypes: PointPaymentType[]
@@ -154,6 +179,24 @@ export default class Store extends BaseModel {
   @computed()
   get mercadoPagoEnabled() {
     return Boolean(this.mercadoPagoAccessToken)
+  }
+
+  /** Providers with a saved key. */
+  @computed()
+  get assistantProviders() {
+    return (Object.keys(this.assistantKeys ?? {}) as AssistantProvider[]).filter(
+      (provider) => this.assistantKeys[provider]
+    )
+  }
+
+  /** The models whose provider has a key: the ones the chat can use. */
+  usableAssistantModels() {
+    return (this.assistantModels ?? []).filter((model) => this.assistantKeys?.[model.provider])
+  }
+
+  @computed()
+  get assistantEnabled() {
+    return this.usableAssistantModels().length > 0
   }
 
   @column.dateTime({ autoCreate: true })

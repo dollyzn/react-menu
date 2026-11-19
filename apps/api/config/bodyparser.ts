@@ -21,6 +21,9 @@ const bodyParserConfig = defineConfig({
    */
   json: {
     convertEmptyStringsToNull: true,
+    // The assistant's chat sends up to 4 photos as data URLs (3.5 MB each
+    // decoded, a third more in base64); the default 1 MB refused 2 photos.
+    limit: '20mb',
     types: [
       'application/json',
       'application/json-patch+json',

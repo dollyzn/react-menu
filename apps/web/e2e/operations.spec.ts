@@ -930,8 +930,11 @@ test("POS: a kept ticket comes back at today's prices, and signing out forgets i
   const menu = (await (await page.request.get(`${API_URL}/api/v1/public/menu?preview=1`)).json()).data;
   const drink = menu.categories.find((category: { name: string }) => category.name === "Bebidas").items[0];
 
-  // A ticket kept before a price change (stored as it was then).
+  // A ticket kept before a price change (stored as it was then). The POS
+  // loads in full first: in dev, a reload while it still compiles is
+  // followed by another one, and the restore toast would be the second's.
   await page.goto(`${storePath}/pos`);
+  await expect(page.getByText(drink.name).first()).toBeVisible();
   await page.evaluate(
     ({ storeId, drink }) =>
       localStorage.setItem(

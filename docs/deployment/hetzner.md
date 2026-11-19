@@ -130,13 +130,15 @@ PUBLIC_URL=https://pedidos.jjpasteis.com.br
 
 The existing proxy forwards the domain to `http://127.0.0.1:8080`, passing
 `Host`, `X-Forwarded-For` and `X-Forwarded-Proto`, without buffering (the
-panel's live updates are Server-Sent Events) and allowing uploads of 10 MB.
+panel's live updates and the assistant's answers are Server-Sent Events) and
+allowing bodies of 20 MB (the assistant's chat sends its photos in the JSON
+body; the API accepts up to 20 MB).
 nginx:
 
 ```nginx
 server {
     server_name pedidos.jjpasteis.com.br;
-    client_max_body_size 10m;
+    client_max_body_size 20m;
     location / {
         proxy_pass http://127.0.0.1:8080;
         proxy_http_version 1.1;

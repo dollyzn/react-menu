@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, Store as StoreIcon } from "lucide-react";
+import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, Sparkles, Store as StoreIcon } from "lucide-react";
 import { useState } from "react";
 import Image from "@/components/app/image";
 import { Icons } from "@/components/app/icons";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQueryParam } from "@/hooks/use-query-param";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
+import { AssistantSettingsCard } from "./components/assistant-settings-card";
 import { CardFeeCard } from "./components/card-fee-card";
 import { MenuOrder } from "./components/menu-order";
 import { CommentRatings } from "./components/rating";
@@ -32,6 +33,7 @@ const TABS = [
   { value: "cardapio", label: "Cardápio", icon: ListOrdered },
   { value: "funcionamento", label: "Funcionamento", icon: Clock },
   { value: "pagamentos", label: "Pagamentos", icon: CreditCard },
+  { value: "assistente", label: "Assistente", icon: Sparkles },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 const isTab = (value: string | null): value is Tab => TABS.some((tab) => tab.value === value);
@@ -152,7 +154,7 @@ export default function StorePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-      <PageHeader title="Loja" description="Perfil, cardápio, funcionamento e pagamentos da loja." />
+      <PageHeader title="Loja" description="Perfil, cardápio, funcionamento, pagamentos e assistente da loja." />
 
       {loading || !data ? (
         <StorePageSkeleton />
@@ -194,6 +196,9 @@ export default function StorePage() {
               <PaymentSettingsCard store={data} />
               <CardFeeCard store={data} />
               <PointSettingsCard store={data} />
+            </TabsContent>
+            <TabsContent value="assistente" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
+              <AssistantSettingsCard store={data} />
             </TabsContent>
           </Tabs>
         </>
