@@ -108,6 +108,9 @@ const dateField = (description: string): JSONSchema7 => ({
   format: 'date',
   description,
 })
+// As in the panel: attendants work the orders board and the POS (orders,
+// menu, whether the store is open); stock, reports and store settings,
+// opening and closing it included, are the managers'.
 const managers = [StoreRole.MANAGER]
 const everyone = [StoreRole.MANAGER, StoreRole.ATTENDANT]
 
@@ -250,7 +253,7 @@ const stockForecast: ToolDefinition = {
     ['baseFrom', 'baseTo', 'days']
   ),
   validate: (input) => stockForecastInput.validate(input),
-  roles: everyone,
+  roles: managers,
   async run(input: Infer<typeof stockForecastInput>, ctx): Promise<AssistantStockForecast> {
     const base = period(input.baseFrom, input.baseTo)
     const empty = {
@@ -828,7 +831,7 @@ const setStoreStatus: ToolDefinition = {
     'status',
   ]),
   validate: (input) => setStoreStatusInput.validate(input),
-  roles: everyone,
+  roles: managers,
   approval: {
     async preview(input: Infer<typeof setStoreStatusInput>, ctx, toolCallId) {
       await ctx.store.refresh()

@@ -210,6 +210,13 @@ function tokensOf(usage: LanguageModelUsage): AssistantTokens {
 
 type Lease = { until: Date }
 
+/** A message with a write that was approved (applied, or tried). */
+function changedData(message: UIMessage) {
+  return message.parts.some(
+    (part: any) => part.type?.startsWith('tool-') && part.approval?.approved === true
+  )
+}
+
 function addTokens(a: AssistantTokens | undefined, b: AssistantTokens): AssistantTokens {
   if (!a) return b
   return {
@@ -349,12 +356,12 @@ export default class AssistantService {
         .from('assistant_usages')
         .where('store_id', store.id)
         .where('created_at', '>=', since.toUTC().toISO()!)
-        .select('model')
-        .count('* as requests')
+        .select('model', db.raw('count(*) filter (where question) as requests'))
         .sum('input_tokens as input')
         .sum('output_tokens as output')
         .sum('reasoning_tokens as reasoning')
         .sum('cache_read_tokens as cached')
+        .sum('cache_write_tokens as written')
         .groupBy('model')
         .orderBy('model')
       let total = 0
@@ -375,7 +382,12 @@ export default class AssistantService {
         const { pricing } = PROVIDERS.includes(choice.provider)
           ? priceOf(choice)
           : { pricing: null }
-        const cost = pricing ? costOf(tokens, pricing) : null
+        const cost = pricing
+          ? costOf(tokens, pricing, {
+              provider: choice.provider,
+              cacheWrite: Number(row.written ?? 0),
+            })
+          : null
         if (cost === null) partial ||= tokens.input + tokens.output > 0
         else total += cost
         return { id: row.model as string, requests: Number(row.requests), tokens, cost }
@@ -399,7 +411,7 @@ export default class AssistantService {
       .from('assistant_usages')
       .where('store_id', storeId)
       .where('created_at', '>=', since)
-      .count('* as used')
+      .select(db.raw('count(*) filter (where question) as used'))
       .sum('input_tokens as input')
       .sum('output_tokens as output')
       .sum('reasoning_tokens as reasoning')
@@ -505,7 +517,18 @@ export default class AssistantService {
         // The same message again ("Gerar de novo", or an edit): it replaces
         // itself and what came after it.
         const again = messages.findIndex((row) => row.id === message.id)
-        if (again >= 0) messages.length = again
+        if (again >= 0) {
+          // Asking again would drop a change already made, and the model
+          // would make it twice.
+          if (messages.slice(again).some(changedData)) {
+            throw new AppException(
+              'Essa resposta já mudou dados da loja. Mande uma nova mensagem em vez de gerar de novo.',
+              409,
+              'E_ASSISTANT_CHANGED'
+            )
+          }
+          messages.length = again
+        }
         messages.push(message)
         const text = message.parts.find((part) => part.type === 'text')
         conversation.title ??= (text?.type === 'text' ? text.text : 'Foto do cardápio')
@@ -531,6 +554,7 @@ export default class AssistantService {
           userId: ctx.user.id,
           conversationId: conversation.id,
           model: resolved.choice.id,
+          question: input.message.role === 'user',
         })
     } catch (error) {
       await this.#release(conversation.id, lease)
@@ -608,7 +632,7 @@ export default class AssistantService {
             if (part.type !== 'finish') return undefined
             return {
               model: resolved.choice.id,
-              usage: { ...usage, used: usage.used + 1 },
+              usage: { ...usage, used: usage.used + (input.message.role === 'user' ? 1 : 0) },
               tokens: addTokens(before, tokensOf(part.totalUsage)),
               contextTokens,
             } satisfies AssistantMessageMetadata

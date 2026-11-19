@@ -43,6 +43,8 @@ export default class extends BaseSchema {
         .inTable('assistant_conversations')
         .onDelete('SET NULL')
       table.string('model', 120).notNullable()
+      // A new question (counts toward the daily limit), or an approval answered.
+      table.boolean('question').notNullable().defaultTo(true)
       table.integer('input_tokens').notNullable().defaultTo(0)
       table.integer('output_tokens').notNullable().defaultTo(0)
       table.integer('reasoning_tokens').notNullable().defaultTo(0)

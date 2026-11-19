@@ -90,10 +90,17 @@ export function priceOf(choice: Pick<AssistantModelChoice, 'provider' | 'model' 
  * US$ for some tokens. Input counts cached input apart (cheaper); reasoning
  * is already inside the output.
  */
-export function costOf(tokens: AssistantTokens, pricing: AssistantModelPricing) {
+export function costOf(
+  tokens: AssistantTokens,
+  pricing: AssistantModelPricing,
+  extra: { provider?: AssistantProvider; cacheWrite?: number } = {}
+) {
   const fresh = Math.max(0, tokens.input - tokens.cachedInput)
+  // Claude bills writing the cache (5 minutes) at 1.25× the input; the
+  // written tokens are already in the input at 1×.
+  const writes = extra.provider === 'anthropic' ? (extra.cacheWrite ?? 0) * 0.25 : 0
   return (
-    (fresh * pricing.input +
+    ((fresh + writes) * pricing.input +
       tokens.cachedInput * pricing.cachedInput +
       tokens.output * pricing.output) /
     1_000_000

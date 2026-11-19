@@ -5,7 +5,8 @@ const AssistantController = () => import('#controllers/assistant_controller')
 
 /**
  * The store assistant: managers and attendants (each tool checks the role
- * again: attendants only read the board, the stock and the menu).
+ * again: attendants only read today's orders, the menu and whether the store
+ * is open, as their screens in the panel show).
  */
 export default function registerStoreAssistantRoutes() {
   router

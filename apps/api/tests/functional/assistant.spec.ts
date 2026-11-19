@@ -655,7 +655,7 @@ test.group('Store assistant', (group) => {
   })
 
   test('store, day and order tools: read, and approved writes', async ({ client, assert }) => {
-    const { store, manager, carne, turns } = await setup()
+    const { store, manager, attendant, carne, turns } = await setup()
     store.merge({ status: 'open', pickupEtaMinutes: 15 })
     await store.save()
     const created = await client
@@ -717,31 +717,75 @@ test.group('Store assistant', (group) => {
     assert.equal(await field(Item.findOrFail(carne.id), 'description'), 'Carne moída temperada.')
     const order = await db.from('orders').where('id', created.body().data.id).first()
     assert.equal(order.status, 'cancelled')
+    // Closed through the assistant, the rest of the team hears it as from the panel.
+    const notified = await db
+      .from('notifications')
+      .where('type', 'store.status_changed')
+      .select('user_id')
+    assert.includeMembers(
+      notified.map((row) => row.user_id),
+      [attendant.id]
+    )
+    assert.notInclude(
+      notified.map((row) => row.user_id),
+      manager.id
+    )
   })
 
-  test('attendants open and close the store but cannot cancel orders', async ({
+  test("attendants check whether the store is open, but opening, closing and stock are managers'", async ({
     client,
     assert,
   }) => {
     const { store, attendant, turns } = await setup()
     turns.push([
+      ...say.tool('store_status', {}),
       ...say.tool('set_store_status', { status: 'closed' }),
+      ...say.tool('stock_forecast', { baseFrom: '2026-11-07', baseTo: '2026-11-07', days: 1 }),
       ...say.tool('cancel_order', { number: 1 }),
     ])
     const stream = await streamOf(
       client
         .post(`/api/v1/stores/${store.id}/assistant/chat`)
-        .json(ask('Fecha e cancela'))
+        .json(ask('Tá aberta? Fecha, vê o estoque e cancela'))
         .loginAs(attendant)
     )
-    assert.deepEqual(
-      stream.filter((chunk) => chunk.type === 'data-approval').map((chunk) => chunk.data.kind),
-      ['store_status']
+    assert.isUndefined(stream.find((chunk) => chunk.type === 'data-approval'))
+    assert.isDefined(
+      stream.find((chunk) => chunk.type === 'tool-output-available' && chunk.output?.status)
     )
-    assert.include(
-      stream.find((chunk) => chunk.type === 'tool-output-error')!.errorText,
-      'Sem permissão'
+    const denied = stream.filter((chunk) => chunk.type === 'tool-output-error')
+    assert.lengthOf(denied, 3)
+    for (const chunk of denied) assert.include(chunk.errorText, 'Sem permissão')
+    await store.refresh()
+    assert.notEqual(store.status, 'closed')
+  })
+
+  test('an approval answered is not a new question, and a change made is never asked again', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, turns } = await setup()
+    const url = `/api/v1/stores/${store.id}/assistant/chat`
+    turns.push([...say.tool('set_pickup_time', { minutes: 30 })])
+    turns.push([...say.text('Pronto, 30 minutos.')])
+    const body = ask('Tempo de retirada 30')
+    const first = await streamOf(client.post(url).json(body).loginAs(manager))
+    await streamOf(
+      client
+        .post(url)
+        .json(answer(body.id, first, true))
+        .loginAs(manager)
     )
+    await store.refresh()
+    assert.equal(store.pickupEtaMinutes, 30)
+
+    const status = await client.get(`/api/v1/stores/${store.id}/assistant`).loginAs(manager)
+    assert.equal(status.body().data.usage.used, 1)
+
+    // "Gerar de novo" on that question would drop the change and make it again.
+    const again = await client.post(url).json(body).loginAs(manager)
+    again.assertStatus(409)
+    assert.equal(again.body().code, 'E_ASSISTANT_CHANGED')
   })
 
   test('a reply cut off mid-thought or a failed one never breaks the next message', async ({

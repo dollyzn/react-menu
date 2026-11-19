@@ -1,7 +1,10 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
-/** One request to the store assistant: counts toward the store's daily limit. */
+/**
+ * One request to the store assistant, with its tokens. Only new questions
+ * count toward the store's daily limit; an approval answered doesn't.
+ */
 export default class AssistantUsage extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -17,6 +20,9 @@ export default class AssistantUsage extends BaseModel {
 
   @column()
   declare model: string
+
+  @column()
+  declare question: boolean
 
   @column()
   declare inputTokens: number
