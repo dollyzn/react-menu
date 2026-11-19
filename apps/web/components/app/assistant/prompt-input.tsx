@@ -26,7 +26,7 @@ import {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Progress } from "@/components/ui/progress";
 import Image from "@/components/app/image";
@@ -107,16 +107,18 @@ function ContextMeter({ usage, session }: { usage?: AssistantUsage; session: Ses
     { label: "Raciocínio", value: session.tokens.reasoning },
   ];
   return (
-    <HoverCard>
-      <HoverCardTrigger
+    // A popover, not a hover card: phones have no hover, so a tap opens it too.
+    <Popover>
+      <PopoverTrigger
+        openOnHover
         delay={10}
         closeDelay={100}
         render={<InputGroupButton size="xs" variant="ghost" className="tabular-nums text-muted-foreground" aria-label="Uso do contexto e do limite" />}
       >
         <Gauge />
         {label}
-      </HoverCardTrigger>
-      <HoverCardContent side="top" className="flex w-72 flex-col gap-4">
+      </PopoverTrigger>
+      <PopoverContent side="top" className="flex w-72 flex-col gap-4">
         {session.contextTokens > 0 && (
           <div className="flex flex-col gap-3">
             {session.contextWindow ? (
@@ -154,8 +156,8 @@ function ContextMeter({ usage, session }: { usage?: AssistantUsage; session: Ses
             }
           />
         )}
-      </HoverCardContent>
-    </HoverCard>
+      </PopoverContent>
+    </Popover>
   );
 }
 
