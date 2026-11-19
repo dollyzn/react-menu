@@ -31,6 +31,8 @@ export interface TableQueryReturn<T> {
   rowCount: number;
   /** Counts per filter option, when the endpoint sends them (`meta.facets`). */
   facets?: FacetCounts;
+  /** The counts above are from other filters (or about to change): the new ones are loading. */
+  facetsStale: boolean;
   pagination: PaginationState;
   sorting: SortingState;
   filters: ColumnFiltersState;
@@ -85,19 +87,21 @@ export function useTableQuery<
   const queryArg = { ...buildArg({ filterParam, sortingParam, paginationParam }), facets: pagination.pageIndex === 0 };
   const { data: queryData, isFetching, refetch } = useQueryHook(queryArg);
 
-  // Counts belong to one set of filters: kept across pages, never shown for
-  // other filters (while those load, no counts rather than wrong ones).
+  // Counts belong to one set of filters and are kept across pages. While
+  // other filters' counts load, the last ones stay on screen marked stale
+  // (dimmed, then they change in place) instead of blinking out and back.
   const filterKey = JSON.stringify(filterParam);
   const [kept, setKept] = useState<{ key: string; facets?: FacetCounts }>({ key: filterKey });
   const fresh = queryData?.meta?.facets;
   if (fresh && !isFetching && (kept.key !== filterKey || kept.facets !== fresh)) setKept({ key: filterKey, facets: fresh });
-  const facets = kept.key === filterKey ? kept.facets : undefined;
+  const facetsStale = kept.key !== filterKey || (isFetching && pagination.pageIndex === 0);
 
   return {
     data: queryData?.data ?? [],
     loading: isFetching,
     rowCount: getMetaTotal(queryData?.meta),
-    facets,
+    facets: kept.facets,
+    facetsStale,
     pagination,
     sorting,
     filters,
