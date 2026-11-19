@@ -89,6 +89,8 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL: ${PUBLIC_URL}/api/v1/auth/social/google/callback
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      # Store assistant: messages per store a day (model and key are set per store).
+      ASSISTANT_DAILY_LIMIT: ${ASSISTANT_DAILY_LIMIT:-200}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY:-}
       # OpenTelemetry to Grafana Cloud (off when the endpoint is empty), loaded
