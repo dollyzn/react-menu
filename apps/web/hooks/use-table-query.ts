@@ -9,6 +9,7 @@ import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { Meta, Pagination } from "@/types/request";
 import type { FacetCounts } from "@react-menu/contracts";
 import { getMetaTotal } from "@/types/paginated-list";
+import { useState } from "react";
 
 type UseQueryResult<R> = {
   data?: R;
@@ -79,14 +80,24 @@ export function useTableQuery<
   const { filterParam, sortingParam, paginationParam } =
     useTransformTableParams({ filters, sorting, pagination });
 
-  const queryArg = buildArg({ filterParam, sortingParam, paginationParam });
+  // The filter options' counts are asked on the first page only (a filter
+  // change always goes back to it); the next pages reuse them.
+  const queryArg = { ...buildArg({ filterParam, sortingParam, paginationParam }), facets: pagination.pageIndex === 0 };
   const { data: queryData, isFetching, refetch } = useQueryHook(queryArg);
+
+  // Counts belong to one set of filters: kept across pages, never shown for
+  // other filters (while those load, no counts rather than wrong ones).
+  const filterKey = JSON.stringify(filterParam);
+  const [kept, setKept] = useState<{ key: string; facets?: FacetCounts }>({ key: filterKey });
+  const fresh = queryData?.meta?.facets;
+  if (fresh && !isFetching && (kept.key !== filterKey || kept.facets !== fresh)) setKept({ key: filterKey, facets: fresh });
+  const facets = kept.key === filterKey ? kept.facets : undefined;
 
   return {
     data: queryData?.data ?? [],
     loading: isFetching,
     rowCount: getMetaTotal(queryData?.meta),
-    facets: queryData?.meta?.facets,
+    facets,
     pagination,
     sorting,
     filters,

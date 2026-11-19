@@ -46,8 +46,10 @@ function withCounts(configs: ColumnsConfig[] | undefined, facets: FacetCounts | 
     quantity: facets[key]?.[String(option.value)] ?? 0,
   });
   return configs.map((config) => {
-    if (!config.filterOptions || !facets[config.key]) return config;
-    const counted = count(config.key);
+    // The API keys counts by its filter name: "category.name" goes as "category_name".
+    const key = facets[config.key] ? config.key : config.key.replaceAll(".", "_");
+    if (!config.filterOptions || !facets[key]) return config;
+    const counted = count(key);
     const filterOptions = config.grouped
       ? (config.filterOptions as FilterGroup[]).map((group) => ({ ...group, options: group.options.map(counted) }))
       : (config.filterOptions as FilterOption[]).map(counted);

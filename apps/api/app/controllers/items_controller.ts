@@ -16,7 +16,12 @@ import {
   updateValidator,
 } from '#validators/item'
 import { bulkDeleted, created, messageOnly, ok, updated } from '#helpers/api_response'
-import { parsePagination, parseSort, pickQueryFilters } from '#helpers/query_string_parser'
+import {
+  parsePagination,
+  parseSort,
+  pickQueryFilters,
+  wantsFacets,
+} from '#helpers/query_string_parser'
 
 @inject()
 export default class ItemsController {
@@ -40,7 +45,10 @@ export default class ItemsController {
       filters: { name, categoryName },
     }
     const items = await this.itemService.listInStore(storeId, options)
-    const facets = await this.itemService.facetsInStore(storeId, options)
+    // Counts per filter option only when the table asks (its first page).
+    const facets = wantsFacets(q)
+      ? await this.itemService.facetsInStore(storeId, options)
+      : undefined
 
     return ok(items.all(), { ...items.getMeta(), facets })
   }

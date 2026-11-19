@@ -48,9 +48,12 @@ test.group('Items', (group) => {
     // Another store with the same category names never counts.
     await createMenuStore()
     const facets = async (qs: Record<string, string>) => {
-      const response = await client.get(`/api/v1/stores/${store.id}/items`).qs(qs).loginAs(manager)
+      const response = await client
+        .get(`/api/v1/stores/${store.id}/items`)
+        .qs({ facets: '1', ...qs })
+        .loginAs(manager)
       response.assertStatus(200)
-      return response.body().meta.facets['category.name'] as Record<string, number>
+      return response.body().meta.facets.category_name as Record<string, number>
     }
 
     assert.deepEqual(await facets({}), { Pastéis: 2, Bebidas: 1 })

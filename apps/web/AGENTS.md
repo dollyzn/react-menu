@@ -126,9 +126,12 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   `onRowClick` take Tab, Enter and the arrows; one empty state for every
   table (filtered: "Limpar busca e filtros"). Server-side tables pass
   `fetching={table.loading}` and `facets={table.facets}`: the API's counts
-  per filter option (`meta.facets`, keyed by the config's `key` and the
-  option's value) go next to each option, desktop and phone; an option with
-  none is quieter.
+  per filter option (`meta.facets`, keyed by the API's filter name: the
+  config's `key`, "category.name" as `category_name`) go next to each
+  option, desktop and phone; an option with none is quieter.
+  `useTableQuery` asks for them (`facets` in the list arg, `?facets=1`) on
+  the first page only and keeps them for that set of filters across pages;
+  while other filters load it shows none rather than stale ones.
 - On phones (below 768px, after hydration) the `DataTable` swaps its toolbar
   and pages for `data-table-mobile-toolbar.tsx` and `data-table-load-more.tsx`
   (the root isn't clipped there: overflow would stop the sticky row and cut

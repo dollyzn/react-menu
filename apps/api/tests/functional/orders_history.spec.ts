@@ -73,7 +73,7 @@ test.group('Orders history', (group) => {
     const facets = async (qs: Record<string, unknown>) => {
       const response = await client
         .get(`/api/v1/stores/${store.id}/orders`)
-        .qs({ page: 1, ...qs })
+        .qs({ page: 1, facets: 1, ...qs })
         .loginAs(manager)
       response.assertStatus(200)
       return response.body().meta.facets as Record<string, Record<string, number>>
@@ -93,6 +93,13 @@ test.group('Orders history', (group) => {
     const bruno = await facets({ customerName: 'bruno' })
     assert.deepEqual(bruno.channel, { online: 1 })
     assert.equal(sum(bruno.status), 1)
+
+    // Only when asked (the table's first page): the next pages don't recount.
+    const plain = await client
+      .get(`/api/v1/stores/${store.id}/orders`)
+      .qs({ page: 2 })
+      .loginAs(manager)
+    assert.notProperty(plain.body().meta, 'facets')
   })
 
   test('the detail shows who changed each status', async ({ client, assert }) => {

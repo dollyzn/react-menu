@@ -1,4 +1,6 @@
 import { displayName } from '#orders/display_name'
+import type { Infer } from '@vinejs/vine/types'
+import type { orderListValidator } from '#validators/order'
 import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
@@ -59,17 +61,8 @@ export type CreateOrderInput = {
   idempotencyKey?: string | null
 }
 
-/** The order history's filters ("Histórico"), as the list endpoint takes them. */
-export type HistoryFilters = {
-  status?: OrderStatus[]
-  channel?: OrderChannel[]
-  paymentMethod?: PaymentMethod[]
-  createdAt?: string
-  customerName?: string
-  sort?: 'createdAt:desc' | 'createdAt:asc' | 'total:desc' | 'total:asc'
-  page?: number
-  perPage?: number
-}
+/** The order history's filters ("Histórico"): what the list endpoint validated. */
+export type HistoryFilters = Infer<typeof orderListValidator>
 type HistoryFacet = 'status' | 'channel' | 'paymentMethod'
 
 @inject()
@@ -885,7 +878,6 @@ export default class OrderService {
   async historyFacets(storeId: string, filters: HistoryFilters) {
     const count = async (facet: HistoryFacet, column: string) => {
       const rows = await this.historyQuery(storeId, filters, facet)
-        .whereNotNull(column)
         .select(column)
         .count('* as total')
         .groupBy(column)

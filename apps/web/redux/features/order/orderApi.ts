@@ -40,8 +40,9 @@ export const orderApi = baseApi.injectEndpoints({
 
     /** History: any period, filters and pagination (see GET /orders?page=). */
     getOrdersPage: build.query<PaginatedList<Order>, StoreScopedListArg>({
-      query: ({ storeId, filters, pagination, sort }) =>
+      query: ({ storeId, filters, pagination, sort, facets }) =>
         buildStoreListUrl(storeId, "orders", {
+          facets,
           filters,
           pagination: { page: pagination?.page ?? 1, pageSize: pagination?.pageSize },
           sort: sort?.slice(0, 1),

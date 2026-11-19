@@ -26,6 +26,7 @@ export const itemApi = baseApi.injectEndpoints({
     getItemsByStoreId: build.query<PaginatedList<Item>, StoreScopedListArg>({
       query: (arg) =>
         buildStoreListUrl(arg.storeId, "items", {
+          facets: arg.facets,
           filters: arg.filters,
           pagination: arg.pagination,
           sort: arg.sort,

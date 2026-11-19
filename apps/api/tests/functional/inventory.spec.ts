@@ -254,7 +254,7 @@ test.group('Inventory', (group) => {
     const facets = async (qs: Record<string, string>) => {
       const response = await client
         .get(`/api/v1/stores/${store.id}/ingredients`)
-        .qs(qs)
+        .qs({ facets: '1', ...qs })
         .loginAs(manager)
       response.assertStatus(200)
       return response.body().meta.facets as {
@@ -271,6 +271,13 @@ test.group('Inventory', (group) => {
     })
     const lowOnly = await facets({ stock: 'low' })
     assert.deepEqual(lowOnly.unit, { g: 1 })
+
+    // Not asked (the "acabando" badge, the recipe picker): no counts run.
+    const badge = await client
+      .get(`/api/v1/stores/${store.id}/ingredients`)
+      .qs({ stock: 'low', perPage: 1 })
+      .loginAs(manager)
+    assert.notProperty(badge.body().meta, 'facets')
   })
 
   test("another store's member can't list the ingredients", async ({ client }) => {

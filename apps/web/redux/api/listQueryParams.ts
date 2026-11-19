@@ -3,6 +3,8 @@ export type StoreScopedListArg = {
   filters?: Record<string, string | string[] | undefined | null>;
   pagination?: { page?: number; pageSize?: number };
   sort?: string[];
+  /** Also count each filter option (`meta.facets`): the table asks on its first page. */
+  facets?: boolean;
 };
 
 /** Lista grande para selects / facetas (evita múltiplas requisições pequenas). */
@@ -17,7 +19,7 @@ export function storeListPrefetchArg(storeId: string): StoreScopedListArg {
 export function buildStoreListUrl(
   storeId: string,
   resourcePath: string,
-  input: Pick<StoreScopedListArg, "filters" | "pagination" | "sort">
+  input: Pick<StoreScopedListArg, "filters" | "pagination" | "sort" | "facets">
 ) {
   const usp = new URLSearchParams();
   if (input.filters) {
@@ -37,6 +39,7 @@ export function buildStoreListUrl(
   if (input.pagination?.pageSize !== undefined) {
     usp.set("perPage", String(input.pagination.pageSize));
   }
+  if (input.facets) usp.set("facets", "1");
   if (input.sort?.length) {
     for (const s of input.sort) {
       usp.append("sort", s);
