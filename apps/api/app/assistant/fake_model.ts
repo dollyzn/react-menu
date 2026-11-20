@@ -1,3 +1,4 @@
+import { SUGGESTIONS_MARKER } from '#assistant/prompt'
 import { DateTime } from 'luxon'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
 import { type ModelCall, say, scriptedModel, type StreamPart } from '#assistant/scripted_model'
@@ -37,6 +38,8 @@ const valueOf = (result: ToolResult) =>
 export function fakeModel() {
   return scriptedModel(
     ({ prompt }) => {
+      if (isSuggestionsRequest(prompt))
+        return say.text(JSON.stringify({ suggestions: nextQuestions(prompt) }))
       const last = prompt.at(-1)
       if (last?.role === 'tool') {
         const results = last.content.filter((part) => part.type === 'tool-result') as ToolResult[]
@@ -46,6 +49,25 @@ export function fakeModel() {
     },
     { provider: 'fake', modelId: 'assistente-de-teste' }
   )
+}
+
+const isSuggestionsRequest = (prompt: Message[]) =>
+  prompt.some(
+    (message) => message.role === 'system' && message.content.includes(SUGGESTIONS_MARKER)
+  )
+
+/** The follow-ups of the last answer, by the tools it used. */
+function nextQuestions(prompt: Message[]) {
+  const transcript = JSON.stringify(prompt.at(-1)?.content ?? '')
+  if (transcript.includes('sales_summary'))
+    return ['E o horário de pico?', 'Qual item mais cresceu?', 'Compara com o mês passado']
+  if (transcript.includes('stock_forecast'))
+    return ['Quanto preciso comprar?', 'Quais itens usam esse insumo?', 'Lança uma compra']
+  if (transcript.includes('menu_items'))
+    return ['Quais itens estão pausados?', 'Quais grupos cada item usa?', 'Aumenta R$ 1 nos doces']
+  if (transcript.includes('orders_now'))
+    return ['Tem pedido atrasado?', 'Aumenta o tempo de retirada', 'Quem está com fiado?']
+  return ['Como está o dia até agora?', 'O que pode acabar no sábado?', 'Quanto vendi ontem?']
 }
 
 function plan(q: string): StreamPart[] {
@@ -74,6 +96,21 @@ function plan(q: string): StreamPart[] {
     return [
       ...say.reasoning('Uso o último sábado como base e projeto um dia.'),
       ...say.tool('stock_forecast', { baseFrom: day(saturday), baseTo: day(saturday), days: 1 }),
+    ]
+  }
+  if (/grupo|opciona|obrigat/.test(q)) {
+    // The two asks of the store: optional cheese on the Premium ones, the optionals on the strips.
+    const items = /tirinha/.test(q)
+      ? say.tool('menu_items', { search: 'Tirinha' })
+      : /porc/.test(q)
+        ? say.tool('menu_items', { category: 'Porç' })
+        : /premium/.test(q)
+          ? say.tool('menu_items', { category: 'Premium' })
+          : []
+    return [
+      ...say.reasoning('Vejo os grupos de escolha e quem usa cada um.'),
+      ...say.tool('option_groups', {}),
+      ...items,
     ]
   }
   if (/(cria|monta|cadastra) .*(itens|cardapio)/.test(q)) {
@@ -134,6 +171,9 @@ function plan(q: string): StreamPart[] {
 /** "Pausa o pastel de carne": after listing the menu, asks to switch the matching item off. */
 function followUp(prompt: Message[], results: ToolResult[]): StreamPart[] | null {
   const q = lastQuestion(prompt)
+  const groups = results.find((result) => result.toolName === 'option_groups')
+  const listedItems = results.find((result) => result.toolName === 'menu_items')
+  if (groups && listedItems) return groupFollowUp(q, valueOf(groups), valueOf(listedItems))
   const resume = /volta a vender|despausa/.test(q)
   if (!resume && !/\bpausa/.test(q)) return null
   const listed = results.find((result) => result.toolName === 'menu_items')
@@ -158,6 +198,37 @@ function followUp(prompt: Message[], results: ToolResult[]): StreamPart[] | null
   ]
 }
 
+/** After reading the groups and the items: the change, waiting for approval. */
+function groupFollowUp(q: string, groups: any, listed: any): StreamPart[] | null {
+  const itemIds = (listed?.items ?? []).map((item: { id: string }) => item.id)
+  const byName = (name: string) =>
+    (groups?.groups ?? []).find((group: { name: string }) => group.name === name)
+  if (!itemIds.length) return null
+  if (/tirinha|porc/.test(q) && byName('Opcionais')) {
+    return [
+      ...say.text('Coloco o grupo **Opcionais** (orégano e alho frito) nesses itens. Confira:'),
+      ...say.tool('update_item_extras', { itemIds, addGroupIds: [byName('Opcionais').id] }),
+    ]
+  }
+  const cheese = byName('Escolha o queijo')
+  if (/premium/.test(q) && cheese) {
+    return [
+      ...say.text(
+        '"Escolha o queijo" é usado por outros pastéis: crio uma cópia opcional só para os Premium. Confira:'
+      ),
+      ...say.tool('create_option_group', {
+        name: 'Escolha o queijo (opcional)',
+        minChoices: 0,
+        maxChoices: cheese.maxChoices,
+        copyFrom: cheese.id,
+        itemIds,
+        replaceGroupId: cheese.id,
+      }),
+    ]
+  }
+  return null
+}
+
 function summarize(results: ToolResult[]) {
   return results
     .map((result) => {
@@ -178,6 +249,12 @@ function summarize(results: ToolResult[]) {
           return `${data.count} pedidos em fiado, ${brl(data.total)} no total.`
         case 'menu_items':
           return `${data.items.length} itens no cardápio.`
+        case 'option_groups':
+          return `${data.groups.length} grupos de escolha.`
+        case 'update_item_extras':
+          return `Pronto: ${data.items} item(ns) alterado(s).`
+        case 'create_option_group':
+          return `Pronto: grupo **${data.name}** criado em ${data.items} item(ns).`
         case 'find_orders':
           return `${data.total} pedidos no período.`
         case 'update_items':

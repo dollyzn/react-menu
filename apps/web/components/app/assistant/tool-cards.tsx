@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import type {
+  AssistantOptionGroups,
   AssistantFoundOrders,
   AssistantOrderDetails,
   AssistantStoreStatus,
@@ -24,6 +25,7 @@ import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CHANNEL, PAYMENT, STATUS } from "@/app/app/(dashboard)/stores/[store]/orders/order-labels";
+import { groupRule } from "@/lib/group-rule";
 import { formatDay, formatWeekday } from "@/lib/report-period";
 import { cn } from "@/lib/utils";
 import { formatCurrencyBRL } from "@/utils/string";
@@ -395,6 +397,41 @@ export function MenuItemsCard({ data }: { data: AssistantMenuItems }) {
   );
 }
 
+/** The store's choice groups: rule, options and who uses each. */
+export function OptionGroupsCard({ data }: { data: AssistantOptionGroups }) {
+  const [all, setAll] = useState(false);
+  const rows = all ? data.groups : data.groups.slice(0, 6);
+  return (
+    <ResultCard title="Grupos de escolha" description={`${data.groups.length} ${data.groups.length === 1 ? "grupo" : "grupos"}`}>
+      <ItemGroup className="gap-2">
+        {rows.map((group) => (
+          <Item key={group.id} variant="outline" size="sm" className="items-start">
+            <ItemContent className="min-w-0">
+              <ItemTitle className="flex flex-wrap items-center gap-x-2">
+                {group.name}
+                <Badge variant={group.minChoices > 0 ? "secondary" : "outline"}>{groupRule(group)}</Badge>
+              </ItemTitle>
+              <ItemDescription className="line-clamp-none">
+                {group.options.map((option) => option.name).join(", ")}
+              </ItemDescription>
+              <span className="text-xs text-muted-foreground">
+                {group.items.count === 0
+                  ? "Nenhum item usa"
+                  : `Em ${group.items.count} ${group.items.count === 1 ? "item" : "itens"}: ${group.items.names.slice(0, 4).join(", ")}${group.items.count > 4 ? "…" : ""}`}
+              </span>
+            </ItemContent>
+          </Item>
+        ))}
+      </ItemGroup>
+      {data.groups.length > 6 && (
+        <Button variant="ghost" size="sm" className="self-start" onClick={() => setAll((value) => !value)}>
+          {all ? "Mostrar menos" : `Ver todos os ${data.groups.length}`}
+        </Button>
+      )}
+    </ResultCard>
+  );
+}
+
 const time = (iso: string | null) =>
   iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" }) : null;
 
@@ -522,6 +559,8 @@ export function ToolResult({ name, output }: { name: AssistantToolName; output: 
       return <TodayCard data={output as AssistantTools["today_overview"]["output"]} />;
     case "order_details":
       return <OrderDetailsCard data={output as AssistantOrderDetails} />;
+    case "option_groups":
+      return <OptionGroupsCard data={output as AssistantOptionGroups} />;
     default:
       return null;
   }

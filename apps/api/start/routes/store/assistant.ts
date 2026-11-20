@@ -20,6 +20,9 @@ export default function registerStoreAssistantRoutes() {
         .get('/conversations/:conversationId', [AssistantController, 'show'])
         .as('assistant.conversations.show')
       router
+        .post('/conversations/:conversationId/suggestions', [AssistantController, 'suggestions'])
+        .as('assistant.conversations.suggestions')
+      router
         .delete('/conversations/:conversationId', [AssistantController, 'destroy'])
         .as('assistant.conversations.destroy')
     })

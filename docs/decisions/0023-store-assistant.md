@@ -38,7 +38,10 @@ are built for the Vercel AI SDK's UI message protocol (`useChat`).
   role (`#assistant/tools`): sales, an item's sales, stock forecast, today's
   board, order history, open "Pagar depois", menu items; writes: prices and
   availability (through the bulk edit and its `updatedAt` check), stock
-  movements, new menu items (paused). The same tool list goes to everyone and
+  movements, new menu items (paused), choice groups (their rule and options,
+  a copy for some items in the original's place, groups and add-ons put on
+  or taken off items; a group is shared, so the tools say how many items
+  use it). The same tool list goes to everyone and
   each call checks the role again, so attendants get "Sem permissão" instead
   of data. Attendants get what their screens show: today's orders, the menu
   and whether the store is open; stock, reports and opening or closing the
@@ -67,6 +70,11 @@ are built for the Vercel AI SDK's UI message protocol (`useChat`).
   model id prefix), or a price the store sets per model. It is an estimate;
   the provider's bill is what counts, and the list needs updating as
   providers retire models.
+- **Next questions**: after an answer (not while a change waits), the panel
+  asks for three follow-ups written by the same model from the last turns
+  (`POST …/conversations/:id/suggestions`, a short `generateText` with a
+  structured output); outside the daily limit, its tokens in the cost.
+  Without them, the panel's own varied suggestions per screen stay.
 - **Development and e2e** use a scripted model (`ASSISTANT_FAKE_MODEL`,
   ignored in production) that calls the same tools by keyword; there,
   `fake-…` keys connect without asking a provider.

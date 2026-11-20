@@ -41,6 +41,19 @@ const PARAM_LABELS: Record<string, string> = {
   isAvailable: "À venda",
   changes: "Alterações",
   categories: "Categorias",
+  groupId: "Grupo",
+  minChoices: "Mínimo",
+  maxChoices: "Máximo",
+  addOptions: "Opções que entram",
+  removeOptions: "Opções que saem",
+  copyFrom: "Cópia de",
+  options: "Opções",
+  itemIds: "Itens",
+  replaceGroupId: "No lugar de",
+  addGroupIds: "Grupos que entram",
+  removeGroupIds: "Grupos que saem",
+  addAddonIds: "Adicionais que entram",
+  removeAddonIds: "Adicionais que saem",
 };
 
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;

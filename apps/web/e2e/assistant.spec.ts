@@ -25,6 +25,15 @@ test("the assistant answers with cards and asks before changing the menu", async
   await expect(sheet.getByText("Consultou as vendas")).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Vendas" })).toBeVisible();
   await expect(sheet.getByText(/em \d+ pedidos/)).toBeVisible();
+  // Next questions written for this answer, ready to tap.
+  const followUps = sheet.getByRole("list", { name: "Sugestões para continuar" });
+  await expect(followUps.getByText("E o horário de pico?")).toBeVisible();
+
+  // The choice groups, with who uses each.
+  await field.fill("Quais grupos de escolha cada pastel usa?");
+  await field.press("Enter");
+  await expect(sheet.getByRole("heading", { name: "Grupos de escolha" })).toBeVisible();
+  await expect(sheet.getByText("Escolha o queijo").first()).toBeVisible();
 
   // A write: nothing changes until "Aprovar".
   await field.fill("Pausa o pastel de carne");

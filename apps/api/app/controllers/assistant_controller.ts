@@ -11,6 +11,7 @@ import {
   assistantChatValidator,
   assistantModelsValidator,
   assistantSettingsValidator,
+  assistantSuggestionsValidator,
 } from '#validators/assistant'
 import { uuidValidator } from '#validators/common'
 import type { ToolContext } from '#assistant/types'
@@ -52,6 +53,12 @@ export default class AssistantController {
   async show(ctx: HttpContext) {
     const id = await uuidValidator.validate(ctx.params.conversationId)
     return ok(await this.assistant.find(await this.#context(ctx), id))
+  }
+
+  async suggestions(ctx: HttpContext) {
+    const id = await uuidValidator.validate(ctx.params.conversationId)
+    const { model } = await ctx.request.validateUsing(assistantSuggestionsValidator)
+    return ok(await this.assistant.suggestions(await this.#context(ctx), id, model))
   }
 
   async destroy(ctx: HttpContext) {

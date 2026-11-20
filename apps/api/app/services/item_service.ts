@@ -88,12 +88,14 @@ export default class ItemService {
     })
   }
 
+  /** `outer`: the caller's transaction; the caller broadcasts after its commit. */
   async update(
     storeId: string,
     id: string,
-    data: Partial<Item> & { addonIds?: string[]; optionGroupIds?: string[] }
+    data: Partial<Item> & { addonIds?: string[]; optionGroupIds?: string[] },
+    outer?: TransactionClientContract
   ) {
-    const updated = await db.transaction(async (trx) => {
+    const run = async (trx: TransactionClientContract) => {
       const current = await this.repo.findByIdInStore(id, storeId, { preload: false }, trx)
       const { addonIds, optionGroupIds, ...itemData } = data
       if (itemData.categoryId !== undefined && itemData.categoryId !== current.categoryId) {
@@ -122,7 +124,9 @@ export default class ItemService {
       await item.load('addons')
       await item.load('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
       return item
-    })
+    }
+    if (outer) return await run(outer)
+    const updated = await db.transaction(run)
     broadcastMenuChanged(storeId)
     return updated
   }

@@ -154,6 +154,8 @@ export interface AssistantMessageMetadata {
   contextTokens?: number;
   /** How long each thought took, in milliseconds, in the order of the message's reasoning parts. */
   reasoningMs?: number[];
+  /** Next questions written for this answer (asked once, then kept). */
+  suggestions?: string[];
 }
 
 /** Names of the tools, as the UI parts carry them (`tool-<name>`). */
@@ -188,6 +190,40 @@ export type AssistantTools = {
   store_status: { input: Record<string, never>; output: AssistantStoreStatus };
   today_overview: { input: Record<string, never>; output: Omit<DashboardToday, 'pace'> };
   order_details: { input: { number: number; date?: string }; output: AssistantOrderDetails };
+  option_groups: { input: { search?: string }; output: AssistantOptionGroups };
+  update_option_group: {
+    input: {
+      groupId: string;
+      name?: string;
+      minChoices?: number;
+      maxChoices?: number;
+      addOptions?: { addonId: string; price?: number | null }[];
+      removeOptions?: string[];
+    };
+    output: { name: string; minChoices: number; maxChoices: number; options: number };
+  };
+  create_option_group: {
+    input: {
+      name: string;
+      minChoices: number;
+      maxChoices: number;
+      copyFrom?: string;
+      options?: { addonId: string; price?: number | null }[];
+      itemIds?: string[];
+      replaceGroupId?: string;
+    };
+    output: { id: string; name: string; items: number };
+  };
+  update_item_extras: {
+    input: {
+      itemIds: string[];
+      addGroupIds?: string[];
+      removeGroupIds?: string[];
+      addAddonIds?: string[];
+      removeAddonIds?: string[];
+    };
+    output: { items: number };
+  };
   update_item_details: {
     input: { itemId: string; name?: string; description?: string | null };
     output: { name: string; description: string | null };
@@ -323,7 +359,41 @@ export interface AssistantMenuItems {
     price: number;
     isAvailable: boolean;
     stockLeft: number | null;
+    /** The item's choice groups ("Escolha o queijo") and free add-ons, by name. */
+    groups: string[];
+    addons: string[];
   }[];
+}
+
+/**
+ * `POST /stores/:id/assistant/conversations/:id/suggestions`: three next
+ * questions for the conversation's last answer (empty while a change waits
+ * for approval). Not counted in the daily limit; its tokens count in the cost.
+ */
+export interface AssistantSuggestions {
+  messageId: string | null;
+  suggestions: string[];
+}
+
+/** A choice group as the assistant reads it. */
+export interface AssistantOptionGroup {
+  id: string;
+  name: string;
+  /** 0 = optional. */
+  minChoices: number;
+  maxChoices: number;
+  allowRepeat: boolean;
+  /** Price by pick order, or null (each option's price). */
+  pickPrices: number[] | null;
+  options: { addonId: string; name: string; price: number }[];
+  /** Items that offer it (names: the first 12). */
+  items: { count: number; names: string[] };
+}
+
+export interface AssistantOptionGroups {
+  groups: AssistantOptionGroup[];
+  /** Every add-on of the store (the options a group or an item can take). */
+  addons: { id: string; name: string; price: number }[];
 }
 
 export interface AssistantStoreStatus {
@@ -355,6 +425,14 @@ export interface AssistantOrderDetails {
   createdAt: string;
   lines: { name: string; quantity: number; total: number; addons: string[]; notes: string | null }[];
   history: { status: OrderStatus; at: string }[];
+}
+
+/** A choice group's rule and options, for the approval cards. */
+export interface AssistantGroupRule {
+  name: string;
+  minChoices: number;
+  maxChoices: number;
+  options: { name: string; price: number }[];
 }
 
 /**
@@ -401,6 +479,33 @@ export type AssistantApprovalPreview =
       total: number;
       amountPaid: number;
       items: string;
+    }
+  | {
+      kind: 'option_group';
+      toolCallId: string;
+      /** Everything that offers the group changes with it. */
+      items: { count: number; names: string[] };
+      before: AssistantGroupRule;
+      after: AssistantGroupRule;
+    }
+  | {
+      kind: 'new_option_group';
+      toolCallId: string;
+      group: AssistantGroupRule;
+      /** The group copied, when it is a copy. */
+      copyOf: string | null;
+      /** The items that start offering it, and the group it takes the place of there. */
+      items: string[];
+      replaces: string | null;
+    }
+  | {
+      kind: 'item_extras';
+      toolCallId: string;
+      rows: {
+        name: string;
+        groups: { before: string[]; after: string[] };
+        addons: { before: string[]; after: string[] };
+      }[];
     }
   | {
       kind: 'item_details';

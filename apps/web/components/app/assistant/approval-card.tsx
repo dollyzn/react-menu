@@ -15,6 +15,7 @@ import {
   ItemTitle,
 } from "@/components/ui/item";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { groupRule } from "@/lib/group-rule";
 import { cn } from "@/lib/utils";
 import { formatCurrencyBRL } from "@/utils/string";
 import { formatQuantity } from "@/utils/units";
@@ -39,6 +40,14 @@ function titleOf(preview: AssistantApprovalPreview) {
       return `Cancelar o pedido #${preview.number} (${preview.customerName})`;
     case "item_details":
       return `Alterar ${preview.before.name}`;
+    case "option_group":
+      return `Alterar o grupo "${preview.before.name}"`;
+    case "new_option_group":
+      return `Criar o grupo "${preview.group.name}"`;
+    case "item_extras":
+      return preview.rows.length === 1
+        ? `Mudar os grupos e adicionais de ${preview.rows[0].name}`
+        : `Mudar os grupos e adicionais de ${preview.rows.length} itens`;
   }
 }
 
@@ -62,6 +71,22 @@ function descriptionOf(preview: AssistantApprovalPreview) {
         ? `Já foram pagos ${formatCurrencyBRL(preview.amountPaid)}: o que entrou online ou na maquininha volta sozinho; dinheiro do balcão se devolve à mão.`
         : "O estoque dos itens volta. Não dá para desfazer.";
     case "item_details":
+      return "Muda no cardápio online e no PDV.";
+    case "option_group": {
+      const { count, names } = preview.items;
+      if (count === 0) return "Nenhum item usa este grupo agora.";
+      const list = names.slice(0, 3).join(", ") + (count > 3 ? ` e mais ${count - 3}` : "");
+      return count === 1 ? `Muda no único item que o usa: ${list}.` : `Muda nos ${count} itens que o usam: ${list}.`;
+    }
+    case "new_option_group": {
+      const base = preview.copyOf ? `Uma cópia de "${preview.copyOf}" com a regra abaixo.` : "Um grupo de escolha novo.";
+      if (preview.items.length === 0) return `${base} Ainda sem itens.`;
+      const where = `${preview.items.length} ${preview.items.length === 1 ? "item" : "itens"}`;
+      return preview.replaces
+        ? `${base} Entra no lugar de "${preview.replaces}" em ${where}; os outros itens continuam como estão.`
+        : `${base} Entra em ${where}.`;
+    }
+    case "item_extras":
       return "Muda no cardápio online e no PDV.";
   }
 }
@@ -95,6 +120,35 @@ function SaleChange({ before, after }: { before: boolean; after: boolean }) {
     </span>
   );
 }
+
+/** A list before → after: what stays, what comes in (+) and what leaves (struck through). */
+function ListChange({ before, after, empty }: { before: string[]; after: string[]; empty: string }) {
+  const removed = before.filter((name) => !after.includes(name));
+  if (after.length === 0 && removed.length === 0) return <span className="text-muted-foreground">{empty}</span>;
+  return (
+    <span className="flex flex-wrap gap-1">
+      {after.map((name) =>
+        before.includes(name) ? (
+          <Badge key={name} variant="outline">
+            {name}
+          </Badge>
+        ) : (
+          <Badge key={name} variant="outline" className="border-success/40 text-success">
+            + {name}
+          </Badge>
+        )
+      )}
+      {removed.map((name) => (
+        <Badge key={name} variant="outline" className="text-muted-foreground line-through">
+          {name}
+        </Badge>
+      ))}
+    </span>
+  );
+}
+
+const optionLabel = (option: { name: string; price: number }) =>
+  option.price > 0 ? `${option.name} (${formatCurrencyBRL(option.price)})` : option.name;
 
 type NewCategory = Extract<AssistantApprovalPreview, { kind: "create_menu_items" }>["categories"][number];
 
@@ -215,6 +269,72 @@ function PreviewBody({ preview }: { preview: AssistantApprovalPreview }) {
       );
     case "create_menu_items":
       return <NewItemsPreview categories={preview.categories} />;
+    case "option_group":
+      return (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2 text-xs">
+          {preview.before.name !== preview.after.name && (
+            <>
+              <dt className="text-muted-foreground">Nome</dt>
+              <dd>
+                <span className="text-muted-foreground line-through">{preview.before.name}</span> → {preview.after.name}
+              </dd>
+            </>
+          )}
+          <dt className="text-muted-foreground">Regra</dt>
+          <dd>
+            {groupRule(preview.before) === groupRule(preview.after) ? (
+              groupRule(preview.after)
+            ) : (
+              <span className="flex flex-wrap items-center gap-1">
+                <span className="text-muted-foreground line-through">{groupRule(preview.before)}</span>
+                <ArrowRight className="size-3 text-muted-foreground" />
+                <span className="font-medium">{groupRule(preview.after)}</span>
+              </span>
+            )}
+          </dd>
+          <dt className="text-muted-foreground">Opções</dt>
+          <dd>
+            <ListChange before={preview.before.options.map(optionLabel)} after={preview.after.options.map(optionLabel)} empty="Nenhuma" />
+          </dd>
+        </dl>
+      );
+    case "new_option_group":
+      return (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-2 text-xs">
+          <dt className="text-muted-foreground">Regra</dt>
+          <dd className="font-medium">{groupRule(preview.group)}</dd>
+          <dt className="text-muted-foreground">Opções</dt>
+          <dd>
+            <ListChange before={preview.group.options.map(optionLabel)} after={preview.group.options.map(optionLabel)} empty="Nenhuma" />
+          </dd>
+          {preview.items.length > 0 && (
+            <>
+              <dt className="text-muted-foreground">Itens</dt>
+              <dd>{preview.items.join(", ")}</dd>
+            </>
+          )}
+        </dl>
+      );
+    case "item_extras":
+      return (
+        <ul className="flex flex-col divide-y text-xs">
+          {preview.rows.map((row) => (
+            <li key={row.name} className="flex flex-col gap-1.5 py-2 first:pt-0 last:pb-0">
+              <span className="font-medium">{row.name}</span>
+              <span className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
+                <span className="text-muted-foreground">Grupos</span>
+                <ListChange before={row.groups.before} after={row.groups.after} empty="Nenhum" />
+                {(row.addons.before.length > 0 || row.addons.after.length > 0) && (
+                  <>
+                    <span className="text-muted-foreground">Adicionais</span>
+                    <ListChange before={row.addons.before} after={row.addons.after} empty="Nenhum" />
+                  </>
+                )}
+              </span>
+            </li>
+          ))}
+        </ul>
+      );
   }
 }
 

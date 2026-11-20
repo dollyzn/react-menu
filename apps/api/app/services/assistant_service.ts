@@ -5,12 +5,15 @@ import {
   APICallError,
   convertToModelMessages,
   createUIMessageStream,
+  generateText,
+  Output,
   stepCountIs,
   streamText,
   type LanguageModelUsage,
   type UIMessage,
 } from 'ai'
 import { DateTime } from 'luxon'
+import { z } from 'zod'
 import type {
   AssistantConversationDetail,
   AssistantConversationSummary,
@@ -22,6 +25,7 @@ import type {
   AssistantSettings,
   AssistantSettingsInput,
   AssistantStatus,
+  AssistantSuggestions,
   AssistantTokens,
   AssistantUsage as Usage,
 } from '@react-menu/contracts'
@@ -32,7 +36,7 @@ import type Store from '#models/store'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
 import env from '#start/env'
 import AssistantModels from '#assistant/models'
-import { contextBlock, SYSTEM_PROMPT } from '#assistant/prompt'
+import { contextBlock, suggestionsPrompt, SYSTEM_PROMPT } from '#assistant/prompt'
 import { costOf, priceOf } from '#assistant/pricing'
 import { buildTools, toolErrorMessage } from '#assistant/tools'
 import type { ToolContext } from '#assistant/types'
@@ -240,6 +244,18 @@ function errorSummary(error: unknown) {
     statusCode: fields.statusCode,
     url: fields.url,
   }
+}
+
+/**
+ * A follow-up as the panel shows it: without list markers ("1. ", "- ") or
+ * quotes around it; a question starting with a number keeps it.
+ */
+export function cleanSuggestion(text: string) {
+  return text
+    .trim()
+    .replace(/^(?:\d+[.)]|[-•*])\s+/, '')
+    .replace(/^["“'”]+|["”'“]+$/g, '')
+    .trim()
 }
 
 /** Friendly text for what went wrong (never the provider's raw error). */
@@ -460,6 +476,110 @@ export default class AssistantService {
       .first()
     if (!row) throw new AppException('Conversa não encontrada.', 404, 'E_NOT_FOUND')
     return row
+  }
+
+  /**
+   * Three next questions for the conversation's last answer, from the same
+   * model (a short call of its own). Nothing while a change waits for
+   * approval (the card is the next step). Not a question: outside the daily
+   * limit, but its tokens count in the cost.
+   */
+  async suggestions(
+    ctx: ToolContext,
+    id: string,
+    model: string | undefined
+  ): Promise<AssistantSuggestions> {
+    const conversation = await this.#own(ctx, id)
+    const last = conversation.uiMessages.at(-1)
+    const none = { messageId: last?.id ?? null, suggestions: [] }
+    if (!last || last.role !== 'assistant') return none
+    const waiting = last.parts.some(
+      (part: any) => part.type?.startsWith('tool-') && part.state === 'approval-requested'
+    )
+    if (waiting) return none
+    // Asked once per answer: kept in its metadata, so repeating the request costs nothing.
+    const kept = (last.metadata as AssistantMessageMetadata | undefined)?.suggestions
+    if (Array.isArray(kept)) return { messageId: last.id, suggestions: kept }
+    const resolved = this.models.resolve(ctx.store, model)
+    if (!resolved) return none
+
+    // The last turns as plain text: what was asked, what the tools read, what was said.
+    const transcript = conversation.uiMessages
+      .slice(-6)
+      .map((message) => {
+        const text = message.parts
+          .map((part: any) =>
+            part.type === 'text'
+              ? part.text
+              : part.type?.startsWith('tool-')
+                ? `[ferramenta ${part.type.slice(5)}]`
+                : ''
+          )
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 1500)
+        return `${message.role === 'user' ? 'Pessoa' : 'Assistente'}: ${text}`
+      })
+      .join('\n\n')
+    try {
+      const result = await generateText({
+        model: resolved.model,
+        system: suggestionsPrompt(ctx.role),
+        prompt: transcript,
+        output: Output.object({
+          // No length limits in the schema (not every provider takes them): trimmed below.
+          schema: z.object({ suggestions: z.array(z.string()) }),
+        }),
+        // A short list: no thinking, so the tokens go to the answer.
+        reasoning: 'none',
+        maxOutputTokens: 4000,
+        abortSignal: AbortSignal.timeout(20_000),
+      })
+      const total = tokensOf(result.totalUsage)
+      await AssistantUsage.create({
+        storeId: ctx.store.id,
+        userId: ctx.user.id,
+        conversationId: conversation.id,
+        model: resolved.choice.id,
+        question: false,
+        inputTokens: total.input,
+        outputTokens: total.output,
+        reasoningTokens: total.reasoning,
+        cacheReadTokens: total.cachedInput,
+        cacheWriteTokens: result.totalUsage.inputTokenDetails?.cacheWriteTokens ?? 0,
+      })
+      const suggestions = result.output.suggestions
+        .map(cleanSuggestion)
+        .filter((text) => text.length > 0 && text.length <= 90)
+        .slice(0, 3)
+      await this.#keepSuggestions(conversation.id, last.id, suggestions)
+      return { messageId: last.id, suggestions }
+    } catch (error) {
+      // Extra, never in the way: the panel keeps its own suggestions (and
+      // this answer isn't asked again).
+      logger.warn({ err: errorSummary(error) }, 'assistant: suggestions failed')
+      await this.#keepSuggestions(conversation.id, last.id, [])
+      return none
+    }
+  }
+
+  /**
+   * Keeps the follow-ups in the answer's metadata, unless a new request took
+   * the conversation meanwhile (its own save would overwrite them anyway).
+   */
+  async #keepSuggestions(id: string, messageId: string, suggestions: string[]) {
+    await db.transaction(async (trx) => {
+      const row = await AssistantConversation.query({ client: trx })
+        .where('id', id)
+        .forUpdate()
+        .first()
+      if (!row || (row.busyUntil && row.busyUntil > DateTime.now())) return
+      const last = row.uiMessages.at(-1)
+      if (last?.id !== messageId) return
+      last.metadata = { ...(last.metadata as object), suggestions }
+      row.uiMessages = [...row.uiMessages]
+      await row.useTransaction(trx).save()
+    })
   }
 
   /**

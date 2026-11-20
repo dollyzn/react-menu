@@ -71,6 +71,20 @@ export function scriptedModel(
     provider: options.provider ?? 'fake',
     modelId: options.modelId ?? 'fake',
     doStream: async (call) => turn(respond(call)),
+    // generateText (the follow-up questions): the turn's text in one piece.
+    doGenerate: async (call) => {
+      const parts = respond(call)
+      const text = parts.map((part) => (part.type === 'text-delta' ? part.delta : '')).join('')
+      return {
+        content: [{ type: 'text', text }],
+        finishReason: { unified: 'stop', raw: undefined },
+        usage: {
+          inputTokens: { total: 10, noCache: 10, cacheRead: 0, cacheWrite: 0 },
+          outputTokens: { total: 5, text: 5, reasoning: 0 },
+        },
+        warnings: [],
+      }
+    },
   })
   return model
 }

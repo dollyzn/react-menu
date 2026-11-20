@@ -7,7 +7,9 @@ import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
 import AssistantConversation from '#models/assistant_conversation'
 import Ingredient from '#models/ingredient'
+import Addon from '#models/addon'
 import Item from '#models/item'
+import OptionGroupService from '#services/option_group_service'
 import Store from '#models/store'
 import AssistantModels from '#assistant/models'
 import type { AssistantProvider } from '@react-menu/contracts'
@@ -786,6 +788,240 @@ test.group('Store assistant', (group) => {
     const again = await client.post(url).json(body).loginAs(manager)
     again.assertStatus(409)
     assert.equal(again.body().code, 'E_ASSISTANT_CHANGED')
+  })
+
+  test('managers make a choice group optional for some items, and add a group to others', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, queijo, coca, catupiry, turns, calls } = await setup()
+    const mussarela = await Addon.create({ storeId: store.id, name: 'Mussarela', price: 0 })
+    const oregano = await Addon.create({ storeId: store.id, name: 'Orégano', price: 1 })
+    const groups = new OptionGroupService()
+    const cheese = await groups.create(store.id, {
+      name: 'Escolha o queijo',
+      minChoices: 1,
+      maxChoices: 1,
+      replacesInName: 'Queijo',
+      options: [
+        { addonId: mussarela.id, price: 0 },
+        { addonId: catupiry.id, price: 0 },
+      ],
+    })
+    const optionals = await groups.create(store.id, {
+      name: 'Opcionais',
+      minChoices: 0,
+      maxChoices: 1,
+      options: [{ addonId: oregano.id, price: null }],
+    })
+    await db.table('item_option_groups').multiInsert([
+      { item_id: carne.id, option_group_id: cheese.id, order: 0 },
+      { item_id: queijo.id, option_group_id: cheese.id, order: 0 },
+    ])
+    const url = `/api/v1/stores/${store.id}/assistant/chat`
+
+    // The groups, with who uses them.
+    turns.push([...say.tool('option_groups', {})])
+    turns.push([...say.text('Ok.')])
+    await streamOf(client.post(url).json(ask('Quais grupos?')).loginAs(manager))
+    const read = toolResults(calls[1]).find((result) => result.toolName === 'option_groups')!
+    const listed = read.output.value.groups.find((row: any) => row.name === 'Escolha o queijo')
+    assert.equal(listed.items.count, 2)
+    assert.equal(listed.minChoices, 1)
+
+    // An optional copy only for one item, in the original's place.
+    turns.push([
+      ...say.tool('create_option_group', {
+        name: 'Escolha o queijo (opcional)',
+        minChoices: 0,
+        maxChoices: 1,
+        copyFrom: cheese.id,
+        itemIds: [carne.id],
+        replaceGroupId: cheese.id,
+      }),
+      ...say.tool('update_item_extras', { itemIds: [coca.id], addGroupIds: [optionals.id] }),
+    ])
+    turns.push([...say.text('Feito.')])
+    const body = ask('Queijo opcional no de carne e opcionais na coca')
+    const first = await streamOf(client.post(url).json(body).loginAs(manager))
+    const previews = first
+      .filter((chunk) => chunk.type === 'data-approval')
+      .map((chunk) => chunk.data)
+    assert.deepEqual(
+      previews.map((preview: any) => preview.kind),
+      ['new_option_group', 'item_extras']
+    )
+    assert.equal(previews[0].copyOf, 'Escolha o queijo')
+    assert.deepEqual(previews[0].items, ['Pastel de Carne'])
+    assert.deepEqual(previews[1].rows[0].groups, { before: [], after: ['Opcionais'] })
+    await client
+      .post(url)
+      .json(answer(body.id, first, true))
+      .loginAs(manager)
+
+    const groupsOf = async (itemId: string) => {
+      const rows = await db
+        .from('item_option_groups')
+        .join('option_groups', 'option_groups.id', 'item_option_groups.option_group_id')
+        .where('item_id', itemId)
+        .select('option_groups.name', 'option_groups.min_choices', 'option_groups.replaces_in_name')
+      return rows.map((row) => `${row.name}:${row.min_choices}:${row.replaces_in_name ?? ''}`)
+    }
+    assert.deepEqual(await groupsOf(carne.id), ['Escolha o queijo (opcional):0:Queijo'])
+    assert.deepEqual(await groupsOf(queijo.id), ['Escolha o queijo:1:Queijo'])
+    assert.deepEqual(await groupsOf(coca.id), ['Opcionais:0:'])
+
+    // Editing the shared group changes it for everyone who uses it.
+    turns.push([...say.tool('update_option_group', { groupId: cheese.id, minChoices: 0 })])
+    turns.push([...say.text('Pronto.')])
+    const edit = ask('Deixa o queijo opcional em todos')
+    const card = await streamOf(client.post(url).json(edit).loginAs(manager))
+    const preview = card.find((chunk) => chunk.type === 'data-approval')!.data
+    assert.equal(preview.kind, 'option_group')
+    assert.deepEqual(preview.items, { count: 1, names: ['Pastel de Queijo'] })
+    assert.equal(preview.after.minChoices, 0)
+    await client
+      .post(url)
+      .json(answer(edit.id, card, true))
+      .loginAs(manager)
+    assert.deepEqual(await groupsOf(queijo.id), ['Escolha o queijo:0:Queijo'])
+  })
+
+  test('a group change is checked before its card and applied only as the card showed it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, catupiry, turns } = await setup()
+    const mussarela = await Addon.create({ storeId: store.id, name: 'Mussarela', price: 0 })
+    const groups = new OptionGroupService()
+    const cheese = await groups.create(store.id, {
+      name: 'Escolha o queijo',
+      minChoices: 1,
+      maxChoices: 2,
+      options: [
+        { addonId: mussarela.id, price: 0 },
+        { addonId: catupiry.id, price: 0 },
+      ],
+    })
+    const url = `/api/v1/stores/${store.id}/assistant/chat`
+
+    // Up to 2 picks with 1 option left: refused before any card.
+    turns.push([
+      ...say.tool('update_option_group', { groupId: cheese.id, removeOptions: [catupiry.id] }),
+    ])
+    const refused = await streamOf(client.post(url).json(ask('Tira o catupiry')).loginAs(manager))
+    assert.isUndefined(refused.find((chunk) => chunk.type === 'data-approval'))
+    assert.include(
+      refused.find((chunk) => chunk.type === 'tool-output-error')!.errorText,
+      'o máximo não pode passar'
+    )
+
+    // A copy with an empty option list (models fill optional arrays) copies the options.
+    turns.push([
+      ...say.tool('create_option_group', {
+        name: 'Queijo opcional',
+        minChoices: 0,
+        maxChoices: 1,
+        copyFrom: cheese.id,
+        options: [],
+        itemIds: [carne.id],
+      }),
+    ])
+    const copy = await streamOf(client.post(url).json(ask('Copia opcional')).loginAs(manager))
+    const card = copy.find((chunk) => chunk.type === 'data-approval')!.data
+    assert.deepEqual(
+      card.group.options.map((option: { name: string }) => option.name),
+      ['Mussarela', 'Catupiry']
+    )
+
+    // Edited on the panel after the card: approving changes nothing.
+    turns.push([...say.tool('update_option_group', { groupId: cheese.id, minChoices: 0 })])
+    const body = ask('Deixa opcional')
+    const first = await streamOf(client.post(url).json(body).loginAs(manager))
+    await groups.update(store.id, cheese.id, {
+      name: 'Escolha o queijo',
+      minChoices: 1,
+      maxChoices: 1,
+      options: [{ addonId: mussarela.id, price: 0 }],
+    })
+    const applied = await streamOf(
+      client
+        .post(url)
+        .json(answer(body.id, first, true))
+        .loginAs(manager)
+    )
+    assert.include(
+      applied.find((chunk) => chunk.type === 'tool-output-error')!.errorText,
+      'mudou depois do cartão'
+    )
+    const saved = await groups.find(store.id, cheese.id)
+    assert.equal(saved.minChoices, 1)
+  })
+
+  test('attendants cannot read or change choice groups', async ({ client, assert }) => {
+    const { store, attendant, turns } = await setup()
+    turns.push([...say.tool('option_groups', {})])
+    turns.push([...say.text('Ok.')])
+    const stream = await streamOf(
+      client
+        .post(`/api/v1/stores/${store.id}/assistant/chat`)
+        .json(ask('Grupos?'))
+        .loginAs(attendant)
+    )
+    assert.include(
+      stream.find((chunk) => chunk.type === 'tool-output-error')!.errorText,
+      'Sem permissão'
+    )
+  })
+
+  test('suggests next questions after an answer, never while a change waits', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, attendant, carne, turns } = await setup()
+    const base = `/api/v1/stores/${store.id}/assistant`
+    turns.push([...say.text('Vendeu **R$ 100**.')])
+    const body = ask('Quanto vendi ontem?')
+    await streamOf(client.post(`${base}/chat`).json(body).loginAs(manager))
+
+    turns.push([
+      ...say.text(
+        JSON.stringify({
+          suggestions: [
+            '"E anteontem?"',
+            '1. Qual item mais vendeu?',
+            '30 dias: compara com antes?',
+          ],
+        })
+      ),
+    ])
+    const url = `${base}/conversations/${body.id}/suggestions`
+    const response = await client.post(url).json({}).loginAs(manager)
+    response.assertStatus(200)
+    assert.deepEqual(response.body().data.suggestions, [
+      'E anteontem?',
+      'Qual item mais vendeu?',
+      '30 dias: compara com antes?',
+    ])
+    // Asked once per answer: again, it comes from the answer itself (no model call).
+    const again = await client.post(url).json({}).loginAs(manager)
+    assert.deepEqual(again.body().data.suggestions, response.body().data.suggestions)
+    // Not a question: the day's count stays.
+    const status = await client.get(base).loginAs(manager)
+    assert.equal(status.body().data.usage.used, 1)
+    // Someone else's conversation isn't found.
+    assert.equal(await statusOf(client.post(url).json({}).loginAs(attendant)), 404)
+
+    // While a change waits for approval, the card is the next step.
+    turns.push([
+      ...say.tool('update_items', {
+        changes: [{ itemId: carne.id, isAvailable: false }],
+        summary: 'Pausar',
+      }),
+    ])
+    await streamOf(client.post(`${base}/chat`).json(ask('Pausa', body.id)).loginAs(manager))
+    const waiting = await client.post(url).json({}).loginAs(manager)
+    assert.deepEqual(waiting.body().data.suggestions, [])
   })
 
   test('a reply cut off mid-thought or a failed one never breaks the next message', async ({

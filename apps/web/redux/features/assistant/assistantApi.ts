@@ -1,4 +1,5 @@
 import type {
+  AssistantSuggestions,
   AssistantConversationDetail,
   AssistantCosts,
   AssistantConversationSummary,
@@ -65,6 +66,16 @@ export const assistantApi = baseApi.injectEndpoints({
         }
       },
     }),
+    /** Three next questions for the conversation's last answer (empty while a change waits). */
+    suggestAssistantQuestions: build.mutation<AssistantSuggestions, { storeId: string; id: string; model: string | null }>({
+      query: ({ storeId, id, model }) => ({
+        url: `stores/${storeId}/assistant/conversations/${id}/suggestions`,
+        method: "POST",
+        body: model ? { model } : {},
+      }),
+      // Extra and silent: without them, the panel's own suggestions stay.
+      extraOptions: { quiet: true, background: true },
+    }),
     /** The chat models of a key (a POST: the key goes in the body, never in a URL). */
     listAssistantModels: build.mutation<AssistantModelOption[], { storeId: string; data: AssistantModelsInput }>({
       query: ({ storeId, data }) => ({ url: `stores/${storeId}/assistant-settings/models`, method: "POST", body: data }),
@@ -98,4 +109,5 @@ export const {
   useDeleteAssistantConversationMutation,
   useUpdateAssistantSettingsMutation,
   useListAssistantModelsMutation,
+  useSuggestAssistantQuestionsMutation,
 } = assistantApi;
