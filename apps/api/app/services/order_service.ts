@@ -5,6 +5,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
+import { containing } from '#helpers/like'
 import type { OrderLineInput } from '@react-menu/contracts'
 import AppException from '#exceptions/app_exception'
 import OrderChannel from '#enums/order_channel'
@@ -794,7 +795,7 @@ export default class OrderService {
     return await this.openPayLater(storeId)
       .if(search, (query) =>
         query.where((match) => {
-          match.whereILike('customer_name', `%${search}%`)
+          match.whereILike('customer_name', containing(search!))
           // "#12" or "12": the order number; 4+ digits: part of the phone.
           if (/^#?\d{1,5}$/.test(search!)) match.orWhere('number', Number(digits))
           if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
@@ -872,13 +873,21 @@ export default class OrderService {
     const digits = search?.replace(/\D/g, '') ?? ''
     const page = filters.page ?? 1
     const perPage = filters.perPage ?? 20
+    // The search only finds the customers: what they owe counts all their open orders.
+    const hits = search
+      ? await this.openPayLater(storeId)
+          .where((match) => {
+            match.whereILike('customer_name', containing(search))
+            if (/^#?\d{1,5}$/.test(search)) match.orWhere('number', Number(digits))
+            if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
+          })
+          .select(db.raw(`distinct ${DEBTOR} as debtor`))
+          .pojo<{ debtor: string }>()
+      : null
+    const found = hits?.map((row) => row.debtor) ?? null
     const matching = () =>
-      this.openPayLater(storeId).if(search, (query) =>
-        query.where((match) => {
-          match.whereILike('customer_name', `%${search}%`)
-          if (/^#?\d{1,5}$/.test(search!)) match.orWhere('number', Number(digits))
-          if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
-        })
+      this.openPayLater(storeId).if(found, (query) =>
+        query.whereRaw(`${DEBTOR} = any(?)`, [found!])
       )
     const grouped = matching()
       .select(
@@ -890,9 +899,10 @@ export default class OrderService {
       )
       .groupByRaw(DEBTOR)
     const order = {
-      'due:desc': 'due desc, since asc',
-      'since:asc': 'since asc, due desc',
-      'name:asc': 'lower((array_agg(customer_name order by created_at desc))[1]) asc',
+      // `debtor` last: a stable order for the pages (ties would repeat or skip customers).
+      'due:desc': 'due desc, since asc, debtor asc',
+      'since:asc': 'since asc, due desc, debtor asc',
+      'name:asc': 'lower((array_agg(customer_name order by created_at desc))[1]) asc, debtor asc',
     }[filters.sort ?? 'due:desc']
     const rows = await grouped
       .orderByRaw(order)
@@ -968,10 +978,20 @@ export default class OrderService {
         'E_MIXED_CUSTOMERS'
       )
     }
+    const debtorOf = (order: Order) => order.customerPhone ?? `name:${order.customerName}`
+    let amount = 0
     const received = await db.transaction(async (trx) => {
       for (const order of orders) {
         await this.lock(order, trx)
         await this.assertReceivable(order, input.method, trx)
+      }
+      // Again on the locked rows: the customer may have been corrected meanwhile.
+      if (orders.some((order) => !order.payLaterAt) || new Set(orders.map(debtorOf)).size > 1) {
+        throw new AppException(
+          'Os pedidos mudaram de cliente. Confira e tente de novo.',
+          409,
+          'E_MIXED_CUSTOMERS'
+        )
       }
       const open = orders.filter((order) => order.paymentStatus !== PaymentStatus.PAID)
       const due = money(open.reduce((sum, order) => sum + order.amountDue, 0))
@@ -987,13 +1007,16 @@ export default class OrderService {
       }
       const changed: Order[] = []
       for (const order of open) {
-        if (await this.receive(order, { counterMethod: input.method }, trx, actor))
+        const owed = order.amountDue
+        if (await this.receive(order, { counterMethod: input.method }, trx, actor)) {
           changed.push(order)
+          amount = money(amount + owed)
+        }
       }
       return changed
     })
     for (const order of received) await this.afterChange(order)
-    return { orders: received.length, amount: received.length ? input.amount : 0 }
+    return { orders: received.length, amount }
   }
 
   /** "Pagar depois" still open: not paid, not cancelled. */

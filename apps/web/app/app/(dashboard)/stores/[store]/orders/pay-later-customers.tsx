@@ -90,6 +90,8 @@ export function PayLaterCustomers({ storeId }: { storeId: string }) {
   const customers = data?.data ?? [];
   const total = data?.meta.total ?? 0;
   const lastPage = Math.max(1, Math.ceil(total / PER_PAGE));
+  // The last customer of a later page was received: back to the last page there is.
+  if (data && !isFetching && customers.length === 0 && page > lastPage) setPage(lastPage);
 
   return (
     <section aria-label="Clientes com pedidos para pagar depois" className="flex flex-col gap-3">
@@ -141,7 +143,7 @@ export function PayLaterCustomers({ storeId }: { storeId: string }) {
         </div>
       ) : customers.length === 0 ? (
         <p className="rounded-2xl border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Ninguém encontrado com “{query}”.
+          {query ? `Ninguém encontrado com “${query}”.` : "Ninguém devendo agora."}
         </p>
       ) : (
         <div className={cn("grid items-start gap-3 lg:grid-cols-2", isFetching && "opacity-70 transition-opacity")}>
@@ -397,7 +399,15 @@ function ReceiveSeveral({
           toast.success(`${customer.name}: ${formatCurrencyBRL(amount)} recebidos ${paidWith(method)} (${orders.length} pedidos)`);
           onClose();
         } catch (err) {
-          setError(getErrorMessage(err as { data?: { error?: string } }, "Não foi possível registrar o pagamento."));
+          const message = getErrorMessage(err as { data?: { error?: string } }, "Não foi possível registrar o pagamento.");
+          // The amount changed (one of them was received elsewhere): the list
+          // is read again, and the next try starts from it, never this total.
+          if ((err as { data?: { code?: string } }).data?.code === "E_AMOUNT_CHANGED") {
+            toast.error(message);
+            onClose();
+            return;
+          }
+          setError(message);
         }
       }}
     >

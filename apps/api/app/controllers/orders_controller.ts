@@ -250,7 +250,11 @@ export default class OrdersController {
     )
   }
 
-  /** Open "pagar depois" by customer, with their orders (managers). */
+  /**
+   * Open "pagar depois" by customer, with their orders (managers). Like the
+   * order list beside it, it takes its own validator: the rows are customers
+   * grouped in SQL, so there is no paginator to hand `ok()`.
+   */
   async payLaterCustomers({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const qs = request.qs()

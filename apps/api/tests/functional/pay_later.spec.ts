@@ -316,11 +316,25 @@ test.group('Pagar depois (fiado)', (group) => {
       found.body().data.map((row: { name: string }) => row.name),
       ['Zé']
     )
+    // Found by one order's number, the customer still owes all of them.
+    const firstOrder = await Order.findOrFail(first.id)
+    const byNumber = await client
+      .get(url)
+      .qs({ search: `#${firstOrder.number}` })
+      .loginAs(manager)
+    assert.include(byNumber.body().data[0], { name: 'Zé', due: 18 })
+    assert.lengthOf(byNumber.body().data[0].orders, 2)
+    // "%" and "_" match themselves, not everyone.
+    const wildcard = await client.get(url).qs({ search: '%' }).loginAs(manager)
+    assert.lengthOf(wildcard.body().data, 0)
     const paged = await client.get(url).qs({ perPage: 1, page: 2 }).loginAs(manager)
     assert.equal(paged.body().data[0].name, 'Zé')
     assert.equal(paged.body().meta.lastPage, 2)
     const byAttendant = await client.get(url).loginAs(attendant)
     byAttendant.assertStatus(403)
+    const other = await setup()
+    const byOtherStore = await client.get(url).loginAs(other.manager)
+    assert.include([403, 404], byOtherStore.status())
   })
 
   test('several orders of one customer are received at once, each for what it owes', async ({
