@@ -1143,6 +1143,29 @@ async function itemsInStore(storeId: string, ids: string[]) {
   return ids.map((id) => rows.find((row) => row.id === id)!)
 }
 
+/** A group as saved (rule and options with their prices here), to see whether it changed. */
+const groupSnapshot = (group: OptionGroup) =>
+  JSON.stringify({
+    name: group.name,
+    min: group.minChoices,
+    max: group.maxChoices,
+    options: group.options.map((option) => [option.id, option.$extras.pivot_price ?? null]),
+  })
+
+const CHANGED_SINCE =
+  'Isso mudou depois do cartão de aprovação (alguém editou no painel). Consulte de novo e proponha outra vez.'
+
+/** The service's own checks before a card is shown, as the model's error. */
+async function validGroup(storeId: string, input: Parameters<OptionGroupService['validate']>[1]) {
+  try {
+    const service = await app.container.make(OptionGroupService)
+    await service.validate(storeId, input)
+  } catch (error) {
+    if (error instanceof AppException) throw new ToolError(error.message)
+    throw error
+  }
+}
+
 /** Who offers a group: how many items, and the first names. */
 async function itemsOfGroup(groupId: string) {
   const rows = await db
@@ -1276,8 +1299,7 @@ const updateOptionGroup: ToolDefinition = {
         (input.addOptions ?? []).map((option) => option.addonId)
       )
       const next = changedGroup(group, input)
-      if (next.minChoices > next.maxChoices)
-        throw new ToolError('O mínimo não pode passar do máximo.')
+      await validGroup(ctx.store.id, next)
       const addons = await addonsInStore(
         ctx.store.id,
         next.options.map((option) => option.addonId)
@@ -1298,13 +1320,19 @@ const updateOptionGroup: ToolDefinition = {
             }),
           },
         },
-        state: null,
+        // What the card showed: applied as is, and only over the group it read.
+        state: { before: groupSnapshot(group), next },
       }
     },
-    async apply(input: Infer<typeof updateOptionGroupInput>, ctx) {
+    async apply(
+      input: Infer<typeof updateOptionGroupInput>,
+      ctx,
+      state: { before: string; next: ReturnType<typeof changedGroup> } | null
+    ) {
       const [group] = await groupsInStore(ctx.store.id, [input.groupId])
+      if (!state || groupSnapshot(group) !== state.before) throw new ToolError(CHANGED_SINCE)
       const service = await app.container.make(OptionGroupService)
-      const saved = await service.update(ctx.store.id, group.id, changedGroup(group, input))
+      const saved = await service.update(ctx.store.id, group.id, state.next)
       return {
         name: saved.name,
         minChoices: saved.minChoices,
@@ -1313,6 +1341,11 @@ const updateOptionGroup: ToolDefinition = {
       }
     },
   },
+}
+
+type NewGroupState = {
+  data: Awaited<ReturnType<typeof newGroup>>['data']
+  items: { id: string; groups: string[] }[]
 }
 
 const createOptionGroupInput = vine.create(
@@ -1330,31 +1363,30 @@ const createOptionGroupInput = vine.create(
 /** The new group's input: copied (options, prices, name word) or from scratch. */
 async function newGroup(storeId: string, input: Infer<typeof createOptionGroupInput>) {
   const [source] = input.copyFrom ? await groupsInStore(storeId, [input.copyFrom]) : []
-  const options =
-    input.options?.map((option) => ({ addonId: option.addonId, price: option.price ?? null })) ??
-    source?.options.map((option) => ({
-      addonId: option.id,
-      price:
-        option.$extras.pivot_price === null || option.$extras.pivot_price === undefined
-          ? null
-          : Number(option.$extras.pivot_price),
-    }))
+  // An empty list (models fill optional arrays) copies the source's options too.
+  const options = input.options?.length
+    ? input.options.map((option) => ({ addonId: option.addonId, price: option.price ?? null }))
+    : source?.options.map((option) => ({
+        addonId: option.id,
+        price:
+          option.$extras.pivot_price === null || option.$extras.pivot_price === undefined
+            ? null
+            : Number(option.$extras.pivot_price),
+      }))
   if (!options?.length)
     throw new ToolError('Diga as opções do grupo (options) ou copie um (copyFrom).')
-  if (input.minChoices > input.maxChoices)
-    throw new ToolError('O mínimo não pode passar do máximo.')
-  return {
-    source,
-    data: {
-      name: input.name,
-      minChoices: input.minChoices,
-      maxChoices: input.maxChoices,
-      allowRepeat: source?.allowRepeat ?? false,
-      pickPrices: source?.pickPrices ?? null,
-      replacesInName: source?.replacesInName ?? null,
-      options,
-    },
+  const data = {
+    name: input.name,
+    minChoices: input.minChoices,
+    maxChoices: input.maxChoices,
+    allowRepeat: source?.allowRepeat ?? false,
+    // More prices by pick than picks allowed: only the first ones count.
+    pickPrices: source?.pickPrices?.slice(0, input.maxChoices) ?? null,
+    replacesInName: source?.replacesInName ?? null,
+    options,
   }
+  await validGroup(storeId, data)
+  return { source, data }
 }
 
 const createOptionGroup: ToolDefinition = {
@@ -1421,22 +1453,50 @@ const createOptionGroup: ToolDefinition = {
           items: items.map((item) => item.name),
           replaces: replaced?.name ?? null,
         },
-        state: null,
+        // What the card showed: the group as is, and each item's groups as read.
+        state: {
+          data,
+          items: items.map((item) => ({
+            id: item.id,
+            groups: item.optionGroups.map((row) => row.id),
+          })),
+        },
       }
     },
-    async apply(input: Infer<typeof createOptionGroupInput>, ctx) {
-      const { data } = await newGroup(ctx.store.id, input)
+    async apply(input: Infer<typeof createOptionGroupInput>, ctx, state: NewGroupState | null) {
+      if (!state) throw new ToolError(CHANGED_SINCE)
       const service = await app.container.make(OptionGroupService)
-      const items = input.itemIds?.length ? await itemsInStore(ctx.store.id, input.itemIds) : []
-      const group = await service.create(ctx.store.id, data)
       const itemService = await app.container.make(ItemService)
-      for (const item of items) {
-        const current = item.optionGroups.map((row) => row.id)
-        const at = input.replaceGroupId ? current.indexOf(input.replaceGroupId) : -1
-        const next = at >= 0 ? current.toSpliced(at, 1, group.id) : [...current, group.id]
-        await itemService.update(ctx.store.id, item.id, { optionGroupIds: [...new Set(next)] })
-      }
-      return { id: group.id, name: group.name, items: items.length }
+      // All or nothing: the group and every item that takes it.
+      const group = await db.transaction(async (trx) => {
+        const items = state.items.length
+          ? await itemsInStore(
+              ctx.store.id,
+              state.items.map((row) => row.id)
+            )
+          : []
+        for (const item of items) {
+          const read = state.items.find((row) => row.id === item.id)!.groups
+          if (JSON.stringify(item.optionGroups.map((row) => row.id)) !== JSON.stringify(read)) {
+            throw new ToolError(CHANGED_SINCE)
+          }
+        }
+        const created = await service.create(ctx.store.id, state.data, trx)
+        for (const item of items) {
+          const current = item.optionGroups.map((row) => row.id)
+          const at = input.replaceGroupId ? current.indexOf(input.replaceGroupId) : -1
+          const next = at >= 0 ? current.toSpliced(at, 1, created.id) : [...current, created.id]
+          await itemService.update(
+            ctx.store.id,
+            item.id,
+            { optionGroupIds: [...new Set(next)] },
+            trx
+          )
+        }
+        return created
+      })
+      broadcastMenuChanged(ctx.store.id)
+      return { id: group.id, name: group.name, items: state.items.length }
     },
   },
 }
@@ -1450,6 +1510,18 @@ const itemExtrasInput = vine.create(
     removeAddonIds: vine.array(vine.string().uuid()).maxLength(30).optional(),
   })
 )
+
+type Extras = { groups: string[]; addons: string[] }
+
+/** An item's groups and add-ons now (ids, in order). */
+const extrasOf = (item: Item): Extras => ({
+  groups: item.optionGroups.map((row) => row.id),
+  addons: item.addons.map((row) => row.id),
+})
+
+/** Same groups and add-ons, in the same order (saved state comes back from jsonb with its keys reordered). */
+const sameExtras = (a: Extras, b: Extras) =>
+  a.groups.join() === b.groups.join() && a.addons.join() === b.addons.join()
 
 /** Each item's groups and add-ons after the change (ids, in order). */
 function extrasAfter(item: Item, input: Infer<typeof itemExtrasInput>) {
@@ -1502,6 +1574,11 @@ const updateItemExtras: ToolDefinition = {
         ]),
       ])
       const groupName = (id: string) => groups.find((row) => row.id === id)!.name
+      const state = items.map((item) => ({
+        id: item.id,
+        before: extrasOf(item),
+        after: extrasAfter(item, input),
+      }))
       const addonName = (id: string) => addons.find((row) => row.id === id)!.name
       return {
         preview: {
@@ -1522,22 +1599,36 @@ const updateItemExtras: ToolDefinition = {
             }
           }),
         },
-        state: null,
+        // What the card showed: applied as is, only over what it read.
+        state,
       }
     },
-    async apply(input: Infer<typeof itemExtrasInput>, ctx) {
-      const items = await itemsInStore(ctx.store.id, input.itemIds)
-      await groupsInStore(ctx.store.id, input.addGroupIds ?? [])
-      await addonsInStore(ctx.store.id, input.addAddonIds ?? [])
+    async apply(
+      input: Infer<typeof itemExtrasInput>,
+      ctx,
+      state: { id: string; before: Extras; after: Extras }[] | null
+    ) {
+      if (!state) throw new ToolError(CHANGED_SINCE)
       const service = await app.container.make(ItemService)
-      for (const item of items) {
-        const after = extrasAfter(item, input)
-        await service.update(ctx.store.id, item.id, {
-          optionGroupIds: after.groups,
-          addonIds: after.addons,
-        })
-      }
-      return { items: items.length }
+      await db.transaction(async (trx) => {
+        const items = await itemsInStore(ctx.store.id, input.itemIds)
+        for (const item of items) {
+          const row = state.find((saved) => saved.id === item.id)
+          if (!row || !sameExtras(extrasOf(item), row.before)) {
+            throw new ToolError(CHANGED_SINCE)
+          }
+        }
+        for (const row of state) {
+          await service.update(
+            ctx.store.id,
+            row.id,
+            { optionGroupIds: row.after.groups, addonIds: row.after.addons },
+            trx
+          )
+        }
+      })
+      broadcastMenuChanged(ctx.store.id)
+      return { items: state.length }
     },
   },
 }

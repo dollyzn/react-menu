@@ -154,6 +154,8 @@ export interface AssistantMessageMetadata {
   contextTokens?: number;
   /** How long each thought took, in milliseconds, in the order of the message's reasoning parts. */
   reasoningMs?: number[];
+  /** Next questions written for this answer (asked once, then kept). */
+  suggestions?: string[];
 }
 
 /** Names of the tools, as the UI parts carry them (`tool-<name>`). */
@@ -425,10 +427,6 @@ export interface AssistantOrderDetails {
   history: { status: OrderStatus; at: string }[];
 }
 
-/**
- * Shown with a write that waits for approval (`data-approval` part, keyed by
- * the tool call): what will change, from the database.
- */
 /** A choice group's rule and options, for the approval cards. */
 export interface AssistantGroupRule {
   name: string;
@@ -437,6 +435,10 @@ export interface AssistantGroupRule {
   options: { name: string; price: number }[];
 }
 
+/**
+ * Shown with a write that waits for approval (`data-approval` part, keyed by
+ * the tool call): what will change, from the database.
+ */
 export type AssistantApprovalPreview =
   | {
       kind: 'update_items';

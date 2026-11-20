@@ -887,6 +887,77 @@ test.group('Store assistant', (group) => {
     assert.deepEqual(await groupsOf(queijo.id), ['Escolha o queijo:0:Queijo'])
   })
 
+  test('a group change is checked before its card and applied only as the card showed it', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, carne, catupiry, turns } = await setup()
+    const mussarela = await Addon.create({ storeId: store.id, name: 'Mussarela', price: 0 })
+    const groups = new OptionGroupService()
+    const cheese = await groups.create(store.id, {
+      name: 'Escolha o queijo',
+      minChoices: 1,
+      maxChoices: 2,
+      options: [
+        { addonId: mussarela.id, price: 0 },
+        { addonId: catupiry.id, price: 0 },
+      ],
+    })
+    const url = `/api/v1/stores/${store.id}/assistant/chat`
+
+    // Up to 2 picks with 1 option left: refused before any card.
+    turns.push([
+      ...say.tool('update_option_group', { groupId: cheese.id, removeOptions: [catupiry.id] }),
+    ])
+    const refused = await streamOf(client.post(url).json(ask('Tira o catupiry')).loginAs(manager))
+    assert.isUndefined(refused.find((chunk) => chunk.type === 'data-approval'))
+    assert.include(
+      refused.find((chunk) => chunk.type === 'tool-output-error')!.errorText,
+      'o máximo não pode passar'
+    )
+
+    // A copy with an empty option list (models fill optional arrays) copies the options.
+    turns.push([
+      ...say.tool('create_option_group', {
+        name: 'Queijo opcional',
+        minChoices: 0,
+        maxChoices: 1,
+        copyFrom: cheese.id,
+        options: [],
+        itemIds: [carne.id],
+      }),
+    ])
+    const copy = await streamOf(client.post(url).json(ask('Copia opcional')).loginAs(manager))
+    const card = copy.find((chunk) => chunk.type === 'data-approval')!.data
+    assert.deepEqual(
+      card.group.options.map((option: { name: string }) => option.name),
+      ['Mussarela', 'Catupiry']
+    )
+
+    // Edited on the panel after the card: approving changes nothing.
+    turns.push([...say.tool('update_option_group', { groupId: cheese.id, minChoices: 0 })])
+    const body = ask('Deixa opcional')
+    const first = await streamOf(client.post(url).json(body).loginAs(manager))
+    await groups.update(store.id, cheese.id, {
+      name: 'Escolha o queijo',
+      minChoices: 1,
+      maxChoices: 1,
+      options: [{ addonId: mussarela.id, price: 0 }],
+    })
+    const applied = await streamOf(
+      client
+        .post(url)
+        .json(answer(body.id, first, true))
+        .loginAs(manager)
+    )
+    assert.include(
+      applied.find((chunk) => chunk.type === 'tool-output-error')!.errorText,
+      'mudou depois do cartão'
+    )
+    const saved = await groups.find(store.id, cheese.id)
+    assert.equal(saved.minChoices, 1)
+  })
+
   test('attendants cannot read or change choice groups', async ({ client, assert }) => {
     const { store, attendant, turns } = await setup()
     turns.push([...say.tool('option_groups', {})])
@@ -916,7 +987,11 @@ test.group('Store assistant', (group) => {
     turns.push([
       ...say.text(
         JSON.stringify({
-          suggestions: ['"E anteontem?"', '1. Qual item mais vendeu?', 'Compara com a semana'],
+          suggestions: [
+            '"E anteontem?"',
+            '1. Qual item mais vendeu?',
+            '30 dias: compara com antes?',
+          ],
         })
       ),
     ])
@@ -926,8 +1001,11 @@ test.group('Store assistant', (group) => {
     assert.deepEqual(response.body().data.suggestions, [
       'E anteontem?',
       'Qual item mais vendeu?',
-      'Compara com a semana',
+      '30 dias: compara com antes?',
     ])
+    // Asked once per answer: again, it comes from the answer itself (no model call).
+    const again = await client.post(url).json({}).loginAs(manager)
+    assert.deepEqual(again.body().data.suggestions, response.body().data.suggestions)
     // Not a question: the day's count stays.
     const status = await client.get(base).loginAs(manager)
     assert.equal(status.body().data.usage.used, 1)

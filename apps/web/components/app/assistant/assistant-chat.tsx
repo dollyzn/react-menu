@@ -18,13 +18,13 @@ import {
 } from "@/components/ui/message-scroller";
 import { getApiBaseUrl } from "@/lib/api-base-url";
 import { type AssistantUIMessage, chatErrorText, isToolPart, suggestionsFor } from "@/lib/assistant";
-
-type FollowUps = { messageId: string; suggestions: string[] };
 import { baseApi } from "@/redux/api/baseApi";
 import { assistantTagsAfterAnswer, panelTagsAfterWrite, useSuggestAssistantQuestionsMutation } from "@/redux/features/assistant/assistantApi";
 import { useAppDispatch } from "@/redux/hooks";
 import { AssistantMessage, changedData, UserMessage } from "./assistant-message";
 import { PromptInput, type PromptPhoto, type SessionContext } from "./prompt-input";
+
+type FollowUps = { messageId: string; suggestions: string[] };
 
 /**
  * The chat's connection to the API. The API keeps the conversation, so only
@@ -186,9 +186,12 @@ export function AssistantChat({
   const currentUsage = lastMetadataUsage ?? usage;
   const limitReached = Boolean(currentUsage && currentUsage.used >= currentUsage.limit);
   const [seed] = useState(() => Math.random());
-  const lastId = messages.at(-1)?.id;
-  const followUp = followUps && followUps.messageId === lastId && followUps.suggestions.length > 0 && !busy;
-  const suggestions = followUp ? followUps.suggestions : suggestionsFor(page, role, seed);
+  const last = messages.at(-1);
+  // Asked after this answer, or kept with it (a conversation opened again).
+  const written =
+    followUps && followUps.messageId === last?.id ? followUps.suggestions : (last?.metadata?.suggestions ?? []);
+  const followUp = written.length > 0 && !busy;
+  const suggestions = followUp ? written : suggestionsFor(page, role, seed);
   const errorText = chatErrorText(error);
   const session = sessionOf(messages, models, model);
   const lastMessage = messages.at(-1);

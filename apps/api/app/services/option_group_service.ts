@@ -47,8 +47,12 @@ export default class OptionGroupService {
     return await query.paginate(options.page ?? 1, options.perPage ?? 20)
   }
 
-  async create(storeId: string, input: OptionGroupInput) {
-    const saved = await db.transaction(async (trx) => {
+  /**
+   * `outer`: the caller's transaction (the assistant creates a group and
+   * puts it on items all or nothing); the caller broadcasts after its commit.
+   */
+  async create(storeId: string, input: OptionGroupInput, outer?: TransactionClientContract) {
+    const run = async (trx: TransactionClientContract) => {
       await this.assertValid(storeId, input, trx)
       const group = await OptionGroup.create(
         {
@@ -64,13 +68,20 @@ export default class OptionGroupService {
       )
       await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, group.id, trx)
-    })
+    }
+    if (outer) return await run(outer)
+    const saved = await db.transaction(run)
     broadcastMenuChanged(storeId)
     return saved
   }
 
-  async update(storeId: string, id: string, input: OptionGroupInput) {
-    const saved = await db.transaction(async (trx) => {
+  async update(
+    storeId: string,
+    id: string,
+    input: OptionGroupInput,
+    outer?: TransactionClientContract
+  ) {
+    const run = async (trx: TransactionClientContract) => {
       const group = await this.find(storeId, id, trx)
       await this.assertValid(storeId, input, trx)
       group.merge({
@@ -84,7 +95,9 @@ export default class OptionGroupService {
       await group.useTransaction(trx).save()
       await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, id, trx)
-    })
+    }
+    if (outer) return await run(outer)
+    const saved = await db.transaction(run)
     // Its rule and options change what open menus and the POS offer.
     broadcastMenuChanged(storeId)
     return saved
@@ -93,6 +106,13 @@ export default class OptionGroupService {
   async remove(storeId: string, id: string) {
     const group = await this.find(storeId, id)
     await group.delete()
+    // Items stop offering it.
+    broadcastMenuChanged(storeId)
+  }
+
+  /** The same checks as saving (for a preview shown before it is saved). */
+  async validate(storeId: string, input: OptionGroupInput) {
+    await db.transaction(async (trx) => this.assertValid(storeId, input, trx))
   }
 
   async find(storeId: string, id: string, trx?: TransactionClientContract) {

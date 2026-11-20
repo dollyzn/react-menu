@@ -33,6 +33,7 @@ import {
 import { formatCurrencyBRL } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { pickPricesLabel } from "@/lib/choice-pricing";
+import { groupRule } from "@/lib/group-rule";
 
 const Schema = z
   .object({
@@ -65,8 +66,6 @@ const Schema = z
   });
 
 type Values = z.infer<typeof Schema>;
-
-import { groupRule } from "@/lib/group-rule";
 
 export { groupRule };
 
