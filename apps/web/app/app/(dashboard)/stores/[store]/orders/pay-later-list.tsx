@@ -1,10 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { HandCoins } from "lucide-react";
+import { formatDistanceToNowStrict, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { HandCoins, ReceiptText, Users } from "lucide-react";
 import type { PayLaterOrder } from "@react-menu/contracts";
 import { DataTable } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { useQueryParam } from "@/hooks/use-query-param";
 import { useTableQuery } from "@/hooks/use-table-query";
 import { useLastValue } from "@/hooks/use-last-value";
 import { useGetPayLaterOrdersQuery, useGetPayLaterSummaryQuery } from "@/redux/features/order/orderApi";
@@ -12,6 +16,7 @@ import type { StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 import { formatCurrencyBRL } from "@/utils/string";
 import { ReceivePayment } from "./receive-payment";
+import { PayLaterCustomers } from "./pay-later-customers";
 import {
   PayLaterActionsContext,
   payLaterColumns,
@@ -21,25 +26,15 @@ import {
 
 /**
  * Managers: orders sent as "pagar depois" (fiado) and not paid yet, any day.
- * The store's DataTable (cards by default) with search, sort and pages on the
- * API and in the URL, like the history; above it, what is open and who owes
- * the most. "Receber" records the payment and the order leaves the list.
+ * By customer (default): what each one owes, to receive all of it or the
+ * orders ticked at once. By order: the store's DataTable with search, sort
+ * and pages on the API and in the URL, like the history. Above both, what is
+ * open, from how many and since when.
  */
 export function PayLaterList({ storeId }: { storeId: string }) {
-  const table = useTableQuery<PayLaterOrder, PaginatedList<PayLaterOrder>, StoreScopedListArg>(
-    useGetPayLaterOrdersQuery,
-    ({ filterParam, sortingParam, paginationParam }) => ({
-      storeId,
-      filters: filterParam as StoreScopedListArg["filters"],
-      sort: sortingParam,
-      pagination: paginationParam,
-    }),
-    { initialSorting: [{ id: "createdAt", desc: false }], initialPagination: { pageIndex: 0, pageSize: 20 } }
-  );
+  const [list, setList] = useQueryParam("lista");
+  const byOrder = list === "pedidos";
   const { data: summary, isError, refetch } = useGetPayLaterSummaryQuery(storeId);
-  const [receiving, setReceiving] = useState<PayLaterOrder | null>(null);
-  const shown = useLastValue(receiving);
-  const actions = useMemo(() => ({ receive: (order: PayLaterOrder) => setReceiving(order) }), []);
 
   // Never "ninguém devendo" when it couldn't be read.
   if (isError && !summary) {
@@ -65,27 +60,71 @@ export function PayLaterList({ storeId }: { storeId: string }) {
   return (
     <div className="flex flex-col gap-4">
       {summary && (
-        <section aria-label="Resumo do que está em aberto" className="flex flex-col gap-2 rounded-2xl border bg-card p-4">
-          <p className="text-sm text-muted-foreground">
-            <span className="text-2xl font-black text-foreground tabular-nums">{formatCurrencyBRL(summary.total)}</span> em
-            aberto · {summary.count} {summary.count === 1 ? "pedido" : "pedidos"}
-          </p>
-          {/* Who owes the most: the counter charges them first. */}
-          <ul aria-label="Quanto cada cliente deve" className="flex flex-wrap gap-1.5">
-            {summary.debtors.map((debtor) => (
-              <li
-                key={debtor.phone ?? debtor.name}
-                className="inline-flex items-center gap-1.5 rounded-full border bg-background px-2.5 py-1 text-xs"
-              >
-                <span className="max-w-40 truncate font-medium">{debtor.name}</span>
-                <span className="font-semibold text-primary tabular-nums">{formatCurrencyBRL(debtor.due)}</span>
-                {debtor.orders > 1 && <span className="text-muted-foreground">· {debtor.orders} pedidos</span>}
-              </li>
-            ))}
-          </ul>
+        <section
+          aria-label="Resumo do que está em aberto"
+          className="flex flex-col gap-3 rounded-2xl border bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <HandCoins className="size-5" />
+            </span>
+            <div>
+              <p className="text-3xl leading-none font-black tabular-nums">{formatCurrencyBRL(summary.total)}</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                em aberto · {summary.count} {summary.count === 1 ? "pedido" : "pedidos"} de {summary.customers}{" "}
+                {summary.customers === 1 ? "cliente" : "clientes"}
+                {summary.since &&
+                  ` · o mais antigo há ${formatDistanceToNowStrict(parseISO(summary.since), { locale: ptBR })}`}
+              </p>
+            </div>
+          </div>
+          <ToggleGroup
+            aria-label="Ver por"
+            value={[byOrder ? "pedidos" : "clientes"]}
+            onValueChange={(value) =>
+              value[0] &&
+              // The order list's table params (page, search) go with it.
+              setList(value[0] === "pedidos" ? "pedidos" : null, (params) => {
+                if (value[0] !== "pedidos")
+                  for (const key of [...params.keys()]) if (!["view", "lista"].includes(key)) params.delete(key);
+              })
+            }
+            variant="outline"
+            className="self-start sm:self-center"
+          >
+            <ToggleGroupItem value="clientes" aria-label="Por cliente">
+              <Users /> Por cliente
+            </ToggleGroupItem>
+            <ToggleGroupItem value="pedidos" aria-label="Por pedido">
+              <ReceiptText /> Por pedido
+            </ToggleGroupItem>
+          </ToggleGroup>
         </section>
       )}
 
+      {byOrder ? <PayLaterOrders storeId={storeId} /> : <PayLaterCustomers storeId={storeId} />}
+    </div>
+  );
+}
+
+/** Every open order, one by one: the store's DataTable (cards by default). */
+function PayLaterOrders({ storeId }: { storeId: string }) {
+  const table = useTableQuery<PayLaterOrder, PaginatedList<PayLaterOrder>, StoreScopedListArg>(
+    useGetPayLaterOrdersQuery,
+    ({ filterParam, sortingParam, paginationParam }) => ({
+      storeId,
+      filters: filterParam as StoreScopedListArg["filters"],
+      sort: sortingParam,
+      pagination: paginationParam,
+    }),
+    { initialSorting: [{ id: "createdAt", desc: false }], initialPagination: { pageIndex: 0, pageSize: 20 } }
+  );
+  const [receiving, setReceiving] = useState<PayLaterOrder | null>(null);
+  const shown = useLastValue(receiving);
+  const actions = useMemo(() => ({ receive: (order: PayLaterOrder) => setReceiving(order) }), []);
+
+  return (
+    <div className="flex flex-col gap-4">
       <PayLaterActionsContext.Provider value={actions}>
         <DataTable<PayLaterOrder>
           maxPageSize={100}
