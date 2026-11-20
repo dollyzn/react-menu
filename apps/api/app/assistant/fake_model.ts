@@ -76,6 +76,41 @@ function plan(q: string): StreamPart[] {
       ...say.tool('stock_forecast', { baseFrom: day(saturday), baseTo: day(saturday), days: 1 }),
     ]
   }
+  if (/(cria|monta|cadastra) .*(itens|cardapio)/.test(q)) {
+    // As from a menu photo: a few categories, one already in the store.
+    const burger = (name: string, price: number, description: string) => ({
+      name,
+      price,
+      description,
+    })
+    return [
+      ...say.reasoning('Li o cardápio da foto e separei por categoria.'),
+      ...say.tool('create_menu_items', {
+        categories: [
+          {
+            name: 'Hambúrguer artesanal',
+            items: [
+              burger('X-Bacon', 24, 'Hambúrguer 150 g, presunto, muçarela e bacon.'),
+              burger('X-Salada', 22, 'Alface, tomate, hambúrguer 150 g, presunto e muçarela.'),
+              burger(
+                'X-Tudo artesanal com nome bem comprido',
+                29.9,
+                'Hambúrguer 150 g, presunto, muçarela, salada, salsicha, ovo, milho e batata palha.'
+              ),
+            ],
+          },
+          {
+            name: 'Lanches com frango',
+            items: [
+              burger('Frango bacon', 21, 'Frango, bacon, muçarela e salada.'),
+              burger('Frango tudo', 25, 'Frango, muçarela, milho, salsicha, ovo e salada.'),
+            ],
+          },
+          { name: 'Bebidas', items: [{ name: 'Refrigerante litro', price: 12 }] },
+        ],
+      }),
+    ]
+  }
   if (/pausa|volta a vender|preco|aument|reaj|cardapio|item|itens/.test(q)) {
     return [
       ...say.reasoning('Primeiro procuro os itens no cardápio.'),

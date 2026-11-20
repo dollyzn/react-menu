@@ -51,6 +51,7 @@ export function AssistantPanel() {
   const params = useParams<{ store?: string }>();
   const storeId = params.store ?? null;
   const role = useStoreRole(storeId ?? "");
+  const userId = useAppSelector((state) => state.auth.user?.id);
   const allowed = storeId !== null && (role === "manager" || role === "attendant");
   const [open, setOpen] = useState(false);
   // Mounted on the first open, then kept (closing the sheet keeps the
@@ -110,7 +111,7 @@ export function AssistantPanel() {
           // Whole width on phones; the sheet's default 3/4 squeezed the input.
           className="gap-0 p-0 data-[side=right]:w-full data-[side=right]:sm:max-w-lg"
         >
-          {opened && <AssistantSheet key={storeId} storeId={storeId} role={role} onClose={() => setOpen(false)} />}
+          {opened && <AssistantSheet key={`${userId}:${storeId}`} storeId={storeId} role={role} onClose={() => setOpen(false)} />}
         </SheetContent>
       </Sheet>
     </>
@@ -130,6 +131,10 @@ function AssistantSheet({
   const pathname = usePathname();
   const page = pageOf(pathname);
   const storeName = useAppSelector((state) => state.auth.user?.stores.find((store) => store.id === storeId)?.name);
+  // Per person and store: on a shared device, the next one to sign in never
+  // gets the last one's conversation.
+  const userId = useAppSelector((state) => state.auth.user?.id);
+  const prefsScope = `${userId ?? "anon"}:${storeId}`;
   const status = useGetAssistantStatusQuery(storeId);
   const conversations = useGetAssistantConversationsQuery(storeId, { skip: !status.data?.enabled });
   const [loadConversation, loading] = useLazyGetAssistantConversationQuery();
@@ -137,22 +142,22 @@ function AssistantSheet({
   // Remembered on this browser per store: the model, the mode and the open
   // conversation (back after a reload). A model the store stopped offering
   // falls back to its default.
-  const [prefs] = useState(() => readAssistantPrefs(storeId));
+  const [prefs] = useState(() => readAssistantPrefs(prefsScope));
   const [conversation, setConversation] = useState<Conversation>(newConversation);
   const [restoring, setRestoring] = useState(Boolean(prefs.conversationId));
   const [chosenModel, setChosenModelState] = useState<string | null>(prefs.model ?? null);
   const [effort, setEffortState] = useState<AssistantEffort>(prefs.effort ?? "fast");
   const setChosenModel = (id: string) => {
     setChosenModelState(id);
-    writeAssistantPrefs(storeId, { model: id });
+    writeAssistantPrefs(prefsScope, { model: id });
   };
   const setEffort = (value: AssistantEffort) => {
     setEffortState(value);
-    writeAssistantPrefs(storeId, { effort: value });
+    writeAssistantPrefs(prefsScope, { effort: value });
   };
   const startConversation = (next: Conversation) => {
     setConversation(next);
-    writeAssistantPrefs(storeId, { conversationId: next.messages.length ? next.id : null });
+    writeAssistantPrefs(prefsScope, { conversationId: next.messages.length ? next.id : null });
   };
 
   useEffect(() => {
@@ -164,12 +169,12 @@ function AssistantSheet({
         if (!cancelled) setConversation({ id: detail.id, messages: detail.messages as AssistantUIMessage[] });
       })
       // Gone (deleted, another device): a new one.
-      .catch(() => writeAssistantPrefs(storeId, { conversationId: null }))
+      .catch(() => writeAssistantPrefs(prefsScope, { conversationId: null }))
       .finally(() => !cancelled && setRestoring(false));
     return () => {
       cancelled = true;
     };
-  }, [loadConversation, prefs.conversationId, storeId]);
+  }, [loadConversation, prefs.conversationId, prefsScope, storeId]);
   const models = status.data?.models ?? [];
   const model = models.some((item) => item.id === chosenModel) ? chosenModel : (status.data?.defaultModel ?? null);
   const manager = role === "manager";
@@ -329,7 +334,7 @@ function AssistantSheet({
           onModelChange={setChosenModel}
           effort={effort}
           onEffortChange={setEffort}
-          onAnswered={() => writeAssistantPrefs(storeId, { conversationId: conversation.id })}
+          onAnswered={() => writeAssistantPrefs(prefsScope, { conversationId: conversation.id })}
         />
       )}
       <AlertDialogDestructive

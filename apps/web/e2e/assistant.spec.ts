@@ -68,6 +68,27 @@ test("the assistant answers with cards and asks before changing the menu", async
   await sheet.getByRole("button", { name: "Aprovar" }).click();
   await expect(sheet.getByText("Pronto: a loja está aberta.")).toBeVisible();
 
+  // A photo shows its name and size, opens whole, and can be taken off.
+  await page.getByLabel("Escolher fotos").setInputFiles("public/login-marquee/addons-light.webp");
+  await sheet.getByRole("button", { name: "Ver addons-light.webp", exact: true }).click();
+  const viewer = page.getByRole("dialog", { name: "addons-light.webp" });
+  await expect(viewer.getByRole("img", { name: "addons-light.webp" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toBeHidden();
+  await sheet.getByRole("button", { name: "Remover addons-light.webp" }).click();
+
+  // New items by category: the first one open, the others fold; declined.
+  await field.fill("Cria os itens do cardápio da foto");
+  await field.press("Enter");
+  await expect(sheet.getByText("Criar 6 itens no cardápio")).toBeVisible();
+  await expect(sheet.getByText("X-Bacon")).toBeVisible();
+  await expect(sheet.getByText("Frango bacon")).toBeHidden();
+  await sheet.getByRole("button", { name: /Lanches com frango/ }).click();
+  await expect(sheet.getByText("Frango bacon")).toBeVisible();
+  await sheet.getByRole("button", { name: "Recusar" }).click();
+  // The second declined card of this conversation (the first was the pause).
+  await expect(sheet.getByText("Recusado: nada foi alterado.")).toHaveCount(2);
+
   // The conversation is in the history.
   await sheet.getByRole("button", { name: "Nova conversa" }).click();
   await expect(sheet.getByText("Como posso ajudar?")).toBeVisible();

@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowRight, Check, ShieldQuestion, TriangleAlert, X } from "lucide-react";
+import { ArrowRight, Check, ChevronRight, ShieldQuestion, TriangleAlert, X } from "lucide-react";
 import type { AssistantApprovalPreview } from "@react-menu/contracts";
 import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Button } from "@/components/ui/button";
 import {
   Item,
@@ -95,6 +96,52 @@ function SaleChange({ before, after }: { before: boolean; after: boolean }) {
   );
 }
 
+type NewCategory = Extract<AssistantApprovalPreview, { kind: "create_menu_items" }>["categories"][number];
+
+/**
+ * New items by category: each category folds (a menu photo easily brings
+ * 30 items); only the first opens by itself. Name and price on one line,
+ * the description under it, never wider than the sheet.
+ */
+function NewItemsPreview({ categories }: { categories: NewCategory[] }) {
+  const items = categories.reduce((sum, category) => sum + category.items.length, 0);
+  const created = categories.filter((category) => category.isNew).length;
+  return (
+    <div className="flex flex-col">
+      <p className="border-b px-3 py-2 text-xs text-muted-foreground">
+        {items} {items === 1 ? "item" : "itens"} em {categories.length} {categories.length === 1 ? "categoria" : "categorias"}
+        {created > 0 && ` (${created} ${created === 1 ? "nova" : "novas"})`}
+      </p>
+      {categories.map((category, index) => (
+        <Collapsible key={category.name} defaultOpen={index === 0} className="border-b last:border-b-0">
+          <CollapsibleTrigger className="group/cat flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium outline-none hover:bg-muted/50 focus-visible:bg-muted/50">
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform duration-200 group-data-[panel-open]/cat:rotate-90" />
+            <span className="min-w-0 flex-1 truncate">{category.name}</span>
+            {category.isNew && <Badge variant="secondary">Nova</Badge>}
+            <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
+              {category.items.length} {category.items.length === 1 ? "item" : "itens"}
+            </span>
+          </CollapsibleTrigger>
+          {/* Opens and closes by height (Base UI measures it), like the Trace's steps. */}
+          <CollapsibleContent className="h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none data-ending-style:h-0 data-starting-style:h-0">
+            <ul className="flex flex-col divide-y border-t bg-muted/20">
+              {category.items.map((item) => (
+                <li key={item.name} className="flex flex-col gap-0.5 px-3 py-2 pl-9">
+                  <span className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 text-sm font-medium break-words">{item.name}</span>
+                    <span className="shrink-0 text-sm tabular-nums">{formatCurrencyBRL(item.price)}</span>
+                  </span>
+                  {item.description && <span className="line-clamp-2 text-xs text-muted-foreground">{item.description}</span>}
+                </li>
+              ))}
+            </ul>
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
+    </div>
+  );
+}
+
 /** What will change, read by the API from the database (before → after). */
 function PreviewBody({ preview }: { preview: AssistantApprovalPreview }) {
   switch (preview.kind) {
@@ -167,29 +214,7 @@ function PreviewBody({ preview }: { preview: AssistantApprovalPreview }) {
         </dl>
       );
     case "create_menu_items":
-      return (
-        <div className="flex flex-col gap-3">
-          {preview.categories.map((category) => (
-            <div key={category.name} className="flex flex-col gap-1">
-              <p className="flex items-center gap-2 text-xs font-medium">
-                {category.name}
-                {category.isNew && <Badge variant="secondary">Nova categoria</Badge>}
-              </p>
-              <ul className="flex flex-col gap-0.5 text-xs">
-                {category.items.map((item) => (
-                  <li key={item.name} className="flex justify-between gap-3">
-                    <span className="min-w-0 truncate">
-                      {item.name}
-                      {item.description && <span className="text-muted-foreground"> · {item.description}</span>}
-                    </span>
-                    <span className="shrink-0 tabular-nums">{formatCurrencyBRL(item.price)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
-      );
+      return <NewItemsPreview categories={preview.categories} />;
   }
 }
 
@@ -248,9 +273,15 @@ export function ApprovalCard({
         </ItemDescription>
       </ItemContent>
       {waiting && (
-        <ItemFooter className="flex-col items-stretch gap-3">
+        <ItemFooter className="min-w-0 flex-col items-stretch gap-3">
           {!["store_status", "pickup_time"].includes(preview.kind) && (
-            <div className="min-w-0 overflow-x-auto rounded-lg border bg-background p-2">
+            <div
+              className={cn(
+                "min-w-0 rounded-lg border bg-background",
+                // Its own layout fits the width; tables may scroll sideways.
+                preview.kind === "create_menu_items" ? "overflow-hidden" : "overflow-x-auto p-2"
+              )}
+            >
               <PreviewBody preview={preview} />
             </div>
           )}

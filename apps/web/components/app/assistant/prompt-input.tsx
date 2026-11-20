@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ArrowUp, Brain, ChevronDown, Gauge, ImagePlus, Square, X, Zap, type LucideIcon } from "lucide-react";
+import { ArrowUp, Brain, ChevronDown, Gauge, ImagePlus, Square, Zap, type LucideIcon } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import type {
@@ -11,12 +11,8 @@ import type {
   AssistantTokens,
   AssistantUsage,
 } from "@react-menu/contracts";
-import {
-  Attachment,
-  AttachmentAction,
-  AttachmentActions,
-  AttachmentMedia,
-} from "@/components/ui/attachment";
+import { AttachmentGroup } from "@/components/ui/attachment";
+import { PhotoAttachment, PhotoPreparing } from "./photo-attachment";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,7 +25,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { InputGroup, InputGroupAddon, InputGroupButton, InputGroupTextarea } from "@/components/ui/input-group";
 import { Progress } from "@/components/ui/progress";
-import Image from "@/components/app/image";
 import { ImageCompressError } from "@/lib/image-compress";
 import { photoPart } from "@/lib/assistant";
 import { ProviderLogo } from "./provider-logo";
@@ -334,23 +329,19 @@ export function PromptInput({
         }}
       />
       <InputGroup className="@container/prompt rounded-2xl bg-background shadow-xs">
-        {photos.length > 0 && (
-          <InputGroupAddon align="block-start" className="flex-wrap gap-2">
-            {photos.map((photo) => (
-              <Attachment key={photo.id} size="sm" className="w-auto">
-                <AttachmentMedia className="size-12">
-                  <Image src={photo.url} alt={photo.filename} width={48} height={48} unoptimized className="size-full object-cover" />
-                </AttachmentMedia>
-                <AttachmentActions>
-                  <AttachmentAction
-                    aria-label={`Remover ${photo.filename}`}
-                    onClick={() => setPhotos((list) => list.filter((item) => item.id !== photo.id))}
-                  >
-                    <X />
-                  </AttachmentAction>
-                </AttachmentActions>
-              </Attachment>
-            ))}
+        {(photos.length > 0 || reading) && (
+          <InputGroupAddon align="block-start" className="w-full">
+            {/* Room on every side: the strip scrolls sideways, and that clips the focus ring. */}
+            <AttachmentGroup className="-m-1 w-[calc(100%+0.5rem)] p-1">
+              {photos.map((photo) => (
+                <PhotoAttachment
+                  key={photo.id}
+                  photo={photo}
+                  onRemove={() => setPhotos((list) => list.filter((item) => item.id !== photo.id))}
+                />
+              ))}
+              {reading && <PhotoPreparing />}
+            </AttachmentGroup>
           </InputGroupAddon>
         )}
         <InputGroupTextarea
