@@ -10,7 +10,11 @@ import type {
   CustomerSuggestion,
   Order,
   OrderStatus,
+  PayLaterCustomer,
+  PayLaterCustomerSort,
   PayLaterInput,
+  ReceivePayLaterInput,
+  ReceivePayLaterResult,
   PayLaterOrder,
   PayLaterSummary,
   ProductionBatch,
@@ -59,6 +63,29 @@ export const orderApi = baseApi.injectEndpoints({
           sort: sort?.slice(0, 1),
         }),
       providesTags: (_res, _err, { storeId }) => [payLaterTag(storeId)],
+    }),
+
+    /** Managers: open "pagar depois" by customer, with their orders. */
+    getPayLaterCustomers: build.query<
+      PaginatedList<PayLaterCustomer>,
+      { storeId: string; search?: string; sort: PayLaterCustomerSort; page: number; perPage: number }
+    >({
+      query: ({ storeId, search, sort, page, perPage }) => {
+        const params = new URLSearchParams({ sort, page: String(page), perPage: String(perPage) });
+        if (search) params.set("search", search);
+        return `stores/${storeId}/orders/pay-later/customers?${params}`;
+      },
+      providesTags: (_res, _err, { storeId }) => [payLaterTag(storeId)],
+    }),
+
+    /** Managers: several open orders of one customer received at once. */
+    receivePayLater: build.mutation<ReceivePayLaterResult, { storeId: string } & ReceivePayLaterInput>({
+      query: ({ storeId, ...body }) => ({ url: `stores/${storeId}/orders/pay-later/receive`, method: "POST", body }),
+      invalidatesTags: (_res, _err, { storeId, orderIds }) => [
+        ordersTag(storeId),
+        payLaterTag(storeId),
+        ...orderIds.map(orderTag),
+      ],
     }),
 
     /** Managers: the tab's count and who owes the most. */
@@ -185,6 +212,8 @@ export const {
   useGetOrdersPageQuery,
   useGetOrderQuery,
   useGetPayLaterOrdersQuery,
+  useGetPayLaterCustomersQuery,
+  useReceivePayLaterMutation,
   useGetPayLaterSummaryQuery,
   useMarkPayLaterMutation,
   useSearchCustomersQuery,

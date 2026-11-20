@@ -5,6 +5,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
+import { containing } from '#helpers/like'
 import type { OrderLineInput } from '@react-menu/contracts'
 import AppException from '#exceptions/app_exception'
 import OrderChannel from '#enums/order_channel'
@@ -40,6 +41,10 @@ const MAX_QUANTITY_PER_LINE = 50
 const money = (value: number) => Math.round(value * 100) / 100
 
 export type PayLaterSort = 'createdAt:asc' | 'createdAt:desc' | 'amountDue:desc' | 'amountDue:asc'
+export type PayLaterCustomerSort = 'due:desc' | 'since:asc' | 'name:asc'
+
+/** Who owes a "pagar depois" order: the phone, or the name when it has none. */
+const DEBTOR = `coalesce(customer_phone, 'name:' || customer_name)`
 
 export type CreateOrderInput = {
   channel: OrderChannel
@@ -790,7 +795,7 @@ export default class OrderService {
     return await this.openPayLater(storeId)
       .if(search, (query) =>
         query.where((match) => {
-          match.whereILike('customer_name', `%${search}%`)
+          match.whereILike('customer_name', containing(search!))
           // "#12" or "12": the order number; 4+ digits: part of the phone.
           if (/^#?\d{1,5}$/.test(search!)) match.orWhere('number', Number(digits))
           if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
@@ -816,15 +821,23 @@ export default class OrderService {
   async payLaterSummary(storeId: string) {
     const rows = await this.openPayLater(storeId)
       .select(
-        db.raw(`coalesce(customer_phone, 'name:' || customer_name) as debtor`),
+        db.raw(`${DEBTOR} as debtor`),
         db.raw('(array_agg(customer_name order by created_at desc))[1] as name'),
         db.raw('max(customer_phone) as phone'),
         db.raw('count(*)::int as orders'),
-        db.raw('sum(total - amount_paid) as due')
+        db.raw('sum(total - amount_paid) as due'),
+        db.raw('min(created_at) as since')
       )
-      .groupByRaw(`coalesce(customer_phone, 'name:' || customer_name)`)
+      .groupByRaw(DEBTOR)
       .orderByRaw('due desc, name asc')
-      .pojo<{ debtor: string; name: string; phone: string | null; orders: number; due: string }>()
+      .pojo<{
+        debtor: string
+        name: string
+        phone: string | null
+        orders: number
+        due: string
+        since: Date
+      }>()
     const debtors = rows.map((row) => ({
       name: row.name,
       phone: row.phone,
@@ -834,9 +847,176 @@ export default class OrderService {
     return {
       count: debtors.reduce((sum, debtor) => sum + debtor.orders, 0),
       total: money(debtors.reduce((sum, debtor) => sum + debtor.due, 0)),
+      customers: debtors.length,
+      /** When the oldest open one was placed. */
+      since: rows.length
+        ? DateTime.fromJSDate(
+            new Date(rows.reduce((min, row) => (row.since < min ? row.since : min), rows[0].since))
+          ).toISO()
+        : null,
       // The ones the counter charges first.
       debtors: debtors.slice(0, 12),
     }
+  }
+
+  /**
+   * "Pagar depois" still open, by customer (one per phone, or per name
+   * without one, as in the summary): what each owes and since when, with
+   * their open orders oldest first. The search finds a customer by name,
+   * phone or an order's number.
+   */
+  async listPayLaterCustomers(
+    storeId: string,
+    filters: { search?: string; sort?: PayLaterCustomerSort; page?: number; perPage?: number } = {}
+  ) {
+    const search = filters.search?.trim()
+    const digits = search?.replace(/\D/g, '') ?? ''
+    const page = filters.page ?? 1
+    const perPage = filters.perPage ?? 20
+    // The search only finds the customers: what they owe counts all their open orders.
+    const hits = search
+      ? await this.openPayLater(storeId)
+          .where((match) => {
+            match.whereILike('customer_name', containing(search))
+            if (/^#?\d{1,5}$/.test(search)) match.orWhere('number', Number(digits))
+            if (digits.length >= 4) match.orWhere('customer_phone', 'like', `%${digits}%`)
+          })
+          .select(db.raw(`distinct ${DEBTOR} as debtor`))
+          .pojo<{ debtor: string }>()
+      : null
+    const found = hits?.map((row) => row.debtor) ?? null
+    const matching = () =>
+      this.openPayLater(storeId).if(found, (query) =>
+        query.whereRaw(`${DEBTOR} = any(?)`, [found!])
+      )
+    const grouped = matching()
+      .select(
+        db.raw(`${DEBTOR} as debtor`),
+        db.raw('(array_agg(customer_name order by created_at desc))[1] as name'),
+        db.raw('max(customer_phone) as phone'),
+        db.raw('sum(total - amount_paid) as due'),
+        db.raw('min(created_at) as since')
+      )
+      .groupByRaw(DEBTOR)
+    const order = {
+      // `debtor` last: a stable order for the pages (ties would repeat or skip customers).
+      'due:desc': 'due desc, since asc, debtor asc',
+      'since:asc': 'since asc, due desc, debtor asc',
+      'name:asc': 'lower((array_agg(customer_name order by created_at desc))[1]) asc, debtor asc',
+    }[filters.sort ?? 'due:desc']
+    const rows = await grouped
+      .orderByRaw(order)
+      .limit(perPage)
+      .offset((page - 1) * perPage)
+      .pojo<{ debtor: string; name: string; phone: string | null; due: string; since: Date }>()
+    const [{ total }] = await matching()
+      .select(db.raw(`count(distinct ${DEBTOR})::int as total`))
+      .pojo<{ total: number }>()
+    const keys = rows.map((row) => row.debtor)
+    const orders = keys.length
+      ? await this.openPayLater(storeId)
+          .whereRaw(`${DEBTOR} = any(?)`, [keys])
+          .preload('items', (items) => items.preload('addons').orderBy('id'))
+          .preload('payLaterBy')
+          .orderBy('created_at', 'asc')
+          .orderBy('id')
+      : []
+    const lastPage = Math.max(1, Math.ceil(Number(total) / perPage))
+    return {
+      data: rows.map((row) => ({
+        key: row.debtor,
+        name: row.name,
+        phone: row.phone,
+        due: money(Number(row.due)),
+        since: DateTime.fromJSDate(new Date(row.since)).toISO()!,
+        orders: orders.filter(
+          (open) => (open.customerPhone ?? `name:${open.customerName}`) === row.debtor
+        ),
+      })),
+      meta: {
+        total: Number(total),
+        perPage,
+        currentPage: page,
+        lastPage,
+        firstPage: 1,
+      },
+    }
+  }
+
+  /**
+   * "Receber" for several open "pagar depois" orders of one customer at once:
+   * each gets a receipt for what it owes, the same way, under one transaction
+   * (locked in id order, so two cashiers never deadlock). `amount` is the
+   * total on screen. Orders already paid this same way are skipped, so a
+   * repeated request records nothing twice.
+   */
+  async receivePayLater(
+    storeId: string,
+    input: { orderIds: string[]; method: CounterPaymentMethod; amount: number },
+    actor: User
+  ) {
+    const orders = await Order.query()
+      .where({ storeId })
+      .whereIn('id', input.orderIds)
+      .orderBy('id')
+    if (orders.length !== input.orderIds.length) {
+      throw new AppException('Pedido não encontrado.', 404, 'E_ORDER_NOT_FOUND')
+    }
+    if (orders.some((order) => !order.payLaterAt)) {
+      throw new AppException(
+        'Só pedidos marcados como “Pagar depois” são recebidos juntos.',
+        422,
+        'E_NOT_PAY_LATER'
+      )
+    }
+    if (
+      new Set(orders.map((order) => order.customerPhone ?? `name:${order.customerName}`)).size > 1
+    ) {
+      throw new AppException(
+        'Escolha pedidos de um cliente só para receber juntos.',
+        422,
+        'E_MIXED_CUSTOMERS'
+      )
+    }
+    const debtorOf = (order: Order) => order.customerPhone ?? `name:${order.customerName}`
+    let amount = 0
+    const received = await db.transaction(async (trx) => {
+      for (const order of orders) {
+        await this.lock(order, trx)
+        await this.assertReceivable(order, input.method, trx)
+      }
+      // Again on the locked rows: the customer may have been corrected meanwhile.
+      if (orders.some((order) => !order.payLaterAt) || new Set(orders.map(debtorOf)).size > 1) {
+        throw new AppException(
+          'Os pedidos mudaram de cliente. Confira e tente de novo.',
+          409,
+          'E_MIXED_CUSTOMERS'
+        )
+      }
+      const open = orders.filter((order) => order.paymentStatus !== PaymentStatus.PAID)
+      const due = money(open.reduce((sum, order) => sum + order.amountDue, 0))
+      // Everything already received this way: a repeat of a request that went through.
+      if (open.length === 0) return []
+      if (Math.abs(due - input.amount) >= 0.005) {
+        throw new AppException(
+          `O valor a receber mudou para ${due.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}. Confira e confirme de novo.`,
+          409,
+          'E_AMOUNT_CHANGED',
+          { amountDue: due }
+        )
+      }
+      const changed: Order[] = []
+      for (const order of open) {
+        const owed = order.amountDue
+        if (await this.receive(order, { counterMethod: input.method }, trx, actor)) {
+          changed.push(order)
+          amount = money(amount + owed)
+        }
+      }
+      return changed
+    })
+    for (const order of received) await this.afterChange(order)
+    return { orders: received.length, amount }
   }
 
   /** "Pagar depois" still open: not paid, not cancelled. */

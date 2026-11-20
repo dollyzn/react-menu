@@ -17,6 +17,14 @@ export default function registerStoreOrderRoutes() {
     .get('/orders/pay-later/summary', [OrdersController, 'payLaterSummary'])
     .as('orders.payLater.summary')
     .use(managersOnly)
+  router
+    .get('/orders/pay-later/customers', [OrdersController, 'payLaterCustomers'])
+    .as('orders.payLater.customers')
+    .use(managersOnly)
+  router
+    .post('/orders/pay-later/receive', [OrdersController, 'receivePayLater'])
+    .as('orders.payLater.receive')
+    .use(managersOnly)
   router.get('/orders/:orderId', [OrdersController, 'show']).as('orders.show')
   router
     .post('/orders/:orderId/complete', [OrdersController, 'complete'])

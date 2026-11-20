@@ -18,6 +18,8 @@ import {
   addOrderItemsValidator,
   orderListValidator,
   payLaterListValidator,
+  payLaterCustomersValidator,
+  receivePayLaterValidator,
   payLaterValidator,
   posOrderValidator,
   receivePaymentValidator,
@@ -245,6 +247,46 @@ export default class OrdersController {
           : null,
       })),
       page.getMeta()
+    )
+  }
+
+  /**
+   * Open "pagar depois" by customer, with their orders (managers). Like the
+   * order list beside it, it takes its own validator: the rows are customers
+   * grouped in SQL, so there is no paginator to hand `ok()`.
+   */
+  async payLaterCustomers({ params, request }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const qs = request.qs()
+    const filters = await payLaterCustomersValidator.validate({
+      ...qs,
+      sort: [qs.sort].flat()[0],
+      // A comma in the search arrives split (`comma: true`).
+      search: qs.search === undefined ? undefined : [qs.search].flat().join(','),
+    })
+    const { data, meta } = await this.orders.listPayLaterCustomers(storeId, filters)
+    return ok(
+      data.map((customer) => ({
+        ...customer,
+        orders: customer.orders.map((order) => ({
+          ...order.serialize(),
+          payLaterBy: order.payLaterBy
+            ? { id: order.payLaterBy.id, name: order.payLaterBy.name }
+            : null,
+        })),
+      })),
+      meta
+    )
+  }
+
+  /** Several open "pagar depois" orders of one customer received at once (managers). */
+  async receivePayLater({ params, request, auth }: HttpContext) {
+    const storeId = await storeExistValidator.validate(params.storeId)
+    const input = await request.validateUsing(receivePayLaterValidator)
+    const result = await this.orders.receivePayLater(storeId, input, auth.getUserOrFail())
+    return updated(
+      result,
+      result.orders === 1 ? 'Pagamento recebido' : `${result.orders} pedidos recebidos`
     )
   }
 

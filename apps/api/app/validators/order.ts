@@ -123,6 +123,26 @@ const receivePaymentValidator = vine.create(
   })
 )
 
+/** GET /orders/pay-later/customers: search, sort and pages over customers. */
+const payLaterCustomersValidator = vine.create(
+  vine.object({
+    search: vine.string().trim().maxLength(80).optional(),
+    sort: vine.enum(['due:desc', 'since:asc', 'name:asc']).optional(),
+    page: vine.number().withoutDecimals().min(1).optional(),
+    perPage: vine.number().withoutDecimals().min(1).max(50).optional(),
+  })
+)
+
+/** POST /orders/pay-later/receive: open orders of one customer, received together. */
+const receivePayLaterValidator = vine.create(
+  vine.object({
+    orderIds: vine.array(vine.string().uuid()).minLength(1).maxLength(100).distinct(),
+    method: vine.enum(COUNTER_PAYMENT_METHODS),
+    /** The total on screen: refused (409) if what is due changed meanwhile. */
+    amount: vine.number().min(0).max(999999.99),
+  })
+)
+
 const prepareUnitsValidator = vine.create(
   vine.object({
     units: vine
@@ -191,5 +211,7 @@ export {
   prepareUnitsValidator,
   orderListValidator,
   payLaterListValidator,
+  payLaterCustomersValidator,
+  receivePayLaterValidator,
   lookupTokens,
 }

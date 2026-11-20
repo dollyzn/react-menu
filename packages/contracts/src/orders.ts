@@ -286,9 +286,44 @@ export type PayLaterOrder = Order & {
 export type PayLaterSummary = {
   count: number;
   total: number;
+  /** How many customers owe, and since when the oldest open order. */
+  customers: number;
+  since: string | null;
   /** Up to 12, the most owed first (one per phone, or per name without one). */
   debtors: { name: string; phone: string | null; orders: number; due: number }[];
 };
+
+/**
+ * GET /orders/pay-later/customers (managers, paginated): open "pagar depois"
+ * grouped by customer (one per phone, or per name without one), with their
+ * orders oldest first.
+ */
+export type PayLaterCustomer = {
+  /** The phone, or "name:<name>" without one. */
+  key: string;
+  name: string;
+  phone: string | null;
+  due: number;
+  /** When the oldest open order was placed. */
+  since: string;
+  orders: PayLaterOrder[];
+};
+
+/** GET /orders/pay-later/customers sorts (allowlisted). */
+export type PayLaterCustomerSort = "due:desc" | "since:asc" | "name:asc";
+
+/**
+ * POST /orders/pay-later/receive (managers): several open orders of one
+ * customer received at once, each for what it owes, the same way. `amount`
+ * is the total on screen (409 `E_AMOUNT_CHANGED` if it changed).
+ */
+export type ReceivePayLaterInput = {
+  orderIds: string[];
+  method: CounterPaymentMethod;
+  amount: number;
+};
+
+export type ReceivePayLaterResult = { orders: number; amount: number };
 
 /** GET /orders/pay-later sorts (allowlisted). */
 export type PayLaterSort = "createdAt:asc" | "createdAt:desc" | "amountDue:desc" | "amountDue:asc";

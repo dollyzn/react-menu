@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
 import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import Order from '#models/order'
@@ -219,9 +220,12 @@ test.group('Pagar depois (fiado)', (group) => {
 
     const summary = await client.get(`${orders}/pay-later/summary`).loginAs(manager)
     summary.assertStatus(200)
-    assert.deepEqual(summary.body().data, {
+    const { since, ...rest } = summary.body().data
+    assert.isString(since)
+    assert.deepEqual(rest, {
       count: 3,
       total: 42,
+      customers: 2,
       debtors: [
         { name: 'Maria', phone: '5513988880000', orders: 1, due: 24 },
         { name: 'Zé', phone: '5513999990000', orders: 2, due: 18 },
@@ -262,5 +266,145 @@ test.group('Pagar depois (fiado)', (group) => {
     assert.include([403, 404], markByOther.status())
     const untouched = await Order.findOrFail(id)
     assert.isNull(untouched.payLaterAt)
+  })
+
+  /** "Pagar depois" orders of a customer, sent from the POS. */
+  async function owe(
+    client: ApiClient,
+    store: { id: string },
+    itemId: string,
+    attendant: Parameters<typeof linkUser>[1],
+    customer: { name: string; phone: string },
+    quantity: number
+  ) {
+    const sent = await client
+      .post(`/api/v1/stores/${store.id}/orders`)
+      .json({ customer, lines: [{ itemId, quantity }], payLater: true })
+      .loginAs(attendant)
+    return sent.body().data as { id: string; total: number }
+  }
+
+  test('by customer: each one with what they owe and their orders, searched and sorted', async ({
+    client,
+    assert,
+  }) => {
+    const { store, coca, attendant, manager } = await setup()
+    const ze = { name: 'Zé', phone: '(13) 99999-0000' }
+    const first = await owe(client, store, coca.id, attendant, ze, 1)
+    const second = await owe(client, store, coca.id, attendant, ze, 2)
+    await owe(client, store, coca.id, attendant, { name: 'Maria', phone: '(13) 98888-0000' }, 4)
+    const url = `/api/v1/stores/${store.id}/orders/pay-later/customers`
+
+    const all = await client.get(url).loginAs(manager)
+    all.assertStatus(200)
+    assert.equal(all.body().meta.total, 2)
+    const [maria, zeRow] = all.body().data
+    assert.include(maria, { name: 'Maria', due: 24 })
+    assert.include(zeRow, { key: '5513999990000', name: 'Zé', due: 18 })
+    assert.deepEqual(
+      zeRow.orders.map((order: { id: string }) => order.id),
+      [first.id, second.id]
+    )
+
+    const oldest = await client.get(url).qs({ sort: 'since:asc' }).loginAs(manager)
+    assert.deepEqual(
+      oldest.body().data.map((row: { name: string }) => row.name),
+      ['Zé', 'Maria']
+    )
+    const found = await client.get(url).qs({ search: '99999' }).loginAs(manager)
+    assert.deepEqual(
+      found.body().data.map((row: { name: string }) => row.name),
+      ['Zé']
+    )
+    // Found by one order's number, the customer still owes all of them.
+    const firstOrder = await Order.findOrFail(first.id)
+    const byNumber = await client
+      .get(url)
+      .qs({ search: `#${firstOrder.number}` })
+      .loginAs(manager)
+    assert.include(byNumber.body().data[0], { name: 'Zé', due: 18 })
+    assert.lengthOf(byNumber.body().data[0].orders, 2)
+    // "%" and "_" match themselves, not everyone.
+    const wildcard = await client.get(url).qs({ search: '%' }).loginAs(manager)
+    assert.lengthOf(wildcard.body().data, 0)
+    const paged = await client.get(url).qs({ perPage: 1, page: 2 }).loginAs(manager)
+    assert.equal(paged.body().data[0].name, 'Zé')
+    assert.equal(paged.body().meta.lastPage, 2)
+    const byAttendant = await client.get(url).loginAs(attendant)
+    byAttendant.assertStatus(403)
+    const other = await setup()
+    const byOtherStore = await client.get(url).loginAs(other.manager)
+    assert.include([403, 404], byOtherStore.status())
+  })
+
+  test('several orders of one customer are received at once, each for what it owes', async ({
+    client,
+    assert,
+  }) => {
+    const { store, coca, attendant, manager } = await setup()
+    const other = await setup()
+    const ze = { name: 'Zé', phone: '(13) 99999-0000' }
+    const first = await owe(client, store, coca.id, attendant, ze, 1)
+    const second = await owe(client, store, coca.id, attendant, ze, 2)
+    const third = await owe(client, store, coca.id, attendant, ze, 3)
+    const maria = await owe(
+      client,
+      store,
+      coca.id,
+      attendant,
+      { name: 'Maria', phone: '(13) 98888-0000' },
+      1
+    )
+    const url = `/api/v1/stores/${store.id}/orders/pay-later/receive`
+
+    const mixed = await client
+      .post(url)
+      .json({ orderIds: [first.id, maria.id], method: 'pix', amount: 12 })
+      .loginAs(manager)
+    mixed.assertStatus(422)
+    mixed.assertBodyContains({ code: 'E_MIXED_CUSTOMERS' })
+    const stale = await client
+      .post(url)
+      .json({ orderIds: [first.id, second.id], method: 'pix', amount: 10 })
+      .loginAs(manager)
+    stale.assertStatus(409)
+    stale.assertBodyContains({ code: 'E_AMOUNT_CHANGED' })
+    const byAttendant = await client
+      .post(url)
+      .json({ orderIds: [first.id], method: 'pix', amount: 6 })
+      .loginAs(attendant)
+    byAttendant.assertStatus(403)
+    const byOtherStore = await client
+      .post(`/api/v1/stores/${other.store.id}/orders/pay-later/receive`)
+      .json({ orderIds: [first.id], method: 'pix', amount: 6 })
+      .loginAs(other.manager)
+    byOtherStore.assertStatus(404)
+
+    const paid = await client
+      .post(url)
+      .json({ orderIds: [first.id, second.id], method: 'cash', amount: 18 })
+      .loginAs(manager)
+    paid.assertStatus(200)
+    assert.deepEqual(paid.body().data, { orders: 2, amount: 18 })
+    // The same request again records nothing twice.
+    const again = await client
+      .post(url)
+      .json({ orderIds: [first.id, second.id], method: 'cash', amount: 18 })
+      .loginAs(manager)
+    again.assertStatus(200)
+    assert.deepEqual(again.body().data, { orders: 0, amount: 0 })
+
+    for (const id of [first.id, second.id]) {
+      const order = await Order.findOrFail(id)
+      assert.equal(order.paymentStatus, 'paid')
+      assert.equal(order.counterMethod, 'cash')
+      assert.equal(order.paidById, manager.id)
+    }
+    const open = await Order.findOrFail(third.id)
+    assert.equal(open.paymentStatus, 'pending')
+    const summary = await client
+      .get(`/api/v1/stores/${store.id}/orders/pay-later/summary`)
+      .loginAs(manager)
+    assert.include(summary.body().data, { count: 2, total: 24 })
   })
 })

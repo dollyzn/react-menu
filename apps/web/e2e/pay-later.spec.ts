@@ -5,6 +5,9 @@ import { API_URL, E2E_ADMIN } from "../playwright.config";
 test("pagar depois: sent as fiado, handed over unpaid, received later from the managers' list", async ({ page, browser }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   const customer = `Fiado ${Date.now() % 100000}`;
+  // Its own phone: customers are grouped by it.
+  const local = `9${String(Date.now()).slice(-8)}`;
+  const shownPhone = `(13) ${local.slice(0, 5)}-${local.slice(5)}`;
 
   // The attendant sends it as "pagar depois": the dialog asks the phone.
   await login(page, DEMO_STAFF.attendant);
@@ -22,7 +25,7 @@ test("pagar depois: sent as fiado, handed over unpaid, received later from the m
   await expect(asking.getByLabel("Quem vai pagar")).toHaveValue(customer);
   await asking.getByRole("button", { name: "Enviar para pagar depois" }).click();
   await expect(asking.getByText("Informe o celular com DDD.")).toBeVisible();
-  await asking.getByLabel("Celular com DDD").fill("13988887777");
+  await asking.getByLabel("Celular com DDD").fill(`13${local}`);
   await asking.getByRole("button", { name: "Enviar para pagar depois" }).click();
   const toastText = await page.getByText(/Pedido #\d+ enviado · pagar depois/).textContent();
   const number = toastText!.match(/#(\d+)/)![1];
@@ -41,34 +44,65 @@ test("pagar depois: sent as fiado, handed over unpaid, received later from the m
   // The attendant has no "Pagar depois" list.
   await expect(page.getByRole("tab", { name: /Pagar depois/ })).toHaveCount(0);
 
-  // The manager follows it in "Pagar depois" and receives it another day.
+  // A second one for the same customer, another day (from the API).
+  const api = await playwrightRequest.newContext({ baseURL: API_URL });
+  await apiSignIn(api, E2E_ADMIN);
+  const menu = (await (await api.get("/api/v1/public/menu?preview=1")).json()).data;
+  const drink = menu.categories
+    .flatMap((category: { items: { id: string; name: string }[] }) => category.items)
+    .find((item: { name: string }) => /^Coca-Cola/.test(item.name));
+  const second = await api.post(`/api/v1/stores/${menu.store.id}/orders`, {
+    data: { customer: { name: customer, phone: `13${local}` }, lines: [{ itemId: drink.id, quantity: 2 }], payLater: true },
+  });
+  expect(second.ok()).toBeTruthy();
+  const secondNumber = (await second.json()).data.number as number;
+  await api.dispose();
+
+  // The manager follows them in "Pagar depois", by customer, and receives both at once.
   const managerContext = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const manager = await managerContext.newPage();
   await login(manager);
   await manager.goto(page.url());
   await manager.getByRole("tab", { name: /Pagar depois/ }).click();
-  // The store's table, as cards by default; the summary says who owes what.
-  await expect(manager.getByRole("list", { name: "Quanto cada cliente deve" })).toContainText(customer);
-  const owed = manager.getByRole("article", { name: new RegExp(`^Pedido ${number} de ${customer}: R\\$`) });
-  await expect(owed).toContainText("(13) 98888-7777");
-  await expect(owed.getByRole("link", { name: `WhatsApp de ${customer}` })).toHaveAttribute("href", "https://wa.me/5513988887777");
-  // Searching (on the API, kept in the URL) by another phone hides it; by its own, it is back.
-  const search = async (text: string) => {
-    const field = manager.getByRole("searchbox", { name: "Buscar por cliente, telefone ou número" });
-    await field.fill(text);
-    await field.press("Enter");
-  };
-  await search("00000000");
+  const owed = manager.getByRole("article", { name: new RegExp(`^${customer}: R\\$`) });
+  await expect(owed).toContainText(shownPhone);
+  await expect(owed).toContainText("2 pedidos");
+  const orders = owed.getByRole("list", { name: `Pedidos de ${customer}` });
+  await expect(orders).toContainText(`#${number}`);
+  await expect(orders).toContainText(`#${secondNumber}`);
+  // WhatsApp opens with the charge written: the total and the orders.
+  await expect(owed.getByRole("link", { name: `Cobrar ${customer} no WhatsApp` })).toHaveAttribute(
+    "href",
+    new RegExp(`^https://wa\\.me/55${13}${local}\\?text=.*%23${number}`)
+  );
+  // Searching by another phone hides them; by theirs, they are back.
+  const search = manager.getByRole("searchbox", { name: "Buscar cliente, telefone ou número do pedido" });
+  await search.fill("00000000");
   await expect(owed).toBeHidden();
-  await expect(manager).toHaveURL(/00000000/);
-  await search("98888");
+  await search.fill(local.slice(0, 5));
   await expect(owed).toBeVisible();
-  await owed.getByRole("button", { name: `Receber o pedido #${number}` }).click();
-  const receive = manager.getByRole("dialog");
+
+  // Ticking one changes the button to that one's amount; "Limpar" undoes it.
+  await orders.getByRole("checkbox", { name: new RegExp(`^Pedido #${number},`) }).click();
+  await expect(owed.getByRole("button", { name: /^Receber 1 · R\$/ })).toBeVisible();
+  await owed.getByRole("button", { name: "Limpar" }).click();
+
+  // "Por pedido" is still there: every open order, one by one.
+  await manager.getByRole("button", { name: "Por pedido" }).click();
+  await expect(manager.getByRole("searchbox", { name: "Buscar por cliente, telefone ou número" })).toBeVisible();
+  await manager.getByRole("button", { name: "Por cliente" }).click();
+  await manager.getByRole("searchbox", { name: "Buscar cliente, telefone ou número do pedido" }).fill(local.slice(0, 5));
+
+  // "Receber tudo": one amount, one way of paying, both paid.
+  await owed.getByRole("button", { name: /^Receber tudo · R\$/ }).click();
+  const receive = manager.getByRole("dialog", { name: `Receber 2 pedidos de ${customer}` });
+  await expect(receive).toContainText(`#${number}, #${secondNumber}`);
+  await expect(receive.getByRole("button", { name: /maquininha/i })).toHaveCount(0);
   await receive.getByRole("button", { name: /^Pix/ }).click();
   await receive.getByRole("button", { name: /Receber · Pix/ }).click();
-  await expect(manager.getByText(`Pedido #${number}: pagamento recebido`)).toBeVisible();
+  await expect(manager.getByText(new RegExp(`${customer}: R\\$.* recebidos no Pix \\(2 pedidos\\)`))).toBeVisible();
   await expect(owed).toBeHidden();
+
   await managerContext.close();
 });
 
