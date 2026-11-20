@@ -9,7 +9,9 @@ import type {
   AssistantFoundOrders,
   AssistantItemSales,
   AssistantItemSalesPeriod,
+  AssistantGroupRule,
   AssistantMenuItems,
+  AssistantOptionGroups,
   AssistantOrdersNow,
   AssistantPayLater,
   AssistantSalesSummary,
@@ -24,9 +26,12 @@ import StockMovementType from '#enums/stock_movement_type'
 import StoreRole from '#enums/store_role'
 import StoreStatus from '#enums/store_status'
 import { broadcastMenuChanged } from '#helpers/realtime'
+import Addon from '#models/addon'
 import Category from '#models/category'
 import Ingredient from '#models/ingredient'
 import Item from '#models/item'
+import OptionGroup, { optionPrice } from '#models/option_group'
+import OptionGroupService from '#services/option_group_service'
 import DashboardService from '#services/dashboard_service'
 import InventoryService from '#services/inventory_service'
 import ItemService from '#services/item_service'
@@ -453,7 +458,7 @@ const menuItemsInput = vine.create(
 const menuItems: ToolDefinition = {
   name: 'menu_items',
   description:
-    'Itens do cardápio (até 80): id, nome, categoria, preço, se está à venda e, quando a loja controla estoque, quantas unidades ainda dá para fazer. Use antes de alterar preços ou pausar itens, para ter os ids.',
+    'Itens do cardápio (até 80): id, nome, categoria, preço, se está à venda, os grupos de escolha (ex.: "Escolha o queijo") e os adicionais que oferece e, quando a loja controla estoque, quantas unidades ainda dá para fazer. Use antes de alterar preços, pausar itens ou mexer nos grupos de um item, para ter os ids.',
   inputSchema: object({
     search: { type: 'string', description: 'Opcional: trecho do nome do item.' },
     category: { type: 'string', description: 'Opcional: trecho do nome da categoria.' },
@@ -468,6 +473,8 @@ const menuItems: ToolDefinition = {
       })
       .if(input.search, (query) => query.whereILike('name', `%${likeText(input.search ?? '')}%`))
       .preload('category')
+      .preload('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
+      .preload('addons')
       .orderBy('category_id')
       .orderBy('order')
       .limit(80)
@@ -482,6 +489,8 @@ const menuItems: ToolDefinition = {
         price: item.price,
         isAvailable: item.isAvailable,
         stockLeft: capacity.get(item.id) ?? null,
+        groups: item.optionGroups.map((group) => group.name),
+        addons: item.addons.map((addon) => addon.name),
       })),
     }
   },
@@ -1089,6 +1098,450 @@ const updateItemDetails: ToolDefinition = {
   },
 }
 
+/* ---------------------------------------------- choice groups and add-ons */
+
+/** A group loaded with its options, as the cards show it. */
+function ruleOf(group: OptionGroup): AssistantGroupRule {
+  return {
+    name: group.name,
+    minChoices: group.minChoices,
+    maxChoices: group.maxChoices,
+    options: group.options.map((option) => ({ name: option.name, price: optionPrice(option) })),
+  }
+}
+
+async function groupsInStore(storeId: string, ids: string[]) {
+  if (ids.length === 0) return []
+  const rows = await OptionGroup.query()
+    .where('storeId', storeId)
+    .whereIn('id', ids)
+    .preload('options', (options) => options.orderBy('option_group_addons.order', 'asc'))
+  if (rows.length !== new Set(ids).size) {
+    throw new ToolError('Um dos grupos de escolha não existe nesta loja. Consulte option_groups.')
+  }
+  return rows
+}
+
+async function addonsInStore(storeId: string, ids: string[]) {
+  if (ids.length === 0) return []
+  const rows = await Addon.query().where('storeId', storeId).whereIn('id', ids)
+  if (rows.length !== new Set(ids).size) {
+    throw new ToolError('Um dos adicionais não existe nesta loja. Consulte option_groups.')
+  }
+  return rows
+}
+
+async function itemsInStore(storeId: string, ids: string[]) {
+  const rows = await Item.query()
+    .whereIn('id', ids)
+    .whereHas('category', (category) => category.where('store_id', storeId))
+    .preload('optionGroups', (groups) => groups.orderBy('item_option_groups.order', 'asc'))
+    .preload('addons')
+  if (rows.length !== new Set(ids).size) {
+    throw new ToolError('Um dos itens não existe nesta loja. Consulte menu_items.')
+  }
+  return ids.map((id) => rows.find((row) => row.id === id)!)
+}
+
+/** Who offers a group: how many items, and the first names. */
+async function itemsOfGroup(groupId: string) {
+  const rows = await db
+    .from('item_option_groups')
+    .join('items', 'items.id', 'item_option_groups.item_id')
+    .where('item_option_groups.option_group_id', groupId)
+    .orderBy('items.name')
+    .select('items.name')
+  return { count: rows.length, names: rows.slice(0, 12).map((row) => row.name as string) }
+}
+
+const optionGroupsInput = vine.create(
+  vine.object({ search: vine.string().trim().maxLength(80).optional() })
+)
+
+const optionGroups: ToolDefinition = {
+  name: 'option_groups',
+  description:
+    'Grupos de escolha da loja (ex.: "Escolha o queijo", "Recheio extra", "Opcionais"): regra (mínimo 0 = opcional, mínimo 1+ = obrigatório; máximo), opções com preço e quais itens usam cada um; e todos os adicionais da loja (com ids). Use antes de editar um grupo, criar outro ou mudar os grupos/adicionais de um item. Um grupo é compartilhado: mudar a regra muda em todos os itens que o usam.',
+  inputSchema: object({
+    search: { type: 'string', description: 'Opcional: trecho do nome do grupo.' },
+  }),
+  validate: (input) => optionGroupsInput.validate(input),
+  roles: managers,
+  async run(input: Infer<typeof optionGroupsInput>, ctx): Promise<AssistantOptionGroups> {
+    const groups = await OptionGroup.query()
+      .where('storeId', ctx.store.id)
+      .if(input.search, (query) => query.whereILike('name', `%${likeText(input.search ?? '')}%`))
+      .preload('options', (options) => options.orderBy('option_group_addons.order', 'asc'))
+      .orderBy('name')
+      .limit(40)
+    const result: AssistantOptionGroups['groups'] = []
+    // One after the other (inside a transaction they share one connection).
+    for (const group of groups) {
+      result.push({
+        id: group.id,
+        name: group.name,
+        minChoices: group.minChoices,
+        maxChoices: group.maxChoices,
+        allowRepeat: group.allowRepeat,
+        pickPrices: group.pickPrices,
+        options: group.options.map((option) => ({
+          addonId: option.id,
+          name: option.name,
+          price: optionPrice(option),
+        })),
+        items: await itemsOfGroup(group.id),
+      })
+    }
+    const addons = await Addon.query().where('storeId', ctx.store.id).orderBy('name').limit(150)
+    return {
+      groups: result,
+      addons: addons.map((addon) => ({ id: addon.id, name: addon.name, price: addon.price })),
+    }
+  },
+}
+
+const optionInput = vine.object({
+  addonId: vine.string().uuid(),
+  price: vine.number().min(0).max(99999.99).nullable().optional(),
+})
+
+const updateOptionGroupInput = vine.create(
+  vine.object({
+    groupId: vine.string().uuid(),
+    name: vine.string().trim().minLength(1).maxLength(120).optional(),
+    minChoices: vine.number().withoutDecimals().min(0).max(20).optional(),
+    maxChoices: vine.number().withoutDecimals().min(1).max(20).optional(),
+    addOptions: vine.array(optionInput).maxLength(40).optional(),
+    removeOptions: vine.array(vine.string().uuid()).maxLength(40).optional(),
+  })
+)
+
+/** The group's input for OptionGroupService with the changes applied. */
+function changedGroup(group: OptionGroup, input: Infer<typeof updateOptionGroupInput>) {
+  const removed = new Set(input.removeOptions ?? [])
+  const kept = group.options
+    .filter((option) => !removed.has(option.id))
+    .map((option) => ({
+      addonId: option.id,
+      price:
+        option.$extras.pivot_price === null || option.$extras.pivot_price === undefined
+          ? null
+          : Number(option.$extras.pivot_price),
+    }))
+  const added = (input.addOptions ?? [])
+    .filter((option) => !kept.some((row) => row.addonId === option.addonId))
+    .map((option) => ({ addonId: option.addonId, price: option.price ?? null }))
+  return {
+    name: input.name ?? group.name,
+    minChoices: input.minChoices ?? group.minChoices,
+    maxChoices: input.maxChoices ?? group.maxChoices,
+    allowRepeat: group.allowRepeat,
+    pickPrices: group.pickPrices,
+    replacesInName: group.replacesInName,
+    options: [...kept, ...added],
+  }
+}
+
+const updateOptionGroup: ToolDefinition = {
+  name: 'update_option_group',
+  description:
+    'Edita um grupo de escolha: nome, mínimo (0 = opcional, 1+ = obrigatório), máximo, opções que entram (addOptions: adicionais da loja, com preço no grupo opcional; sem preço = o do adicional) ou saem (removeOptions). Vale para TODOS os itens que usam o grupo: se a pessoa quer mudar só para alguns itens, use create_option_group com copyFrom. Pegue os ids com option_groups. Pede aprovação.',
+  inputSchema: object(
+    {
+      groupId: { type: 'string', format: 'uuid' },
+      name: { type: 'string', description: 'Opcional: novo nome.' },
+      minChoices: { type: 'integer', description: 'Opcional: mínimo de escolhas (0 = opcional).' },
+      maxChoices: { type: 'integer', description: 'Opcional: máximo de escolhas.' },
+      addOptions: {
+        type: 'array',
+        items: object(
+          {
+            addonId: { type: 'string', format: 'uuid' },
+            price: { type: ['number', 'null'], description: 'Opcional: preço neste grupo.' },
+          },
+          ['addonId']
+        ),
+      },
+      removeOptions: { type: 'array', items: { type: 'string', format: 'uuid' } },
+    },
+    ['groupId']
+  ),
+  validate: (input) => updateOptionGroupInput.validate(input),
+  roles: managers,
+  approval: {
+    async preview(input: Infer<typeof updateOptionGroupInput>, ctx, toolCallId) {
+      const [group] = await groupsInStore(ctx.store.id, [input.groupId])
+      await addonsInStore(
+        ctx.store.id,
+        (input.addOptions ?? []).map((option) => option.addonId)
+      )
+      const next = changedGroup(group, input)
+      if (next.minChoices > next.maxChoices)
+        throw new ToolError('O mínimo não pode passar do máximo.')
+      const addons = await addonsInStore(
+        ctx.store.id,
+        next.options.map((option) => option.addonId)
+      )
+      return {
+        preview: {
+          kind: 'option_group',
+          toolCallId,
+          items: await itemsOfGroup(group.id),
+          before: ruleOf(group),
+          after: {
+            name: next.name,
+            minChoices: next.minChoices,
+            maxChoices: next.maxChoices,
+            options: next.options.map((option) => {
+              const addon = addons.find((row) => row.id === option.addonId)!
+              return { name: addon.name, price: option.price ?? addon.price }
+            }),
+          },
+        },
+        state: null,
+      }
+    },
+    async apply(input: Infer<typeof updateOptionGroupInput>, ctx) {
+      const [group] = await groupsInStore(ctx.store.id, [input.groupId])
+      const service = await app.container.make(OptionGroupService)
+      const saved = await service.update(ctx.store.id, group.id, changedGroup(group, input))
+      return {
+        name: saved.name,
+        minChoices: saved.minChoices,
+        maxChoices: saved.maxChoices,
+        options: saved.options.length,
+      }
+    },
+  },
+}
+
+const createOptionGroupInput = vine.create(
+  vine.object({
+    name: vine.string().trim().minLength(1).maxLength(120),
+    minChoices: vine.number().withoutDecimals().min(0).max(20),
+    maxChoices: vine.number().withoutDecimals().min(1).max(20),
+    copyFrom: vine.string().uuid().optional(),
+    options: vine.array(optionInput).maxLength(40).optional(),
+    itemIds: vine.array(vine.string().uuid()).maxLength(80).distinct().optional(),
+    replaceGroupId: vine.string().uuid().optional(),
+  })
+)
+
+/** The new group's input: copied (options, prices, name word) or from scratch. */
+async function newGroup(storeId: string, input: Infer<typeof createOptionGroupInput>) {
+  const [source] = input.copyFrom ? await groupsInStore(storeId, [input.copyFrom]) : []
+  const options =
+    input.options?.map((option) => ({ addonId: option.addonId, price: option.price ?? null })) ??
+    source?.options.map((option) => ({
+      addonId: option.id,
+      price:
+        option.$extras.pivot_price === null || option.$extras.pivot_price === undefined
+          ? null
+          : Number(option.$extras.pivot_price),
+    }))
+  if (!options?.length)
+    throw new ToolError('Diga as opções do grupo (options) ou copie um (copyFrom).')
+  if (input.minChoices > input.maxChoices)
+    throw new ToolError('O mínimo não pode passar do máximo.')
+  return {
+    source,
+    data: {
+      name: input.name,
+      minChoices: input.minChoices,
+      maxChoices: input.maxChoices,
+      allowRepeat: source?.allowRepeat ?? false,
+      pickPrices: source?.pickPrices ?? null,
+      replacesInName: source?.replacesInName ?? null,
+      options,
+    },
+  }
+}
+
+const createOptionGroup: ToolDefinition = {
+  name: 'create_option_group',
+  description:
+    'Cria um grupo de escolha e, opcionalmente, já o coloca em itens. copyFrom copia as opções, os preços e o resto de um grupo existente (ex.: uma versão opcional de "Escolha o queijo" só para os pastéis Premium: copyFrom = o grupo, minChoices 0, itemIds = os Premium, replaceGroupId = o grupo original, que sai desses itens e continua nos outros). Sem copyFrom, informe options (adicionais da loja). Pede aprovação.',
+  inputSchema: object(
+    {
+      name: { type: 'string' },
+      minChoices: { type: 'integer', description: '0 = opcional.' },
+      maxChoices: { type: 'integer' },
+      copyFrom: { type: 'string', format: 'uuid', description: 'Opcional: grupo a copiar.' },
+      options: {
+        type: 'array',
+        description: 'Opcional se copyFrom: as opções (adicionais da loja).',
+        items: object(
+          {
+            addonId: { type: 'string', format: 'uuid' },
+            price: { type: ['number', 'null'], description: 'Opcional: preço neste grupo.' },
+          },
+          ['addonId']
+        ),
+      },
+      itemIds: {
+        type: 'array',
+        items: { type: 'string', format: 'uuid' },
+        description: 'Opcional: itens que passam a oferecer o grupo.',
+      },
+      replaceGroupId: {
+        type: 'string',
+        format: 'uuid',
+        description: 'Opcional: grupo que o novo substitui nesses itens (na mesma posição).',
+      },
+    },
+    ['name', 'minChoices', 'maxChoices']
+  ),
+  validate: (input) => createOptionGroupInput.validate(input),
+  roles: managers,
+  approval: {
+    async preview(input: Infer<typeof createOptionGroupInput>, ctx, toolCallId) {
+      const { source, data } = await newGroup(ctx.store.id, input)
+      const addons = await addonsInStore(
+        ctx.store.id,
+        data.options.map((option) => option.addonId)
+      )
+      const items = input.itemIds?.length ? await itemsInStore(ctx.store.id, input.itemIds) : []
+      const [replaced] = input.replaceGroupId
+        ? await groupsInStore(ctx.store.id, [input.replaceGroupId])
+        : []
+      return {
+        preview: {
+          kind: 'new_option_group',
+          toolCallId,
+          group: {
+            name: data.name,
+            minChoices: data.minChoices,
+            maxChoices: data.maxChoices,
+            options: data.options.map((option) => {
+              const addon = addons.find((row) => row.id === option.addonId)!
+              return { name: addon.name, price: option.price ?? addon.price }
+            }),
+          },
+          copyOf: source?.name ?? null,
+          items: items.map((item) => item.name),
+          replaces: replaced?.name ?? null,
+        },
+        state: null,
+      }
+    },
+    async apply(input: Infer<typeof createOptionGroupInput>, ctx) {
+      const { data } = await newGroup(ctx.store.id, input)
+      const service = await app.container.make(OptionGroupService)
+      const items = input.itemIds?.length ? await itemsInStore(ctx.store.id, input.itemIds) : []
+      const group = await service.create(ctx.store.id, data)
+      const itemService = await app.container.make(ItemService)
+      for (const item of items) {
+        const current = item.optionGroups.map((row) => row.id)
+        const at = input.replaceGroupId ? current.indexOf(input.replaceGroupId) : -1
+        const next = at >= 0 ? current.toSpliced(at, 1, group.id) : [...current, group.id]
+        await itemService.update(ctx.store.id, item.id, { optionGroupIds: [...new Set(next)] })
+      }
+      return { id: group.id, name: group.name, items: items.length }
+    },
+  },
+}
+
+const itemExtrasInput = vine.create(
+  vine.object({
+    itemIds: vine.array(vine.string().uuid()).minLength(1).maxLength(50).distinct(),
+    addGroupIds: vine.array(vine.string().uuid()).maxLength(10).optional(),
+    removeGroupIds: vine.array(vine.string().uuid()).maxLength(10).optional(),
+    addAddonIds: vine.array(vine.string().uuid()).maxLength(30).optional(),
+    removeAddonIds: vine.array(vine.string().uuid()).maxLength(30).optional(),
+  })
+)
+
+/** Each item's groups and add-ons after the change (ids, in order). */
+function extrasAfter(item: Item, input: Infer<typeof itemExtrasInput>) {
+  const dropGroups = new Set(input.removeGroupIds ?? [])
+  const dropAddons = new Set(input.removeAddonIds ?? [])
+  const groups = item.optionGroups.map((row) => row.id).filter((id) => !dropGroups.has(id))
+  const addons = item.addons.map((row) => row.id).filter((id) => !dropAddons.has(id))
+  return {
+    groups: [...new Set([...groups, ...(input.addGroupIds ?? [])])],
+    addons: [...new Set([...addons, ...(input.addAddonIds ?? [])])],
+  }
+}
+
+const updateItemExtras: ToolDefinition = {
+  name: 'update_item_extras',
+  description:
+    'Coloca ou tira grupos de escolha (addGroupIds/removeGroupIds) e adicionais avulsos (addAddonIds/removeAddonIds) de itens do cardápio (ex.: o grupo "Opcionais" com orégano e alho nas tirinhas). Prefira o grupo quando as opções já formam um; adicionais avulsos são os extras com preço próprio fora de grupos. Pegue os ids com menu_items e option_groups. Pede aprovação.',
+  inputSchema: object(
+    {
+      itemIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      addGroupIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      removeGroupIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      addAddonIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+      removeAddonIds: { type: 'array', items: { type: 'string', format: 'uuid' } },
+    },
+    ['itemIds']
+  ),
+  validate: async (input) => {
+    const data = await itemExtrasInput.validate(input)
+    const changes = [data.addGroupIds, data.removeGroupIds, data.addAddonIds, data.removeAddonIds]
+    if (!changes.some((list) => list?.length)) {
+      throw new ToolError('Diga os grupos ou adicionais que entram ou saem.')
+    }
+    return data
+  },
+  roles: managers,
+  approval: {
+    async preview(input: Infer<typeof itemExtrasInput>, ctx, toolCallId) {
+      const items = await itemsInStore(ctx.store.id, input.itemIds)
+      const groups = await groupsInStore(ctx.store.id, [
+        ...new Set([
+          ...(input.addGroupIds ?? []),
+          ...items.flatMap((item) => item.optionGroups.map((row) => row.id)),
+        ]),
+      ])
+      const addons = await addonsInStore(ctx.store.id, [
+        ...new Set([
+          ...(input.addAddonIds ?? []),
+          ...items.flatMap((item) => item.addons.map((row) => row.id)),
+        ]),
+      ])
+      const groupName = (id: string) => groups.find((row) => row.id === id)!.name
+      const addonName = (id: string) => addons.find((row) => row.id === id)!.name
+      return {
+        preview: {
+          kind: 'item_extras',
+          toolCallId,
+          rows: items.map((item) => {
+            const after = extrasAfter(item, input)
+            return {
+              name: item.name,
+              groups: {
+                before: item.optionGroups.map((row) => row.name),
+                after: after.groups.map(groupName),
+              },
+              addons: {
+                before: item.addons.map((row) => row.name),
+                after: after.addons.map(addonName),
+              },
+            }
+          }),
+        },
+        state: null,
+      }
+    },
+    async apply(input: Infer<typeof itemExtrasInput>, ctx) {
+      const items = await itemsInStore(ctx.store.id, input.itemIds)
+      await groupsInStore(ctx.store.id, input.addGroupIds ?? [])
+      await addonsInStore(ctx.store.id, input.addAddonIds ?? [])
+      const service = await app.container.make(ItemService)
+      for (const item of items) {
+        const after = extrasAfter(item, input)
+        await service.update(ctx.store.id, item.id, {
+          optionGroupIds: after.groups,
+          addonIds: after.addons,
+        })
+      }
+      return { items: items.length }
+    },
+  },
+}
+
 /**
  * Every tool, sent to the model in this order on every request (the list is
  * part of the cached prefix: never filter it per person; roles are enforced
@@ -1107,6 +1560,10 @@ export const TOOLS: ToolDefinition[] = [
   orderDetails,
   updateItems,
   updateItemDetails,
+  optionGroups,
+  updateOptionGroup,
+  createOptionGroup,
+  updateItemExtras,
   recordStock,
   createMenuItems,
   setStoreStatus,

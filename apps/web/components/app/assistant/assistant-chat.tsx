@@ -17,9 +17,11 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller";
 import { getApiBaseUrl } from "@/lib/api-base-url";
-import { type AssistantUIMessage, chatErrorText, suggestionsFor } from "@/lib/assistant";
+import { type AssistantUIMessage, chatErrorText, isToolPart, suggestionsFor } from "@/lib/assistant";
+
+type FollowUps = { messageId: string; suggestions: string[] };
 import { baseApi } from "@/redux/api/baseApi";
-import { assistantTagsAfterAnswer, panelTagsAfterWrite } from "@/redux/features/assistant/assistantApi";
+import { assistantTagsAfterAnswer, panelTagsAfterWrite, useSuggestAssistantQuestionsMutation } from "@/redux/features/assistant/assistantApi";
 import { useAppDispatch } from "@/redux/hooks";
 import { AssistantMessage, changedData, UserMessage } from "./assistant-message";
 import { PromptInput, type PromptPhoto, type SessionContext } from "./prompt-input";
@@ -78,9 +80,24 @@ function sessionOf(messages: AssistantUIMessage[], models: AssistantModelChoice[
 }
 
 /** One-tap questions (Suggestion pattern): outline pills that scroll sideways. */
-function Suggestions({ items, onPick, disabled }: { items: string[]; onPick: (text: string) => void; disabled?: boolean }) {
+function Suggestions({
+  items,
+  onPick,
+  disabled,
+  fromAnswer,
+}: {
+  items: string[];
+  onPick: (text: string) => void;
+  disabled?: boolean;
+  /** Written by the assistant for its last answer (marked with a sparkle). */
+  fromAnswer?: boolean;
+}) {
   return (
-    <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="list" aria-label="Sugestões">
+    <div
+      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]"
+      role="list"
+      aria-label={fromAnswer ? "Sugestões para continuar" : "Sugestões"}
+    >
       {items.map((text) => (
         <Button
           key={text}
@@ -91,6 +108,7 @@ function Suggestions({ items, onPick, disabled }: { items: string[]; onPick: (te
           disabled={disabled}
           onClick={() => onPick(text)}
         >
+          {fromAnswer && <Sparkles data-icon="inline-start" className="text-primary" />}
           {text}
         </Button>
       ))}
@@ -139,13 +157,23 @@ export function AssistantChat({
   const [transport] = useState(() => new AssistantTransport(storeId));
   useEffect(() => transport.configure({ effort, page, model }), [transport, effort, page, model]);
 
+  const [suggest] = useSuggestAssistantQuestionsMutation();
+  const [followUps, setFollowUps] = useState<FollowUps | null>(null);
   const { messages, sendMessage, status, stop, error, regenerate, addToolApprovalResponse, clearError } =
     useChat<AssistantUIMessage>({
       id: conversationId,
       messages: initialMessages,
       transport,
       sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-      onFinish: ({ message }) => {
+      onFinish: ({ message, isAbort, isError }) => {
+        // Next questions written for this answer; not while a change waits (the card is the next step).
+        const waiting = message.parts.some((part) => isToolPart(part) && part.state === "approval-requested");
+        if (!isAbort && !isError && !waiting) {
+          void suggest({ storeId, id: conversationId, model })
+            .unwrap()
+            .then((result) => result.messageId && setFollowUps(result as FollowUps))
+            .catch(() => undefined);
+        }
         // A change the assistant made: the panel's screens behind the sheet refetch.
         const wrote = changedData(message);
         dispatch(baseApi.util.invalidateTags([...assistantTagsAfterAnswer(storeId), ...(wrote ? panelTagsAfterWrite(storeId) : [])]));
@@ -157,7 +185,10 @@ export function AssistantChat({
   const lastMetadataUsage = [...messages].reverse().find((message) => message.metadata?.usage)?.metadata?.usage;
   const currentUsage = lastMetadataUsage ?? usage;
   const limitReached = Boolean(currentUsage && currentUsage.used >= currentUsage.limit);
-  const suggestions = suggestionsFor(page, role);
+  const [seed] = useState(() => Math.random());
+  const lastId = messages.at(-1)?.id;
+  const followUp = followUps && followUps.messageId === lastId && followUps.suggestions.length > 0 && !busy;
+  const suggestions = followUp ? followUps.suggestions : suggestionsFor(page, role, seed);
   const errorText = chatErrorText(error);
   const session = sessionOf(messages, models, model);
   const lastMessage = messages.at(-1);
@@ -183,7 +214,7 @@ export function AssistantChat({
               <EmptyTitle>Como posso ajudar?</EmptyTitle>
               <EmptyDescription>
                 {role === "manager"
-                  ? "Eu consulto o sistema por você: vendas, estoque, pedidos, fiado e cardápio. Antes de mudar qualquer coisa, mostro o que vai mudar e espero você aprovar."
+                  ? "Eu consulto o sistema por você: vendas, estoque, pedidos, fiado, cardápio e grupos de escolha. Antes de mudar qualquer coisa, mostro o que vai mudar e espero você aprovar."
                   : "Eu consulto por você os pedidos de agora, o cardápio e se a loja está aberta."}
               </EmptyDescription>
             </EmptyHeader>
@@ -256,7 +287,9 @@ export function AssistantChat({
         {limitReached && !errorText && (
           <p className="text-xs text-muted-foreground">A loja usou todas as mensagens de hoje. Amanhã libera de novo.</p>
         )}
-        {messages.length > 0 && <Suggestions items={suggestions} onPick={(text) => send(text)} disabled={limitReached || busy} />}
+        {messages.length > 0 && (
+          <Suggestions items={suggestions} fromAnswer={Boolean(followUp)} onPick={(text) => send(text)} disabled={limitReached || busy} />
+        )}
         <PromptInput
           busy={busy}
           disabled={limitReached}

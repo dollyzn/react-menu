@@ -66,13 +66,9 @@ const Schema = z
 
 type Values = z.infer<typeof Schema>;
 
-/** Rule of a group in words: "Obrigatório · escolha 1", "Opcional · até 2". */
-export function groupRule(group: Pick<OptionGroup, "minChoices" | "maxChoices"> & { allowRepeat?: boolean }) {
-  const repeat = group.allowRepeat ? " · pode repetir" : "";
-  if (group.minChoices === 0) return `Opcional · até ${group.maxChoices}${repeat}`;
-  if (group.minChoices === group.maxChoices) return `Obrigatório · escolha ${group.minChoices}${repeat}`;
-  return `Obrigatório · de ${group.minChoices} a ${group.maxChoices}${repeat}`;
-}
+import { groupRule } from "@/lib/group-rule";
+
+export { groupRule };
 
 /** One price per pick up to `max`: missing ones repeat the last (or 0). */
 const tiers = (prices: number[], max: number) =>

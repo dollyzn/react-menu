@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   ListPlus,
   type LucideIcon,
+  ListChecks,
   Package,
   PackagePlus,
   Pencil,
@@ -56,6 +57,10 @@ export const TOOL_LABELS: Record<AssistantToolName, { running: string; done: str
   today_overview: { running: "Olhando o dia de hoje", done: "Olhou o dia de hoje", icon: LayoutDashboard },
   order_details: { running: "Abrindo o pedido", done: "Abriu o pedido", icon: ReceiptText },
   update_item_details: { running: "Alterando o item", done: "Alterou o item", icon: Pencil },
+  option_groups: { running: "Lendo os grupos de escolha", done: "Leu os grupos de escolha", icon: ListChecks },
+  update_option_group: { running: "Alterando o grupo", done: "Alterou o grupo", icon: ListChecks },
+  create_option_group: { running: "Criando o grupo", done: "Criou o grupo", icon: ListChecks },
+  update_item_extras: { running: "Mudando os extras dos itens", done: "Mudou os extras dos itens", icon: ListChecks },
   set_store_status: { running: "Mudando o status da loja", done: "Mudou o status da loja", icon: Power },
   set_pickup_time: { running: "Mudando o tempo de retirada", done: "Mudou o tempo de retirada", icon: Timer },
   cancel_order: { running: "Cancelando o pedido", done: "Cancelou o pedido", icon: Ban },
@@ -82,32 +87,87 @@ export function pageOf(pathname: string) {
   return match ? (PAGES[match[1]] ?? null) : null;
 }
 
-/** One-tap questions for the screen the person is on (managers see all; attendants, theirs). */
-export function suggestionsFor(page: string | null, role: StoreRole | null): string[] {
-  const manager = role === "manager";
-  const byPage: Record<string, string[]> = {
-    Relatórios: ["Como foram as vendas desta semana comparadas à anterior?", "Qual o horário de pico de sábado?"],
-    "Visão geral": ["Como está o dia até agora?", "O que mais vendeu hoje?"],
-    Estoque: ["O que pode acabar no sábado?", "Quais insumos estão abaixo do mínimo?"],
-    Itens: ["Quais itens estão pausados?", "Aumenta R$ 1 em todos os pastéis doces"],
-    Pedidos: ["Tem pedido atrasado agora?", "Quem está com fiado em aberto?", "Aumenta o tempo de retirada para 30 minutos"],
-    Loja: ["A loja está aberta?", "Fecha a loja agora"],
-    PDV: ["Tem pedido atrasado agora?", "Quais itens estão pausados?"],
-  };
-  const general = manager
-    ? [
-        "Como está o dia até agora?",
-        "Quanto vendi nos últimos 7 dias?",
-        "O que pode acabar no sábado?",
-        "Quem está com fiado em aberto?",
-        "Tem pedido atrasado agora?",
-        "Quais itens mais venderam no mês?",
-      ]
-    : ["Tem pedido atrasado agora?", "Quais pedidos estão prontos?", "A loja está aberta?", "Quais itens estão pausados?"];
-  const forPage = (page && byPage[page]) || [];
-  // Attendants: only what their tools answer (orders now, the menu, whether it's open).
-  const allowed = manager ? forPage : forPage.filter((text) => general.includes(text) || /atrasado|pausados|aberta\?/i.test(text));
-  return [...new Set([...allowed, ...general])].slice(0, 5);
+/** Questions per screen; managers see these, attendants only theirs (`ATTENDANT`). */
+const BY_PAGE: Record<string, string[]> = {
+  Relatórios: [
+    "Como foram as vendas desta semana comparadas à anterior?",
+    "Qual o horário de pico de sábado?",
+    "Qual item mais cresceu este mês?",
+    "Quanto vendi no último fim de semana?",
+    "Qual dia da semana vende mais?",
+  ],
+  "Visão geral": ["Como está o dia até agora?", "O que mais vendeu hoje?", "Hoje está melhor que a semana passada?"],
+  Estoque: [
+    "O que pode acabar no sábado?",
+    "Quais insumos estão abaixo do mínimo?",
+    "Quanto preciso comprar para o fim de semana?",
+  ],
+  Itens: [
+    "Quais itens estão pausados?",
+    "Aumenta R$ 1 em todos os pastéis doces",
+    "Escreve descrições para os itens sem descrição",
+    "Quais itens venderam menos este mês?",
+  ],
+  Categorias: ["Quais categorias vendem mais?", "Quais itens estão pausados?"],
+  Adicionais: ["Quais adicionais mais vendem?", "Quais itens oferecem bacon?"],
+  "Grupos de escolha": [
+    "Quais grupos de escolha cada pastel usa?",
+    "Deixa o queijo opcional nos pastéis Premium",
+    "Coloca os opcionais (orégano e alho) nas tirinhas",
+  ],
+  Pedidos: [
+    "Tem pedido atrasado agora?",
+    "Quem está com fiado em aberto?",
+    "Aumenta o tempo de retirada para 30 minutos",
+    "Quais pedidos estão prontos?",
+  ],
+  Loja: ["A loja está aberta?", "Fecha a loja agora", "Qual o tempo de retirada agora?"],
+  PDV: ["Tem pedido atrasado agora?", "Quais itens estão pausados?", "A loja está aberta?"],
+};
+
+const MANAGER_GENERAL = [
+  "Como está o dia até agora?",
+  "Quanto vendi nos últimos 7 dias?",
+  "O que pode acabar no sábado?",
+  "Quem está com fiado em aberto?",
+  "Tem pedido atrasado agora?",
+  "Quais itens mais venderam no mês?",
+  "Qual o horário de pico de sábado?",
+  "Quais insumos estão abaixo do mínimo?",
+  "Quais itens estão pausados?",
+  "Quais grupos de escolha cada pastel usa?",
+];
+
+/** Attendants: what their tools answer (orders now, the menu, whether it's open). */
+const ATTENDANT = [
+  "Tem pedido atrasado agora?",
+  "Quais pedidos estão prontos?",
+  "A loja está aberta?",
+  "Quais itens estão pausados?",
+  "Quais sabores de pastel doce temos?",
+  "Qual o preço do pastel de carne?",
+];
+
+/** A stable shuffle (the same seed, the same order: no reshuffle on every render). */
+function shuffled<T>(list: T[], seed: number) {
+  const rows = [...list];
+  let state = Math.floor(seed * 2 ** 31) || 1;
+  for (let index = rows.length - 1; index > 0; index--) {
+    state = (state * 48271) % 2147483647;
+    const other = state % (index + 1);
+    [rows[index], rows[other]] = [rows[other], rows[index]];
+  }
+  return rows;
+}
+
+/**
+ * One-tap questions for the screen the person is on: the screen's first,
+ * then a varied pick of the rest (`seed` fixes the pick for a conversation).
+ */
+export function suggestionsFor(page: string | null, role: StoreRole | null, seed = 0): string[] {
+  if (role !== "manager") return shuffled(ATTENDANT, seed).slice(0, 5);
+  const forPage = shuffled((page && BY_PAGE[page]) || [], seed).slice(0, 3);
+  return [...new Set([...forPage, ...shuffled(MANAGER_GENERAL, seed + 0.5)])].slice(0, 6);
 }
 
 export const PROVIDERS: { value: AssistantProvider; label: string; keyHint: string; keyUrl: string }[] = [

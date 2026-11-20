@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import { broadcastMenuChanged } from '#helpers/realtime'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import AppException from '#exceptions/app_exception'
 import Addon from '#models/addon'
@@ -47,7 +48,7 @@ export default class OptionGroupService {
   }
 
   async create(storeId: string, input: OptionGroupInput) {
-    return await db.transaction(async (trx) => {
+    const saved = await db.transaction(async (trx) => {
       await this.assertValid(storeId, input, trx)
       const group = await OptionGroup.create(
         {
@@ -64,10 +65,12 @@ export default class OptionGroupService {
       await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, group.id, trx)
     })
+    broadcastMenuChanged(storeId)
+    return saved
   }
 
   async update(storeId: string, id: string, input: OptionGroupInput) {
-    return await db.transaction(async (trx) => {
+    const saved = await db.transaction(async (trx) => {
       const group = await this.find(storeId, id, trx)
       await this.assertValid(storeId, input, trx)
       group.merge({
@@ -82,6 +85,9 @@ export default class OptionGroupService {
       await this.syncOptions(group, input.options, trx)
       return await this.find(storeId, id, trx)
     })
+    // Its rule and options change what open menus and the POS offer.
+    broadcastMenuChanged(storeId)
+    return saved
   }
 
   async remove(storeId: string, id: string) {

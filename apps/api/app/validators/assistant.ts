@@ -23,6 +23,11 @@ export const assistantChatValidator = vine.create(
   })
 )
 
+/** `POST …/conversations/:id/suggestions`: the model the chat is using. */
+export const assistantSuggestionsValidator = vine.create(
+  vine.object({ model: vine.string().trim().maxLength(130).optional() })
+)
+
 export const MAX_TEXT = 4000
 export const MAX_IMAGES = 4
 /** Decoded bytes per photo (the panel resizes them first). */

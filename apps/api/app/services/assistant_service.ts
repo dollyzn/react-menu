@@ -5,12 +5,15 @@ import {
   APICallError,
   convertToModelMessages,
   createUIMessageStream,
+  generateText,
+  Output,
   stepCountIs,
   streamText,
   type LanguageModelUsage,
   type UIMessage,
 } from 'ai'
 import { DateTime } from 'luxon'
+import { z } from 'zod'
 import type {
   AssistantConversationDetail,
   AssistantConversationSummary,
@@ -22,6 +25,7 @@ import type {
   AssistantSettings,
   AssistantSettingsInput,
   AssistantStatus,
+  AssistantSuggestions,
   AssistantTokens,
   AssistantUsage as Usage,
 } from '@react-menu/contracts'
@@ -32,7 +36,7 @@ import type Store from '#models/store'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
 import env from '#start/env'
 import AssistantModels from '#assistant/models'
-import { contextBlock, SYSTEM_PROMPT } from '#assistant/prompt'
+import { contextBlock, suggestionsPrompt, SYSTEM_PROMPT } from '#assistant/prompt'
 import { costOf, priceOf } from '#assistant/pricing'
 import { buildTools, toolErrorMessage } from '#assistant/tools'
 import type { ToolContext } from '#assistant/types'
@@ -467,6 +471,83 @@ export default class AssistantService {
    * conversation (409 while another request of it runs), then streams; the
    * conversation is saved at the end and released, whatever happens.
    */
+  /**
+   * Three next questions for the conversation's last answer, from the same
+   * model (a short call of its own). Nothing while a change waits for
+   * approval (the card is the next step). Not a question: outside the daily
+   * limit, but its tokens count in the cost.
+   */
+  async suggestions(
+    ctx: ToolContext,
+    id: string,
+    model: string | undefined
+  ): Promise<AssistantSuggestions> {
+    const conversation = await this.#own(ctx, id)
+    const last = conversation.uiMessages.at(-1)
+    const none = { messageId: last?.id ?? null, suggestions: [] }
+    if (!last || last.role !== 'assistant') return none
+    const waiting = last.parts.some(
+      (part: any) => part.type?.startsWith('tool-') && part.state === 'approval-requested'
+    )
+    if (waiting) return none
+    const resolved = this.models.resolve(ctx.store, model)
+    if (!resolved) return none
+
+    // The last turns as plain text: what was asked, what the tools read, what was said.
+    const transcript = conversation.uiMessages
+      .slice(-6)
+      .map((message) => {
+        const text = message.parts
+          .map((part: any) =>
+            part.type === 'text'
+              ? part.text
+              : part.type?.startsWith('tool-')
+                ? `[ferramenta ${part.type.slice(5)}]`
+                : ''
+          )
+          .filter(Boolean)
+          .join(' ')
+          .slice(0, 1500)
+        return `${message.role === 'user' ? 'Pessoa' : 'Assistente'}: ${text}`
+      })
+      .join('\n\n')
+    try {
+      const result = await generateText({
+        model: resolved.model,
+        system: suggestionsPrompt(ctx.role),
+        prompt: transcript,
+        output: Output.object({
+          schema: z.object({ suggestions: z.array(z.string()).max(3) }),
+        }),
+        reasoning: 'low',
+        maxOutputTokens: 2000,
+        abortSignal: AbortSignal.timeout(20_000),
+      })
+      const total = tokensOf(result.totalUsage)
+      await AssistantUsage.create({
+        storeId: ctx.store.id,
+        userId: ctx.user.id,
+        conversationId: conversation.id,
+        model: resolved.choice.id,
+        question: false,
+        inputTokens: total.input,
+        outputTokens: total.output,
+        reasoningTokens: total.reasoning,
+        cacheReadTokens: total.cachedInput,
+        cacheWriteTokens: result.totalUsage.inputTokenDetails?.cacheWriteTokens ?? 0,
+      })
+      const suggestions = result.output.suggestions
+        .map((text) => text.replace(/^["“\d.\-\s]+|["”]+$/g, '').trim())
+        .filter((text) => text.length > 0 && text.length <= 90)
+        .slice(0, 3)
+      return { messageId: last.id, suggestions }
+    } catch (error) {
+      // Extra, never in the way: the panel keeps its own suggestions.
+      logger.warn({ err: errorSummary(error) }, 'assistant: suggestions failed')
+      return none
+    }
+  }
+
   async chat(ctx: ToolContext, input: ChatInput, signal: AbortSignal) {
     const resolved = this.models.resolve(ctx.store, input.model)
     if (!resolved && input.model && this.models.enabled(ctx.store)) {
