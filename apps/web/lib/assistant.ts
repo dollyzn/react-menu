@@ -170,22 +170,23 @@ export function chatErrorText(error: Error | undefined) {
     : "Algo deu errado. Tente de novo.";
 }
 
-/** What the panel remembers per store on this browser: model, mode and the open conversation. */
+/** What the panel remembers per person and store on this browser: model, mode and the open conversation. */
 export type AssistantPrefs = { model?: string | null; effort?: "fast" | "deep"; conversationId?: string | null };
 
-const prefsKey = (storeId: string) => `assistant:${storeId}`;
+/** `scope` is `<userId>:<storeId>`. */
+const prefsKey = (scope: string) => `assistant:${scope}`;
 
-export function readAssistantPrefs(storeId: string): AssistantPrefs {
+export function readAssistantPrefs(scope: string): AssistantPrefs {
   try {
-    return JSON.parse(window.localStorage.getItem(prefsKey(storeId)) ?? "{}") as AssistantPrefs;
+    return JSON.parse(window.localStorage.getItem(prefsKey(scope)) ?? "{}") as AssistantPrefs;
   } catch {
     return {};
   }
 }
 
-export function writeAssistantPrefs(storeId: string, patch: AssistantPrefs) {
+export function writeAssistantPrefs(scope: string, patch: AssistantPrefs) {
   try {
-    window.localStorage.setItem(prefsKey(storeId), JSON.stringify({ ...readAssistantPrefs(storeId), ...patch }));
+    window.localStorage.setItem(prefsKey(scope), JSON.stringify({ ...readAssistantPrefs(scope), ...patch }));
   } catch {
     // Private mode or full storage: the choice lasts until the page reloads.
   }

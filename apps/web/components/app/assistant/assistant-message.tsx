@@ -4,7 +4,7 @@ import { memo, useState } from "react";
 import { Check, CircleX, Copy, Lightbulb, LoaderCircle, RefreshCw, ShieldQuestion, Sparkles } from "lucide-react";
 import { Streamdown } from "streamdown";
 import type { AssistantApprovalPreview } from "@react-menu/contracts";
-import { Attachment, AttachmentMedia } from "@/components/ui/attachment";
+import { PhotoAttachment } from "./photo-attachment";
 import { Bubble, BubbleContent } from "@/components/ui/bubble";
 import { Button } from "@/components/ui/button";
 import { Message, MessageContent, MessageFooter } from "@/components/ui/message";
@@ -19,7 +19,6 @@ import {
   TraceLine,
   TraceTitle,
 } from "@/components/ui/trace";
-import Image from "@/components/app/image";
 import { useCopied } from "@/hooks/use-copied";
 import {
   type AssistantPart,
@@ -292,13 +291,7 @@ export function UserMessage({ message, waiting }: { message: AssistantUIMessage;
         {photos.length > 0 && (
           <div className="flex flex-wrap justify-end gap-2">
             {photos.map((photo, index) =>
-              photo.type === "file" ? (
-                <Attachment key={index} size="default" className="w-auto">
-                  <AttachmentMedia className="size-20">
-                    <Image src={photo.url} alt={photo.filename ?? "Foto enviada"} width={80} height={80} unoptimized className="size-full object-cover" />
-                  </AttachmentMedia>
-                </Attachment>
-              ) : null
+              photo.type === "file" ? <PhotoAttachment key={index} photo={photo} className="w-52" /> : null
             )}
           </div>
         )}

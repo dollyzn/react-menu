@@ -34,6 +34,8 @@ export const assistantApi = baseApi.injectEndpoints({
       query: ({ storeId, id }) => `stores/${storeId}/assistant/conversations/${id}`,
       // Always the saved version: the chat itself holds the live one.
       keepUnusedDataFor: 0,
+      // The panel says it itself (a lost conversation just starts a new one).
+      extraOptions: { quiet: true },
     }),
     deleteAssistantConversation: build.mutation<void, { storeId: string; id: string }>({
       query: ({ storeId, id }) => ({ url: `stores/${storeId}/assistant/conversations/${id}`, method: "DELETE" }),
