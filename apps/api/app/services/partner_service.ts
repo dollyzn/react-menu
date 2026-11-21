@@ -11,6 +11,7 @@ import AppException from '#exceptions/app_exception'
 import PartnerCatalogMode from '#enums/partner_catalog_mode'
 import PartnerCommissionType from '#enums/partner_commission_type'
 import StoreRole from '#enums/store_role'
+import PartnerMemberRole from '#enums/partner_member_role'
 import { broadcastPartnerEvent } from '#helpers/realtime'
 import StorePartner from '#models/store_partner'
 import type User from '#models/user'
@@ -126,7 +127,8 @@ export default class PartnerService {
           commissionType: partner.commissionType,
           commissionValue: partner.commissionValue,
         },
-        { exceptUserId: actor.id }
+        // The commission is the partner's managers' business only.
+        { exceptUserId: actor.id, partnerRole: PartnerMemberRole.MANAGER }
       )
     }
     return await this.show(storeId, partnerId)
@@ -214,11 +216,20 @@ export default class PartnerService {
    * is a 403.
    */
   async forMember(storeId: string, user: User) {
+    const { partner } = await this.memberOf(storeId, user)
+    return partner
+  }
+
+  /** The partner and the person's role inside it (manager or attendant). */
+  async memberOf(storeId: string, user: User) {
     const membership = await user.storeMembership(storeId)
     if (membership?.role !== StoreRole.PARTNER || !membership.partnerId) {
       throw new AppException('Esta área é só para parceiros.', 403, 'E_PARTNER_AREA')
     }
-    return await this.findInStore(storeId, membership.partnerId)
+    return {
+      partner: await this.findInStore(storeId, membership.partnerId),
+      role: membership.partnerRole ?? PartnerMemberRole.ATTENDANT,
+    }
   }
 
   private async assertNameFree(

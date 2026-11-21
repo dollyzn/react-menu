@@ -16,14 +16,25 @@ import NotificationService from '#services/notification_service'
 import NotificationPreferenceService from '#services/notification_preference_service'
 import PasswordResetService from '#services/password_reset_service'
 import PartnerService from '#services/partner_service'
+import PartnerMemberRole from '#enums/partner_member_role'
 import type { PartnerInput } from '@react-menu/contracts'
 import { ONLINE_WINDOW_MS, forgetLastSeen } from '#helpers/user_activity'
 import { hasActiveStore } from '#helpers/membership'
 
-type Membership = { role: StoreRole; disabled_at: Date | null; partner_id: string | null }
+type Membership = {
+  role: StoreRole
+  disabled_at: Date | null
+  partner_id: string | null
+  partner_role: PartnerMemberRole | null
+}
 
 /** A partner member's partner: an existing one, or one created with the invite (ADR 0024). */
-export type MemberPartnerInput = { partnerId?: string; newPartner?: PartnerInput }
+export type MemberPartnerInput = {
+  partnerId?: string
+  newPartner?: PartnerInput
+  /** Inside the partner: its manager sees the commission (default: attendant). */
+  partnerRole?: PartnerMemberRole
+}
 
 const iso = (value: Date | null) => (value ? DateTime.fromJSDate(value).toISO()! : null)
 
@@ -45,8 +56,9 @@ export type StoreMember = {
   disabledAt: string | null
   /** Platform admin: always has access, can't be switched off here. */
   superUser: boolean
-  /** Role `partner`: the partner they work for. */
+  /** Role `partner`: the partner they work for, and their role inside it. */
   partner: { id: string; name: string } | null
+  partnerRole: PartnerMemberRole | null
 }
 
 const ROLE_ORDER = [StoreRole.MANAGER, StoreRole.ATTENDANT, StoreRole.KITCHEN, StoreRole.PARTNER]
@@ -87,6 +99,7 @@ export default class StoreMemberService {
         'su.role',
         'su.created_at',
         'su.disabled_at',
+        'su.partner_role',
         'p.id as partner_id',
         'p.name as partner_name'
       )
@@ -125,6 +138,7 @@ export default class StoreMemberService {
         disabledAt: iso(row.disabled_at),
         superUser: row.super_user,
         partner: row.partner_id ? { id: row.partner_id, name: row.partner_name } : null,
+        partnerRole: row.partner_role ?? null,
       }))
       .sort(
         (a, b) =>
@@ -173,6 +187,7 @@ export default class StoreMemberService {
         store_id: storeId,
         role: input.role,
         partner_id: partnerId,
+        partner_role: partnerId ? (input.partnerRole ?? PartnerMemberRole.ATTENDANT) : null,
         created_at: new Date(),
         updated_at: new Date(),
       })
@@ -260,8 +275,12 @@ export default class StoreMemberService {
     await db.transaction(async (trx) => {
       const current = await this.requireMembership(trx, storeId, userId)
       const wantsPartner = role === StoreRole.PARTNER
+      const partnerRole = wantsPartner
+        ? (partnerInput.partnerRole ?? current.partner_role ?? PartnerMemberRole.ATTENDANT)
+        : null
       if (
         current.role === role &&
+        partnerRole === current.partner_role &&
         (!wantsPartner || !partnerInput.partnerId || partnerInput.partnerId === current.partner_id)
       ) {
         return
@@ -276,7 +295,7 @@ export default class StoreMemberService {
       await trx
         .from('store_user')
         .where({ store_id: storeId, user_id: userId })
-        .update({ role, partner_id: partnerId, updated_at: new Date() })
+        .update({ role, partner_id: partnerId, partner_role: partnerRole, updated_at: new Date() })
     })
     const members = await this.list(storeId)
     return members.find((member) => member.id === userId)!
@@ -438,7 +457,7 @@ export default class StoreMemberService {
     return (await trx
       .from('store_user')
       .where({ store_id: storeId, user_id: userId })
-      .select('role', 'disabled_at', 'partner_id')
+      .select('role', 'disabled_at', 'partner_id', 'partner_role')
       .forUpdate()
       .first()) as Membership | null
   }

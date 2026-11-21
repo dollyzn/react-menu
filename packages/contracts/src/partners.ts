@@ -12,6 +12,9 @@ import type {
  * Managers: /stores/:id/partners. Partners: /stores/:id/partner/*.
  */
 
+/** A person's role inside a partner: its manager sees the commission; an attendant only sells. */
+export type PartnerMemberRole = 'manager' | 'attendant';
+
 /** percent: of the order's subtotal (10 = 10%); per_unit: R$ for each unit sold. */
 export type PartnerCommissionType = 'percent' | 'per_unit';
 /** Up to when the partner cancels alone (an unpaid order can always be dropped). */
@@ -66,10 +69,13 @@ export type PartnerContext = {
   partner: {
     id: string;
     name: string;
-    commission: PartnerCommissionRule;
+    /** Null for the partner's attendants: only its managers see the commission. */
+    commission: PartnerCommissionRule | null;
     cancelPolicy: PartnerCancelPolicy;
     paused: boolean;
   };
+  /** The signed-in person's role inside the partner. */
+  me: { role: PartnerMemberRole };
   /** The machine lent to the partner (null: none yet, they can't sell). */
   terminal: { terminalId: string; name: string } | null;
   /** How the store's machines charge (the charge dialog). */
@@ -127,7 +133,8 @@ export type PartnerOrder = {
   subtotal: number;
   total: number;
   amountDue: number;
-  commissionAmount: number;
+  /** Null for the partner's attendants (only its managers see the commission). */
+  commissionAmount: number | null;
   notes: string | null;
   readyAt: string | null;
   /** The store handed it to the partner. */

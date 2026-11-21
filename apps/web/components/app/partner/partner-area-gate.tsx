@@ -1,10 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Handshake } from "lucide-react";
+import { Handshake, Lock } from "lucide-react";
 import { StatusScreen } from "@/components/app/status-screen";
 import { buttonVariants } from "@/components/ui/button";
-import { useStoreRole } from "@/hooks/use-store-role";
+import { usePartnerRole, useStoreRole } from "@/hooks/use-store-role";
 import { useHydrated } from "@/hooks/use-hydrated";
 import { homeForRole } from "@/lib/menu-itens";
 
@@ -13,10 +13,34 @@ import { homeForRole } from "@/lib/menu-itens";
  * everyone else anyway. Nothing renders until the session says who it is,
  * so no request goes out on someone else's behalf.
  */
-export function PartnerAreaGate({ storeId, children }: { storeId: string; children: React.ReactNode }) {
+export function PartnerAreaGate({
+  storeId,
+  managersOnly = false,
+  children,
+}: {
+  storeId: string;
+  /** The commission: the partner's managers only (attendants only sell). */
+  managersOnly?: boolean;
+  children: React.ReactNode;
+}) {
   const hydrated = useHydrated();
   const role = useStoreRole(storeId);
+  const partnerRole = usePartnerRole(storeId);
   if (!hydrated || !role) return null;
+  if (role === "partner" && managersOnly && partnerRole !== "manager") {
+    return (
+      <StatusScreen
+        icon={Lock}
+        title="Só para quem gerencia o parceiro"
+        description="A comissão aparece para o gerente do parceiro. Você continua vendendo e acompanhando os pedidos."
+        className="min-h-[calc(100svh-3rem)]"
+      >
+        <Link href={`/app/stores/${storeId}/partner`} className={buttonVariants()}>
+          Ir para Vender
+        </Link>
+      </StatusScreen>
+    );
+  }
   if (role !== "partner") {
     return (
       <StatusScreen

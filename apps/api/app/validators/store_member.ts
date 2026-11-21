@@ -1,5 +1,6 @@
 import vine from '@vinejs/vine'
 import StoreRole from '#enums/store_role'
+import PartnerMemberRole from '#enums/partner_member_role'
 import { partnerFields } from '#validators/partner'
 
 const role = vine.enum(Object.values(StoreRole))
@@ -8,6 +9,7 @@ const role = vine.enum(Object.values(StoreRole))
 const partner = {
   partnerId: vine.string().uuid().optional(),
   newPartner: partnerFields.clone().optional(),
+  partnerRole: vine.enum(Object.values(PartnerMemberRole)).optional(),
 }
 
 const addMemberValidator = vine.create(

@@ -48,7 +48,12 @@ async function partnerStore() {
   return { ...menu, manager, attendant, cook, partner, person }
 }
 
-async function addPartner(store: Store, name: string, rules: Partial<StorePartner> = {}) {
+async function addPartner(
+  store: Store,
+  name: string,
+  rules: Partial<StorePartner> = {},
+  partnerRole: 'manager' | 'attendant' = 'manager'
+) {
   const partner = await StorePartner.create({
     storeId: store.id,
     name,
@@ -60,9 +65,9 @@ async function addPartner(store: Store, name: string, rules: Partial<StorePartne
     ...rules,
   })
   const person = await createUser({ name: `${name} (pessoa)` })
-  await store
-    .related('users')
-    .attach({ [person.id]: { role: StoreRole.PARTNER, partner_id: partner.id } })
+  await store.related('users').attach({
+    [person.id]: { role: StoreRole.PARTNER, partner_id: partner.id, partner_role: partnerRole },
+  })
   return { partner, person }
 }
 
@@ -613,5 +618,66 @@ test.group('Partners (ADR 0024)', (group) => {
     charged.assertStatus(404)
     cancelled.assertStatus(404)
     list.assertBodyContains({ data: [] })
+  })
+
+  test("a partner's attendant sells and follows orders, without the commission", async ({
+    client,
+    assert,
+  }) => {
+    const menu = await partnerStore()
+    const { store, manager, partner } = menu
+    // A second person of the same partner, as its attendant.
+    const attendant = await createUser({ name: 'Vendedor do Açaí' })
+    await store.related('users').attach({
+      [attendant.id]: {
+        role: StoreRole.PARTNER,
+        partner_id: partner.id,
+        partner_role: 'attendant',
+      },
+    })
+    const base = `/api/v1/stores/${store.id}/partner`
+
+    const context = await client.get(`${base}/context`).loginAs(attendant)
+    context.assertBodyContains({
+      data: { partner: { commission: null }, me: { role: 'attendant' } },
+    })
+    const order = await sell(client, menu, attendant)
+    assert.isNull(order.commissionAmount)
+    // The order still carries it: the partner's manager sees it.
+    assert.equal(await stored(order.id, 'commissionAmount'), 3)
+    const list = await client.get(`${base}/orders`).loginAs(attendant)
+    list.assertBodyContains({ data: [{ id: order.id, commissionAmount: null }] })
+    const commissions = await client.get(`${base}/commissions`).loginAs(attendant)
+    commissions.assertStatus(403)
+    commissions.assertBodyContains({ code: 'E_PARTNER_MANAGERS_ONLY' })
+
+    const asManager = await client.get(`${base}/orders`).loginAs(menu.person)
+    asManager.assertBodyContains({ data: [{ id: order.id, commissionAmount: 3 }] })
+    const managerContext = await client.get(`${base}/context`).loginAs(menu.person)
+    managerContext.assertBodyContains({
+      data: { partner: { commission: { type: 'percent', value: 10 } }, me: { role: 'manager' } },
+    })
+
+    // A new commission is told to the partner's managers only.
+    await client
+      .put(`/api/v1/stores/${store.id}/partners/${partner.id}`)
+      .json({ ...partnerInput, commissionValue: 12 })
+      .loginAs(manager)
+    const told = await Notification.query()
+      .where('type', 'partner.commission_changed')
+      .whereIn('userId', [menu.person.id, attendant.id])
+    assert.deepEqual(
+      told.map((notification) => notification.userId),
+      [menu.person.id]
+    )
+
+    // The store's managers change the role inside the partner.
+    const promoted = await client
+      .put(`/api/v1/stores/${store.id}/members/${attendant.id}`)
+      .json({ role: 'partner', partnerRole: 'manager' })
+      .loginAs(manager)
+    promoted.assertBodyContains({ data: { partnerRole: 'manager', partner: { id: partner.id } } })
+    const now = await client.get(`${base}/commissions`).loginAs(attendant)
+    now.assertStatus(200)
   })
 })

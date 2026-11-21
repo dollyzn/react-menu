@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { toast } from "sonner";
 import { UserPlus } from "lucide-react";
-import type { PartnerInput, StoreRole } from "@react-menu/contracts";
+import type { PartnerInput, PartnerMemberRole, StoreRole } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -29,7 +29,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Input } from "@/components/ui/input";
 import { useAddMemberMutation } from "@/redux/features/store/membersApi";
-import { ROLES } from "./roles";
+import { PARTNER_ROLES, ROLES } from "./roles";
 import { PartnerRuleFields, usePartnerForm } from "@/components/app/partner/partner-rule-fields";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useGetPartnersQuery } from "@/redux/features/partner/partnersApi";
@@ -53,6 +53,7 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
   // A partner created with the invite: its own form inside the dialog (checked on "Adicionar").
   const partnerForm = usePartnerForm();
   const [partnerMissing, setPartnerMissing] = useState(false);
+  const [partnerRole, setPartnerRole] = useState<PartnerMemberRole>("attendant");
   const chosenPartner = partnerId ?? (partners.length ? null : NEW_PARTNER);
   const partnerItems = [
     ...partners.map((partner) => ({ value: partner.id, label: partner.name })),
@@ -66,6 +67,7 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
     setInvalid(false);
     setPartnerId(null);
     partnerForm.reset();
+    setPartnerRole("attendant");
     setPartnerMissing(false);
   };
 
@@ -75,7 +77,7 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
       setInvalid(true);
       return;
     }
-    let partner: { partnerId?: string; newPartner?: PartnerInput } = {};
+    let partner: { partnerId?: string; newPartner?: PartnerInput; partnerRole?: PartnerMemberRole } = {};
     if (role === "partner") {
       if (!chosenPartner) {
         setPartnerMissing(true);
@@ -84,9 +86,9 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
       if (chosenPartner === NEW_PARTNER) {
         if (!(await partnerForm.trigger())) return;
         const values = partnerForm.getValues();
-        partner = { newPartner: { ...values, name: values.name.trim() } };
+        partner = { newPartner: { ...values, name: values.name.trim() }, partnerRole };
       } else {
-        partner = { partnerId: chosenPartner };
+        partner = { partnerId: chosenPartner, partnerRole };
       }
     }
     try {
@@ -198,6 +200,25 @@ export function AddMemberDialog({ storeId }: { storeId: string }) {
                     <FieldDescription>A pessoa vê só as vendas e a comissão desse parceiro.</FieldDescription>
                     {partnerMissing && <FieldError>Escolha o parceiro.</FieldError>}
                   </Field>
+                  <RadioGroup
+                    name="member-partner-role"
+                    aria-label="Função no parceiro"
+                    value={partnerRole}
+                    onValueChange={(value) => setPartnerRole(value as PartnerMemberRole)}
+                    className="grid gap-2 sm:grid-cols-2"
+                  >
+                    {(Object.keys(PARTNER_ROLES) as PartnerMemberRole[]).map((value) => (
+                      <FieldLabel key={value} htmlFor={`member-partner-role-${value}`}>
+                        <Field orientation="horizontal">
+                          <FieldContent>
+                            <FieldTitle>{PARTNER_ROLES[value].label}</FieldTitle>
+                            <FieldDescription>{PARTNER_ROLES[value].description}</FieldDescription>
+                          </FieldContent>
+                          <RadioGroupItem value={value} id={`member-partner-role-${value}`} />
+                        </Field>
+                      </FieldLabel>
+                    ))}
+                  </RadioGroup>
                   {chosenPartner === NEW_PARTNER && (
                     <PartnerRuleFields form={partnerForm} disabled={isLoading} idPrefix="invite-partner" />
                   )}

@@ -99,7 +99,8 @@ function PartnerPos({ storeId }: { storeId: string }) {
   const total = Math.round(lines.reduce((sum, line) => sum + lineTotal(line), 0) * 100) / 100;
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
   const rule = context?.partner.commission;
-  const commission = rule ? commissionFor(rule, { subtotal: total, units: count }) : 0;
+  // Null for the partner's attendants: only its managers see the commission.
+  const commission = rule ? commissionFor(rule, { subtotal: total, units: count }) : null;
 
   const terminal = context?.terminal ?? null;
   const paused = Boolean(context?.partner.paused);
@@ -390,7 +391,7 @@ function Ticket({
   lines: TicketLine[];
   total: number;
   count: number;
-  commission: number;
+  commission: number | null;
   customerName: string;
   customerPhone: string;
   nameMissing: boolean;
@@ -484,7 +485,7 @@ function Ticket({
           <span>Total {count > 0 && <span className="font-normal text-muted-foreground">· {count} {count === 1 ? "item" : "itens"}</span>}</span>
           <AnimatedPrice value={total} className="text-xl" />
         </div>
-        {count > 0 && (
+        {count > 0 && commission !== null && (
           <div className="flex items-center justify-between rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
             <span>Sua comissão nesta venda</span>
             <span className="font-semibold tabular-nums">{formatCurrencyBRL(commission)}</span>

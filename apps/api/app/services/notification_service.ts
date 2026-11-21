@@ -12,6 +12,7 @@ import { storeBrand } from '#mails/layout'
 import Store from '#models/store'
 import User from '#models/user'
 import type StoreRole from '#enums/store_role'
+import type PartnerMemberRole from '#enums/partner_member_role'
 import SendPushNotification from '#jobs/send_push_notification'
 import { broadcastUserEvent } from '#helpers/realtime'
 import {
@@ -179,13 +180,14 @@ export default class NotificationService {
     partnerId: string,
     type: Type,
     data: NotificationData<Type>,
-    options: { exceptUserId?: string } = {}
+    options: { exceptUserId?: string; partnerRole?: PartnerMemberRole } = {}
   ) {
     const members = await db
       .from('store_user')
       .where({ store_id: storeId, partner_id: partnerId })
       .whereNull('disabled_at')
       .if(options.exceptUserId, (query) => query.whereNot('user_id', options.exceptUserId!))
+      .if(options.partnerRole, (query) => query.where('partner_role', options.partnerRole!))
       .select('user_id')
 
     return await this.notify(type, data, {

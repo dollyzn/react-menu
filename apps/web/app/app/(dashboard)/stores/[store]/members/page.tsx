@@ -20,7 +20,7 @@ import {
 import { ManagementPageShell } from "../components/management-page-shell";
 import { AddMemberDialog } from "./add-member-dialog";
 import { MemberRow, memberName, type MemberActions } from "./member-row";
-import { ROLES } from "./roles";
+import { PARTNER_ROLES, ROLES } from "./roles";
 import { useLastValue } from "@/hooks/use-last-value";
 
 type Confirm = { kind: "remove" | "disable" | "sessions"; member: StoreMember };
@@ -64,6 +64,15 @@ export default function MembersPage() {
         toast.success(`${memberName(member)} agora é ${ROLES[role].label.toLowerCase()}`);
       } catch {
         // baseApi shows the reason (e.g. the last manager).
+      }
+    },
+    changePartnerRole: async (member, partnerRole) => {
+      if (partnerRole === member.partnerRole) return;
+      try {
+        await updateRole({ storeId, userId: member.id, role: "partner", partnerRole }).unwrap();
+        toast.success(`${memberName(member)} agora é ${PARTNER_ROLES[partnerRole].label.toLowerCase()}`);
+      } catch {
+        // baseApi shows the reason.
       }
     },
     resendInvite: async (member) => {

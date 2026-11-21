@@ -169,3 +169,20 @@ test("partners: managers follow the table, settle a sale and choose the menu", a
     await seller.dispose();
   }
 });
+
+test("partner's attendant: sells without seeing the commission", async ({ page }) => {
+  const menu = (await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json()).data;
+  const storeId = menu.store.id as string;
+  await login(page, DEMO_STAFF.partnerAttendant, { landing: /\/partner$/ });
+
+  await expect(page.getByRole("link", { name: "Meus pedidos" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Comissão" })).toBeHidden();
+  await page.getByRole("searchbox", { name: "Buscar produto" }).fill("coca");
+  await page.getByRole("button", { name: /^Coca-Cola/ }).first().click();
+  await expect(page.getByText(/Sua comissão/)).toBeHidden();
+  await expect(page.getByText(/de cada venda/)).toBeHidden();
+
+  // The commission page says it is the partner's managers'.
+  await page.goto(`/app/stores/${storeId}/partner/commission`);
+  await expect(page.getByText("Só para quem gerencia o parceiro")).toBeVisible();
+});

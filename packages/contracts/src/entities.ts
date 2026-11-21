@@ -1,3 +1,4 @@
+import type { PartnerMemberRole } from './partners.ts';
 import type { AssistantModelChoice, AssistantProvider } from './assistant.ts';
 /**
  * Serialized shapes of the Lucid models (camelCase, dates as ISO strings).
@@ -179,7 +180,7 @@ export type TwoFactorStatus = {
 export type SessionUser = Omit<User, 'role' | 'stores'> & {
   role: Role | null;
   /** Each store the user belongs to, with their role in it. */
-  stores: (Store & { role: StoreRole })[];
+  stores: (Store & { role: StoreRole; partnerRole?: PartnerMemberRole | null })[];
   tokenExpiresAt: string | null;
 };
 
@@ -277,6 +278,7 @@ export type StoreMember = {
   disabledAt: string | null;
   /** Platform admin: always has access, can't be switched off here. */
   superUser: boolean;
-  /** Role `partner`: the partner they work for (ADR 0024). */
+  /** Role `partner`: the partner they work for (ADR 0024), and their role inside it. */
   partner: { id: string; name: string } | null;
+  partnerRole: PartnerMemberRole | null;
 };

@@ -14,7 +14,14 @@ const STAFF = [
 ]
 
 /** A demo partner (ADR 0024) and the person who sells for it. */
-const PARTNER = { name: 'Açaí da Praça', person: 'Maria do Açaí', email: 'parceiro@jjpasteis.dev' }
+const PARTNER = {
+  name: 'Açaí da Praça',
+  /** Its manager (sees the commission) and an attendant (only sells). */
+  people: [
+    { name: 'Maria do Açaí', email: 'parceiro@jjpasteis.dev', partnerRole: 'manager' },
+    { name: 'João do Açaí', email: 'vendedor@jjpasteis.dev', partnerRole: 'attendant' },
+  ],
+}
 
 /** Demo attendant, kitchen and partner accounts linked to the JJ Pastéis store. */
 export default class DemoStaffSeeder extends BaseSeeder {
@@ -44,12 +51,21 @@ export default class DemoStaffSeeder extends BaseSeeder {
         catalogMode: 'all',
       }
     )
-    const person = await User.updateOrCreate(
-      { email: PARTNER.email },
-      { name: PARTNER.person, email: PARTNER.email, password: DEMO_STAFF_PASSWORD }
-    )
-    await store
-      .related('users')
-      .sync({ [person.id]: { role: StoreRole.PARTNER, partner_id: partner.id } }, false)
+    for (const person of PARTNER.people) {
+      const user = await User.updateOrCreate(
+        { email: person.email },
+        { name: person.name, email: person.email, password: DEMO_STAFF_PASSWORD }
+      )
+      await store.related('users').sync(
+        {
+          [user.id]: {
+            role: StoreRole.PARTNER,
+            partner_id: partner.id,
+            partner_role: person.partnerRole,
+          },
+        },
+        false
+      )
+    }
   }
 }

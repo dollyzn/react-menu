@@ -61,6 +61,8 @@ export const DEMO_STAFF = {
   kitchen: { email: "cozinha@jjpasteis.dev", password: "demo12345" },
   /** Sells for the demo partner "Açaí da Praça" (ADR 0024). */
   partner: { email: "parceiro@jjpasteis.dev", password: "demo12345" },
+  /** The same partner's attendant: sells, without the commission. */
+  partnerAttendant: { email: "vendedor@jjpasteis.dev", password: "demo12345" },
 };
 
 /**

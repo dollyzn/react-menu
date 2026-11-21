@@ -20,7 +20,7 @@ const since = (iso: string) =>
 export default function PartnerCommissionPage() {
   const { store: storeId } = useParams<{ store: string }>();
   return (
-    <PartnerAreaGate storeId={storeId}>
+    <PartnerAreaGate storeId={storeId} managersOnly>
       <PartnerCommission storeId={storeId} />
     </PartnerAreaGate>
   );

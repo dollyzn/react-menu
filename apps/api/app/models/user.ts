@@ -11,6 +11,7 @@ import Permission from '#models/permission'
 import type { BelongsTo, HasMany, ManyToMany } from '@adonisjs/lucid/types/relations'
 import type { UserStatusEnum } from '#enums/user_status'
 import StoreRole from '#enums/store_role'
+import type PartnerMemberRole from '#enums/partner_member_role'
 import PushRegistration from '#models/push_registration'
 import UserSocialAccount from '#models/user_social_account'
 import Store from './store.js'
@@ -128,7 +129,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
   /** The stores the user can work in (`stores` minus the switched-off ones). */
   @manyToMany(() => Store, {
     pivotTable: 'store_user',
-    pivotColumns: ['role'],
+    pivotColumns: ['role', 'partner_role'],
     onQuery: (query) => query.whereNullPivot('disabled_at'),
   })
   declare activeStores: ManyToMany<typeof Store>
@@ -168,19 +169,27 @@ export default class User extends compose(BaseModel, AuthFinder) {
    * Role in a store and, for a partner (ADR 0024), the partner they work
    * for. Super users act as managers everywhere.
    */
-  async storeMembership(
-    storeId: string
-  ): Promise<{ role: StoreRole; partnerId: string | null } | null> {
-    if (this.superUser) return { role: StoreRole.MANAGER, partnerId: null }
+  async storeMembership(storeId: string): Promise<{
+    role: StoreRole
+    partnerId: string | null
+    partnerRole: PartnerMemberRole | null
+  } | null> {
+    if (this.superUser) return { role: StoreRole.MANAGER, partnerId: null, partnerRole: null }
 
     const row = await db
       .from('store_user')
       .where({ user_id: this.id, store_id: storeId })
       .whereNull('disabled_at')
-      .select('role', 'partner_id')
+      .select('role', 'partner_id', 'partner_role')
       .first()
 
-    return row ? { role: row.role as StoreRole, partnerId: row.partner_id ?? null } : null
+    return row
+      ? {
+          role: row.role as StoreRole,
+          partnerId: row.partner_id ?? null,
+          partnerRole: (row.partner_role as PartnerMemberRole | null) ?? null,
+        }
+      : null
   }
 
   static accessTokens = DbAccessTokensProvider.forModel(User, { expiresIn: SESSION_TTL })

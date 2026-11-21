@@ -172,9 +172,16 @@ function FinishedToday({ orders }: { orders: PartnerOrder[] }) {
               <span className="min-w-0 flex-1 truncate">
                 <span className="font-black tabular-nums">#{order.number}</span> · {order.customerName}
               </span>
-              <span className={cn("tabular-nums", order.stage === "cancelled" ? "text-muted-foreground line-through" : "text-success")}>
-                {formatCurrencyBRL(order.commissionAmount)}
-              </span>
+              {/* The partner's attendants don't see the commission: the sale's total instead. */}
+              {order.commissionAmount === null ? (
+                <span className={cn("tabular-nums", order.stage === "cancelled" && "text-muted-foreground line-through")}>
+                  {formatCurrencyBRL(order.total)}
+                </span>
+              ) : (
+                <span className={cn("tabular-nums", order.stage === "cancelled" ? "text-muted-foreground line-through" : "text-success")}>
+                  {formatCurrencyBRL(order.commissionAmount)}
+                </span>
+              )}
             </li>
           ))}
         </ul>
@@ -249,10 +256,12 @@ function PartnerOrderCard({
       <footer className="flex flex-wrap items-center justify-between gap-2 border-t pt-3">
         <div className="text-sm">
           <p className="font-semibold tabular-nums">{formatCurrencyBRL(order.total)}</p>
-          <p className={cn("text-xs", order.stage === "cancelled" ? "text-muted-foreground line-through" : "text-success")}>
-            Comissão {formatCurrencyBRL(order.commissionAmount)}
-            {order.settledAt && " · paga"}
-          </p>
+          {order.commissionAmount !== null && (
+            <p className={cn("text-xs", order.stage === "cancelled" ? "text-muted-foreground line-through" : "text-success")}>
+              Comissão {formatCurrencyBRL(order.commissionAmount)}
+              {order.settledAt && " · paga"}
+            </p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-1">
           {order.can.charge && (

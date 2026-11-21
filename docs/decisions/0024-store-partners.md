@@ -26,6 +26,14 @@ pastries that are never collected.
   links them to one partner (a check constraint: role `partner` ⇔
   `partner_id`). They can be invited together with a new partner
   (`newPartner` on `POST /members`). Partners are paused, never deleted.
+- **Roles inside a partner** (`store_user.partner_role`, required for role
+  `partner`): its **manager** sells, follows the orders and sees the
+  commission; an **attendant** sells and follows the orders only. For an
+  attendant the API leaves the commission out of the context and the orders
+  (`null`) and refuses the commission screen (403 `E_PARTNER_MANAGERS_ONLY`);
+  a new commission rule is told to the partner's managers only. Invited as
+  attendants unless chosen otherwise; the store's managers change it from
+  Equipe.
 - **Closed by default.** `storeAccess` refuses role `partner` on every
   `/stores/:storeId/*` route outside the partner area
   (`/stores/:storeId/partner/*`, `isPartnerArea`), and refuses everyone else

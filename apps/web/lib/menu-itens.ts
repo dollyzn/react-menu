@@ -1,4 +1,4 @@
-import type { StoreRole } from "@react-menu/contracts";
+import type { PartnerMemberRole, StoreRole } from "@react-menu/contracts";
 import type { SidebarNavItem } from "@/types/sidebar";
 import {
   Boxes,
@@ -25,7 +25,11 @@ export interface SidebarNavGroup {
  * Sidebar inside `/app/stores/[storeId]`, grouped by what the staff does,
  * filtered by store role. `exact` items are active only on their own URL.
  */
-export function getManageMenuGroups(storeId: string, role: StoreRole | null): SidebarNavGroup[] {
+export function getManageMenuGroups(
+  storeId: string,
+  role: StoreRole | null,
+  partnerRole: PartnerMemberRole | null = null
+): SidebarNavGroup[] {
   const base = `/app/stores/${storeId}`;
   // Partners (ADR 0024) have their own area and nothing of the store's.
   if (role === "partner") {
@@ -36,7 +40,10 @@ export function getManageMenuGroups(storeId: string, role: StoreRole | null): Si
         items: [
           { label: "Vender", url: area, icon: ShoppingCart, order: 0, exact: true },
           { label: "Meus pedidos", url: `${area}/orders`, icon: ClipboardList, order: 1 },
-          { label: "Comissão", url: `${area}/commission`, icon: Wallet, order: 2 },
+          // The commission is the partner's managers' business only.
+          ...(partnerRole === "manager"
+            ? [{ label: "Comissão", url: `${area}/commission`, icon: Wallet, order: 2 }]
+            : []),
         ],
       },
     ];
