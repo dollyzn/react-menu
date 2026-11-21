@@ -16,6 +16,18 @@ test("the assistant answers with cards and asks before changing the menu", async
   const sheet = page.getByRole("dialog", { name: /Assistente/ });
   await expect(sheet.getByText("Como posso ajudar?")).toBeVisible();
 
+  // The next questions come a moment after the answer: held here, to see the wait.
+  let release: () => void = () => undefined;
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let holding = true;
+  await page.route("**/assistant/conversations/*/suggestions", async (route) => {
+    if (holding) {
+      holding = false;
+      await held;
+    }
+    await route.continue();
+  });
+
   // A read: the tool runs and its card shows above the answer.
   const field = sheet.getByLabel("Mensagem para o assistente");
   await field.fill("Quanto vendi na última semana?");
@@ -25,9 +37,20 @@ test("the assistant answers with cards and asks before changing the menu", async
   await expect(sheet.getByText("Consultou as vendas")).toBeVisible();
   await expect(sheet.getByRole("heading", { name: "Vendas" })).toBeVisible();
   await expect(sheet.getByText(/em \d+ pedidos/)).toBeVisible();
+  // While the assistant writes the next questions, the strip says so.
+  await expect(sheet.getByText("Pensando em sugestões…")).toBeVisible();
+  release();
   // Next questions written for this answer, ready to tap.
   const followUps = sheet.getByRole("list", { name: "Sugestões para continuar" });
   await expect(followUps.getByText("E o horário de pico?")).toBeVisible();
+  await expect(sheet.getByText("Pensando em sugestões…")).toBeHidden();
+  // A mouse wheel scrolls the strip sideways when it doesn't fit.
+  const overflowing = await followUps.evaluate((strip) => strip.scrollWidth > strip.clientWidth);
+  if (overflowing) {
+    await followUps.hover();
+    await page.mouse.wheel(0, 240);
+    await expect.poll(() => followUps.evaluate((strip) => strip.scrollLeft)).toBeGreaterThan(0);
+  }
 
   // The choice groups, with who uses each.
   await field.fill("Quais grupos de escolha cada pastel usa?");
