@@ -94,7 +94,7 @@ function PartnerSummary({ partner }: { partner: StorePartner }) {
     {
       icon: SmartphoneNfc,
       label: partner.terminals.length
-        ? `Maquininha ${partner.terminals.map((terminal) => terminal.name).join(", ")}`
+        ? partner.terminals.map((terminal) => terminal.name).join(", ")
         : "Sem maquininha (empreste em Loja › Pagamentos)",
     },
     { icon: Users, label: `${partner.membersCount} ${partner.membersCount === 1 ? "pessoa" : "pessoas"}` },

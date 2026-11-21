@@ -5,6 +5,11 @@ import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
+import OrderChannel from '#enums/order_channel'
+import PaymentMethod from '#enums/payment_method'
+import Order from '#models/order'
+import StorePartner from '#models/store_partner'
+import OrderService from '#services/order_service'
 import AssistantConversation from '#models/assistant_conversation'
 import Ingredient from '#models/ingredient'
 import Addon from '#models/addon'
@@ -1142,5 +1147,124 @@ test.group('Store assistant', (group) => {
     const limited = await client.post(chat).json(ask('Oi')).loginAs(manager)
     limited.assertStatus(429)
     assert.equal(limited.body().code, 'E_ASSISTANT_LIMIT')
+  })
+
+  test('partners: sales, commission marked paid and a cancellation answered, managers only', async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager, attendant, carne, turns } = await setup()
+    store.merge({ status: 'open' })
+    await store.save()
+    const partner = await StorePartner.create({
+      storeId: store.id,
+      name: 'Açaí da Praça',
+      commissionType: 'percent',
+      commissionValue: 10,
+      commissionUpdatedAt: DateTime.now(),
+      cancelPolicy: 'never',
+      catalogMode: 'all',
+    })
+    const seller = await createUser({ name: 'Maria do Açaí' })
+    await store.related('users').attach({
+      [seller.id]: { role: StoreRole.PARTNER, partner_id: partner.id, partner_role: 'manager' },
+    })
+    // Two sales: one handed over (commission to pay), one in the kitchen and asked to be cancelled.
+    const orders = await app.container.make(OrderService)
+    const sell = async () => {
+      const order = await orders.create(
+        store.id,
+        {
+          channel: OrderChannel.PARTNER,
+          paymentMethod: PaymentMethod.COUNTER,
+          customer: { name: 'Ana' },
+          lines: [{ itemId: carne.id, quantity: 2 }],
+          partnerId: partner.id,
+        },
+        seller
+      )
+      await Order.query()
+        .where('id', order.id)
+        .update({ payment_status: 'paid', amount_paid: order.total, status: 'received' })
+      return order
+    }
+    const handed = await sell()
+    await Order.query()
+      .where('id', handed.id)
+      .update({ status: 'completed', completed_at: new Date() })
+    const asked = await sell()
+    const request = await client
+      .post(`/api/v1/stores/${store.id}/partner/orders/${asked.id}/cancel-request`)
+      .json({ reason: 'Cliente desistiu' })
+      .loginAs(seller)
+    request.assertStatus(200)
+
+    turns.push([...say.tool('partners', {}), ...say.tool('cancel_requests', {})])
+    const reads = await streamOf(
+      client
+        .post(`/api/v1/stores/${store.id}/assistant/chat`)
+        .json(ask('Como estão os parceiros?'))
+        .loginAs(manager)
+    )
+    // The two reads run together: told apart by what they answer.
+    const outputs = reads
+      .filter((chunk) => chunk.type === 'tool-output-available')
+      .map((chunk) => chunk.output)
+    const partners = outputs.find((output) => 'partners' in output)
+    const requests = outputs.find((output) => 'requests' in output)
+    assert.deepInclude(partners.partners[0], {
+      name: 'Açaí da Praça',
+      orders: 2,
+      sales: 60,
+      commission: 6,
+      toPay: { orders: 1, amount: 3 },
+    })
+    assert.deepInclude(requests.requests[0], {
+      number: asked.number,
+      partnerName: 'Açaí da Praça',
+      reason: 'Cliente desistiu',
+    })
+
+    turns.push([
+      ...say.tool('settle_partner_commission', { partner: 'açaí', until: today(), note: 'Pix' }),
+      ...say.tool('answer_cancel_request', { number: asked.number, approve: true }),
+    ])
+    const body = ask('Paga a comissão do açaí e aprova o cancelamento')
+    const first = await streamOf(
+      client.post(`/api/v1/stores/${store.id}/assistant/chat`).json(body).loginAs(manager)
+    )
+    const previews = first
+      .filter((chunk) => chunk.type === 'data-approval')
+      .map((chunk) => chunk.data)
+    assert.deepInclude(previews[0], { kind: 'settle_partner', orders: 1, total: 3 })
+    assert.deepInclude(previews[1], {
+      kind: 'cancel_request',
+      approve: true,
+      reason: 'Cliente desistiu',
+    })
+    await streamOf(
+      client
+        .post(`/api/v1/stores/${store.id}/assistant/chat`)
+        .json(answer(body.id, first, true))
+        .loginAs(manager)
+    )
+    assert.isNotNull(await field(Order.findOrFail(handed.id), 'partnerSettlementId'))
+    assert.equal(await field(Order.findOrFail(asked.id), 'status'), 'cancelled')
+
+    // Attendants of the store don't reach partners.
+    turns.push(say.tool('partners', {}))
+    const denied = await streamOf(
+      client
+        .post(`/api/v1/stores/${store.id}/assistant/chat`)
+        .json(ask('E os parceiros?'))
+        .loginAs(attendant)
+    )
+    assert.exists(denied.find((chunk) => chunk.type === 'tool-output-error'))
+    // Partners never reach the assistant.
+    const partnerChat = await client
+      .post(`/api/v1/stores/${store.id}/assistant/chat`)
+      .json(ask('Oi'))
+      .loginAs(seller)
+    partnerChat.assertStatus(403)
   })
 })

@@ -46,7 +46,7 @@ export default class PartnersController {
     }
     const page = await this.commissions.table(storeId, options)
     const facets = wantsFacets(q)
-      ? { status: await this.commissions.table(storeId, options, 'status') }
+      ? { status: await this.commissions.statusCounts(storeId, options) }
       : undefined
     return ok(page.data, { ...page.meta, facets })
   }

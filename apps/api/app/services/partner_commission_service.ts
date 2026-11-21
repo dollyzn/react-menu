@@ -28,6 +28,17 @@ const SETTLEMENT_BUCKET = `case
   when o.status = 'completed' then 'to_pay'
   else 'in_store' end`
 
+type PartnerTableOptions = {
+  page?: number
+  perPage?: number
+  sort: SortSpec
+  filters: {
+    name?: string | string[]
+    status?: string | string[]
+    createdAt?: string | string[]
+  }
+}
+
 type SalesFilters = {
   createdAt?: string | string[]
   settlement?: string | string[]
@@ -126,20 +137,19 @@ export default class PartnerCommissionService {
    * sales and commission and what is still to pay on each row, sortable by
    * them. `createdAt` is a business-day period ("from~to", either side open).
    */
-  async table(
-    storeId: string,
-    options: {
-      page?: number
-      perPage?: number
-      sort: SortSpec
-      filters: {
-        name?: string | string[]
-        status?: string | string[]
-        createdAt?: string | string[]
-      }
-    },
-    except?: 'status'
-  ) {
+  async table(storeId: string, options: PartnerTableOptions) {
+    return (await this.tableQuery(storeId, options)) as {
+      data: PartnerListRow[]
+      meta: Record<string, unknown>
+    }
+  }
+
+  /** How many partners each "Situação" option would show (the table's counts). */
+  async statusCounts(storeId: string, options: PartnerTableOptions) {
+    return (await this.tableQuery(storeId, options, 'status')) as Record<string, number>
+  }
+
+  private async tableQuery(storeId: string, options: PartnerTableOptions, except?: 'status') {
     const { from, to } = period(options.filters.createdAt)
     const statuses = [options.filters.status ?? []].flat()
     const name = [options.filters.name ?? []].flat()[0]?.trim()

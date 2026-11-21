@@ -186,7 +186,8 @@ export default function MembersPage() {
         ))}
       </ul>
 
-      <dl className="grid gap-3 text-sm sm:grid-cols-3">
+      {/* Four roles: 2 × 2 on tablets, one row on desktops (no empty cell). */}
+      <dl className="grid gap-3 text-sm sm:grid-cols-2 xl:grid-cols-4">
         {(Object.keys(ROLES) as StoreRole[]).map((role) => {
           const { label, description, icon: Icon } = ROLES[role];
           return (

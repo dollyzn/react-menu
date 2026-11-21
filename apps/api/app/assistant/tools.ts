@@ -13,6 +13,8 @@ import type {
   AssistantMenuItems,
   AssistantOptionGroups,
   AssistantOrdersNow,
+  AssistantPartners,
+  AssistantCancelRequests,
   AssistantPayLater,
   AssistantSalesSummary,
   AssistantStockForecast,
@@ -28,6 +30,10 @@ import StoreStatus from '#enums/store_status'
 import { broadcastMenuChanged } from '#helpers/realtime'
 import Addon from '#models/addon'
 import Category from '#models/category'
+import StorePartner from '#models/store_partner'
+import CancelRequestService from '#services/cancel_request_service'
+import OrderCancellationService from '#services/order_cancellation_service'
+import PartnerCommissionService from '#services/partner_commission_service'
 import Ingredient from '#models/ingredient'
 import Item from '#models/item'
 import OptionGroup, { optionPrice } from '#models/option_group'
@@ -37,10 +43,8 @@ import InventoryService from '#services/inventory_service'
 import ItemService from '#services/item_service'
 import OrderService, { BUSINESS_TIMEZONE, type HistoryFilters } from '#services/order_service'
 import PaymentService from '#services/payment_service'
-import PointService from '#services/point_service'
 import ReportService from '#services/report_service'
 import StoreService from '#services/store_service'
-import RefundOrder from '#jobs/refund_order'
 import Order from '#models/order'
 import type { ToolContext } from '#assistant/types'
 
@@ -339,9 +343,10 @@ const ordersNow: ToolDefinition = {
         OrderStatus.READY,
       ],
     })
-    // Unpaid online orders aren't on the board; POS orders held for the machine are.
+    // Unpaid online orders aren't on the board; POS and partner orders held
+    // for the machine are.
     const open = today.filter(
-      (order) => order.status !== OrderStatus.PENDING_PAYMENT || order.channel === 'pos'
+      (order) => order.status !== OrderStatus.PENDING_PAYMENT || order.channel !== 'online'
     )
     const eta = ctx.store.pickupEtaMinutes
     const counts: AssistantOrdersNow['counts'] = {}
@@ -365,6 +370,8 @@ const ordersNow: ToolDefinition = {
             ),
           items: itemsLine(order),
           amountDue: money(order.total - order.amountPaid),
+          partnerName: order.partner?.name ?? null,
+          cancelRequested: (order.cancelRequests ?? []).length > 0,
         }
       }),
     }
@@ -932,6 +939,8 @@ async function orderByNumber(ctx: ToolContext, number: number, date?: string) {
     .where('business_date', day)
     .preload('items', (items) => items.preload('addons').orderBy('id'))
     .preload('history', (history) => history.orderBy('id'))
+    .preload('partner')
+    .preload('cancelRequests', (requests) => requests.where('status', 'pending'))
     .first()
   if (!order) throw new ToolError(`Não achei o pedido #${number} de ${day}.`)
   return order
@@ -970,6 +979,8 @@ const orderDetails: ToolDefinition = {
       amountDue: money(order.total - order.amountPaid),
       notes: order.notes,
       createdAt: order.createdAt.toISO()!,
+      partnerName: order.partner?.name ?? null,
+      cancelRequest: order.cancelRequests[0] ? { reason: order.cancelRequests[0].reason } : null,
       lines: order.items.map((line) => ({
         name: line.displayName ?? line.name,
         quantity: line.quantity,
@@ -1022,15 +1033,12 @@ const cancelOrder: ToolDefinition = {
       }
     },
     async apply(_input, ctx, state: { orderId: string }) {
-      const orders = await app.container.make(OrderService)
-      const order = await orders.cancel(ctx.store.id, state.orderId, ctx.user)
       // As the panel's "Cancelar": a charge waiting on the machine leaves it,
-      // and what a gateway took goes back (a job with retries).
-      const point = await app.container.make(PointService)
-      await point.cancelWaiting(order, ctx.store)
+      // what a gateway took goes back, a partner who asked is told.
+      const cancellation = await app.container.make(OrderCancellationService)
+      const order = await cancellation.cancel(ctx.store.id, state.orderId, ctx.user)
       const payments = await app.container.make(PaymentService)
       const refunding = await payments.hasRefundable(order)
-      if (refunding) await RefundOrder.dispatchFor(order)
       return { number: order.number, status: order.status, refunding }
     },
   },
@@ -1633,6 +1641,249 @@ const updateItemExtras: ToolDefinition = {
   },
 }
 
+/* --------------------------------------------------------------- partners */
+
+const ruleLabel = (type: string, value: number) =>
+  type === 'percent'
+    ? `${value.toLocaleString('pt-BR')}% de cada venda`
+    : `R$ ${value.toFixed(2).replace('.', ',')} por unidade vendida`
+
+const partnersInput = vine.create(
+  vine.object({ from: isoDate.clone().optional(), to: isoDate.clone().optional() })
+)
+
+const partnersTool: ToolDefinition = {
+  name: 'partners',
+  description:
+    'Parceiros da loja (quem vende o cardápio fora da loja, numa maquininha emprestada, por comissão): por parceiro, vendas e comissão num período (padrão: últimos 30 dias), a comissão a pagar (de todos os tempos, pedidos já entregues ao parceiro), a regra da comissão, se está pausado, maquininha e pessoas. Use para "quanto o parceiro vendeu", "quanto devo de comissão".',
+  inputSchema: object({
+    from: dateField('Opcional: primeiro dia (AAAA-MM-DD); padrão 30 dias atrás.'),
+    to: dateField('Opcional: último dia, inclusive; padrão hoje.'),
+  }),
+  validate: (input) => partnersInput.validate(input),
+  roles: managers,
+  async run(input: Infer<typeof partnersInput>, ctx): Promise<AssistantPartners> {
+    const today = DateTime.now().setZone(BUSINESS_TIMEZONE)
+    const range = period(
+      input.from ?? today.minus({ days: 29 }).toISODate()!,
+      input.to ?? today.toISODate()!
+    )
+    const commissions = await app.container.make(PartnerCommissionService)
+    const { data } = await commissions.table(ctx.store.id, {
+      page: 1,
+      perPage: 50,
+      sort: [{ column: 'per.sales', direction: 'desc' }],
+      filters: { createdAt: `${range.from}~${range.to}` },
+    })
+    return {
+      period: { from: range.from, to: range.to },
+      partners: data.map((row) => ({
+        id: row.id,
+        name: row.name,
+        paused: Boolean(row.pausedAt),
+        rule: ruleLabel(row.commissionType, row.commissionValue),
+        machines: row.terminals.map((terminal) => terminal.name),
+        people: row.membersCount,
+        orders: row.period.orders,
+        sales: row.period.sales,
+        commission: row.period.commission,
+        toPay: row.toPay,
+      })),
+    }
+  },
+}
+
+const cancelRequestsTool: ToolDefinition = {
+  name: 'cancel_requests',
+  description:
+    'Pedidos de cancelamento que parceiros fizeram e esperam um gerente: o pedido, o cliente, o parceiro e o motivo.',
+  inputSchema: object({}),
+  validate: (input) => noInput.validate(input),
+  roles: managers,
+  async run(_input, ctx): Promise<AssistantCancelRequests> {
+    const service = await app.container.make(CancelRequestService)
+    const pending = await service.listPending(ctx.store.id)
+    const orders = await Order.query()
+      .whereIn(
+        'id',
+        pending.map((request) => request.order.id)
+      )
+      .select('id', 'businessDate')
+    return {
+      requests: pending.map((request) => ({
+        number: request.order.number,
+        date: orders.find((order) => order.id === request.order.id)?.businessDate.toISODate() ?? '',
+        customerName: request.order.customerName,
+        partnerName: request.order.partner?.name ?? null,
+        reason: request.reason,
+        requestedBy: request.requestedBy?.name ?? null,
+        status: request.order.status,
+        total: request.order.total,
+      })),
+    }
+  },
+}
+
+/** A partner by its name (or part of it), in this store. */
+async function partnerByName(ctx: ToolContext, name: string) {
+  const found = await StorePartner.query()
+    .where('storeId', ctx.store.id)
+    .whereILike('name', `%${likeText(name.trim())}%`)
+    .orderBy('name')
+  if (found.length === 0) throw new ToolError(`Não achei um parceiro "${name}".`)
+  const exact = found.find((partner) => partner.name.toLowerCase() === name.trim().toLowerCase())
+  if (!exact && found.length > 1) {
+    throw new ToolError(
+      `Mais de um parceiro parecido: ${found.map((p) => p.name).join(', ')}. Qual?`
+    )
+  }
+  return exact ?? found[0]
+}
+
+const settleInput = vine.create(
+  vine.object({
+    partner: vine.string().trim().minLength(1).maxLength(80),
+    until: isoDate,
+    note: vine.string().trim().maxLength(300).optional(),
+  })
+)
+
+const settlePartnerCommission: ToolDefinition = {
+  name: 'settle_partner_commission',
+  description:
+    'Registra que a comissão de um parceiro foi paga (o pagamento em si é feito fora do sistema, por Pix ou dinheiro): todas as vendas já entregues ao parceiro até um dia, ainda não acertadas. Pede aprovação mostrando quantas vendas e o valor.',
+  inputSchema: object(
+    {
+      partner: { type: 'string', description: 'O nome do parceiro (ou parte dele).' },
+      until: dateField('Até que dia (AAAA-MM-DD), inclusive.'),
+      note: { type: 'string', description: 'Opcional: observação ("Pix de sexta").' },
+    },
+    ['partner', 'until']
+  ),
+  validate: (input) => settleInput.validate(input),
+  roles: managers,
+  approval: {
+    async preview(input: Infer<typeof settleInput>, ctx, toolCallId) {
+      const partner = await partnerByName(ctx, input.partner)
+      const commissions = await app.container.make(PartnerCommissionService)
+      const { rows } = await commissions.sales(ctx.store.id, partner.id, {
+        page: 1,
+        perPage: 500,
+        sort: [],
+        filters: { createdAt: `~${input.until}`, settlement: 'to_pay' },
+      })
+      if (rows.length === 0) {
+        throw new ToolError(`${partner.name} não tem comissão a pagar até ${input.until}.`)
+      }
+      const total = money(rows.reduce((sum, row) => sum + row.commissionAmount, 0))
+      return {
+        preview: {
+          kind: 'settle_partner',
+          toolCallId,
+          partnerName: partner.name,
+          until: input.until,
+          orders: rows.length,
+          total,
+          note: input.note ?? null,
+        },
+        // Exactly the sales the card counted (a sale handed over meanwhile isn't in it).
+        state: { partnerId: partner.id, orderIds: rows.map((row) => row.id), total },
+      }
+    },
+    async apply(
+      input: Infer<typeof settleInput>,
+      ctx,
+      state: { partnerId: string; orderIds: string[]; total: number } | null
+    ) {
+      if (!state) throw new ToolError(CHANGED_SINCE)
+      const commissions = await app.container.make(PartnerCommissionService)
+      try {
+        const settlement = await commissions.settle(
+          ctx.store.id,
+          state.partnerId,
+          { orderIds: state.orderIds, note: input.note ?? null },
+          ctx.user
+        )
+        const partner = await StorePartner.findOrFail(state.partnerId)
+        return {
+          partnerName: partner.name,
+          orders: settlement.ordersCount,
+          total: settlement.total,
+        }
+      } catch (error) {
+        if (error instanceof AppException && error.code === 'E_NOT_SETTLEABLE') {
+          throw new ToolError(CHANGED_SINCE)
+        }
+        throw error
+      }
+    },
+  },
+}
+
+const answerRequestInput = vine.create(
+  vine.object({
+    ...orderRef,
+    approve: vine.boolean(),
+    note: vine.string().trim().maxLength(300).optional(),
+  })
+)
+
+const answerCancelRequest: ToolDefinition = {
+  name: 'answer_cancel_request',
+  description:
+    'Responde o pedido de cancelamento que um parceiro fez para um pedido (pelo número, de hoje ou de outro dia com date): aprovar cancela o pedido (o que foi pago na maquininha é estornado sozinho); recusar mantém o pedido. O parceiro é avisado. Pede aprovação.',
+  inputSchema: object(
+    {
+      number: { type: 'integer', description: 'O número do pedido.' },
+      date: dateField('Opcional: o dia do pedido; padrão hoje.'),
+      approve: {
+        type: 'boolean',
+        description: 'true: cancelar o pedido; false: recusar o pedido de cancelamento.',
+      },
+      note: { type: 'string', description: 'Opcional: um recado ao parceiro.' },
+    },
+    ['number', 'approve']
+  ),
+  validate: (input) => answerRequestInput.validate(input),
+  roles: managers,
+  approval: {
+    async preview(input: Infer<typeof answerRequestInput>, ctx, toolCallId) {
+      const order = await orderByNumber(ctx, input.number, input.date)
+      const request = order.cancelRequests[0]
+      if (!request) {
+        throw new ToolError(`O pedido #${order.number} não tem pedido de cancelamento esperando.`)
+      }
+      return {
+        preview: {
+          kind: 'cancel_request',
+          toolCallId,
+          number: order.number,
+          customerName: order.customerName,
+          partnerName: order.partner?.name ?? null,
+          reason: request.reason,
+          approve: input.approve,
+          amountPaid: order.amountPaid,
+          note: input.note ?? null,
+        },
+        state: { orderId: order.id, requestId: request.id },
+      }
+    },
+    async apply(
+      input: Infer<typeof answerRequestInput>,
+      ctx,
+      state: { orderId: string; requestId: number } | null
+    ) {
+      if (!state) throw new ToolError(CHANGED_SINCE)
+      const service = await app.container.make(CancelRequestService)
+      const note = input.note ?? null
+      if (input.approve)
+        await service.approve(ctx.store.id, state.orderId, state.requestId, ctx.user, note)
+      else await service.reject(ctx.store.id, state.orderId, state.requestId, ctx.user, note)
+      return { number: input.number, approved: input.approve }
+    },
+  },
+}
+
 /**
  * Every tool, sent to the model in this order on every request (the list is
  * part of the cached prefix: never filter it per person; roles are enforced
@@ -1660,6 +1911,10 @@ export const TOOLS: ToolDefinition[] = [
   setStoreStatus,
   setPickupTime,
   cancelOrder,
+  partnersTool,
+  cancelRequestsTool,
+  settlePartnerCommission,
+  answerCancelRequest,
 ]
 
 export const NO_PERMISSION = 'Sem permissão: só os gerentes da loja podem usar isso.'
