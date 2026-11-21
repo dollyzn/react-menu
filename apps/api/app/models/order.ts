@@ -12,6 +12,9 @@ import OrderItem from '#models/order_item'
 import OrderReceipt from '#models/order_receipt'
 import OrderStatusHistory from '#models/order_status_history'
 import Store from '#models/store'
+import StorePartner from '#models/store_partner'
+import PartnerSettlement from '#models/partner_settlement'
+import OrderCancelRequest from '#models/order_cancel_request'
 import User from '#models/user'
 
 export default class Order extends BaseModel {
@@ -72,6 +75,25 @@ export default class Order extends BaseModel {
   @column({ serializeAs: null })
   declare payLaterById: string | null
 
+  /** Sold by a partner (channel `partner`, ADR 0024). */
+  @column()
+  declare partnerId: string | null
+
+  /** The partner's commission, worked out when it was placed (snapshot). */
+  @column(decimal)
+  declare commissionAmount: number | null
+
+  /** The partner handed it to their customer (after the store handed it to them). */
+  @column.dateTime()
+  declare partnerDeliveredAt: DateTime | null
+
+  @column({ serializeAs: null })
+  declare partnerDeliveredById: string | null
+
+  /** The commission was paid in this settlement (null: still to pay). */
+  @column()
+  declare partnerSettlementId: string | null
+
   @column({ serializeAs: null })
   declare mercadoPagoPreferenceId: string | null
 
@@ -129,6 +151,24 @@ export default class Order extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'payLaterById' })
   declare payLaterBy: BelongsTo<typeof User>
+
+  @belongsTo(() => StorePartner, { foreignKey: 'partnerId' })
+  declare partner: BelongsTo<typeof StorePartner>
+
+  @belongsTo(() => PartnerSettlement, { foreignKey: 'partnerSettlementId', serializeAs: null })
+  declare partnerSettlement: BelongsTo<typeof PartnerSettlement>
+
+  /** Loaded with the pending one only (the staff's lists); shown as `cancelRequest`. */
+  @hasMany(() => OrderCancelRequest, { serializeAs: null })
+  declare cancelRequests: HasMany<typeof OrderCancelRequest>
+
+  /** A cancellation waiting for a manager (when `cancelRequests` was loaded). */
+  @computed()
+  get cancelRequest() {
+    if (!this.$preloaded.cancelRequests) return undefined
+    const pending = this.cancelRequests.find((request) => request.status === 'pending')
+    return pending ? pending.present() : null
+  }
 
   @belongsTo(() => Store)
   declare store: BelongsTo<typeof Store>

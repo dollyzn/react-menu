@@ -2,14 +2,11 @@ import { test } from '@japa/runner'
 import testUtils from '@adonisjs/core/services/test_utils'
 import type { ApiClient } from '@japa/api-client'
 import app from '@adonisjs/core/services/app'
-import { createHmac } from 'node:crypto'
-import AppException from '#exceptions/app_exception'
 import StoreRole from '#enums/store_role'
 import Order from '#models/order'
 import Payment from '#models/payment'
 import type Store from '#models/store'
-import MercadoPagoClient, { type MercadoPagoOrder } from '#payments/mercado_pago_client'
-import type { MercadoPagoTerminal, PointOrderInput } from '#payments/point'
+import MercadoPagoClient from '#payments/mercado_pago_client'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import RefundOrder from '#jobs/refund_order'
@@ -20,79 +17,7 @@ import Ingredient from '#models/ingredient'
 import OrderService from '#services/order_service'
 import OrderChannel from '#enums/order_channel'
 import PaymentMethod from '#enums/payment_method'
-
-const TOKEN = 'TEST-1234567890-abcdef' // gitleaks:allow (fake test credential)
-const SECRET = 'webhook-secret-123'
-const BALCAO = 'NEWLAND_N950__N950NCB400655765'
-const RESERVA = 'PAX_Q92__Q92-1734068575'
-
-/** Mercado Pago's Point side: machines, charges on them, their outcomes. */
-class FakePoint extends MercadoPagoClient {
-  terminals: MercadoPagoTerminal[] = [
-    { id: BALCAO, pos_id: 1, store_id: '1', operating_mode: 'STANDALONE' },
-    { id: RESERVA, pos_id: 1, store_id: '1', operating_mode: 'STANDALONE' },
-  ]
-  charges: { input: PointOrderInput; idempotencyKey: string }[] = []
-  orders = new Map<string, MercadoPagoOrder>()
-  refunds: string[] = []
-  private next = 2001
-
-  async listTerminals() {
-    return this.terminals
-  }
-
-  async setTerminalMode(_token: string, terminalId: string, mode: 'PDV' | 'STANDALONE') {
-    this.terminals.find((terminal) => terminal.id === terminalId)!.operating_mode = mode
-  }
-
-  async createPointOrder(_token: string, input: PointOrderInput, idempotencyKey: string) {
-    this.charges.push({ input, idempotencyKey })
-    const id = `ORD${this.next++}`
-    const order: MercadoPagoOrder = {
-      id,
-      status: 'created',
-      status_detail: 'created',
-      external_reference: input.external_reference,
-      transactions: { payments: [{ id: `PAY${id}`, status: 'created' }] },
-    }
-    this.orders.set(id, order)
-    return order
-  }
-
-  /** What the machine reports: paid, refused, or on its screen. */
-  set(id: string, status: string, detail: string) {
-    const order = this.orders.get(id)!
-    order.status = status
-    order.status_detail = detail
-    order.transactions!.payments![0].status = status
-    order.transactions!.payments![0].status_detail = detail
-  }
-
-  async getOrder(_token: string, orderId: string) {
-    return this.orders.get(orderId)!
-  }
-
-  async cancelOrder(_token: string, orderId: string) {
-    const order = this.orders.get(orderId)!
-    if (order.status === 'at_terminal') {
-      throw new AppException('on the machine', 409, 'E_CANCEL_ON_TERMINAL')
-    }
-    this.set(orderId, 'canceled', 'canceled_by_api')
-    return order
-  }
-
-  async refundOrder(_token: string, orderId: string) {
-    this.refunds.push(orderId)
-  }
-}
-
-function signature(dataId: string, requestId: string) {
-  const ts = '1700000000'
-  const v1 = createHmac('sha256', SECRET)
-    .update(`id:${dataId};request-id:${requestId};ts:${ts};`)
-    .digest('hex')
-  return `ts=${ts},v1=${v1}`
-}
+import { BALCAO, FakePoint, SECRET, TOKEN, signature } from '#tests/helpers/fake_point'
 
 /** The order's status as stored now. */
 async function statusOf(orderId: string) {

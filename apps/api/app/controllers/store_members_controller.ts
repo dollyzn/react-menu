@@ -45,9 +45,12 @@ export default class StoreMembersController {
   async update({ params, request }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
     const userId = await uuidValidator.validate(params.userId)
-    const { role } = await request.validateUsing(updateMemberValidator)
+    const { role, ...partner } = await request.validateUsing(updateMemberValidator)
 
-    return updated(await this.members.changeRole(storeId, userId, role), 'Função atualizada')
+    return updated(
+      await this.members.changeRole(storeId, userId, role, partner),
+      'Função atualizada'
+    )
   }
 
   async access({ params, request, auth }: HttpContext) {

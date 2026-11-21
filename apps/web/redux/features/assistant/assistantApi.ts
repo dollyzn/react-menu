@@ -99,6 +99,10 @@ export const panelTagsAfterWrite = (storeId: string) => [
   { type: "Category" as const, id: `store-${storeId}` },
   { type: "Ingredient" as const, id: `store-${storeId}` },
   { type: "Order" as const, id: `store-${storeId}` },
+  // Partners (ADR 0024): a settlement, a cancellation answered.
+  { type: "Partner" as const, id: `sales-${storeId}` },
+  { type: "Partner" as const, id: `requests-${storeId}` },
+  { type: "Kitchen" as const, id: storeId },
 ];
 
 export const {

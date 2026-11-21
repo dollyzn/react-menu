@@ -52,3 +52,17 @@ export type UserEvent = {
   userId: string;
   notification: Notification;
 };
+
+/** A partner's orders (ADR 0024); authorized for the partner's people and the managers. */
+export type PartnerChannel = `stores/${string}/partners/${string}`;
+
+/**
+ * Published on `stores/:storeId/partners/:partnerId` after the commit:
+ * the partner's orders, a cancellation request or the commission changed.
+ */
+export type PartnerEvent = {
+  type: 'partner.orders.changed' | 'partner.commission.changed';
+  storeId: string;
+  partnerId: string;
+  orderId?: string;
+};

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { InstallAppCard } from "@/components/app/pwa/install-app";
 import { useSession } from "@/contexts/session-provider";
-import { useStoreRole } from "@/hooks/use-store-role";
+import { usePartnerRole, useStoreRole } from "@/hooks/use-store-role";
 import { getManageMenuGroups } from "@/lib/menu-itens";
 import { env } from "@/lib/env";
 import { NavMain } from "./nav-main";
@@ -39,7 +39,11 @@ export default function AppSidebar(props: React.ComponentProps<typeof Sidebar>) 
 
   const storeId = store ?? lastStoreId ?? user?.stores[0]?.id ?? "";
   const role = useStoreRole(storeId);
-  const groups = React.useMemo(() => (storeId ? getManageMenuGroups(storeId, role) : []), [storeId, role]);
+  const partnerRole = usePartnerRole(storeId ?? "");
+  const groups = React.useMemo(
+    () => (storeId ? getManageMenuGroups(storeId, role, partnerRole) : []),
+    [storeId, role, partnerRole]
+  );
 
   return (
     <Sidebar collapsible="icon" {...props}>

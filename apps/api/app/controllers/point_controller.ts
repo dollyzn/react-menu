@@ -7,7 +7,11 @@ import type Payment from '#models/payment'
 import type Order from '#models/order'
 import OrderService from '#services/order_service'
 import PointService from '#services/point_service'
+import PartnerService from '#services/partner_service'
+import { isPartnerArea } from '#middleware/store_access_middleware'
 import { storeExistValidator, uuidValidator } from '#validators/common'
+import { partnerTerminalValidator } from '#validators/partner'
+import AppException from '#exceptions/app_exception'
 import {
   pointChargeValidator,
   pointSettingsValidator,
@@ -52,13 +56,15 @@ function charge(
 export default class PointController {
   constructor(
     private point: PointService,
-    private orders: OrderService
+    private orders: OrderService,
+    private partners: PartnerService
   ) {}
 
   /** What the POS needs: the machines on and how they charge (no call to Mercado Pago). */
   async show({ params }: HttpContext) {
     const store = await this.store(params)
-    const terminals = await this.point.enabledTerminals(store)
+    // The store's own machines: the ones lent to partners charge only their orders.
+    const terminals = await this.point.enabledTerminals(store, { partnerId: null })
     return ok(this.config(store, terminals))
   }
 
@@ -80,7 +86,10 @@ export default class PointController {
       }),
     })
     await store.save()
-    return updated(this.config(store, await this.point.enabledTerminals(store)), 'Maquininha salva')
+    return updated(
+      this.config(store, await this.point.enabledTerminals(store, { partnerId: null })),
+      'Maquininha salva'
+    )
   }
 
   async enable({ params, request }: HttpContext) {
@@ -88,7 +97,7 @@ export default class PointController {
     const { terminalId, name } = await request.validateUsing(pointTerminalValidator)
     await this.point.enable(store, terminalId, name)
     return created(
-      this.config(store, await this.point.enabledTerminals(store)),
+      this.config(store, await this.point.enabledTerminals(store, { partnerId: null })),
       'Maquininha ativada. Reinicie a maquininha para ela receber as cobranças.'
     )
   }
@@ -100,9 +109,22 @@ export default class PointController {
     return messageOnly('Maquininha desativada nesta loja')
   }
 
+  /** Lends a machine to a partner (ADR 0024), or gives it back to the store (`partnerId: null`). */
+  async assignPartner({ params, request }: HttpContext) {
+    const store = await this.store(params)
+    const terminalId = await terminalParam.validate(params.terminalId)
+    const { partnerId } = await request.validateUsing(partnerTerminalValidator)
+    const terminal = await this.point.assignTerminal(store, terminalId, partnerId)
+    return updated(
+      { terminalId: terminal.terminalId, name: terminal.name, partnerId: terminal.partnerId },
+      partnerId ? 'Maquininha emprestada ao parceiro' : 'Maquininha de volta à loja'
+    )
+  }
+
   /** "Cobrar na maquininha": sends what the order still owes to a machine. */
-  async charge({ params, request }: HttpContext) {
-    const { store, order } = await this.order(params)
+  async charge(ctx: HttpContext) {
+    const { request } = ctx
+    const { store, order } = await this.order(ctx)
     const input = await request.validateUsing(pointChargeValidator)
     const { payment, resumed } = await this.point.charge(order, store, {
       ...input,
@@ -115,33 +137,39 @@ export default class PointController {
   }
 
   /** Charges waiting on the store's machines (the POS lists them to open again). */
-  async pendingCharges({ params, request }: HttpContext) {
-    const store = await this.store(params)
-    const charges = await this.point.pendingCharges(store, { check: request.qs().check === '1' })
+  async pendingCharges(ctx: HttpContext) {
+    const store = await this.store(ctx.params)
+    const charges = await this.point.pendingCharges(store, {
+      check: ctx.request.qs().check === '1',
+      partnerId: await this.partnerOf(ctx, store),
+    })
     // The machines' names once for the whole list.
     const terminals = await this.point.enabledTerminals(store)
     return ok(charges.map((payment) => this.present(payment, payment.order, terminals)))
   }
 
   /** The POS follows the charge; `?check=1` also asks Mercado Pago. */
-  async showCharge({ params, request }: HttpContext) {
-    const { store, order } = await this.order(params)
+  async showCharge(ctx: HttpContext) {
+    const { params, request } = ctx
+    const { store, order } = await this.order(ctx)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.find(order, paymentId)
     if (request.qs().check === '1') await this.point.check(order, store, payment)
     return ok(await this.view(store, payment, order))
   }
 
-  async cancelCharge({ params }: HttpContext) {
-    const { store, order } = await this.order(params)
+  async cancelCharge(ctx: HttpContext) {
+    const { params } = ctx
+    const { store, order } = await this.order(ctx)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const payment = await this.point.cancel(store, await this.point.find(order, paymentId))
     return updated(await this.view(store, payment, order), 'Cobrança cancelada')
   }
 
   /** Development only: the pretend or virtual machine answers. */
-  async simulate({ params, request }: HttpContext) {
-    const { store, order } = await this.order(params)
+  async simulate(ctx: HttpContext) {
+    const { params, request } = ctx
+    const { store, order } = await this.order(ctx)
     const paymentId = await uuidValidator.validate(params.paymentId)
     const { approve } = await request.validateUsing(pointSimulateValidator)
     const payment = await this.point.simulate(
@@ -191,10 +219,24 @@ export default class PointController {
     return await Store.findOrFail(storeId)
   }
 
-  private async order(params: Record<string, string>) {
-    const store = await this.store(params)
-    const orderId = await uuidValidator.validate(params.orderId)
+  /**
+   * The order of the route. The store's POS charges the store's orders; the
+   * partner area (same actions, ADR 0024) only the partner's own.
+   */
+  private async order(ctx: HttpContext) {
+    const store = await this.store(ctx.params)
+    const orderId = await uuidValidator.validate(ctx.params.orderId)
     const order = await this.orders.find(store.id, orderId)
+    if (order.partnerId !== (await this.partnerOf(ctx, store))) {
+      throw new AppException('Pedido não encontrado', 404)
+    }
     return { store, order }
+  }
+
+  /** In the partner area, the signed-in partner's id; elsewhere null (the store's own). */
+  private async partnerOf(ctx: HttpContext, store: Store) {
+    if (!isPartnerArea(ctx.route?.pattern)) return null
+    const partner = await this.partners.forMember(store.id, ctx.auth.getUserOrFail())
+    return partner.id
   }
 }

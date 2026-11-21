@@ -12,7 +12,9 @@ counter). Customers order from the public menu (`/`, `/[slug]`) identified
 only by name + phone and track the order live (`/pedido/[token]`). Staff
 work by store role: managers run catalog, inventory and settings;
 attendants use the POS and the orders board; cooks use the kitchen
-display, which batches identical pastries from nearby orders.
+display, which batches identical pastries from nearby orders. Partners
+(ADR 0024) sell the menu outside the store on a machine the store lent
+them, for a commission the managers mark paid.
 
 ## Layout
 
@@ -79,9 +81,12 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
    `OrderService` (state machine in `app/orders/order_state.ts`), never by
    updating `status` directly. Kitchen grouping lives in the pure
    `app/kitchen/production_queue.ts` (unit-tested).
-7. **Store roles** (`manager | attendant | kitchen`, pivot `store_user.role`):
+7. **Store roles** (`manager | attendant | kitchen | partner`, pivot `store_user.role`):
    guard routes with `managersOnly` / `frontOfHouse` / `kitchenStaff` from
-   `start/routes/store/shared.ts` after `storeAccess`.
+   `start/routes/store/shared.ts` after `storeAccess`. Partners (ADR 0024)
+   reach only `/stores/:storeId/partner/*` (`storeAccess` refuses them
+   everywhere else and refuses everyone else there); their queries are
+   scoped by the store **and** the partner.
 8. **Payments** go through `PaymentService` and a `PaymentGateway`
    (ADR 0015): Mercado Pago per store (credentials encrypted), or the
    development fake. Orders are paid on their tracking page (Pix QR code,

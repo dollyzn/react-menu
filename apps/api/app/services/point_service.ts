@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import AppException from '#exceptions/app_exception'
@@ -86,13 +87,58 @@ export default class PointService {
         posId: terminal.pos_id ?? null,
         enabled: Boolean(mine),
         name: mine?.name ?? null,
+        /** Lent to this partner (ADR 0024); null: the store's own. */
+        partnerId: mine?.partnerId ?? null,
       }
     })
   }
 
-  /** Machines the POS can charge on (no call to Mercado Pago). */
-  async enabledTerminals(store: Store) {
-    return await PointTerminal.query().where('storeId', store.id).orderBy('name')
+  /**
+   * Machines on in this store (no call to Mercado Pago). `owner`: only the
+   * store's own (`partnerId: null`, the POS) or one partner's (ADR 0024).
+   */
+  async enabledTerminals(store: Store, owner?: { partnerId: string | null }) {
+    return await PointTerminal.query()
+      .where('storeId', store.id)
+      .if(owner, (query) =>
+        owner!.partnerId ? query.where('partnerId', owner!.partnerId) : query.whereNull('partnerId')
+      )
+      .orderBy('name')
+  }
+
+  /** Lends a machine to a partner (only they charge on it) or gives it back to the store. */
+  async assignTerminal(store: Store, terminalId: string, partnerId: string | null) {
+    const terminal = await PointTerminal.query().where({ storeId: store.id, terminalId }).first()
+    if (!terminal) {
+      throw new AppException('Ative a maquininha nesta loja antes de emprestá-la.', 404)
+    }
+    if (partnerId) {
+      const partner = await db
+        .from('store_partners')
+        .where({ id: partnerId, store_id: store.id })
+        .first()
+      if (!partner) throw new AppException('Parceiro não encontrado nesta loja.', 404)
+    }
+    // A charge waiting on it belongs to its current owner: finish it first.
+    const waiting = await Payment.query()
+      .where({
+        storeId: store.id,
+        method: PaymentMethod.POINT,
+        status: PaymentAttemptStatus.PENDING,
+        pointTerminalId: terminalId,
+      })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .first()
+    if (waiting && terminal.partnerId !== partnerId) {
+      throw new AppException(
+        `A maquininha ${terminal.name} está com uma cobrança em aberto. Termine ou cancele antes.`,
+        409,
+        'E_TERMINAL_BUSY'
+      )
+    }
+    terminal.partnerId = partnerId
+    await terminal.save()
+    return terminal
   }
 
   /**
@@ -168,7 +214,9 @@ export default class PointService {
       )
     }
 
-    const terminals = await this.enabledTerminals(store)
+    // The order says which machines: a partner's order on the partner's
+    // machines, the store's orders on the store's own (ADR 0024).
+    const terminals = await this.enabledTerminals(store, { partnerId: order.partnerId })
     const terminal = input.terminalId
       ? terminals.find((candidate) => candidate.terminalId === input.terminalId)
       : terminals.length === 1
@@ -177,8 +225,12 @@ export default class PointService {
     if (!terminal) {
       throw new AppException(
         terminals.length === 0
-          ? 'Nenhuma maquininha ativa nesta loja. Ative uma em Configurações > Pagamentos.'
-          : 'Escolha a maquininha.',
+          ? order.partnerId
+            ? 'Nenhuma maquininha emprestada a este parceiro. Peça para a loja liberar uma.'
+            : 'Nenhuma maquininha ativa nesta loja. Ative uma em Configurações > Pagamentos.'
+          : input.terminalId
+            ? 'Esta maquininha não cobra este pedido.'
+            : 'Escolha a maquininha.',
         422,
         'E_NO_TERMINAL'
       )
@@ -291,7 +343,10 @@ export default class PointService {
    * them so a closed dialog can be opened again). `check` asks Mercado Pago
    * about each one first.
    */
-  async pendingCharges(store: Store, { check = false } = {}) {
+  async pendingCharges(
+    store: Store,
+    { check = false, partnerId = null }: { check?: boolean; partnerId?: string | null } = {}
+  ) {
     const charges = await Payment.query()
       .where({
         storeId: store.id,
@@ -299,6 +354,10 @@ export default class PointService {
         status: PaymentAttemptStatus.PENDING,
       })
       .where('expiresAt', '>', DateTime.now().toSQL()!)
+      // The store's POS sees its own orders' charges; a partner, theirs (ADR 0024).
+      .whereHas('order', (orders) =>
+        partnerId ? orders.where('partner_id', partnerId) : orders.whereNull('partner_id')
+      )
       .preload('order')
       .orderBy('createdAt', 'asc')
     if (!check) return charges

@@ -1,3 +1,4 @@
+import type { OrderCancelRequest } from './partners.ts';
 import type { OpeningInterval } from './entities.ts';
 export type OrderStatus =
   | 'pending_payment'
@@ -6,7 +7,8 @@ export type OrderStatus =
   | 'ready'
   | 'completed'
   | 'cancelled';
-export type OrderChannel = 'online' | 'pos';
+/** `partner`: sold by a partner on their card machine (ADR 0024). */
+export type OrderChannel = 'online' | 'pos' | 'partner';
 /** `mercado_pago` is legacy (Checkout Pro redirect); new orders use pix/card/counter. */
 export type PaymentMethod = 'pix' | 'card' | 'point' | 'counter' | 'mercado_pago';
 /**
@@ -95,6 +97,18 @@ export type Order = {
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Channel `partner` (ADR 0024): who sold it. */
+  partnerId: string | null;
+  /** The partner's commission, fixed when it was placed. */
+  commissionAmount: number | null;
+  /** The partner handed it to their customer (after the store handed it to them). */
+  partnerDeliveredAt: string | null;
+  /** Commission paid in this settlement (null: still to pay). */
+  partnerSettlementId: string | null;
+  /** On the staff's lists and details: the partner's name. */
+  partner?: { id: string; name: string } | null;
+  /** On the staff's lists and details: a cancellation waiting for a manager. */
+  cancelRequest?: OrderCancelRequest | null;
   items: OrderItem[];
   /** Only on GET /orders/:id: status changes and who made them. */
   history?: OrderHistoryEntry[];
@@ -385,7 +399,16 @@ export type ProductionBatch = {
   addonGroups: { group: string | null; items: string[] }[];
   notes: string | null;
   quantity: number;
-  units: { orderId: string; orderNumber: number; lineId: number; quantity: number }[];
+  units: {
+    orderId: string;
+    orderNumber: number;
+    lineId: number;
+    quantity: number;
+    /** Sold by a partner (ADR 0024): their name on the ticket. */
+    partnerName: string | null;
+    /** Someone asked a manager to cancel the order: hold it. */
+    cancelRequested: boolean;
+  }[];
   /** Total ingredients for the whole batch. */
   ingredients: { name: string; unit: IngredientUnit; icon: string | null; quantity: number }[];
 };
@@ -521,6 +544,8 @@ export interface PointTerminalListing {
   posId: number | null;
   enabled: boolean;
   name: string | null;
+  /** Lent to this partner (ADR 0024); null: the store's own. */
+  partnerId: string | null;
 }
 
 export interface PointSettingsInput {

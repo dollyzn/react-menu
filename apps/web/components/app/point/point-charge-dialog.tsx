@@ -31,10 +31,11 @@ import {
   useCancelPointChargeMutation,
   useChargeOnPointMutation,
   useGetPendingPointChargesQuery,
-  useGetPointConfigQuery,
   useLazyGetPointChargeQuery,
   useSimulatePointChargeMutation,
+  type PointArea,
 } from "@/redux/features/point/pointApi";
+import { usePointConfig } from "@/components/app/point/use-point-config";
 import { formatCurrencyBRL } from "@/utils/string";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { cn } from "@/lib/utils";
@@ -87,6 +88,8 @@ type Prepare = { total: number; create: () => Promise<ChargeOrder> };
 
 interface PointChargeDialogProps {
   storeId: string;
+  /** The partner area (ADR 0024): the partner's orders, on the machine lent to them. */
+  area?: PointArea;
   /** The order to charge (null and no `prepare`: closed). */
   order: ChargeOrder | null;
   /** The POS ticket: nothing is created until the charge is sent. */
@@ -105,6 +108,7 @@ interface PointChargeDialogProps {
  */
 export function PointChargeDialog({
   storeId,
+  area = "store",
   order: current,
   prepare: currentPrepare,
   resume,
@@ -135,6 +139,7 @@ export function PointChargeDialog({
         <ChargeFlow
           key={order?.id ?? "new"}
           storeId={storeId}
+          area={area}
           given={order ?? null}
           prepare={order ? null : prepare}
           resume={order && resumed?.order.id === order.id ? resumed : null}
@@ -149,6 +154,7 @@ export function PointChargeDialog({
 
 function ChargeFlow({
   storeId,
+  area,
   given,
   prepare,
   resume,
@@ -157,6 +163,7 @@ function ChargeFlow({
   onPaid,
 }: {
   storeId: string;
+  area: PointArea;
   onCreated: (order: ChargeOrder) => void;
   given: ChargeOrder | null;
   prepare: Prepare | null;
@@ -170,7 +177,7 @@ function ChargeFlow({
   const order = given ?? created;
   const total = order?.total ?? prepare?.total ?? 0;
   const [creating, setCreating] = useState(false);
-  const { data: config } = useGetPointConfigQuery(storeId);
+  const config = usePointConfig(storeId, area);
   const [send, { isLoading: sending }] = useChargeOnPointMutation();
   const [follow] = useLazyGetPointChargeQuery();
   const [cancel, { isLoading: cancelling }] = useCancelPointChargeMutation();
@@ -210,7 +217,7 @@ function ChargeFlow({
   const [busy, setBusy] = useState<{ orderId: string; orderNumber: number; paymentId: string } | null>(null);
 
   // Opened on an order whose charge is already on the machine: follow that one.
-  const { data: waiting } = useGetPendingPointChargesQuery({ storeId });
+  const { data: waiting } = useGetPendingPointChargesQuery({ storeId, area });
   const waitingHere = (order && waiting?.find((candidate) => candidate.order.id === order.id)) ?? null;
   const charge = own ?? waitingHere;
 
@@ -223,17 +230,19 @@ function ChargeFlow({
       polls.current += 1;
       const result = await follow({
         storeId,
+        area,
         orderId,
         paymentId: charge.id,
         check: polls.current % CHECK_EVERY === 0,
       });
       if (result.data && result.data.status !== "pending") {
         setCharge(result.data);
-        dispatch(baseApi.util.invalidateTags([{ type: "PointConfig", id: `charges-${storeId}` }]));
+        const scope = area === "partner" ? "partner-" : "";
+        dispatch(baseApi.util.invalidateTags([{ type: "PointConfig", id: `charges-${scope}${storeId}` }]));
       }
     }, POLL_MS);
     return () => clearInterval(timer);
-  }, [charge?.id, charge?.order.id, charge?.status, dispatch, follow, storeId]);
+  }, [area, charge?.id, charge?.order.id, charge?.status, dispatch, follow, storeId]);
 
   // Paid: the board and the order show it at once.
   const settled = charge?.status;
@@ -244,6 +253,8 @@ function ChargeFlow({
       baseApi.util.invalidateTags([
         { type: "Order", id: `store-${storeId}` },
         { type: "Order", id: settledOrder },
+        { type: "Partner", id: `orders-${storeId}` },
+        { type: "Partner", id: `commission-${storeId}` },
       ])
     );
     onPaid?.();
@@ -278,6 +289,7 @@ function ChargeFlow({
     try {
       const sent = await send({
         storeId,
+        area,
         orderId: target.id,
         input,
         idempotencyKey: stableIdempotencyKey(scope, input),
@@ -296,7 +308,7 @@ function ChargeFlow({
   const freeMachine = async () => {
     if (!busy) return;
     try {
-      await cancel({ storeId, orderId: busy.orderId, paymentId: busy.paymentId }).unwrap();
+      await cancel({ storeId, area, orderId: busy.orderId, paymentId: busy.paymentId }).unwrap();
       setBusy(null);
       setError(null);
     } catch (err) {
@@ -316,7 +328,7 @@ function ChargeFlow({
     if (!charge) return;
     setError(null);
     try {
-      setCharge(await cancel({ storeId, orderId: charge.order.id, paymentId: charge.id }).unwrap());
+      setCharge(await cancel({ storeId, area, orderId: charge.order.id, paymentId: charge.id }).unwrap());
     } catch (err) {
       if ((err as { data?: { code?: string } }).data?.code === "E_CANCEL_ON_TERMINAL") {
         markOnTerminal(charge.id);
@@ -329,7 +341,7 @@ function ChargeFlow({
 
   const answer = async (approve: boolean) => {
     if (!charge) return;
-    setCharge(await simulate({ storeId, orderId: charge.order.id, paymentId: charge.id, approve }).unwrap());
+    setCharge(await simulate({ storeId, area, orderId: charge.order.id, paymentId: charge.id, approve }).unwrap());
   };
 
   const step = !charge ? "choose" : charge.status;

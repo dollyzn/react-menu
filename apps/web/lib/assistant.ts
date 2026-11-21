@@ -17,8 +17,7 @@ import {
   ReceiptText,
   Store,
   Timer,
-  TrendingUp,
-} from "lucide-react";
+  TrendingUp, Handshake } from "lucide-react";
 import type {
   AssistantApprovalPreview,
   AssistantMessageMetadata,
@@ -64,6 +63,10 @@ export const TOOL_LABELS: Record<AssistantToolName, { running: string; done: str
   set_store_status: { running: "Mudando o status da loja", done: "Mudou o status da loja", icon: Power },
   set_pickup_time: { running: "Mudando o tempo de retirada", done: "Mudou o tempo de retirada", icon: Timer },
   cancel_order: { running: "Cancelando o pedido", done: "Cancelou o pedido", icon: Ban },
+  partners: { running: "Consultando os parceiros", done: "Consultou os parceiros", icon: Handshake },
+  cancel_requests: { running: "Vendo os pedidos de cancelamento", done: "Viu os pedidos de cancelamento", icon: Ban },
+  settle_partner_commission: { running: "Registrando a comissão paga", done: "Registrou a comissão paga", icon: HandCoins },
+  answer_cancel_request: { running: "Respondendo o cancelamento", done: "Respondeu o cancelamento", icon: Ban },
 };
 
 /** The panel screen of a path (`/app/stores/:id/reports` → "Relatórios"), for the assistant's context. */
@@ -80,6 +83,7 @@ const PAGES: Record<string, string> = {
   inventory: "Estoque",
   reports: "Relatórios",
   members: "Equipe",
+  partners: "Parceiros",
 };
 
 export function pageOf(pathname: string) {
@@ -122,6 +126,12 @@ const BY_PAGE: Record<string, string[]> = {
     "Quais pedidos estão prontos?",
   ],
   Loja: ["A loja está aberta?", "Fecha a loja agora", "Qual o tempo de retirada agora?"],
+  Parceiros: [
+    "Quanto cada parceiro vendeu este mês?",
+    "Quanto devo de comissão aos parceiros?",
+    "Tem cancelamento de parceiro esperando?",
+    "Marca como paga a comissão do Açaí até ontem",
+  ],
   PDV: ["Tem pedido atrasado agora?", "Quais itens estão pausados?", "A loja está aberta?"],
 };
 
@@ -136,6 +146,7 @@ const MANAGER_GENERAL = [
   "Quais insumos estão abaixo do mínimo?",
   "Quais itens estão pausados?",
   "Quais grupos de escolha cada pastel usa?",
+  "Quanto devo de comissão aos parceiros?",
 ];
 
 /** Attendants: what their tools answer (orders now, the menu, whether it's open). */

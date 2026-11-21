@@ -15,6 +15,7 @@ import { useAppSelector } from "@/redux/hooks";
 import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { homeForRole } from "@/lib/menu-itens";
+import { useGetPartnerQuery } from "@/redux/features/partner/partnersApi";
 
 /** Labels of the store sections (URL segment after /app/stores/[id]). */
 const SECTIONS: Record<string, string> = {
@@ -29,7 +30,12 @@ const SECTIONS: Record<string, string> = {
   reports: "Relatórios",
   overview: "Visão geral",
   members: "Equipe",
+  partners: "Parceiros",
+  partner: "Vender",
 };
+
+/** The partner area's own pages (ADR 0024). */
+const PARTNER_PAGES: Record<string, string> = { orders: "Meus pedidos", commission: "Comissão" };
 
 type Crumb = { label: string; href?: string };
 
@@ -45,6 +51,11 @@ export function AppBreadcrumbs() {
   const member = stores.find((s) => s.id === storeId);
   const { data: fetched } = useGetStoreByIdQuery(storeId ?? "", { skip: !storeId || Boolean(member) });
   const role = useStoreRole(storeId ?? "");
+  const partnerPage = pathname.match(/\/partners\/([0-9a-f-]{36})/)?.[1];
+  const { data: partner } = useGetPartnerQuery(
+    { storeId: storeId ?? "", partnerId: partnerPage ?? "" },
+    { skip: !storeId || !partnerPage }
+  );
 
   const crumbs: Crumb[] = [];
   if (pathname.startsWith("/app/settings")) {
@@ -53,9 +64,15 @@ export function AppBreadcrumbs() {
     const base = `/app/stores/${storeId}`;
     crumbs.push({ label: member?.name ?? fetched?.name ?? "Loja", href: homeForRole(storeId, role) });
     const section = pathname.slice(base.length).split("/").filter(Boolean)[0];
-    if (section && SECTIONS[section]) {
+    const sub = pathname.slice(base.length).split("/").filter(Boolean)[1];
+    // The partner area's pages are siblings (Vender, Meus pedidos, Comissão), not "Vender" children.
+    if (section === "partner" && sub && PARTNER_PAGES[sub]) {
+      crumbs.push({ label: PARTNER_PAGES[sub] });
+    } else if (section && SECTIONS[section]) {
       crumbs.push({ label: SECTIONS[section], href: `${base}/${section}` });
       if (section === "orders" && searchParams.get("view") === "historico") crumbs.push({ label: "Histórico" });
+      // A partner's page (managers): Loja › Parceiros › Açaí da Praça.
+      if (section === "partners" && sub) crumbs.push({ label: partner?.name ?? "Parceiro" });
     } else if (!section) {
       crumbs.push({ label: "Loja" });
     }

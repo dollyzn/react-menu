@@ -134,25 +134,28 @@ export function PaceChart({ data }: { data: DashboardToday }) {
             />
           </LineChart>
         </ChartContainer>
-        <table className="sr-only">
-          <caption>Faturamento acumulado por hora</caption>
-          <thead>
-            <tr>
-              <th scope="col">Hora</th>
-              <th scope="col">Hoje</th>
-              <th scope="col">{lastWeekLabel}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {points.map((point) => (
-              <tr key={point.hour}>
-                <th scope="row">{`até ${point.hour + 1}h`}</th>
-                <td>{point.today === null ? "—" : formatCurrencyBRL(point.today)}</td>
-                <td>{formatCurrencyBRL(point.lastWeek)}</td>
+        {/* A div, not the table: a table ignores sr-only's 1px box and stretches the page. */}
+        <div className="sr-only">
+          <table>
+            <caption>Faturamento acumulado por hora</caption>
+            <thead>
+              <tr>
+                <th scope="col">Hora</th>
+                <th scope="col">Hoje</th>
+                <th scope="col">{lastWeekLabel}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {points.map((point) => (
+                <tr key={point.hour}>
+                  <th scope="row">{`até ${point.hour + 1}h`}</th>
+                  <td>{point.today === null ? "—" : formatCurrencyBRL(point.today)}</td>
+                  <td>{formatCurrencyBRL(point.lastWeek)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );

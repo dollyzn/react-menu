@@ -5,7 +5,8 @@ import { SmartphoneNfc } from "lucide-react";
 import type { PointCharge } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import { useNow } from "@/hooks/use-now";
-import { useGetPendingPointChargesQuery, useGetPointConfigQuery } from "@/redux/features/point/pointApi";
+import { useGetPendingPointChargesQuery, type PointArea } from "@/redux/features/point/pointApi";
+import { usePointConfig } from "@/components/app/point/use-point-config";
 import { formatCurrencyBRL } from "@/utils/string";
 
 /**
@@ -16,20 +17,23 @@ import { formatCurrencyBRL } from "@/utils/string";
  */
 export function PendingChargesBar({
   storeId,
+  area = "store",
   onOpen,
 }: {
   storeId: string;
+  /** The partner area: the partner's own charges (ADR 0024). */
+  area?: PointArea;
   onOpen: (charge: PointCharge) => void;
 }) {
-  const { data: config } = useGetPointConfigQuery(storeId);
+  const config = usePointConfig(storeId, area);
   const enabled = Boolean(config?.available && config.terminals.length > 0);
   const { data: idle } = useGetPendingPointChargesQuery(
-    { storeId },
+    { storeId, area },
     { skip: !enabled, pollingInterval: 5000, skipPollingIfUnfocused: true }
   );
   const waiting = (idle?.length ?? 0) > 0;
   const { data: checked } = useGetPendingPointChargesQuery(
-    { storeId, check: true },
+    { storeId, area, check: true },
     { skip: !enabled || !waiting, pollingInterval: 8000, skipPollingIfUnfocused: true }
   );
   const charges = (waiting ? (checked ?? idle) : idle) ?? [];

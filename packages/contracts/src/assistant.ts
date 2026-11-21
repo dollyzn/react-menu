@@ -237,6 +237,18 @@ export type AssistantTools = {
     input: { number: number; date?: string };
     output: { number: number; status: OrderStatus; refunding: boolean };
   };
+  /** Partners (ADR 0024): sales and commission per partner in a period. */
+  partners: { input: { from?: string; to?: string }; output: AssistantPartners };
+  /** Cancellations a partner asked, waiting for a manager. */
+  cancel_requests: { input: Record<string, never>; output: AssistantCancelRequests };
+  settle_partner_commission: {
+    input: { partner: string; until: string; note?: string };
+    output: { partnerName: string; orders: number; total: number };
+  };
+  answer_cancel_request: {
+    input: { number: number; date?: string; approve: boolean; note?: string };
+    output: { number: number; approved: boolean };
+  };
   create_menu_items: {
     input: {
       categories: { name: string; items: { name: string; price: number; description?: string }[] }[];
@@ -319,6 +331,42 @@ export interface AssistantOrdersNow {
     late: boolean;
     items: string;
     amountDue: number;
+    /** A partner's order (ADR 0024): whose it is. */
+    partnerName: string | null;
+    /** Someone asked a manager to cancel it. */
+    cancelRequested: boolean;
+  }[];
+}
+
+/** Partners (ADR 0024) in a period: what each sold and the commission. */
+export interface AssistantPartners {
+  period: { from: string; to: string };
+  partners: {
+    id: string;
+    name: string;
+    paused: boolean;
+    /** "10% de cada venda" / "R$ 1,50 por unidade". */
+    rule: string;
+    machines: string[];
+    people: number;
+    orders: number;
+    sales: number;
+    commission: number;
+    /** All time: handed over, commission not paid yet. */
+    toPay: { orders: number; amount: number };
+  }[];
+}
+
+export interface AssistantCancelRequests {
+  requests: {
+    number: number;
+    date: string;
+    customerName: string;
+    partnerName: string | null;
+    reason: string;
+    requestedBy: string | null;
+    status: OrderStatus;
+    total: number;
   }[];
 }
 
@@ -423,6 +471,9 @@ export interface AssistantOrderDetails {
   amountDue: number;
   notes: string | null;
   createdAt: string;
+  /** A partner's order (ADR 0024): whose it is, and a cancellation waiting, if any. */
+  partnerName: string | null;
+  cancelRequest: { reason: string } | null;
   lines: { name: string; quantity: number; total: number; addons: string[]; notes: string | null }[];
   history: { status: OrderStatus; at: string }[];
 }
@@ -470,6 +521,26 @@ export type AssistantApprovalPreview =
       scheduleEnabled: boolean;
     }
   | { kind: 'pickup_time'; toolCallId: string; before: number; after: number }
+  | {
+      kind: 'settle_partner';
+      toolCallId: string;
+      partnerName: string;
+      until: string;
+      orders: number;
+      total: number;
+      note: string | null;
+    }
+  | {
+      kind: 'cancel_request';
+      toolCallId: string;
+      number: number;
+      customerName: string;
+      partnerName: string | null;
+      reason: string;
+      approve: boolean;
+      amountPaid: number;
+      note: string | null;
+    }
   | {
       kind: 'cancel_order';
       toolCallId: string;

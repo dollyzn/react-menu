@@ -31,6 +31,8 @@ import registerStoreMemberRoutes from '#routes/store/members'
 import registerStoreReportRoutes from '#routes/store/reports'
 import registerStorePointRoutes from '#routes/store/point'
 import registerStoreAssistantRoutes from '#routes/store/assistant'
+import registerStorePartnerRoutes from '#routes/store/partners'
+import registerPartnerAreaRoutes from '#routes/store/partner_area'
 import { authThrottle } from '#routes/store/shared'
 
 healthRoutes()
@@ -67,6 +69,8 @@ router
             registerStoreOrderRoutes()
             registerStorePointRoutes()
             registerStoreAssistantRoutes()
+            registerStorePartnerRoutes()
+            registerPartnerAreaRoutes()
           })
           .prefix('/stores/:storeId')
           .use([...authThrottle, middleware.storeAccess()])
