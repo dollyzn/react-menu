@@ -10,7 +10,7 @@ import {
   Puzzle,
   ShoppingCart,
   Store,
-  Users, ListChecks, ChartNoAxesColumn } from "lucide-react";
+  Users, ListChecks, ChartNoAxesColumn, Handshake, Wallet } from "lucide-react";
 
 const FRONT: StoreRole[] = ["manager", "attendant"];
 const KITCHEN: StoreRole[] = ["manager", "kitchen"];
@@ -27,6 +27,20 @@ export interface SidebarNavGroup {
  */
 export function getManageMenuGroups(storeId: string, role: StoreRole | null): SidebarNavGroup[] {
   const base = `/app/stores/${storeId}`;
+  // Partners (ADR 0024) have their own area and nothing of the store's.
+  if (role === "partner") {
+    const area = `${base}/partner`;
+    return [
+      {
+        label: "Parceiro",
+        items: [
+          { label: "Vender", url: area, icon: ShoppingCart, order: 0, exact: true },
+          { label: "Meus pedidos", url: `${area}/orders`, icon: ClipboardList, order: 1 },
+          { label: "Comissão", url: `${area}/commission`, icon: Wallet, order: 2 },
+        ],
+      },
+    ];
+  }
   const groups: { label: string; items: (SidebarNavItem & { roles: StoreRole[] })[] }[] = [
     {
       label: "Operação",
@@ -52,7 +66,8 @@ export function getManageMenuGroups(storeId: string, role: StoreRole | null): Si
         { label: "Relatórios", url: `${base}/reports`, icon: ChartNoAxesColumn, order: 1, roles: MANAGER },
         { label: "Estoque", url: `${base}/inventory`, icon: Boxes, order: 2, roles: MANAGER },
         { label: "Equipe", url: `${base}/members`, icon: Users, order: 3, roles: MANAGER },
-        { label: "Loja", url: base, icon: Store, order: 4, roles: MANAGER, exact: true },
+        { label: "Parceiros", url: `${base}/partners`, icon: Handshake, order: 4, roles: MANAGER },
+        { label: "Loja", url: base, icon: Store, order: 5, roles: MANAGER, exact: true },
       ],
     },
   ];
@@ -71,6 +86,7 @@ export function getManageMenuGroups(storeId: string, role: StoreRole | null): Si
 export function homeForRole(storeId: string, role: StoreRole | null) {
   const base = `/app/stores/${storeId}`;
   if (role === "kitchen") return `${base}/kitchen`;
+  if (role === "partner") return `${base}/partner`;
   if (role === "attendant") return `${base}/orders`;
   return base;
 }

@@ -54,6 +54,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-partner: var(--partner);
+  --color-partner-foreground: var(--partner-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -117,6 +119,9 @@
   --success-foreground: oklch(0.985 0 0);
   --warning: oklch(0.476 0.114 61.9);
   --warning-foreground: oklch(0.985 0 0);
+  /* A partner's orders (ADR 0024): told apart on the board and the kitchen. */
+  --partner: oklch(0.491 0.27 292.6);
+  --partner-foreground: oklch(0.985 0 0);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.6 0.1505 50.29);
@@ -164,6 +169,8 @@
   --success-foreground: oklch(0.205 0 0);
   --warning: oklch(0.879 0.169 91.6);
   --warning-foreground: oklch(0.205 0 0);
+  --partner: oklch(0.811 0.111 293.6);
+  --partner-foreground: oklch(0.205 0 0);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.6 0.1505 50.29);

@@ -34,8 +34,22 @@ function TooltipCard({ title, value, detail }: { title: string; value: string; d
 type Day = SalesReport["daily"][number];
 type Hour = SalesReport["hourly"][number];
 
-/** Bars up to ~6 weeks; a line beyond that (bars get too thin). */
-export function DailyRevenueChart({ daily }: { daily: Day[] }) {
+/**
+ * Bars up to ~6 weeks; a line beyond that (bars get too thin). Also a
+ * partner's sales (`title`, and `detail` adds a line to the tooltip: the commission).
+ */
+export function DailyRevenueChart({
+  daily,
+  title = "Faturamento por dia",
+  caption = "Faturamento e pedidos por dia",
+  detail,
+}: {
+  daily: Day[];
+  title?: string;
+  /** The screen-reader table's caption. */
+  caption?: string;
+  detail?: (day: Day) => string;
+}) {
   const best = daily.reduce<Day | null>((top, day) => (day.revenue > (top?.revenue ?? 0) ? day : top), null);
   const asLine = daily.length > 45;
   const axes = (
@@ -60,7 +74,11 @@ export function DailyRevenueChart({ daily }: { daily: Day[] }) {
         content={({ active, payload }) => {
           const day = active ? (payload?.[0]?.payload as Day | undefined) : undefined;
           return day ? (
-            <TooltipCard title={formatWeekday(day.date)} value={formatCurrencyBRL(day.revenue)} detail={orders(day.orders)} />
+            <TooltipCard
+              title={formatWeekday(day.date)}
+              value={formatCurrencyBRL(day.revenue)}
+              detail={detail ? `${orders(day.orders)} · ${detail(day)}` : orders(day.orders)}
+            />
           ) : null;
         }}
       />
@@ -70,7 +88,7 @@ export function DailyRevenueChart({ daily }: { daily: Day[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Faturamento por dia</CardTitle>
+        <CardTitle>{title}</CardTitle>
         <CardDescription>
           {best ? `Melhor dia: ${formatWeekday(best.date)} · ${formatCurrencyBRL(best.revenue)}` : "Sem vendas no período"}
         </CardDescription>
@@ -98,13 +116,14 @@ export function DailyRevenueChart({ daily }: { daily: Day[] }) {
           )}
         </ChartContainer>
         <table className="sr-only">
-          <caption>Faturamento e pedidos por dia</caption>
+          <caption>{caption}</caption>
           <tbody>
             {daily.map((day) => (
               <tr key={day.date}>
                 <th scope="row">{formatWeekday(day.date)}</th>
                 <td>{formatCurrencyBRL(day.revenue)}</td>
                 <td>{orders(day.orders)}</td>
+                {detail && <td>{detail(day)}</td>}
               </tr>
             ))}
           </tbody>

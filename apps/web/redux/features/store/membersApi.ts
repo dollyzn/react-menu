@@ -1,4 +1,4 @@
-import type { StoreMember, StoreRole } from "@react-menu/contracts";
+import type { PartnerInput, StoreMember, StoreRole } from "@react-menu/contracts";
 import { baseApi } from "@/redux/api/baseApi";
 
 const tag = (storeId: string) => ({ type: "Member" as const, id: storeId });
@@ -12,10 +12,14 @@ export const membersApi = baseApi.injectEndpoints({
     }),
     addMember: build.mutation<
       StoreMember & { invited: boolean },
-      { storeId: string; data: { email: string; name?: string; role: StoreRole } }
+      {
+        storeId: string;
+        /** Role `partner` (ADR 0024): an existing partner or one created with the invite. */
+        data: { email: string; name?: string; role: StoreRole; partnerId?: string; newPartner?: PartnerInput };
+      }
     >({
       query: ({ storeId, data }) => ({ url: `stores/${storeId}/members`, method: "POST", body: data }),
-      invalidatesTags: (_res, _err, { storeId }) => [tag(storeId)],
+      invalidatesTags: (_res, _err, { storeId }) => [tag(storeId), { type: "Partner" as const, id: `list-${storeId}` }],
     }),
     updateMemberRole: build.mutation<StoreMember, { storeId: string; userId: string; role: StoreRole }>({
       query: ({ storeId, userId, role }) => ({

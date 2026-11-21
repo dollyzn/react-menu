@@ -14,7 +14,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { timeAgo } from "@/lib/relative-time";
 import { cn } from "@/lib/utils";
-import { ROLE_ITEMS, ROLES } from "./roles";
+import { STAFF_ROLE_ITEMS, ROLES } from "./roles";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { UserAvatar } from "@/components/app/photo-avatar";
 
 export const memberName = (member: StoreMember) => member.name ?? member.email;
@@ -59,6 +61,7 @@ export function MemberRow({
   actions: MemberActions;
   resending: boolean;
 }) {
+  const { store: storeId } = useParams<{ store: string }>();
   const name = memberName(member);
   const Icon = ROLES[member.role].icon;
   const disabled = Boolean(member.disabledAt);
@@ -99,23 +102,34 @@ export function MemberRow({
         </p>
       </div>
       <div className="flex items-center gap-2">
-        <Select
-          items={ROLE_ITEMS}
-          value={member.role}
-          onValueChange={(value) => actions.changeRole(member, value as StoreRole)}
-        >
-          <SelectTrigger className="w-40" aria-label={`Função de ${name}`}>
-            <Icon className="text-muted-foreground" />
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ROLE_ITEMS.map((item) => (
-              <SelectItem key={item.value} value={item.value}>
-                {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {member.role === "partner" ? (
+          // A partner (ADR 0024) sells for one partner: to change it, remove and invite again.
+          <Link
+            href={`/app/stores/${storeId}/partners/${member.partner?.id ?? ""}`}
+            className="inline-flex h-8 max-w-48 items-center gap-1.5 rounded-lg border px-2.5 text-sm hover:bg-muted"
+          >
+            <Icon className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">Parceiro · {member.partner?.name}</span>
+          </Link>
+        ) : (
+          <Select
+            items={STAFF_ROLE_ITEMS}
+            value={member.role}
+            onValueChange={(value) => actions.changeRole(member, value as StoreRole)}
+          >
+            <SelectTrigger className="w-40" aria-label={`Função de ${name}`}>
+              <Icon className="text-muted-foreground" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STAFF_ROLE_ITEMS.map((item) => (
+                <SelectItem key={item.value} value={item.value}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {member.invitePending && !disabled && (
           <Button variant="outline" size="sm" loading={resending} onClick={() => actions.resendInvite(member)}>
             {!resending && <MailPlus />} Reenviar convite

@@ -13,7 +13,19 @@ const terminalsTag = (storeId: string) => ({ type: "PointConfig" as const, id: `
 const ordersTag = (storeId: string) => ({ type: "Order" as const, id: `store-${storeId}` });
 const orderTag = (orderId: string) => ({ type: "Order" as const, id: orderId });
 
-type ChargeArg = { storeId: string; orderId: string; paymentId: string };
+/**
+ * Whose charges: the store's POS (default) or the partner area (ADR 0024),
+ * which charges the partner's orders on the partner's machine.
+ */
+export type PointArea = "store" | "partner";
+const ordersPath = (storeId: string, area?: PointArea) =>
+  `stores/${storeId}${area === "partner" ? "/partner" : ""}/orders`;
+const chargesTag = (storeId: string, area?: PointArea) => ({
+  type: "PointConfig" as const,
+  id: `charges-${area === "partner" ? "partner-" : ""}${storeId}`,
+});
+
+type ChargeArg = { storeId: string; orderId: string; paymentId: string; area?: PointArea };
 
 /** Mercado Pago Point card machines (ADR 0020). */
 export const pointApi = baseApi.injectEndpoints({
@@ -63,53 +75,68 @@ export const pointApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: (_res, _err, { storeId }) => [configTag(storeId), terminalsTag(storeId)],
     }),
+    /** Lends a machine to a partner (ADR 0024), or gives it back (`partnerId: null`). */
+    assignPointTerminal: build.mutation<void, { storeId: string; terminalId: string; partnerId: string | null }>({
+      query: ({ storeId, terminalId, partnerId }) => ({
+        url: `stores/${storeId}/point/terminals/${encodeURIComponent(terminalId)}/partner`,
+        method: "PUT",
+        body: { partnerId },
+      }),
+      invalidatesTags: (_res, _err, { storeId }) => [
+        configTag(storeId),
+        terminalsTag(storeId),
+        { type: "Partner" as const, id: `list-${storeId}` },
+      ],
+    }),
 
     /** Sends the order's total to a machine. */
     chargeOnPoint: build.mutation<
       PointCharge,
-      { storeId: string; orderId: string; input: PointChargeInput; idempotencyKey: string }
+      { storeId: string; orderId: string; input: PointChargeInput; idempotencyKey: string; area?: PointArea }
     >({
-      query: ({ storeId, orderId, input, idempotencyKey }) => ({
-        url: `stores/${storeId}/orders/${orderId}/point-charges`,
+      query: ({ storeId, orderId, input, idempotencyKey, area }) => ({
+        url: `${ordersPath(storeId, area)}/${orderId}/point-charges`,
         method: "POST",
         body: input,
         headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
       }),
-      invalidatesTags: (_res, _err, { storeId }) => [{ type: "PointConfig" as const, id: `charges-${storeId}` }],
+      invalidatesTags: (_res, _err, { storeId, area }) => [chargesTag(storeId, area)],
       extraOptions: { quiet: true },
     }),
     /** Charges waiting on the store's machines; `check` asks Mercado Pago about each. */
-    getPendingPointCharges: build.query<PointCharge[], { storeId: string; check?: boolean }>({
-      query: ({ storeId, check }) => `stores/${storeId}/point/charges${check ? "?check=1" : ""}`,
-      providesTags: (_res, _err, { storeId }) => [{ type: "PointConfig" as const, id: `charges-${storeId}` }],
+    getPendingPointCharges: build.query<PointCharge[], { storeId: string; check?: boolean; area?: PointArea }>({
+      query: ({ storeId, check, area }) =>
+        `stores/${storeId}${area === "partner" ? "/partner" : ""}/point/charges${check ? "?check=1" : ""}`,
+      providesTags: (_res, _err, { storeId, area }) => [chargesTag(storeId, area)],
       extraOptions: { quiet: true, background: true },
     }),
     /** The charge while it waits; `check` also asks Mercado Pago. */
     getPointCharge: build.query<PointCharge, ChargeArg & { check?: boolean }>({
-      query: ({ storeId, orderId, paymentId, check }) =>
-        `stores/${storeId}/orders/${orderId}/point-charges/${paymentId}${check ? "?check=1" : ""}`,
+      query: ({ storeId, orderId, paymentId, check, area }) =>
+        `${ordersPath(storeId, area)}/${orderId}/point-charges/${paymentId}${check ? "?check=1" : ""}`,
       // Followed by polling: an answer never stays cached for later.
       keepUnusedDataFor: 0,
       extraOptions: { quiet: true, background: true },
     }),
     cancelPointCharge: build.mutation<PointCharge, ChargeArg>({
-      query: ({ storeId, orderId, paymentId }) => ({
-        url: `stores/${storeId}/orders/${orderId}/point-charges/${paymentId}/cancel`,
+      query: ({ storeId, orderId, paymentId, area }) => ({
+        url: `${ordersPath(storeId, area)}/${orderId}/point-charges/${paymentId}/cancel`,
         method: "POST",
       }),
-      invalidatesTags: (_res, _err, { storeId }) => [{ type: "PointConfig" as const, id: `charges-${storeId}` }],
+      invalidatesTags: (_res, _err, { storeId, area }) => [chargesTag(storeId, area)],
       extraOptions: { quiet: true },
     }),
     simulatePointCharge: build.mutation<PointCharge, ChargeArg & { approve: boolean }>({
-      query: ({ storeId, orderId, paymentId, approve }) => ({
-        url: `stores/${storeId}/orders/${orderId}/point-charges/${paymentId}/simulate`,
+      query: ({ storeId, orderId, paymentId, approve, area }) => ({
+        url: `${ordersPath(storeId, area)}/${orderId}/point-charges/${paymentId}/simulate`,
         method: "POST",
         body: { approve },
       }),
-      invalidatesTags: (_res, _err, { storeId, orderId }) => [
+      invalidatesTags: (_res, _err, { storeId, orderId, area }) => [
         ordersTag(storeId),
         orderTag(orderId),
-        { type: "PointConfig" as const, id: `charges-${storeId}` },
+        chargesTag(storeId, area),
+        { type: "Partner" as const, id: `orders-${storeId}` },
       ],
     }),
   }),
@@ -121,6 +148,7 @@ export const {
   useUpdatePointSettingsMutation,
   useEnablePointTerminalMutation,
   useDisablePointTerminalMutation,
+  useAssignPointTerminalMutation,
   useChargeOnPointMutation,
   useLazyGetPointChargeQuery,
   useGetPendingPointChargesQuery,

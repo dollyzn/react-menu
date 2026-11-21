@@ -1,4 +1,4 @@
-import { Globe, Store as StoreIcon, type LucideIcon } from "lucide-react";
+import { Globe, Handshake, Store as StoreIcon, type LucideIcon } from "lucide-react";
 import type { OrderChannel, OrderStatus, PaymentAttemptStatus, PaymentMethod } from "@react-menu/contracts";
 
 /** Staff-facing status names and colors (board, history, detail). */
@@ -14,6 +14,7 @@ export const STATUS: Record<OrderStatus, { label: string; tone: string }> = {
 export const CHANNEL: Record<OrderChannel, { label: string; icon: LucideIcon }> = {
   online: { label: "Online", icon: Globe },
   pos: { label: "Balcão", icon: StoreIcon },
+  partner: { label: "Parceiro", icon: Handshake },
 };
 
 export const PAYMENT: Record<PaymentMethod, string> = {
