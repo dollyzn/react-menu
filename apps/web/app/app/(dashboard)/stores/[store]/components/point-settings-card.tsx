@@ -26,12 +26,14 @@ import { Switch } from "@/components/ui/switch";
 import { useLastValue } from "@/hooks/use-last-value";
 import {
   useDisablePointTerminalMutation,
+  useAssignPointTerminalMutation,
   useEnablePointTerminalMutation,
   useGetPointConfigQuery,
   useGetPointTerminalsQuery,
   useUpdatePointSettingsMutation,
 } from "@/redux/features/point/pointApi";
 import { getErrorMessage } from "@/utils/get-error-message";
+import { useGetPartnersQuery } from "@/redux/features/partner/partnersApi";
 import { cn } from "@/lib/utils";
 
 const TYPES: { value: PointPaymentType; label: string; hint: string; icon: typeof CreditCard }[] = [
@@ -154,6 +156,9 @@ export function PointSettingsCard({ store }: { store: Store }) {
                           {terminal.serial}
                         </span>
                       </span>
+                      {terminal.enabled && (
+                        <TerminalOwner storeId={store.id} terminalId={terminal.id} partnerId={terminal.partnerId} />
+                      )}
                       {terminal.enabled ? (
                         <Button variant="ghost" size="sm" onClick={() => setRemoving(terminal)}>
                           Desativar
@@ -377,3 +382,48 @@ function EnableTerminalDialog({
     </Dialog>
   );
 }
+
+/** "Usada por": the store's own machine, or lent to a partner (ADR 0024: only they charge on it). */
+function TerminalOwner({
+  storeId,
+  terminalId,
+  partnerId,
+}: {
+  storeId: string;
+  terminalId: string;
+  partnerId: string | null;
+}) {
+  const { data: partners = [] } = useGetPartnersQuery(storeId);
+  const [assign, { isLoading }] = useAssignPointTerminalMutation();
+  if (partners.length === 0 && !partnerId) return null;
+  const items = [
+    { value: STORE_OWNER, label: "Loja" },
+    ...partners.map((partner) => ({ value: partner.id, label: partner.name })),
+  ];
+  return (
+    <Select
+      items={items}
+      value={partnerId ?? STORE_OWNER}
+      disabled={isLoading}
+      onValueChange={async (value) => {
+        const next = value === STORE_OWNER ? null : (value as string);
+        if (next === partnerId) return;
+        await assign({ storeId, terminalId, partnerId: next }).unwrap();
+        toast.success(next ? "Maquininha emprestada ao parceiro" : "Maquininha de volta à loja");
+      }}
+    >
+      <SelectTrigger size="sm" className="w-36" aria-label="Usada por">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {items.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
+const STORE_OWNER = "store";

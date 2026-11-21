@@ -18,6 +18,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { groupRule } from "@/lib/group-rule";
 import { cn } from "@/lib/utils";
 import { formatCurrencyBRL } from "@/utils/string";
+import { formatDay } from "@/lib/report-period";
 import { formatQuantity } from "@/utils/units";
 
 const STOCK_TYPE = { purchase: "Compra", waste: "Perda", adjustment: "Contagem" } as const;
@@ -38,6 +39,12 @@ function titleOf(preview: AssistantApprovalPreview) {
       return `Tempo de retirada: ${preview.after} min`;
     case "cancel_order":
       return `Cancelar o pedido #${preview.number} (${preview.customerName})`;
+    case "settle_partner":
+      return `Marcar ${formatCurrencyBRL(preview.total)} de comissão de ${preview.partnerName} como pago`;
+    case "cancel_request":
+      return preview.approve
+        ? `Cancelar o pedido #${preview.number} (${preview.customerName})`
+        : `Recusar o cancelamento do pedido #${preview.number}`;
     case "item_details":
       return `Alterar ${preview.before.name}`;
     case "option_group":
@@ -66,6 +73,14 @@ function descriptionOf(preview: AssistantApprovalPreview) {
         : "Para os pedidos online até alguém abrir de novo. O PDV continua.";
     case "pickup_time":
       return "É o tempo que o cardápio mostra aos clientes e que marca um pedido como atrasado.";
+    case "settle_partner":
+      return `${preview.orders === 1 ? "1 venda já entregue" : `${preview.orders} vendas já entregues`} até ${formatDay(preview.until)}. O pagamento em si é feito por fora; o parceiro vê o acerto na tela dele.`;
+    case "cancel_request":
+      return preview.approve
+        ? preview.amountPaid > 0
+          ? `${preview.partnerName ?? "O parceiro"} pediu: “${preview.reason}”. O que foi pago na maquininha volta sozinho.`
+          : `${preview.partnerName ?? "O parceiro"} pediu: “${preview.reason}”.`
+        : `${preview.partnerName ?? "O parceiro"} pediu: “${preview.reason}”. O pedido segue e o parceiro é avisado.`;
     case "cancel_order":
       return preview.amountPaid > 0
         ? `Já foram pagos ${formatCurrencyBRL(preview.amountPaid)}: o que entrou online ou na maquininha volta sozinho; dinheiro do balcão se devolve à mão.`
@@ -238,6 +253,9 @@ function PreviewBody({ preview }: { preview: AssistantApprovalPreview }) {
     case "store_status":
     case "pickup_time":
       return null;
+    case "settle_partner":
+    case "cancel_request":
+      return preview.note ? <p className="text-xs text-muted-foreground">Recado: {preview.note}</p> : null;
     case "cancel_order":
       return (
         <div className="flex justify-between gap-3 text-xs">

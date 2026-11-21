@@ -47,6 +47,7 @@ const paymentLabel = (row: SalesReport["payments"][number]) =>
 const CHANNEL_LABELS: Record<SalesReport["channels"][number]["channel"], string> = {
   online: "Cardápio online",
   pos: "Balcão (PDV)",
+  partner: "Parceiros",
 };
 
 /** Period from the URL (`?de=…&ate=…`), the last 30 days by default. */

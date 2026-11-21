@@ -16,6 +16,10 @@ export default function registerStorePointRoutes() {
     .use(managersOnly)
   router.post('/point/terminals', [PointController, 'enable']).as('point.enable').use(managersOnly)
   router
+    .put('/point/terminals/:terminalId/partner', [PointController, 'assignPartner'])
+    .as('point.assignPartner')
+    .use(managersOnly)
+  router
     .delete('/point/terminals/:terminalId', [PointController, 'disable'])
     .as('point.disable')
     .use(managersOnly)

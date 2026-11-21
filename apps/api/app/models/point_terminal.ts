@@ -13,6 +13,10 @@ export default class PointTerminal extends BaseModel {
   @column()
   declare terminalId: string
 
+  /** Lent to this partner (ADR 0024): only they charge on it. Null: the store's own. */
+  @column()
+  declare partnerId: string | null
+
   /** The staff's name for it ("Balcão"). */
   @column()
   declare name: string

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
-import { Ban, Banknote, Clock, CreditCard, Globe, HandCoins, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
+import { Ban, Banknote, Clock, CreditCard, Globe, HandCoins, Handshake, ListPlus, MoreHorizontal, Store as StoreIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { Order } from "@react-menu/contracts";
@@ -26,6 +26,7 @@ import { DeliverOrderButton } from "./deliver-order-button";
 import { useStoreRole } from "@/hooks/use-store-role";
 import { paidWith } from "@/components/app/payments/counter-methods";
 import { ReceivePayment } from "./receive-payment";
+import { CancelRequestBanner } from "./cancel-request-banner";
 
 /** The card's "Pagar depois (fiado)": already sent, only who to charge is asked. */
 const PAY_LATER_ONLY = ["payLater" as const];
@@ -52,7 +53,12 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   // The counter may drop one still waiting for its payment with nothing
   // received (the card was refused on the machine and it never reached the kitchen).
   const discard = order.status === "pending_payment" && order.amountPaid <= 0;
-  const canCancel = useStoreRole(storeId) === "manager" || discard;
+  const manager = useStoreRole(storeId) === "manager";
+  // A partner's order (ADR 0024) is paid on the partner's machine and dropped
+  // by the partner: the store only makes it, hands it over and (managers) cancels.
+  const partnerOrder = order.channel === "partner";
+  const canCancel = manager || (discard && !partnerOrder);
+  const cancelRequested = Boolean(order.cancelRequest);
 
   const waiting = Math.max(0, Math.floor((now - new Date(order.createdAt).getTime()) / 60_000));
   const late = waiting >= etaMinutes && order.status !== "ready";
@@ -63,11 +69,12 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
   // "Pagar depois" (fiado): handed over unpaid, the managers follow it.
   const payLater = !paid && Boolean(order.payLaterAt);
   // An unpaid order in the kitchen's flow can still become "pagar depois".
-  const canPayLater = !paid && !payLater && order.status !== "pending_payment";
+  const canPayLater = !paid && !payLater && order.status !== "pending_payment" && !partnerOrder;
   // Paid, then items were added: only those are left to receive.
   const partlyPaid = !paid && order.amountPaid > 0;
   // Items can join it until the kitchen makes the first one.
-  const canAdd = order.status === "received";
+  const canAdd = order.status === "received" && !partnerOrder;
+  const canReceive = !paid && !partnerOrder;
   const router = useRouter();
 
   return (
@@ -81,7 +88,8 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         "rounded-2xl border bg-card p-4 shadow-xs",
         order.status === "ready" && "border-success/50 bg-success/5",
         // Held for the card machine: in the queue's place, not in the kitchen yet.
-        order.status === "pending_payment" && "border-2 border-dashed border-warning bg-warning/10"
+        order.status === "pending_payment" && "border-2 border-dashed border-warning bg-warning/10",
+        cancelRequested && "border-2 border-destructive/60"
       )}
     >
       <header className="flex items-start justify-between gap-2">
@@ -108,10 +116,18 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
           >
             <Clock className="size-3.5" /> {waiting} min
           </span>
-          <Badge variant="outline" className="gap-1">
-            {order.channel === "online" ? <Globe className="size-3" /> : <StoreIcon className="size-3" />}
-            {order.channel === "online" ? "Online" : "Balcão"}
-          </Badge>
+          {partnerOrder ? (
+            // Who takes it: the partner's name stands out for whoever hands it over.
+            <Badge className="max-w-40 gap-1 bg-partner/15 text-partner">
+              <Handshake className="size-3 shrink-0" />
+              <span className="truncate">{order.partner?.name ?? "Parceiro"}</span>
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="gap-1">
+              {order.channel === "online" ? <Globe className="size-3" /> : <StoreIcon className="size-3" />}
+              {order.channel === "online" ? "Online" : "Balcão"}
+            </Badge>
+          )}
           {payLater && (
             <Badge className="gap-1 bg-primary/10 text-primary">
               <HandCoins className="size-3" /> Pagar depois
@@ -122,9 +138,13 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
 
       {order.status === "pending_payment" && (
         <p className="mt-3 flex items-center gap-1.5 rounded-lg bg-warning/15 px-2 py-1.5 text-xs font-semibold text-warning">
-          <CreditCard className="size-3.5 shrink-0" /> Aguardando pagamento · ainda não foi para a cozinha
+          <CreditCard className="size-3.5 shrink-0" />{" "}
+          {partnerOrder
+            ? "Aguardando a maquininha do parceiro · ainda não foi para a cozinha"
+            : "Aguardando pagamento · ainda não foi para a cozinha"}
         </p>
       )}
+      <CancelRequestBanner order={order} storeId={storeId} canDecide={manager} />
       <OrderLines items={order.items} className="mt-3" />
       {order.notes && <p className="mt-2 rounded-lg bg-muted px-2 py-1 text-xs">{order.notes}</p>}
 
@@ -163,10 +183,10 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
         </div>
         {canOperate && order.status !== "completed" && order.status !== "cancelled" && (
           <div className="flex items-center gap-1">
-            {order.status === "ready" && (
+            {order.status === "ready" && !cancelRequested && (
               <DeliverOrderButton order={order} storeId={storeId} />
             )}
-            {(!paid || canCancel || canAdd) && (
+            {(canReceive || canCancel || canAdd) && (
             <DropdownMenu>
               <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`Mais ações do pedido ${order.number}`} />}>
                 <MoreHorizontal />
@@ -177,7 +197,7 @@ export function OrderCard({ order, storeId, now, etaMinutes, canOperate, onOpen 
                     <ListPlus /> Adicionar itens
                   </DropdownMenuItem>
                 )}
-                {!paid && (
+                {canReceive && (
                   <DropdownMenuItem onClick={() => setReceiving(true)}>
                     <Banknote /> Receber pagamento
                   </DropdownMenuItem>

@@ -1,5 +1,5 @@
 import transmit from '@adonisjs/transmit/services/main'
-import type { OrderTrackingEvent, StoreEvent, UserEvent } from '@react-menu/contracts'
+import type { OrderTrackingEvent, PartnerEvent, StoreEvent, UserEvent } from '@react-menu/contracts'
 
 /**
  * Realtime is a notification channel, not a source of truth: every event
@@ -13,6 +13,7 @@ export const channels = {
   store: (storeId: string) => `stores/${storeId}`,
   userNotifications: (userId: string) => `users/${userId}/notifications`,
   orderTracking: (publicToken: string) => `orders/${publicToken}`,
+  partner: (storeId: string, partnerId: string) => `stores/${storeId}/partners/${partnerId}`,
 }
 
 export function broadcastStoreEvent(event: StoreEvent) {
@@ -33,4 +34,12 @@ export function broadcastOrderTracking(publicToken: string, event: OrderTracking
  */
 export function broadcastMenuChanged(storeId: string) {
   broadcastStoreEvent({ type: 'menu.changed', storeId })
+}
+
+/**
+ * After the commit: something about a partner's orders changed (status,
+ * payment, a cancellation request, a settlement). Their screens refetch.
+ */
+export function broadcastPartnerEvent(event: PartnerEvent) {
+  transmit.broadcast(channels.partner(event.storeId, event.partnerId), event)
 }

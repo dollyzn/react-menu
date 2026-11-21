@@ -21,7 +21,7 @@ import type { User } from "@/types/session";
 import { getErrorMessage } from "@/utils/get-error-message";
 import { UserAvatar } from "@/components/app/photo-avatar";
 
-const ROLE_LABEL: Record<StoreRole, string> = { manager: "Gerente", attendant: "Atendente", kitchen: "Cozinha" };
+const ROLE_LABEL: Record<StoreRole, string> = { manager: "Gerente", attendant: "Atendente", kitchen: "Cozinha", partner: "Parceiro" };
 
 const Schema = z.object({
   name: z.string().trim().min(2, "Pelo menos 2 letras.").max(80, "No máximo 80 caracteres."),

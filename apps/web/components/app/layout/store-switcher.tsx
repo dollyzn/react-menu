@@ -27,6 +27,7 @@ const ROLE_LABEL: Record<StoreRole, string> = {
   manager: "Gerente",
   attendant: "Atendente",
   kitchen: "Cozinha",
+  partner: "Parceiro",
 };
 
 function StoreLogo({

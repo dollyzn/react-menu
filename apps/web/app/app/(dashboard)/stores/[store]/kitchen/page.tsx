@@ -277,9 +277,18 @@ export default function KitchenPage() {
 
               <div className="mt-6 flex flex-wrap gap-2" aria-label="Pedidos deste lote">
                 {current.units.map((unit) => (
-                  <span key={unit.lineId} className="rounded-xl border px-3 py-1.5 text-lg font-semibold tabular-nums">
+                  <span
+                    key={unit.lineId}
+                    className={cn(
+                      "rounded-xl border px-3 py-1.5 text-lg font-semibold tabular-nums",
+                      unit.cancelRequested && "border-destructive bg-destructive/10 text-destructive"
+                    )}
+                  >
                     #{unit.orderNumber}
                     {unit.quantity > 1 && <span className="text-muted-foreground"> · {unit.quantity}×</span>}
+                    {/* A partner's order (ADR 0024): whose it is. */}
+                    {unit.partnerName && <span className="text-sm font-medium text-partner"> · {unit.partnerName}</span>}
+                    {unit.cancelRequested && <span className="text-sm font-medium"> · cancelamento pedido, segure</span>}
                   </span>
                 ))}
               </div>
@@ -354,7 +363,9 @@ export default function KitchenPage() {
                       </p>
                     )}
                     <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-                      {batch.units.map((u) => `#${u.orderNumber}`).join(" · ")}
+                      {batch.units
+                        .map((u) => `#${u.orderNumber}${u.partnerName ? ` (${u.partnerName})` : ""}${u.cancelRequested ? " ⚠ cancelamento pedido" : ""}`)
+                        .join(" · ")}
                     </p>
                   </motion.li>
                 ))}

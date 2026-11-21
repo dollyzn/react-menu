@@ -28,7 +28,19 @@ export default class KitchenService {
       .preload('items', (items) =>
         items.where('requiresPreparation', true).preload('addons').orderBy('id')
       )
+      .preload('partner')
+      .preload('cancelRequests', (requests) => requests.where('status', 'pending'))
       .orderBy('createdAt', 'asc')
+    // Whose it is and whether someone asked to cancel it (ADR 0024): on each unit.
+    const tags = new Map(
+      orders.map((order) => [
+        order.id,
+        {
+          partnerName: order.partner?.name ?? null,
+          cancelRequested: order.cancelRequests.length > 0,
+        },
+      ])
+    )
 
     const pending: (PendingUnit & {
       addonIds: string[]
@@ -75,7 +87,12 @@ export default class KitchenService {
         totals.set(row.name, current)
       }
 
-      return { ...batch, addonGroups: first.addonGroups, ingredients: [...totals.values()] }
+      return {
+        ...batch,
+        units: batch.units.map((unit) => ({ ...unit, ...tags.get(unit.orderId)! })),
+        addonGroups: first.addonGroups,
+        ingredients: [...totals.values()],
+      }
     })
   }
 

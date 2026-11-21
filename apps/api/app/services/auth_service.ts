@@ -206,6 +206,8 @@ export default class AuthService {
       stores: user.activeStores.map((store) => ({
         ...store.serialize(),
         role: user.superUser ? StoreRole.MANAGER : store.$extras.pivot_role,
+        // Inside a partner (ADR 0024): its manager sees the commission, an attendant doesn't.
+        partnerRole: user.superUser ? null : (store.$extras.pivot_partner_role ?? null),
       })),
       tokenExpiresAt: tokenExpiresAt ?? null,
     }

@@ -13,7 +13,15 @@ import OrderStatus from '#enums/order_status'
 import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
-import { broadcastOrderTracking, broadcastStoreEvent } from '#helpers/realtime'
+import {
+  broadcastOrderTracking,
+  broadcastPartnerEvent,
+  broadcastStoreEvent,
+} from '#helpers/realtime'
+import CancelRequestStatus from '#enums/cancel_request_status'
+import OrderCancelRequest from '#models/order_cancel_request'
+import PartnerService, { sellsItem } from '#services/partner_service'
+import { commissionFor } from '#partners/commission'
 import type Addon from '#models/addon'
 import Customer from '#models/customer'
 import Item from '#models/item'
@@ -43,6 +51,21 @@ const money = (value: number) => Math.round(value * 100) / 100
 export type PayLaterSort = 'createdAt:asc' | 'createdAt:desc' | 'amountDue:desc' | 'amountDue:asc'
 export type PayLaterCustomerSort = 'due:desc' | 'since:asc' | 'name:asc'
 
+/**
+ * A partner's order (ADR 0024) is paid only on the partner's machine, so
+ * the money always reaches the store's account: no cash, no "pagar
+ * depois", no items added at the counter.
+ */
+function assertNotPartnerOrder(order: Order) {
+  if (order.partnerId) {
+    throw new AppException(
+      'Pedido de parceiro: ele é pago só na maquininha do parceiro.',
+      409,
+      'E_PARTNER_ORDER'
+    )
+  }
+}
+
 /** Who owes a "pagar depois" order: the phone, or the name when it has none. */
 const DEBTOR = `coalesce(customer_phone, 'name:' || customer_name)`
 
@@ -64,6 +87,12 @@ export type CreateOrderInput = {
   notes?: string | null
   /** From the Idempotency-Key header: a retry returns the same order. */
   idempotencyKey?: string | null
+  /**
+   * Channel `partner` (ADR 0024): who sells it. Only what the partner may
+   * sell, never into the store's customers, and held from the kitchen until
+   * paid on the partner's machine.
+   */
+  partnerId?: string
 }
 
 /** The order history's filters ("Histórico"): what the list endpoint validated. */
@@ -75,7 +104,8 @@ export default class OrderService {
   constructor(
     private inventory: InventoryService,
     private notifications: NotificationService,
-    private push: PushService
+    private push: PushService,
+    private partners: PartnerService
   ) {}
 
   /**
@@ -99,8 +129,22 @@ export default class OrderService {
         if (existing) return { order: existing, replayed: true }
       }
       this.assertCanOrder(store, input)
+      const partner = await this.lockPartner(store, input, trx)
 
       const priced = await this.priceLines(store, input.lines, trx)
+      if (partner) {
+        const catalog = await this.partners.catalog(partner, trx)
+        const refused = priced.find(
+          (line) => !sellsItem(catalog, { id: line.item.id, categoryId: line.item.categoryId })
+        )
+        if (refused) {
+          throw new AppException(
+            `${refused.item.name} não está no cardápio do parceiro.`,
+            422,
+            'E_NOT_FOR_PARTNER'
+          )
+        }
+      }
       await this.inventory.assertStock(store, this.stockLines(priced), trx)
       const subtotal = money(priced.reduce((sum, line) => sum + line.total, 0))
 
@@ -129,19 +173,21 @@ export default class OrderService {
       }
       // The counter (staff) may correct a customer's name; an online order
       // only names a new customer (anyone can type someone else's phone).
-      const customer = phone
-        ? input.channel === OrderChannel.ONLINE
-          ? await Customer.firstOrCreate(
-              { storeId, phone },
-              { name: input.customer.name },
-              { client: trx }
-            )
-          : await Customer.updateOrCreate(
-              { storeId, phone },
-              { name: input.customer.name },
-              { client: trx }
-            )
-        : null
+      // A partner's customers aren't the store's (ADR 0024).
+      const customer =
+        phone && !partner
+          ? input.channel === OrderChannel.ONLINE
+            ? await Customer.firstOrCreate(
+                { storeId, phone },
+                { name: input.customer.name },
+                { client: trx }
+              )
+            : await Customer.updateOrCreate(
+                { storeId, phone },
+                { name: input.customer.name },
+                { client: trx }
+              )
+          : null
 
       const businessDate = DateTime.now().setZone(BUSINESS_TIMEZONE).startOf('day')
       const last = await Order.query({ client: trx })
@@ -176,6 +222,13 @@ export default class OrderService {
           notes: input.notes || null,
           createdById: actor?.id ?? null,
           idempotencyKey: key,
+          ...(partner && {
+            partnerId: partner.id,
+            commissionAmount: commissionFor(
+              { type: partner.commissionType, value: partner.commissionValue },
+              { subtotal, units: priced.reduce((sum, line) => sum + line.quantity, 0) }
+            ),
+          }),
         },
         { client: trx }
       )
@@ -204,7 +257,8 @@ export default class OrderService {
         Boolean(input.payOnMachine) &&
         !input.counterMethod &&
         store.pointKitchenAfterPayment
-      if (!isOnlinePayment(input.paymentMethod) && !waitsForMachine) {
+      // A partner's order always waits for the partner's machine (ADR 0024).
+      if (!isOnlinePayment(input.paymentMethod) && !waitsForMachine && !partner) {
         await this.enterKitchen(created, trx, actor)
       }
       return { order: created, replayed: false }
@@ -248,6 +302,7 @@ export default class OrderService {
   ) {
     if (meta.counterMethod) await this.assertReceivable(order, meta.counterMethod)
     if (order.paymentStatus === PaymentStatus.PAID) return order
+    if (meta.counterMethod) assertNotPartnerOrder(order)
     let wasAwaitingPayment = false
 
     const changed = await db.transaction(async (trx) => {
@@ -359,6 +414,7 @@ export default class OrderService {
     actor: User
   ) {
     const order = await this.find(storeId, orderId)
+    assertNotPartnerOrder(order)
     const key = input.idempotencyKey || null
     const added = await db.transaction(async (trx) => {
       await this.lock(order, trx)
@@ -622,6 +678,14 @@ export default class OrderService {
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
       if (order.status === OrderStatus.COMPLETED) return false
+      // Being cancelled: a manager decides before it leaves the store.
+      if (await this.pendingCancelRequest(order, trx)) {
+        throw new AppException(
+          'Há um pedido de cancelamento aguardando um gerente. Resolva antes de entregar.',
+          409,
+          'E_CANCEL_REQUESTED'
+        )
+      }
       // "Pagar depois" goes unpaid: the managers follow it until it is received.
       if (order.paymentStatus !== PaymentStatus.PAID && !order.payLaterAt) {
         throw new AppException(
@@ -647,8 +711,22 @@ export default class OrderService {
     storeId: string,
     orderId: string,
     actor?: User,
-    { onlyUnpaid = false }: { onlyUnpaid?: boolean } = {}
+    {
+      onlyUnpaid = false,
+      guard,
+      decisionNote = null,
+      requesterTold = false,
+    }: {
+      onlyUnpaid?: boolean
+      /** More checks on the locked order (a partner's cancellation window, ADR 0024). */
+      guard?: (order: Order, trx: TransactionClientContract) => Promise<void>
+      /** A manager approving a cancellation request: their note on it. */
+      decisionNote?: string | null
+      /** The caller tells who asked to cancel (`CancelRequestService`); otherwise this does. */
+      requesterTold?: boolean
+    } = {}
   ) {
+    let answered: OrderCancelRequest[] = []
     const order = await this.find(storeId, orderId)
     // Idempotent: cancelling twice (a double tap, the expiry job meanwhile)
     // must not reverse the stock twice.
@@ -656,6 +734,7 @@ export default class OrderService {
     const changed = await db.transaction(async (trx) => {
       await this.lock(order, trx)
       if (order.status === OrderStatus.CANCELLED) return false
+      if (guard) await guard(order, trx)
       // Online orders wait for the customer's Pix or card: the managers' call.
       if (
         onlyUnpaid &&
@@ -666,9 +745,11 @@ export default class OrderService {
         throw new AppException(
           order.amountPaid > 0
             ? 'Este pedido já foi pago. Só um gerente pode cancelá-lo.'
-            : order.channel !== OrderChannel.POS
-              ? 'Pedido online aguardando o pagamento do cliente. Só um gerente pode cancelá-lo.'
-              : 'Este pedido já foi para a cozinha. Só um gerente pode cancelá-lo.',
+            : order.channel === OrderChannel.PARTNER
+              ? 'Pedido de parceiro: quem descarta é o próprio parceiro, ou um gerente.'
+              : order.channel !== OrderChannel.POS
+                ? 'Pedido online aguardando o pagamento do cliente. Só um gerente pode cancelá-lo.'
+                : 'Este pedido já foi para a cozinha. Só um gerente pode cancelá-lo.',
           403,
           'E_NOT_DISCARDABLE'
         )
@@ -687,10 +768,147 @@ export default class OrderService {
       await this.transition(order, OrderStatus.CANCELLED, trx, actor)
       await this.inventory.reverseForOrder(order, trx)
       await order.save()
+      // A cancellation someone asked for is answered by this one.
+      answered = await OrderCancelRequest.query({ client: trx }).where({
+        orderId: order.id,
+        status: CancelRequestStatus.PENDING,
+      })
+      await OrderCancelRequest.query({ client: trx })
+        .where({ orderId: order.id, status: CancelRequestStatus.PENDING })
+        .update({
+          status: CancelRequestStatus.APPROVED,
+          decided_by_id: actor?.id ?? null,
+          decided_at: DateTime.now().toSQL(),
+          decision_note: decisionNote,
+        })
       return true
     })
-    if (changed) await this.afterChange(order)
+    if (changed) {
+      await this.afterChange(order)
+      if (!requesterTold) await this.tellRequesters(order, answered, actor)
+    }
     return order
+  }
+
+  /** Cancelled another way (the board, the expiry): whoever asked to cancel is told it was. */
+  private async tellRequesters(order: Order, requests: OrderCancelRequest[], actor?: User) {
+    for (const request of requests) {
+      if (!request.requestedById) continue
+      try {
+        await this.notifications.notify(
+          'order.cancel_decided',
+          {
+            storeId: order.storeId,
+            orderNumber: order.number,
+            approved: true,
+            decidedBy: actor ? (actor.name ?? actor.email) : 'A loja',
+            note: null,
+          },
+          { userIds: [request.requestedById], storeId: order.storeId }
+        )
+      } catch (error) {
+        logger.warn({ err: error, orderId: order.id }, 'could not tell who asked to cancel')
+      }
+    }
+  }
+
+  /**
+   * The partner handed the order to their customer (ADR 0024), after the
+   * store handed it to them. Repeating it is a success.
+   */
+  async deliverToCustomer(storeId: string, partnerId: string, orderId: string, actor: User) {
+    const order = await this.findForPartner(storeId, partnerId, orderId)
+    if (order.partnerDeliveredAt) return order
+    const changed = await db.transaction(async (trx) => {
+      await this.lock(order, trx)
+      if (order.partnerDeliveredAt) return false
+      if (order.status !== OrderStatus.COMPLETED) {
+        throw new AppException(
+          order.status === OrderStatus.CANCELLED
+            ? 'Este pedido foi cancelado.'
+            : 'A loja ainda não entregou este pedido para você.',
+          409,
+          'E_NOT_HANDED_OVER'
+        )
+      }
+      order.partnerDeliveredAt = DateTime.now()
+      order.partnerDeliveredById = actor.id
+      await order.useTransaction(trx).save()
+      return true
+    })
+    if (changed) {
+      broadcastPartnerEvent({
+        type: 'partner.orders.changed',
+        storeId,
+        partnerId,
+        orderId: order.id,
+      })
+    }
+    return order
+  }
+
+  /** One of a partner's orders (404 for anyone else's). */
+  async findForPartner(storeId: string, partnerId: string, orderId: string) {
+    const order = await Order.query()
+      .where({ id: orderId, storeId, partnerId })
+      .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('cancelRequests', (requests) =>
+        requests.orderBy('id', 'desc').preload('requestedBy').preload('decidedBy')
+      )
+      .first()
+    if (!order) throw new AppException('Pedido não encontrado', 404)
+    return order
+  }
+
+  /**
+   * A partner's board (ADR 0024): what is still going on (any day), plus a
+   * business day's orders (today by default).
+   */
+  async listForPartner(storeId: string, partnerId: string, filters: { date?: DateTime } = {}) {
+    const date = (filters.date ?? DateTime.now().setZone(BUSINESS_TIMEZONE)).toISODate()!
+    const today = DateTime.now().setZone(BUSINESS_TIMEZONE).toISODate()!
+    return await Order.query()
+      .where({ storeId, partnerId })
+      .where((scope) => {
+        scope.where('business_date', date)
+        if (date === today) {
+          scope
+            .orWhereIn('status', [...ACTIVE_STATUSES, OrderStatus.PENDING_PAYMENT])
+            .orWhere((open) =>
+              open.where('status', OrderStatus.COMPLETED).whereNull('partner_delivered_at')
+            )
+        }
+      })
+      .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('cancelRequests', (requests) =>
+        requests.orderBy('id', 'desc').preload('requestedBy').preload('decidedBy')
+      )
+      .orderBy('createdAt', 'desc')
+  }
+
+  private async pendingCancelRequest(order: Order, trx: TransactionClientContract) {
+    return await OrderCancelRequest.query({ client: trx })
+      .where({ orderId: order.id, status: CancelRequestStatus.PENDING })
+      .first()
+  }
+
+  /** Channel `partner`: the partner, locked, open for orders; null for other channels. */
+  private async lockPartner(store: Store, input: CreateOrderInput, trx: TransactionClientContract) {
+    if (input.channel !== OrderChannel.PARTNER) return null
+    if (!input.partnerId) throw new AppException('Parceiro obrigatório.', 422)
+    const partner = await this.partners.findInStore(store.id, input.partnerId, trx, { lock: true })
+    if (partner.pausedAt) {
+      throw new AppException(
+        'As vendas deste parceiro estão pausadas pela loja.',
+        409,
+        'E_PARTNER_PAUSED'
+      )
+    }
+    // The store's kitchen makes it: only while the store is open.
+    if (!store.isOpen) {
+      throw new AppException('A loja está fechada agora.', 409, 'E_STORE_CLOSED')
+    }
+    return partner
   }
 
   /**
@@ -706,6 +924,7 @@ export default class OrderService {
     actor?: User
   ) {
     const order = await this.find(storeId, orderId)
+    assertNotPartnerOrder(order)
     const given = input.phone ? normalizeBrazilianPhone(input.phone) : null
     if (input.phone && !given) {
       throw new AppException('Telefone inválido. Use DDD + número.', 422, 'E_INVALID_PHONE')
@@ -1035,6 +1254,10 @@ export default class OrderService {
       .where('business_date', date)
       .if(filters.statuses?.length, (query) => query.whereIn('status', filters.statuses!))
       .preload('items', (items) => items.preload('addons').orderBy('id'))
+      .preload('partner')
+      .preload('cancelRequests', (requests) =>
+        requests.where('status', CancelRequestStatus.PENDING).preload('requestedBy')
+      )
       .orderBy('createdAt', 'asc')
   }
 
@@ -1103,6 +1326,10 @@ export default class OrderService {
       .where({ id: orderId, storeId })
       .preload('items', (items) => items.preload('addons').orderBy('id'))
       .preload('history', (history) => history.preload('user').orderBy('id'))
+      .preload('partner')
+      .preload('cancelRequests', (requests) =>
+        requests.where('status', CancelRequestStatus.PENDING).preload('requestedBy')
+      )
       .first()
     if (!order) throw new AppException('Pedido não encontrado', 404)
     return order
@@ -1356,6 +1583,10 @@ export default class OrderService {
       throw new AppException(`Não é possível mudar o pedido de ${from} para ${to}.`, 409)
     }
     order.status = to
+    // Told to the partner after the commit (afterChange).
+    if (order.partnerId && (to === OrderStatus.READY || to === OrderStatus.COMPLETED)) {
+      order.$extras.partnerAlert = to
+    }
     if (to === OrderStatus.READY) order.readyAt = DateTime.now()
     if (to === OrderStatus.COMPLETED) order.completedAt = DateTime.now()
     await this.history(order, from, to, trx, actor)
@@ -1394,6 +1625,29 @@ export default class OrderService {
     }
   }
 
+  /** A partner's order changed: their screens refetch; ready and handed over are told. */
+  private async partnerAlerts(order: Order) {
+    broadcastPartnerEvent({
+      type: 'partner.orders.changed',
+      storeId: order.storeId,
+      partnerId: order.partnerId!,
+      orderId: order.id,
+    })
+    const alert = order.$extras.partnerAlert as OrderStatus | undefined
+    if (alert !== order.status) return
+    delete order.$extras.partnerAlert
+    try {
+      await this.notifications.notifyPartnerMembers(
+        order.storeId,
+        order.partnerId!,
+        alert === OrderStatus.READY ? 'partner.order_ready' : 'partner.order_handed_over',
+        { storeId: order.storeId, orderNumber: order.number, customerName: order.customerName }
+      )
+    } catch (error) {
+      logger.warn({ err: error, orderId: order.id }, 'could not notify the partner')
+    }
+  }
+
   /** After commit: realtime hints for staff and the customer, and staff notifications. */
   private async afterChange(
     order: Order,
@@ -1407,6 +1661,7 @@ export default class OrderService {
       paymentStatus: order.paymentStatus,
     })
     await this.customerAlerts(order)
+    if (order.partnerId) await this.partnerAlerts(order)
 
     // Staff are notified once an online order actually needs work (POS
     // orders were entered by the staff themselves).

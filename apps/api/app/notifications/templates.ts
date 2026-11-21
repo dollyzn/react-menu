@@ -1,6 +1,7 @@
 import type { NotificationCategory } from '@react-menu/contracts'
 import StoreStatus from '#enums/store_status'
 import StoreRole from '#enums/store_role'
+import PartnerCommissionType from '#enums/partner_commission_type'
 
 /**
  * Every notification the system can send is declared here. To add a new
@@ -41,12 +42,21 @@ export const storeRoleLabels: Record<StoreRole, string> = {
   [StoreRole.MANAGER]: 'gerente',
   [StoreRole.ATTENDANT]: 'atendente',
   [StoreRole.KITCHEN]: 'cozinha',
+  [StoreRole.PARTNER]: 'parceiro',
 }
 
 const storeStatusLabels: Record<StoreStatus, string> = {
   [StoreStatus.OPEN]: 'aberta',
   [StoreStatus.CLOSED]: 'fechada',
   [StoreStatus.MAINTENANCE]: 'em manutenção',
+}
+
+const brl = (value: number) => value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
+function formatCommission(type: PartnerCommissionType, value: number) {
+  return type === PartnerCommissionType.PERCENT
+    ? `${value.toLocaleString('pt-BR')}% de cada venda`
+    : `${brl(value)} por unidade vendida`
 }
 
 export const notificationTemplates = {
@@ -82,7 +92,7 @@ export const notificationTemplates = {
     render: ({ storeId, storeName, role, addedBy }) => ({
       title: `Você agora faz parte da ${storeName}`,
       body: `${addedBy} adicionou você à equipe como ${storeRoleLabels[role]}.`,
-      url: `/app/stores/${storeId}`,
+      url: `/app/stores/${storeId}${role === StoreRole.PARTNER ? '/partner' : ''}`,
     }),
   }),
 
@@ -118,6 +128,99 @@ export const notificationTemplates = {
       title: `Reembolso do pedido #${orderNumber} não concluído`,
       body: 'O reembolso automático falhou várias vezes. Tente "Reembolsar agora" no pedido ou faça pelo Mercado Pago.',
       url: `/app/stores/${storeId}/orders?view=historico&pedido=${orderId}`,
+    }),
+  }),
+
+  'partner.order_ready': defineTemplate<{
+    storeId: string
+    orderNumber: number
+    customerName: string
+  }>({
+    category: 'order',
+    label: 'Pedido de parceiro pronto',
+    description: 'Parceiros: quando a loja termina um pedido seu e vai entregá-lo a você.',
+    defaults: { push: true, email: false },
+    audience: 'staff',
+    render: ({ storeId, orderNumber, customerName }) => ({
+      title: `Pedido #${orderNumber} pronto`,
+      body: `O pedido de ${customerName} ficou pronto na loja.`,
+      url: `/app/stores/${storeId}/partner/orders`,
+    }),
+  }),
+
+  'partner.order_handed_over': defineTemplate<{
+    storeId: string
+    orderNumber: number
+    customerName: string
+  }>({
+    category: 'order',
+    label: 'Pedido entregue ao parceiro',
+    description: 'Parceiros: quando a loja marca um pedido seu como entregue a você.',
+    defaults: { push: true, email: false },
+    audience: 'staff',
+    render: ({ storeId, orderNumber, customerName }) => ({
+      title: `Pedido #${orderNumber} com você`,
+      body: `A loja entregou o pedido de ${customerName}. Marque quando entregar ao cliente.`,
+      url: `/app/stores/${storeId}/partner/orders`,
+    }),
+  }),
+
+  'partner.commission_changed': defineTemplate<{
+    storeId: string
+    partnerName: string
+    commissionType: PartnerCommissionType
+    commissionValue: number
+  }>({
+    category: 'store',
+    label: 'Comissão alterada',
+    description: 'Parceiros: quando a loja muda a sua comissão (vale para os pedidos novos).',
+    defaults: { push: true, email: true },
+    audience: 'staff',
+    render: ({ storeId, commissionType, commissionValue }) => ({
+      title: 'Sua comissão mudou',
+      body: `A partir de agora: ${formatCommission(commissionType, commissionValue)}. Os pedidos já feitos mantêm a comissão de antes.`,
+      url: `/app/stores/${storeId}/partner/commission`,
+    }),
+  }),
+
+  'order.cancel_requested': defineTemplate<{
+    storeId: string
+    orderId: string
+    orderNumber: number
+    requestedBy: string
+    partnerName: string | null
+    reason: string
+  }>({
+    category: 'order',
+    label: 'Cancelamento solicitado',
+    description: 'Gerentes: quando um parceiro pede para cancelar um pedido.',
+    defaults: { push: true, email: false },
+    audience: 'staff',
+    render: ({ storeId, orderId, orderNumber, requestedBy, partnerName, reason }) => ({
+      title: `Cancelar o pedido #${orderNumber}?`,
+      body: `${partnerName ?? requestedBy} pediu o cancelamento: ${reason}`,
+      url: `/app/stores/${storeId}/orders?pedido=${orderId}`,
+    }),
+  }),
+
+  'order.cancel_decided': defineTemplate<{
+    storeId: string
+    orderNumber: number
+    approved: boolean
+    decidedBy: string
+    note: string | null
+  }>({
+    category: 'order',
+    label: 'Resposta ao cancelamento',
+    description: 'Quando um gerente aprova ou recusa o cancelamento que você pediu.',
+    defaults: { push: true, email: false },
+    audience: 'staff',
+    render: ({ storeId, orderNumber, approved, decidedBy, note }) => ({
+      title: approved
+        ? `Pedido #${orderNumber} cancelado`
+        : `Cancelamento do pedido #${orderNumber} recusado`,
+      body: `${decidedBy} ${approved ? 'aprovou' : 'recusou'} o cancelamento.${note ? ` ${note}` : ''}`,
+      url: `/app/stores/${storeId}/partner/orders`,
     }),
   }),
 

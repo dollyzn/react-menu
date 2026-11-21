@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { Bar, BarChart, CartesianGrid, XAxis } from "recharts";
 import type {
+  AssistantCancelRequests,
+  AssistantPartners,
   AssistantOptionGroups,
   AssistantFoundOrders,
   AssistantOrderDetails,
@@ -277,8 +279,15 @@ export function OrdersNowCard({ data }: { data: AssistantOrdersNow }) {
                 <ItemTitle className="w-full">
                   <span className="tabular-nums text-muted-foreground">#{order.number}</span>
                   <span className="truncate">{order.customerName}</span>
+                  {/* A partner's order (ADR 0024): whose it is. */}
+                  {order.partnerName && (
+                    <span className="shrink-0 rounded-full bg-partner/15 px-1.5 text-[0.7rem] text-partner">{order.partnerName}</span>
+                  )}
                 </ItemTitle>
-                <ItemDescription className="line-clamp-1">{order.items}</ItemDescription>
+                <ItemDescription className="line-clamp-1">
+                  {order.cancelRequested && <span className="font-medium text-destructive">Cancelamento pedido · </span>}
+                  {order.items}
+                </ItemDescription>
               </ItemContent>
               <div className="flex shrink-0 flex-col items-end gap-1">
                 <Badge variant={order.late ? "destructive" : "outline"} className="tabular-nums">
@@ -536,6 +545,75 @@ export function OrderDetailsCard({ data }: { data: AssistantOrderDetails }) {
   );
 }
 
+/** Partners in a period: sales, commission, what is to pay (ADR 0024). */
+export function PartnersCard({ data }: { data: AssistantPartners }) {
+  const toPay = data.partners.reduce((sum, partner) => sum + partner.toPay.amount, 0);
+  return (
+    <ResultCard
+      title="Parceiros"
+      description={`${formatDay(data.period.from)} a ${formatDay(data.period.to)} · ${formatCurrencyBRL(toPay)} de comissão a pagar`}
+    >
+      {data.partners.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum parceiro cadastrado.</p>
+      ) : (
+        <ItemGroup className="gap-1">
+          {data.partners.map((partner) => (
+            <Item key={partner.id} variant="muted" size="xs">
+              <ItemContent className="min-w-0">
+                <ItemTitle className="w-full">
+                  <span className="truncate">{partner.name}</span>
+                  {partner.paused && <Badge variant="outline" className="text-warning">Pausado</Badge>}
+                </ItemTitle>
+                <ItemDescription className="line-clamp-1">
+                  {partner.rule} · {partner.orders === 1 ? "1 pedido" : `${partner.orders} pedidos`}
+                </ItemDescription>
+              </ItemContent>
+              <div className="flex shrink-0 flex-col items-end text-xs tabular-nums">
+                <span className="font-semibold">{formatCurrencyBRL(partner.sales)}</span>
+                <span className={partner.toPay.amount ? "text-success" : "text-muted-foreground"}>
+                  a pagar {formatCurrencyBRL(partner.toPay.amount)}
+                </span>
+              </div>
+            </Item>
+          ))}
+        </ItemGroup>
+      )}
+    </ResultCard>
+  );
+}
+
+/** Cancellations partners asked, waiting for a manager. */
+export function CancelRequestsCard({ data }: { data: AssistantCancelRequests }) {
+  return (
+    <ResultCard
+      title="Cancelamentos pedidos"
+      description={data.requests.length === 1 ? "1 esperando um gerente" : `${data.requests.length} esperando um gerente`}
+    >
+      {data.requests.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhum pedido de cancelamento esperando.</p>
+      ) : (
+        <ItemGroup className="gap-1">
+          {data.requests.map((request) => (
+            <Item key={`${request.date}-${request.number}`} variant="muted" size="xs">
+              <ItemContent className="min-w-0">
+                <ItemTitle className="w-full">
+                  <span className="tabular-nums text-muted-foreground">#{request.number}</span>
+                  <span className="truncate">{request.customerName}</span>
+                  {request.partnerName && (
+                    <span className="shrink-0 rounded-full bg-partner/15 px-1.5 text-[0.7rem] text-partner">{request.partnerName}</span>
+                  )}
+                </ItemTitle>
+                <ItemDescription className="line-clamp-2">“{request.reason}”</ItemDescription>
+              </ItemContent>
+              <span className="shrink-0 text-xs font-medium tabular-nums">{formatCurrencyBRL(request.total)}</span>
+            </Item>
+          ))}
+        </ItemGroup>
+      )}
+    </ResultCard>
+  );
+}
+
 /** The card of a read tool's output (writes are shown by their approval card). */
 export function ToolResult({ name, output }: { name: AssistantToolName; output: unknown }) {
   switch (name) {
@@ -561,6 +639,10 @@ export function ToolResult({ name, output }: { name: AssistantToolName; output: 
       return <OrderDetailsCard data={output as AssistantOrderDetails} />;
     case "option_groups":
       return <OptionGroupsCard data={output as AssistantOptionGroups} />;
+    case "partners":
+      return <PartnersCard data={output as AssistantPartners} />;
+    case "cancel_requests":
+      return <CancelRequestsCard data={output as AssistantCancelRequests} />;
     default:
       return null;
   }

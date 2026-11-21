@@ -29,6 +29,7 @@ an accepted ADR, supersede it with a new one.
 | [0021](0021-order-receipts.md) | Orders paid in more than one go (receipts) | Accepted |
 | [0022](0022-card-fee-pass-through.md) | Card fee passed on to the customer (online checkout) | Accepted |
 | [0023](0023-store-assistant.md) | Store assistant on the AI SDK, with each store's own model | Accepted |
+| [0024](0024-store-partners.md) | Partners who sell the store's menu (role, orders, commission) | Accepted |
 
 ## Template
 

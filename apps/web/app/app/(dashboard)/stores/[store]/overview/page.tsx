@@ -174,17 +174,20 @@ function VisitsCard({ data }: { data: DashboardToday }) {
               <Bar dataKey="visits" fill="var(--color-visits)" radius={[4, 4, 0, 0]} maxBarSize={24} />
             </BarChart>
           </ChartContainer>
-          <table className="sr-only">
-            <caption>Visitas nos últimos 14 dias</caption>
-            <tbody>
-              {visits.daily.map((day) => (
-                <tr key={day.date}>
-                  <th scope="row">{formatWeekday(day.date)}</th>
-                  <td>{plural(day.visits, "visita", "visitas")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {/* A div, not the table: a table ignores sr-only's 1px box and stretches the page. */}
+          <div className="sr-only">
+            <table>
+              <caption>Visitas nos últimos 14 dias</caption>
+              <tbody>
+                {visits.daily.map((day) => (
+                  <tr key={day.date}>
+                    <th scope="row">{formatWeekday(day.date)}</th>
+                    <td>{plural(day.visits, "visita", "visitas")}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </CardContent>
     </Card>
