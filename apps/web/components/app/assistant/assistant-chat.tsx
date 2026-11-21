@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { RotateCw, Sparkles, TriangleAlert } from "lucide-react";
+import { ChevronLeft, ChevronRight, RotateCw, Sparkles, TriangleAlert } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { Spinner } from "@/components/ui/spinner";
+import { useHorizontalScroll } from "@/hooks/use-horizontal-scroll";
 import type { AssistantEffort, AssistantModelChoice, AssistantUsage, StoreRole } from "@react-menu/contracts";
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -79,39 +82,114 @@ function sessionOf(messages: AssistantUIMessage[], models: AssistantModelChoice[
   return { tokens, contextTokens, contextWindow: window };
 }
 
-/** One-tap questions (Suggestion pattern): outline pills that scroll sideways. */
+/** The strip's edges fade where there is more to scroll. */
+function edgeMask(start: boolean, end: boolean) {
+  if (!start && !end) return undefined;
+  const from = start ? "transparent, black 32px" : "black";
+  const to = end ? "black calc(100% - 32px), transparent" : "black";
+  return `linear-gradient(to right, ${from}, ${to})`;
+}
+
+/**
+ * One-tap questions (Suggestion pattern): outline pills that scroll
+ * sideways, with a mouse too (wheel, drag, arrows on the edges). While the
+ * assistant writes the next questions for its answer, the strip says so and
+ * the screen's questions wait dimmed; the written ones come in one by one.
+ */
 function Suggestions({
   items,
+  listKey,
   onPick,
   disabled,
   fromAnswer,
+  loading,
 }: {
   items: string[];
+  /** Changes when the list is another one (the screen's, or an answer's): it starts over at the left. */
+  listKey: string;
   onPick: (text: string) => void;
   disabled?: boolean;
   /** Written by the assistant for its last answer (marked with a sparkle). */
   fromAnswer?: boolean;
+  /** The assistant is writing the next questions. */
+  loading?: boolean;
 }) {
+  const strip = useHorizontalScroll<HTMLDivElement>();
+  const reduce = useReducedMotion();
+  const { ref, measure } = strip;
+  useEffect(() => {
+    ref.current?.scrollTo({ left: 0 });
+    measure();
+  }, [listKey, ref, measure]);
+  const mask = edgeMask(strip.start, strip.end);
+
   return (
-    <div
-      className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]"
-      role="list"
-      aria-label={fromAnswer ? "Sugestões para continuar" : "Sugestões"}
-    >
-      {items.map((text) => (
+    <div className="relative -mx-4" aria-busy={loading || undefined}>
+      <div
+        ref={ref}
+        className="flex gap-2 overflow-x-auto px-4 pb-1 select-none [scrollbar-width:none] data-dragging:cursor-grabbing data-dragging:*:pointer-events-none"
+        style={mask ? { maskImage: mask, WebkitMaskImage: mask } : undefined}
+        role="list"
+        aria-label={fromAnswer ? "Sugestões para continuar" : "Sugestões"}
+      >
+        {/* Outside the presence: it goes the moment the questions arrive. */}
+        {loading && (
+          <span
+            role="listitem"
+            className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-dashed border-primary/40 px-3 text-xs text-muted-foreground animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none"
+          >
+            <Spinner className="text-primary" /> Pensando em sugestões…
+          </span>
+        )}
+        <AnimatePresence initial={false} mode="popLayout">
+          {items.map((text, index) => (
+            <motion.div
+              key={`${listKey}:${text}`}
+              role="listitem"
+              layout={!reduce}
+              initial={reduce ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: loading ? 0.5 : 1, y: 0 }}
+              exit={reduce ? undefined : { opacity: 0, y: -6 }}
+              transition={{ duration: 0.22, delay: reduce ? 0 : index * 0.05 }}
+              className="shrink-0"
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-full font-normal"
+                disabled={disabled}
+                onClick={() => onPick(text)}
+              >
+                {fromAnswer && <Sparkles data-icon="inline-start" className="text-primary" />}
+                {text}
+              </Button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+      {/* Mice and trackpads (touch swipes): more on each side. */}
+      {strip.start && (
         <Button
-          key={text}
-          role="listitem"
           variant="outline"
-          size="sm"
-          className="shrink-0 rounded-full font-normal"
-          disabled={disabled}
-          onClick={() => onPick(text)}
+          size="icon-xs"
+          aria-label="Ver as sugestões anteriores"
+          className="absolute inset-y-0 left-2 my-auto hidden rounded-full bg-background shadow-sm [@media(pointer:fine)]:inline-flex"
+          onClick={() => strip.scrollBy(-1)}
         >
-          {fromAnswer && <Sparkles data-icon="inline-start" className="text-primary" />}
-          {text}
+          <ChevronLeft />
         </Button>
-      ))}
+      )}
+      {strip.end && (
+        <Button
+          variant="outline"
+          size="icon-xs"
+          aria-label="Ver mais sugestões"
+          className="absolute inset-y-0 right-2 my-auto hidden rounded-full bg-background shadow-sm [@media(pointer:fine)]:inline-flex"
+          onClick={() => strip.scrollBy(1)}
+        >
+          <ChevronRight />
+        </Button>
+      )}
     </div>
   );
 }
@@ -159,6 +237,8 @@ export function AssistantChat({
 
   const [suggest] = useSuggestAssistantQuestionsMutation();
   const [followUps, setFollowUps] = useState<FollowUps | null>(null);
+  /** The answer whose next questions are being written (the strip shows it). */
+  const [suggesting, setSuggesting] = useState<string | null>(null);
   const { messages, sendMessage, status, stop, error, regenerate, addToolApprovalResponse, clearError } =
     useChat<AssistantUIMessage>({
       id: conversationId,
@@ -169,10 +249,12 @@ export function AssistantChat({
         // Next questions written for this answer; not while a change waits (the card is the next step).
         const waiting = message.parts.some((part) => isToolPart(part) && part.state === "approval-requested");
         if (!isAbort && !isError && !waiting) {
+          setSuggesting(message.id);
           void suggest({ storeId, id: conversationId, model })
             .unwrap()
             .then((result) => result.messageId && setFollowUps(result as FollowUps))
-            .catch(() => undefined);
+            .catch(() => undefined)
+            .finally(() => setSuggesting((current) => (current === message.id ? null : current)));
         }
         // A change the assistant made: the panel's screens behind the sheet refetch.
         const wrote = changedData(message);
@@ -192,6 +274,8 @@ export function AssistantChat({
     followUps && followUps.messageId === last?.id ? followUps.suggestions : (last?.metadata?.suggestions ?? []);
   const followUp = written.length > 0 && !busy;
   const suggestions = followUp ? written : suggestionsFor(page, role, seed);
+  // Writing the next questions for the last answer (none yet).
+  const loadingFollowUps = !busy && !followUp && suggesting !== null && suggesting === last?.id;
   const errorText = chatErrorText(error);
   const session = sessionOf(messages, models, model);
   const lastMessage = messages.at(-1);
@@ -291,7 +375,14 @@ export function AssistantChat({
           <p className="text-xs text-muted-foreground">A loja usou todas as mensagens de hoje. Amanhã libera de novo.</p>
         )}
         {messages.length > 0 && (
-          <Suggestions items={suggestions} fromAnswer={Boolean(followUp)} onPick={(text) => send(text)} disabled={limitReached || busy} />
+          <Suggestions
+            items={suggestions}
+            listKey={followUp ? `answer-${last?.id}` : "screen"}
+            fromAnswer={Boolean(followUp)}
+            loading={loadingFollowUps}
+            onPick={(text) => send(text)}
+            disabled={limitReached || busy}
+          />
         )}
         <PromptInput
           busy={busy}
