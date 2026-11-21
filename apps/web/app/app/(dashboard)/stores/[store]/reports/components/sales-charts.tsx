@@ -115,19 +115,22 @@ export function DailyRevenueChart({
             </BarChart>
           )}
         </ChartContainer>
-        <table className="sr-only">
-          <caption>{caption}</caption>
-          <tbody>
-            {daily.map((day) => (
-              <tr key={day.date}>
-                <th scope="row">{formatWeekday(day.date)}</th>
-                <td>{formatCurrencyBRL(day.revenue)}</td>
-                <td>{orders(day.orders)}</td>
-                {detail && <td>{detail(day)}</td>}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* A div, not the table: a table ignores sr-only's 1px box and stretches the page. */}
+        <div className="sr-only">
+          <table>
+            <caption>{caption}</caption>
+            <tbody>
+              {daily.map((day) => (
+                <tr key={day.date}>
+                  <th scope="row">{formatWeekday(day.date)}</th>
+                  <td>{formatCurrencyBRL(day.revenue)}</td>
+                  <td>{orders(day.orders)}</td>
+                  {detail && <td>{detail(day)}</td>}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
@@ -182,17 +185,20 @@ export function HourlyOrdersChart({ hourly }: { hourly: Hour[] }) {
             <Bar dataKey="orders" fill="var(--color-orders)" radius={[4, 4, 0, 0]} maxBarSize={24} />
           </BarChart>
         </ChartContainer>
-        <table className="sr-only">
-          <caption>Pedidos em cada horário</caption>
-          <tbody>
-            {hours.map((hour) => (
-              <tr key={hour.hour}>
-                <th scope="row">{`${hour.hour}h às ${hour.hour + 1}h`}</th>
-                <td>{orders(hour.orders)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* A div, not the table: a table ignores sr-only's 1px box and stretches the page. */}
+        <div className="sr-only">
+          <table>
+            <caption>Pedidos em cada horário</caption>
+            <tbody>
+              {hours.map((hour) => (
+                <tr key={hour.hour}>
+                  <th scope="row">{`${hour.hour}h às ${hour.hour + 1}h`}</th>
+                  <td>{orders(hour.orders)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );
