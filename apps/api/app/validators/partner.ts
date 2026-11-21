@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { DateTime } from 'luxon'
 import PartnerCancelPolicy from '#enums/partner_cancel_policy'
 import PartnerCatalogMode from '#enums/partner_catalog_mode'
 import PartnerCommissionType from '#enums/partner_commission_type'
@@ -29,7 +30,16 @@ export const partnerTerminalValidator = vine.create(
   vine.object({ partnerId: vine.string().uuid().nullable() })
 )
 
-const day = vine.string().regex(/^\d{4}-\d{2}-\d{2}$/)
+/** A real calendar day "YYYY-MM-DD" (2026-13-45 is refused, not sent to the database). */
+const realDay = vine.createRule((value, _options, field) => {
+  if (typeof value !== 'string' || !DateTime.fromISO(value).isValid) {
+    field.report('Data inválida.', 'date', field)
+  }
+})
+const day = vine
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .use(realDay())
 
 /** A partner's board: another business day than today. */
 export const partnerOrdersValidator = vine.create(vine.object({ date: day.clone().optional() }))

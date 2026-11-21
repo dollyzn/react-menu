@@ -17,7 +17,7 @@ export function usePointConfig(storeId: string, area: PointArea = "store"): Poin
   if (!context) return undefined;
   return {
     available: context.point.available,
-    terminals: context.terminal ? [{ id: context.terminal.terminalId, name: context.terminal.name }] : [],
+    terminals: context.terminals.map((terminal) => ({ id: terminal.terminalId, name: terminal.name })),
     paymentTypes: context.point.paymentTypes,
     maxInstallments: context.point.maxInstallments,
     printTicket: false,

@@ -37,7 +37,9 @@ type SalesFilters = {
 /** A "from~to" business-day period (either side may be empty), as the data tables send it. */
 function period(value?: string | string[]) {
   const [from, to] = ([value ?? []].flat()[0] ?? '~').split('~')
-  const day = (part?: string) => (part && /^\d{4}-\d{2}-\d{2}$/.test(part) ? part : undefined)
+  // A real day only: anything else is no limit on that side (never a database error).
+  const day = (part?: string) =>
+    part && /^\d{4}-\d{2}-\d{2}$/.test(part) && DateTime.fromISO(part).isValid ? part : undefined
   return { from: day(from), to: day(to) }
 }
 

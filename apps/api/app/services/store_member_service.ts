@@ -215,7 +215,8 @@ export default class StoreMemberService {
           new StoreAccessNotification(
             { email: user.email, name: user.name },
             { store: storeBrand(store), role: input.role, addedBy: actor.name },
-            `${env.get('FRONTEND_URL')}/app/stores/${storeId}`
+            // A partner can't open the store's page: their own area instead.
+            `${env.get('FRONTEND_URL')}/app/stores/${storeId}${input.role === StoreRole.PARTNER ? '/partner' : ''}`
           )
         )
       }

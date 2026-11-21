@@ -92,7 +92,7 @@ export const notificationTemplates = {
     render: ({ storeId, storeName, role, addedBy }) => ({
       title: `Você agora faz parte da ${storeName}`,
       body: `${addedBy} adicionou você à equipe como ${storeRoleLabels[role]}.`,
-      url: `/app/stores/${storeId}`,
+      url: `/app/stores/${storeId}${role === StoreRole.PARTNER ? '/partner' : ''}`,
     }),
   }),
 

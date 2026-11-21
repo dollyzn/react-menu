@@ -80,8 +80,11 @@ pastries that are never collected.
   `E_CANCEL_REQUIRES_APPROVAL` on cancel). The managers are told, the board
   and the kitchen mark the order, and "Entregar" answers 409
   `E_CANCEL_REQUESTED` until a manager approves (cancels through
-  `OrderCancellationService`) or refuses. Any cancellation answers the
-  pending request as approved.
+  `OrderCancellationService`) or refuses; the approval reads the request
+  again under the order's lock, so a refusal committed meanwhile wins. A
+  request is taken only past the window (within it the partner cancels,
+  409 `E_CAN_CANCEL`). Any cancellation answers the pending request as
+  approved and tells whoever asked.
 
 ## Alternatives considered
 

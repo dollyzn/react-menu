@@ -24,6 +24,7 @@ import { addonLabels } from "@/lib/addon-label";
 import { useLastValue } from "@/hooks/use-last-value";
 import { COUNTER_METHODS } from "@/components/app/payments/counter-methods";
 import { ReceivePayment } from "./receive-payment";
+import { CancelRequestBanner } from "./cancel-request-banner";
 
 const ACTIVE = new Set(["pending_payment", "received", "preparing", "ready"]);
 
@@ -52,6 +53,10 @@ export function OrderDetailSheet({
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const show = order && order.id === shownId ? order : null;
+  // A partner's order (ADR 0024): paid only on the partner's machine; a
+  // cancellation asked waits for a manager before it is handed over.
+  const partnerOrder = show?.channel === "partner";
+  const cancelRequested = Boolean(show?.cancelRequest);
   const cardFeePaid = (show?.receipts ?? []).reduce((sum, receipt) => sum + (receipt.fee ?? 0), 0);
   const phone = show?.customerPhone?.replace(/^55/, "");
 
@@ -89,7 +94,7 @@ export function OrderDetailSheet({
                     const channel = CHANNEL[show.channel];
                     return (
                       <>
-                        <channel.icon className="size-3.5" /> {channel.label} ·{" "}
+                        <channel.icon className="size-3.5" /> {partnerOrder ? (show.partner?.name ?? channel.label) : channel.label} ·{" "}
                         {show.counterMethod ? COUNTER_METHODS[show.counterMethod].label : PAYMENT[show.paymentMethod]} ·{" "}
                         <span
                           className={cn(
@@ -289,19 +294,27 @@ export function OrderDetailSheet({
               </a>
             </div>
 
+            {show.cancelRequest && (
+              <div className="border-t px-4 pb-1">
+                <CancelRequestBanner order={show} storeId={storeId} canDecide={isManager} />
+              </div>
+            )}
             {canOperate && ACTIVE.has(show.status) && (
               <footer className="flex flex-wrap gap-2 border-t p-4">
-                {show.status === "ready" && (
+                {show.status === "ready" && !cancelRequested && (
                   <DeliverOrderButton order={show} storeId={storeId} className="flex-1" />
                 )}
-                {show.paymentStatus !== "paid" && (
+                {show.paymentStatus !== "paid" && !partnerOrder && (
                   <Button variant="outline" onClick={() => setReceiving(true)}>
                     <Banknote /> Receber pagamento
                   </Button>
                 )}
-                <Button variant="ghost" className="text-destructive" onClick={() => setConfirmCancel(true)}>
-                  <Ban /> Cancelar
-                </Button>
+                {/* Cancelling refunds: managers (the counter drops only unpaid store orders, on the card). */}
+                {isManager && (
+                  <Button variant="ghost" className="text-destructive" onClick={() => setConfirmCancel(true)}>
+                    <Ban /> Cancelar
+                  </Button>
+                )}
               </footer>
             )}
 
@@ -323,7 +336,7 @@ export function OrderDetailSheet({
               }}
             />
             {/* Mounted while the order turns paid, so it closes smoothly (closed, it fetches nothing). */}
-            {canOperate && (
+            {canOperate && !partnerOrder && (
               <ReceivePayment order={show} storeId={storeId} open={receiving} onClose={() => setReceiving(false)} />
             )}
           </>

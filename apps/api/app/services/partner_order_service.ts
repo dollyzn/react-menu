@@ -66,7 +66,7 @@ export default class PartnerOrderService {
 
   async context(storeId: string, partner: StorePartner) {
     const store = await Store.findOrFail(storeId)
-    const [terminal] = await this.point.enabledTerminals(store, { partnerId: partner.id })
+    const terminals = await this.point.enabledTerminals(store, { partnerId: partner.id })
     return {
       store: { id: store.id, name: store.name, photoUrl: store.photoUrl, isOpen: store.isOpen },
       partner: {
@@ -80,7 +80,11 @@ export default class PartnerOrderService {
         cancelPolicy: partner.cancelPolicy,
         paused: Boolean(partner.pausedAt),
       },
-      terminal: terminal ? { terminalId: terminal.terminalId, name: terminal.name } : null,
+      // Every machine lent to the partner (several sellers: the charge dialog asks which).
+      terminals: terminals.map((terminal) => ({
+        terminalId: terminal.terminalId,
+        name: terminal.name,
+      })),
       point: {
         available: this.point.available(store),
         paymentTypes: store.pointPaymentTypes,
@@ -184,7 +188,8 @@ export default class PartnerOrderService {
         .where({ orderId: order.id, status: CancelRequestStatus.PENDING })
         .first()
       if (waiting) return null
-      if (partnerCancelOption(partner.cancelPolicy, order) === 'none') {
+      const option = partnerCancelOption(partner.cancelPolicy, order)
+      if (option === 'none') {
         throw new AppException(
           order.status === OrderStatus.CANCELLED
             ? 'Este pedido já foi cancelado.'
@@ -192,6 +197,11 @@ export default class PartnerOrderService {
           409,
           'E_NOT_CANCELLABLE'
         )
+      }
+      // Within the window the partner cancels (an unpaid one: after its
+      // charge leaves the machine); a manager is asked only past it.
+      if (option === 'cancel') {
+        throw new AppException('Você mesmo pode cancelar este pedido.', 409, 'E_CAN_CANCEL')
       }
       return await OrderCancelRequest.create(
         {

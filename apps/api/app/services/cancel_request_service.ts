@@ -55,8 +55,21 @@ export default class CancelRequestService {
     if (request.status === CancelRequestStatus.REJECTED) {
       throw new AppException('Este pedido de cancelamento já foi recusado.', 409, 'E_DECIDED')
     }
-    // Closes the request as approved, under the order's lock.
-    await this.cancellation.cancel(storeId, orderId, actor, { decisionNote: note })
+    // Under the order's lock, the request is locked and read again: a refusal
+    // committed meanwhile (another manager) wins, nothing is cancelled.
+    await this.cancellation.cancel(storeId, orderId, actor, {
+      decisionNote: note,
+      requesterTold: true,
+      guard: async (_order, trx) => {
+        const locked = await OrderCancelRequest.query({ client: trx })
+          .where('id', request.id)
+          .forUpdate()
+          .firstOrFail()
+        if (locked.status === CancelRequestStatus.REJECTED) {
+          throw new AppException('Este pedido de cancelamento já foi recusado.', 409, 'E_DECIDED')
+        }
+      },
+    })
     // Already cancelled some other way (the expiry, a manager): answered too.
     await OrderCancelRequest.query()
       .where({ id: request.id, status: CancelRequestStatus.PENDING })

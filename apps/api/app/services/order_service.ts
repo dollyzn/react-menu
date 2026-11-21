@@ -715,14 +715,18 @@ export default class OrderService {
       onlyUnpaid = false,
       guard,
       decisionNote = null,
+      requesterTold = false,
     }: {
       onlyUnpaid?: boolean
       /** More checks on the locked order (a partner's cancellation window, ADR 0024). */
       guard?: (order: Order, trx: TransactionClientContract) => Promise<void>
       /** A manager approving a cancellation request: their note on it. */
       decisionNote?: string | null
+      /** The caller tells who asked to cancel (`CancelRequestService`); otherwise this does. */
+      requesterTold?: boolean
     } = {}
   ) {
+    let answered: OrderCancelRequest[] = []
     const order = await this.find(storeId, orderId)
     // Idempotent: cancelling twice (a double tap, the expiry job meanwhile)
     // must not reverse the stock twice.
@@ -765,6 +769,10 @@ export default class OrderService {
       await this.inventory.reverseForOrder(order, trx)
       await order.save()
       // A cancellation someone asked for is answered by this one.
+      answered = await OrderCancelRequest.query({ client: trx }).where({
+        orderId: order.id,
+        status: CancelRequestStatus.PENDING,
+      })
       await OrderCancelRequest.query({ client: trx })
         .where({ orderId: order.id, status: CancelRequestStatus.PENDING })
         .update({
@@ -775,8 +783,33 @@ export default class OrderService {
         })
       return true
     })
-    if (changed) await this.afterChange(order)
+    if (changed) {
+      await this.afterChange(order)
+      if (!requesterTold) await this.tellRequesters(order, answered, actor)
+    }
     return order
+  }
+
+  /** Cancelled another way (the board, the expiry): whoever asked to cancel is told it was. */
+  private async tellRequesters(order: Order, requests: OrderCancelRequest[], actor?: User) {
+    for (const request of requests) {
+      if (!request.requestedById) continue
+      try {
+        await this.notifications.notify(
+          'order.cancel_decided',
+          {
+            storeId: order.storeId,
+            orderNumber: order.number,
+            approved: true,
+            decidedBy: actor ? (actor.name ?? actor.email) : 'A loja',
+            note: null,
+          },
+          { userIds: [request.requestedById], storeId: order.storeId }
+        )
+      } catch (error) {
+        logger.warn({ err: error, orderId: order.id }, 'could not tell who asked to cancel')
+      }
+    }
   }
 
   /**

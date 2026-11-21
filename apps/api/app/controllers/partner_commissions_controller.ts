@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import { DateTime } from 'luxon'
 import { created, messageOnly, ok } from '#helpers/api_response'
+import AppException from '#exceptions/app_exception'
 import PartnerCommissionService from '#services/partner_commission_service'
 import { storeExistValidator, uuidValidator } from '#validators/common'
 import { partnerPeriodValidator, settlePartnerValidator } from '#validators/partner'
@@ -21,6 +23,11 @@ export default class PartnerCommissionsController {
     const storeId = await storeExistValidator.validate(params.storeId)
     const partnerId = await uuidValidator.validate(params.partnerId)
     const range = await partnerPeriodValidator.validate(request.qs())
+    // In order and up to a year, like the reports (the daily series has a row per day).
+    const days = DateTime.fromISO(range.to).diff(DateTime.fromISO(range.from), 'days').days + 1
+    if (days < 1 || days > 366) {
+      throw new AppException('Escolha um período de até um ano.', 422, 'E_INVALID_PERIOD')
+    }
     return ok(await this.commissions.stats(storeId, partnerId, range))
   }
 

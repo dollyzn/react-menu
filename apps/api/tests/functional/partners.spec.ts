@@ -680,4 +680,77 @@ test.group('Partners (ADR 0024)', (group) => {
     const now = await client.get(`${base}/commissions`).loginAs(attendant)
     now.assertStatus(200)
   })
+
+  test('other stores are refused everywhere, and bad periods too', async ({ client, assert }) => {
+    const menu = await partnerStore()
+    const { store, manager, partner, person } = menu
+    const other = await partnerStore()
+    await lendMachine(client, menu, manager, partner.id)
+    const base = `/api/v1/stores/${store.id}`
+
+    // Another store's manager, on this store's partner routes.
+    const writes = [
+      client.put(`${base}/point/terminals/${RESERVA}/partner`).json({ partnerId: null }),
+      client
+        .put(`${base}/partners/${partner.id}/catalog`)
+        .json({ mode: 'all', categoryIds: [], excludedItemIds: [] }),
+      client.put(`${base}/partners/${partner.id}/pause`).json({ paused: true }),
+      client.delete(`${base}/partners/${partner.id}/settlements/${partner.id}`),
+      client.post(`${base}/orders/${partner.id}/cancel-requests/1/approve`).json({}),
+      client.post(`${base}/orders/${partner.id}/cancel-requests/1/reject`).json({}),
+    ]
+    for (const request of writes) {
+      const response = await request.loginAs(other.manager)
+      response.assertStatus(403)
+    }
+    // A partner of another store can't be lent this store's machine.
+    const foreign = await client
+      .put(`${base}/point/terminals/${RESERVA}/partner`)
+      .json({ partnerId: other.partner.id })
+      .loginAs(manager)
+    foreign.assertStatus(404)
+
+    // Periods: real days, in order, up to a year.
+    const stats = (from: string, to: string) =>
+      client.get(`${base}/partners/${partner.id}/stats`).qs({ from, to }).loginAs(manager)
+    for (const [from, to] of [
+      ['2026-13-45', '2026-11-01'],
+      ['2026-11-10', '2026-11-01'],
+      ['2020-01-01', '2026-11-01'],
+    ]) {
+      const response = await stats(from, to)
+      response.assertStatus(422)
+    }
+    const badFilter = await client
+      .get(`${base}/partners/${partner.id}/sales`)
+      .qs({ page: 1, createdAt: '2026-13-45~' })
+      .loginAs(manager)
+    badFilter.assertStatus(200)
+
+    // Within its window the partner cancels; nobody is asked.
+    const order = await sell(client, menu, person)
+    const asked = await client
+      .post(`${base}/partner/orders/${order.id}/cancel-request`)
+      .json({ reason: 'Cliente desistiu' })
+      .loginAs(person)
+    asked.assertStatus(409)
+    asked.assertBodyContains({ code: 'E_CAN_CANCEL' })
+
+    // Cancelled from the board while a request waits: whoever asked is told.
+    await payOnMachine(client, menu, person, order.id)
+    await client
+      .put(`${base}/partners/${partner.id}`)
+      .json({ ...partnerInput, cancelPolicy: 'never' })
+      .loginAs(manager)
+    await client
+      .post(`${base}/partner/orders/${order.id}/cancel-request`)
+      .json({ reason: 'Cliente desistiu' })
+      .loginAs(person)
+    await client.post(`${base}/orders/${order.id}/cancel`).loginAs(manager)
+    const told = await Notification.query().where({
+      userId: person.id,
+      type: 'order.cancel_decided',
+    })
+    assert.lengthOf(told, 1)
+  })
 })

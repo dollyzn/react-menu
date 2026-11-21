@@ -76,8 +76,8 @@ export type PartnerContext = {
   };
   /** The signed-in person's role inside the partner. */
   me: { role: PartnerMemberRole };
-  /** The machine lent to the partner (null: none yet, they can't sell). */
-  terminal: { terminalId: string; name: string } | null;
+  /** The machines lent to the partner (none yet: they can't sell). */
+  terminals: { terminalId: string; name: string }[];
   /** How the store's machines charge (the charge dialog). */
   point: { available: boolean; paymentTypes: PointPaymentType[]; maxInstallments: number };
 };

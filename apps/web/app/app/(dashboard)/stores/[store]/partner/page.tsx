@@ -102,10 +102,10 @@ function PartnerPos({ storeId }: { storeId: string }) {
   // Null for the partner's attendants: only its managers see the commission.
   const commission = rule ? commissionFor(rule, { subtotal: total, units: count }) : null;
 
-  const terminal = context?.terminal ?? null;
+  const terminals = context?.terminals ?? [];
   const paused = Boolean(context?.partner.paused);
   const closed = context ? !context.store.isOpen : false;
-  const cantSell = !terminal || paused || closed || !context?.point.available;
+  const cantSell = terminals.length === 0 || paused || closed || !context?.point.available;
 
   const addToTicket = (line: CustomizedLine) =>
     setLines((current) => {
@@ -186,7 +186,8 @@ function PartnerPos({ storeId }: { storeId: string }) {
       canIncrease={(itemId) => leftFor(itemId) !== 0}
       onSell={sell}
       disabled={cantSell}
-      machineName={terminal?.name ?? null}
+      // One machine: named here; several: the charge dialog asks which.
+      machineName={terminals.length === 1 ? terminals[0].name : null}
     />
   );
 
