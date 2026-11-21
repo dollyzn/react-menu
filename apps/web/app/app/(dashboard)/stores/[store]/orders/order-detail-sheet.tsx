@@ -87,6 +87,8 @@ export function OrderDetailSheet({
             </SheetHeader>
 
             <div className="flex-1 flex flex-col gap-5 overflow-y-auto p-4">
+              {/* First thing on the sheet (the notification opens it for this). */}
+              <CancelRequestBanner order={show} storeId={storeId} canDecide={isManager} className="" />
               <section aria-label="Cliente" className="rounded-xl border p-3">
                 <p className="font-semibold">{show.customerName}</p>
                 <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -294,11 +296,6 @@ export function OrderDetailSheet({
               </a>
             </div>
 
-            {show.cancelRequest && (
-              <div className="border-t px-4 pb-1">
-                <CancelRequestBanner order={show} storeId={storeId} canDecide={isManager} />
-              </div>
-            )}
             {canOperate && ACTIVE.has(show.status) && (
               <footer className="flex flex-wrap gap-2 border-t p-4">
                 {show.status === "ready" && !cancelRequested && (

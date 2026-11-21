@@ -47,6 +47,8 @@ export function useStoreRealtime(storeId: string) {
         dispatch(
           baseApi.util.invalidateTags([
             { type: "Order", id: `store-${storeId}` },
+            // The order itself (its detail, open or cached): a cancellation asked, a payment.
+            { type: "Order", id: event.orderId },
             { type: "Kitchen", id: storeId },
             payLaterTag,
             // Stock moves when an order is placed, gets items or is

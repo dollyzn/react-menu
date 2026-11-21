@@ -186,3 +186,55 @@ test("partner's attendant: sells without seeing the commission", async ({ page }
   await page.goto(`/app/stores/${storeId}/partner/commission`);
   await expect(page.getByText("Só para quem gerencia o parceiro")).toBeVisible();
 });
+
+/**
+ * A partner asks to cancel: the order's detail (what the notification opens)
+ * shows the request at the top, also when it was already open.
+ */
+test("partners: the order's detail shows a cancellation asked, live", async ({ page, request }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const menu = (await (await request.get(`${API_URL}/api/v1/public/menu`)).json()).data;
+  const storeId = menu.store.id as string;
+  const store = (path: string) => `${API_URL}/api/v1/stores/${storeId}${path}`;
+  await apiSignIn(request);
+  const partners = (await (await request.get(store("/partners"))).json()).data as { id: string; name: string }[];
+  const partner = partners.find((candidate) => candidate.name === "Açaí da Praça")!;
+  await request.post(store("/point/terminals"), { data: { terminalId: FAKE_TERMINAL, name: "Açaí" } });
+  await request.put(store(`/point/terminals/${FAKE_TERMINAL}/partner`), { data: { partnerId: partner.id } });
+
+  const seller = await playwrightRequest.newContext();
+  try {
+    await apiSignIn(seller, DEMO_STAFF.partner);
+    type MenuItem = { id: string; name: string; optionGroups: { minChoices: number }[] };
+    const items = menu.categories.flatMap((category: { items: MenuItem[] }) => category.items) as MenuItem[];
+    const pastry = items.find((item) => /^Pastel/.test(item.name) && item.optionGroups.every((group) => group.minChoices === 0))!;
+    const sold = (
+      await (await seller.post(store("/partner/orders"), { data: { customer: { name: "Desistente" }, lines: [{ itemId: pastry.id, quantity: 1 }] } })).json()
+    ).data as { id: string; number: number };
+    const charge = (await (await seller.post(store(`/partner/orders/${sold.id}/point-charges`), { data: { paymentType: "debit_card" } })).json()).data;
+    await seller.post(store(`/partner/orders/${sold.id}/point-charges/${charge.id}/simulate`), { data: { approve: true } });
+    // Made at the store: past the partner's window (until the kitchen starts).
+    const detail = (await (await request.get(store(`/orders/${sold.id}`))).json()).data;
+    await request.post(store("/kitchen/prepare"), {
+      data: { units: detail.items.map((line: { id: number; quantity: number }) => ({ lineId: line.id, quantity: line.quantity })) },
+    });
+
+    // The manager has the order open when the partner asks.
+    await login(page);
+    await page.goto(`/app/stores/${storeId}/orders?pedido=${sold.id}`);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet.getByText("Desistente").first()).toBeVisible();
+    const asked = await seller.post(store(`/partner/orders/${sold.id}/cancel-request`), { data: { reason: "A cliente foi embora" } });
+    expect(asked.ok()).toBeTruthy();
+    await expect(sheet.getByText("Cancelamento solicitado")).toBeVisible();
+    await expect(sheet.getByText(/A cliente foi embora/)).toBeVisible();
+
+    // Opened from the notification's link: there too.
+    await page.goto(`/app/stores/${storeId}/orders?pedido=${sold.id}`);
+    await expect(page.getByRole("dialog").getByText("Cancelamento solicitado")).toBeVisible();
+    await expect(page.getByRole("dialog").getByRole("button", { name: "Aprovar" })).toBeVisible();
+  } finally {
+    await request.delete(store(`/point/terminals/${FAKE_TERMINAL}`));
+    await seller.dispose();
+  }
+});

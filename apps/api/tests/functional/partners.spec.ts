@@ -557,6 +557,11 @@ test.group('Partners (ADR 0024)', (group) => {
     })
     assert.lengthOf(attendantsTold, 0)
 
+    // The order's detail (what the notification opens) shows the request.
+    const detail = await client.get(`/api/v1/stores/${store.id}/orders/${made.id}`).loginAs(manager)
+    detail.assertBodyContains({
+      data: { cancelRequest: { status: 'pending', reason: 'Cliente desistiu' } },
+    })
     // The counter can't hand it over meanwhile.
     const handOver = await client
       .post(`/api/v1/stores/${store.id}/orders/${made.id}/complete`)

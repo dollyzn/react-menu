@@ -7,6 +7,7 @@ import type { Order } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Button } from "@/components/ui/button";
 import { useDecideCancelRequestMutation } from "@/redux/features/partner/partnersApi";
+import { cn } from "@/lib/utils";
 
 /**
  * Someone asked to cancel the order (a partner past their window, ADR
@@ -17,10 +18,12 @@ export function CancelRequestBanner({
   order,
   storeId,
   canDecide,
+  className = "mt-3",
 }: {
   order: Order;
   storeId: string;
   canDecide: boolean;
+  className?: string;
 }) {
   const request = order.cancelRequest;
   const [decide, { isLoading }] = useDecideCancelRequestMutation();
@@ -34,7 +37,7 @@ export function CancelRequestBanner({
   };
 
   return (
-    <div role="status" className="mt-3 flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm">
+    <div role="status" className={cn("flex flex-col gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm", className)}>
       <p className="flex items-start gap-1.5 font-semibold text-destructive">
         <Ban className="mt-0.5 size-4 shrink-0" /> Cancelamento solicitado
       </p>
