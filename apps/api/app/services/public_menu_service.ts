@@ -5,6 +5,8 @@ import AppException from '#exceptions/app_exception'
 import StoreStatus from '#enums/store_status'
 import Store from '#models/store'
 import type Addon from '#models/addon'
+import type Item from '#models/item'
+import type { ModelQueryBuilderContract } from '@adonisjs/lucid/types/model'
 import InventoryService from '#services/inventory_service'
 import PaymentService from '#services/payment_service'
 import PaymentMethod from '#enums/payment_method'
@@ -64,12 +66,32 @@ export default class PublicMenuService {
 
   /** The menu of a store by slug, or of the default store when slug is omitted. */
   async menu(slug: string | undefined, userAgent: string | undefined, options = { track: true }) {
-    const store = await Store.query()
-      .if(
+    const store = await this.loadMenu((query) =>
+      query.if(
         slug,
-        (query) => query.where('slug', slug!),
-        (query) => query.where('isDefault', true)
+        (scoped) => scoped.where('slug', slug!),
+        (scoped) => scoped.where('isDefault', true)
       )
+    )
+    if (!store) throw new AppException('Cardápio não encontrado', 404)
+    if (options.track) await this.trackView(store, userAgent)
+    return await this.present(store)
+  }
+
+  /**
+   * A store's menu by id, with only the items `include` keeps (a partner's
+   * POS, ADR 0024: what the partner may sell). Not counted as a visit.
+   */
+  async menuOf(storeId: string, include: (item: Item) => boolean) {
+    const store = await this.loadMenu((query) => query.where('id', storeId))
+    if (!store) throw new AppException('Cardápio não encontrado', 404)
+    return await this.present(store, include)
+  }
+
+  private async loadMenu(scope: (query: ModelQueryBuilderContract<typeof Store>) => void) {
+    const query = Store.query()
+    scope(query)
+    return await query
       .preload('categories', (categories) =>
         categories.orderBy('order', 'asc').preload('items', (items) =>
           items
@@ -83,20 +105,21 @@ export default class PublicMenuService {
         )
       )
       .first()
-    if (!store) throw new AppException('Cardápio não encontrado', 404)
+  }
 
+  private async present(store: Store, include: (item: Item) => boolean = () => true) {
     const left = await this.inventory.capacities(store)
-    if (options.track) await this.trackView(store, userAgent)
 
     return {
       store: publicStore(store, this.payments.checkoutMethods(store)),
       categories: store.categories
-        .filter((category) => category.items.length > 0)
-        .map((category) => ({
+        .map((category) => ({ category, items: category.items.filter(include) }))
+        .filter(({ items }) => items.length > 0)
+        .map(({ category, items }) => ({
           id: category.id,
           name: category.name,
           description: category.description,
-          items: category.items.map((item) => {
+          items: items.map((item) => {
             const addon = (option: Addon) => ({
               id: option.id,
               name: option.name,

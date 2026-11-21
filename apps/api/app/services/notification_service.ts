@@ -145,7 +145,10 @@ export default class NotificationService {
     )
   }
 
-  /** Notifies every member of a store, optionally skipping the actor. */
+  /**
+   * Notifies every member of a store, optionally skipping the actor.
+   * Partners (ADR 0024) only when `roles` names them: the store's news isn't theirs.
+   */
   async notifyStoreMembers<Type extends NotificationType>(
     storeId: string,
     type: Type,
@@ -157,7 +160,32 @@ export default class NotificationService {
       .where('store_id', storeId)
       .whereNull('disabled_at')
       .if(options.exceptUserId, (query) => query.whereNot('user_id', options.exceptUserId!))
-      .if(options.roles?.length, (query) => query.whereIn('role', options.roles!))
+      .if(
+        options.roles?.length,
+        (query) => query.whereIn('role', options.roles!),
+        (query) => query.whereNot('role', 'partner')
+      )
+      .select('user_id')
+
+    return await this.notify(type, data, {
+      userIds: members.map((member) => member.user_id),
+      storeId,
+    })
+  }
+
+  /** Notifies the people of one partner (ADR 0024). */
+  async notifyPartnerMembers<Type extends NotificationType>(
+    storeId: string,
+    partnerId: string,
+    type: Type,
+    data: NotificationData<Type>,
+    options: { exceptUserId?: string } = {}
+  ) {
+    const members = await db
+      .from('store_user')
+      .where({ store_id: storeId, partner_id: partnerId })
+      .whereNull('disabled_at')
+      .if(options.exceptUserId, (query) => query.whereNot('user_id', options.exceptUserId!))
       .select('user_id')
 
     return await this.notify(type, data, {

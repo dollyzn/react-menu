@@ -5,7 +5,8 @@ import type { AssistantModelChoice, AssistantProvider } from './assistant.ts';
  */
 
 export type StoreStatus = 'open' | 'closed' | 'maintenance';
-export type StoreRole = 'manager' | 'attendant' | 'kitchen';
+/** `partner`: sells the menu outside the store, in the partner area only (ADR 0024). */
+export type StoreRole = 'manager' | 'attendant' | 'kitchen' | 'partner';
 export type UserStatus = 'active' | 'inactive' | 'suspended';
 
 export type Store = {
@@ -276,4 +277,6 @@ export type StoreMember = {
   disabledAt: string | null;
   /** Platform admin: always has access, can't be switched off here. */
   superUser: boolean;
+  /** Role `partner`: the partner they work for (ADR 0024). */
+  partner: { id: string; name: string } | null;
 };

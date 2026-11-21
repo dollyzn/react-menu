@@ -200,7 +200,20 @@ function lookupTokens(tokens: string[] | undefined) {
   return (tokens ?? []).filter((token) => UUID.test(token)).slice(0, 30)
 }
 
+/** A partner's sale (ADR 0024): charged on the partner's machine afterwards. */
+const partnerOrderValidator = vine.create(
+  vine.object({
+    customer: vine.object({
+      name: customerName,
+      phone: vine.string().trim().maxLength(25).optional(),
+    }),
+    lines,
+    notes,
+  })
+)
+
 export {
+  partnerOrderValidator,
   publicPaymentValidator,
   publicOrderValidator,
   posOrderValidator,

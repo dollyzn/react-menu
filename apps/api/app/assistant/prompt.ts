@@ -34,6 +34,8 @@ const CAN_ASK: Record<StoreRole, string> = {
   [StoreRole.ATTENDANT]:
     'pedidos de agora (atrasados, prontos), o cardápio e se a loja está aberta',
   [StoreRole.KITCHEN]: 'nada',
+  // Partners don't reach the assistant (partner area only, ADR 0024).
+  [StoreRole.PARTNER]: 'nada',
 }
 
 /** Instructions for three short next questions after an answer. */
@@ -45,6 +47,7 @@ const ROLE_LABEL: Record<StoreRole, string> = {
   [StoreRole.MANAGER]: 'gerente',
   [StoreRole.ATTENDANT]: 'atendente',
   [StoreRole.KITCHEN]: 'cozinha',
+  [StoreRole.PARTNER]: 'parceiro',
 }
 
 /** First block of every message the person sends: who, where and when. */

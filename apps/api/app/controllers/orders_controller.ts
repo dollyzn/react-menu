@@ -1,4 +1,3 @@
-import app from '@adonisjs/core/services/app'
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import { DateTime } from 'luxon'
@@ -6,9 +5,9 @@ import OrderChannel from '#enums/order_channel'
 import PaymentMethod from '#enums/payment_method'
 import { ok, updated, created } from '#helpers/api_response'
 import OrderService, { BUSINESS_TIMEZONE } from '#services/order_service'
-import RefundOrder from '#jobs/refund_order'
 import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 import PaymentService from '#services/payment_service'
+import OrderCancellationService from '#services/order_cancellation_service'
 import Store from '#models/store'
 import type Order from '#models/order'
 import OrderStatus from '#enums/order_status'
@@ -42,7 +41,8 @@ function businessDay(date: Date) {
 export default class OrdersController {
   constructor(
     private orders: OrderService,
-    private payments: PaymentService
+    private payments: PaymentService,
+    private cancellation: OrderCancellationService
   ) {}
 
   /** Orders of a business day (today by default), optionally by status. */
@@ -198,18 +198,9 @@ export default class OrdersController {
     const orderId = await uuidValidator.validate(params.orderId)
     const manager = await bouncer.allows('hasStoreRole', storeId, [StoreRole.MANAGER])
 
-    const order = await this.orders.cancel(storeId, orderId, auth.getUserOrFail(), {
+    const order = await this.cancellation.cancel(storeId, orderId, auth.getUserOrFail(), {
       onlyUnpaid: !manager,
     })
-    // A charge still waiting on the card machine leaves it.
-    const { default: PointService } = await import('#services/point_service')
-    const point = await app.container.make(PointService)
-    await point.cancelWaiting(order, await Store.findOrFail(storeId))
-    // What the gateway took (online, the card machine) goes back (job with
-    // retries); money received at the counter is given back by hand.
-    if (await this.payments.hasRefundable(order)) {
-      await RefundOrder.dispatchFor(order)
-    }
 
     return updated(order, `Pedido #${order.number} cancelado`)
   }

@@ -15,10 +15,15 @@ import { storeBrand } from '#mails/layout'
 import NotificationService from '#services/notification_service'
 import NotificationPreferenceService from '#services/notification_preference_service'
 import PasswordResetService from '#services/password_reset_service'
+import PartnerService from '#services/partner_service'
+import type { PartnerInput } from '@react-menu/contracts'
 import { ONLINE_WINDOW_MS, forgetLastSeen } from '#helpers/user_activity'
 import { hasActiveStore } from '#helpers/membership'
 
-type Membership = { role: StoreRole; disabled_at: Date | null }
+type Membership = { role: StoreRole; disabled_at: Date | null; partner_id: string | null }
+
+/** A partner member's partner: an existing one, or one created with the invite (ADR 0024). */
+export type MemberPartnerInput = { partnerId?: string; newPartner?: PartnerInput }
 
 const iso = (value: Date | null) => (value ? DateTime.fromJSDate(value).toISO()! : null)
 
@@ -40,9 +45,11 @@ export type StoreMember = {
   disabledAt: string | null
   /** Platform admin: always has access, can't be switched off here. */
   superUser: boolean
+  /** Role `partner`: the partner they work for. */
+  partner: { id: string; name: string } | null
 }
 
-const ROLE_ORDER = [StoreRole.MANAGER, StoreRole.ATTENDANT, StoreRole.KITCHEN]
+const ROLE_ORDER = [StoreRole.MANAGER, StoreRole.ATTENDANT, StoreRole.KITCHEN, StoreRole.PARTNER]
 const INVITE_TTL = { days: 7 }
 
 /**
@@ -57,13 +64,15 @@ export default class StoreMemberService {
   constructor(
     private passwords: PasswordResetService,
     private notifications: NotificationService,
-    private preferences: NotificationPreferenceService
+    private preferences: NotificationPreferenceService,
+    private partners: PartnerService
   ) {}
 
   async list(storeId: string): Promise<StoreMember[]> {
     const rows = await db
       .from('store_user as su')
       .join('users as u', 'u.id', 'su.user_id')
+      .leftJoin('store_partners as p', 'p.id', 'su.partner_id')
       .where('su.store_id', storeId)
       .select(
         'u.id',
@@ -77,7 +86,9 @@ export default class StoreMemberService {
         'u.super_user',
         'su.role',
         'su.created_at',
-        'su.disabled_at'
+        'su.disabled_at',
+        'p.id as partner_id',
+        'p.name as partner_name'
       )
     // When each pending invite's link (the latest one) stops working.
     const pending = rows.filter((row) => row.invite_pending).map((row) => row.id)
@@ -113,6 +124,7 @@ export default class StoreMemberService {
         lastSeenAt: iso(row.last_seen_at),
         disabledAt: iso(row.disabled_at),
         superUser: row.super_user,
+        partner: row.partner_id ? { id: row.partner_id, name: row.partner_name } : null,
       }))
       .sort(
         (a, b) =>
@@ -123,7 +135,7 @@ export default class StoreMemberService {
 
   async add(
     storeId: string,
-    input: { email: string; name?: string; role: StoreRole },
+    input: { email: string; name?: string; role: StoreRole } & MemberPartnerInput,
     actor: User
   ) {
     const store = await Store.findOrFail(storeId)
@@ -155,10 +167,12 @@ export default class StoreMemberService {
           'E_ALREADY_MEMBER'
         )
       }
+      const partnerId = await this.partnerFor(trx, storeId, input.role, input, existing.id)
       await trx.table('store_user').insert({
         user_id: existing.id,
         store_id: storeId,
         role: input.role,
+        partner_id: partnerId,
         created_at: new Date(),
         updated_at: new Date(),
       })
@@ -237,17 +251,32 @@ export default class StoreMemberService {
     )
   }
 
-  async changeRole(storeId: string, userId: string, role: StoreRole) {
+  async changeRole(
+    storeId: string,
+    userId: string,
+    role: StoreRole,
+    partnerInput: MemberPartnerInput = {}
+  ) {
     await db.transaction(async (trx) => {
       const current = await this.requireMembership(trx, storeId, userId)
-      if (current.role === role) return
+      const wantsPartner = role === StoreRole.PARTNER
+      if (
+        current.role === role &&
+        (!wantsPartner || !partnerInput.partnerId || partnerInput.partnerId === current.partner_id)
+      ) {
+        return
+      }
       if (current.role === StoreRole.MANAGER && !current.disabled_at) {
         await this.assertAnotherManager(trx, storeId, userId)
       }
+      const partnerId =
+        wantsPartner && current.role === role && !partnerInput.partnerId && !partnerInput.newPartner
+          ? current.partner_id
+          : await this.partnerFor(trx, storeId, role, partnerInput, userId)
       await trx
         .from('store_user')
         .where({ store_id: storeId, user_id: userId })
-        .update({ role, updated_at: new Date() })
+        .update({ role, partner_id: partnerId, updated_at: new Date() })
     })
     const members = await this.list(storeId)
     return members.find((member) => member.id === userId)!
@@ -357,6 +386,43 @@ export default class StoreMemberService {
     return Number(ended) || 0
   }
 
+  /**
+   * The partner of a member with role `partner`: an existing partner of
+   * this store, or a new one created with the invite. Null for other roles.
+   */
+  private async partnerFor(
+    trx: TransactionClientContract,
+    storeId: string,
+    role: StoreRole,
+    input: MemberPartnerInput,
+    userId?: string
+  ) {
+    if (role !== StoreRole.PARTNER) return null
+    if (userId) {
+      const user = await trx.from('users').where('id', userId).select('super_user').first()
+      if (user?.super_user) {
+        throw new AppException(
+          'Administradores da plataforma não podem ser parceiros.',
+          409,
+          'E_SUPER_USER'
+        )
+      }
+    }
+    if (input.newPartner) {
+      const partner = await this.partners.create(storeId, input.newPartner, trx)
+      return partner.id
+    }
+    if (!input.partnerId) {
+      throw new AppException(
+        'Escolha o parceiro para quem essa pessoa vai vender.',
+        422,
+        'E_PARTNER_REQUIRED'
+      )
+    }
+    const partner = await this.partners.findInStore(storeId, input.partnerId, trx)
+    return partner.id
+  }
+
   private async assertNotSuperUser(trx: TransactionClientContract, userId: string) {
     const user = await trx.from('users').where('id', userId).select('super_user').first()
     if (user?.super_user) {
@@ -372,7 +438,7 @@ export default class StoreMemberService {
     return (await trx
       .from('store_user')
       .where({ store_id: storeId, user_id: userId })
-      .select('role', 'disabled_at')
+      .select('role', 'disabled_at', 'partner_id')
       .forUpdate()
       .first()) as Membership | null
   }

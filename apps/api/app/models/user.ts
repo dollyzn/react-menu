@@ -1,3 +1,4 @@
+import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import encryption from '@adonisjs/core/services/encryption'
@@ -159,16 +160,27 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   /** The user's role in a store; super users act as managers everywhere. */
   async storeRole(storeId: string): Promise<StoreRole | null> {
-    if (this.superUser) return StoreRole.MANAGER
+    const membership = await this.storeMembership(storeId)
+    return membership?.role ?? null
+  }
 
-    const store = await (this as User)
-      .related('activeStores')
-      .query()
-      .where('stores.id', storeId)
-      .select('stores.id')
+  /**
+   * Role in a store and, for a partner (ADR 0024), the partner they work
+   * for. Super users act as managers everywhere.
+   */
+  async storeMembership(
+    storeId: string
+  ): Promise<{ role: StoreRole; partnerId: string | null } | null> {
+    if (this.superUser) return { role: StoreRole.MANAGER, partnerId: null }
+
+    const row = await db
+      .from('store_user')
+      .where({ user_id: this.id, store_id: storeId })
+      .whereNull('disabled_at')
+      .select('role', 'partner_id')
       .first()
 
-    return (store?.$extras.pivot_role as StoreRole | undefined) ?? null
+    return row ? { role: row.role as StoreRole, partnerId: row.partner_id ?? null } : null
   }
 
   static accessTokens = DbAccessTokensProvider.forModel(User, { expiresIn: SESSION_TTL })
