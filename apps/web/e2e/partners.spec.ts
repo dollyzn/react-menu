@@ -205,14 +205,27 @@ test("partners: the order's detail shows a cancellation asked, live", async ({ p
   const seller = await playwrightRequest.newContext();
   try {
     await apiSignIn(seller, DEMO_STAFF.partner);
-    type MenuItem = { id: string; name: string; optionGroups: { minChoices: number }[] };
+    type MenuItem = { id: string; name: string; isAvailable: boolean; stockLeft: number | null; optionGroups: { minChoices: number }[] };
     const items = menu.categories.flatMap((category: { items: MenuItem[] }) => category.items) as MenuItem[];
-    const pastry = items.find((item) => /^Pastel/.test(item.name) && item.optionGroups.every((group) => group.minChoices === 0))!;
-    const sold = (
-      await (await seller.post(store("/partner/orders"), { data: { customer: { name: "Desistente" }, lines: [{ itemId: pastry.id, quantity: 1 }] } })).json()
-    ).data as { id: string; number: number };
-    const charge = (await (await seller.post(store(`/partner/orders/${sold.id}/point-charges`), { data: { paymentType: "debit_card" } })).json()).data;
-    await seller.post(store(`/partner/orders/${sold.id}/point-charges/${charge.id}/simulate`), { data: { approve: true } });
+    // A pastry still on sale: earlier specs may have used up the stock of the first ones.
+    const pastry = items.find(
+      (item) =>
+        /^Pastel/.test(item.name) &&
+        item.isAvailable &&
+        (item.stockLeft ?? 1) > 0 &&
+        item.optionGroups.every((group) => group.minChoices === 0)
+    )!;
+    const placed = await seller.post(store("/partner/orders"), {
+      data: { customer: { name: "Desistente" }, lines: [{ itemId: pastry.id, quantity: 1 }] },
+    });
+    expect(placed.ok(), await placed.text()).toBeTruthy();
+    const sold = (await placed.json()).data as { id: string; number: number };
+    const charged = await seller.post(store(`/partner/orders/${sold.id}/point-charges`), { data: { paymentType: "debit_card" } });
+    expect(charged.ok(), await charged.text()).toBeTruthy();
+    const charge = (await charged.json()).data as { id: string };
+    expect(
+      (await seller.post(store(`/partner/orders/${sold.id}/point-charges/${charge.id}/simulate`), { data: { approve: true } })).ok()
+    ).toBeTruthy();
     // Made at the store: past the partner's window (until the kitchen starts).
     const detail = (await (await request.get(store(`/orders/${sold.id}`))).json()).data;
     await request.post(store("/kitchen/prepare"), {
