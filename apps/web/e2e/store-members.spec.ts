@@ -52,3 +52,24 @@ test("team: invite someone, change their role, switch access off and on, remove 
   await page.getByRole("alertdialog").getByRole("button", { name: "Remover" }).click();
   await expect(row).toHaveCount(0);
 });
+
+test("team: on a phone, only the add dialog's body scrolls, picking a role doesn't jump it", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  const menu = await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json();
+  await login(page);
+  await page.goto(`/app/stores/${menu.data.store.id}/members`);
+  await page.getByRole("button", { name: "Adicionar pessoa" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByText("Parceiro", { exact: true }).click();
+  await dialog.getByText("Gerente do parceiro").click();
+  await dialog.getByText("Atendente do parceiro").click();
+
+  // Hidden radio inputs (Base UI, with a `name`) are absolutely positioned: they
+  // used to escape the body's scroll and make the whole dialog scroll, footer included.
+  const popup = await dialog.evaluate((element) => ({
+    scrollTop: element.scrollTop,
+    overflow: element.scrollHeight - element.clientHeight,
+  }));
+  expect(popup).toEqual({ scrollTop: 0, overflow: 0 });
+  await expect(dialog.getByRole("button", { name: "Adicionar" })).toBeInViewport();
+});

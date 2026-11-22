@@ -101,7 +101,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
           </p>
         ) : (
           <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-            <section aria-labelledby="point-terminals" className="flex flex-col gap-3">
+            <section aria-labelledby="point-terminals" className="flex min-w-0 flex-col gap-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 id="point-terminals" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                   Maquininhas da conta
@@ -126,7 +126,8 @@ export function PointSettingsCard({ store }: { store: Store }) {
                     <li
                       key={terminal.id}
                       className={cn(
-                        "flex items-center gap-3 rounded-2xl border p-3 transition-colors",
+                        // On phones the actions wrap to a second line instead of pushing the card wider.
+                        "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border p-3 transition-colors",
                         terminal.enabled && "border-primary/30 bg-primary/5"
                       )}
                     >
@@ -138,7 +139,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
                       >
                         <SmartphoneNfc className="size-5" />
                       </span>
-                      <span className="min-w-0 flex-1">
+                      <span className="min-w-0 flex-1 basis-40">
                         <span className="flex flex-wrap items-center gap-2">
                           <span className="text-sm font-semibold">{terminal.name ?? terminal.model}</span>
                           {terminal.enabled ? (
@@ -156,25 +157,27 @@ export function PointSettingsCard({ store }: { store: Store }) {
                           {terminal.serial}
                         </span>
                       </span>
-                      {terminal.enabled && (
-                        <TerminalOwner storeId={store.id} terminalId={terminal.id} partnerId={terminal.partnerId} />
-                      )}
-                      {terminal.enabled ? (
-                        <Button variant="ghost" size="sm" onClick={() => setRemoving(terminal)}>
-                          Desativar
-                        </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={() => setNaming(terminal)}>
-                          Usar no PDV
-                        </Button>
-                      )}
+                      <span className="ml-auto flex shrink-0 items-center gap-2">
+                        {terminal.enabled && (
+                          <TerminalOwner storeId={store.id} terminalId={terminal.id} partnerId={terminal.partnerId} />
+                        )}
+                        {terminal.enabled ? (
+                          <Button variant="ghost" size="sm" onClick={() => setRemoving(terminal)}>
+                            Desativar
+                          </Button>
+                        ) : (
+                          <Button variant="outline" size="sm" onClick={() => setNaming(terminal)}>
+                            Usar no PDV
+                          </Button>
+                        )}
+                      </span>
                     </li>
                   ))}
                 </ul>
               )}
             </section>
 
-            <section aria-labelledby="point-how" className="flex flex-col gap-3">
+            <section aria-labelledby="point-how" className="flex min-w-0 flex-col gap-3">
               <h3 id="point-how" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
                 Como cobrar
               </h3>
@@ -222,7 +225,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
               </div>
               <ul className="divide-y rounded-2xl border">
                 <li className="flex items-center justify-between gap-3 p-3">
-                  <span>
+                  <span className="min-w-0">
                     <span className="block text-sm font-medium">Parcelamento no crédito</span>
                     <span className="block text-xs text-muted-foreground">Sem juros para o cliente</span>
                   </span>
@@ -245,7 +248,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
                 </li>
                 <li>
                   <label className="flex items-center justify-between gap-3 p-3">
-                    <span>
+                    <span className="min-w-0">
                       <span className="block text-sm font-medium">Comprovante impresso</span>
                       <span className="block text-xs text-muted-foreground">A maquininha imprime a via da loja</span>
                     </span>
@@ -258,7 +261,7 @@ export function PointSettingsCard({ store }: { store: Store }) {
                 </li>
                 <li>
                   <label className="flex items-center justify-between gap-3 p-3">
-                    <span>
+                    <span className="min-w-0">
                       <span className="block text-sm font-medium">Cozinha só depois do pagamento</span>
                       <span className="block text-xs text-muted-foreground">
                         {config.kitchenAfterPayment

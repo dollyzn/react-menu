@@ -40,7 +40,7 @@ export function HistorySheet({
           <SheetTitle>Histórico · {shown?.name}</SheetTitle>
           <SheetDescription>Últimas 50 movimentações</SheetDescription>
         </SheetHeader>
-        <div className="flex-1 overflow-y-auto px-4 pb-4">
+        <div className="relative flex-1 overflow-y-auto px-4 pb-4">
           {isLoading ? (
             <Skeleton className="h-40 w-full" />
           ) : movements.length === 0 ? (

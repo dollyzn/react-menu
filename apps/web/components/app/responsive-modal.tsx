@@ -66,7 +66,7 @@ export function ResponsiveModal({
             <DrawerTitle>{title}</DrawerTitle>
             {description && <DrawerDescription>{description}</DrawerDescription>}
           </DrawerHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+          <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
         </DrawerContent>
       </Drawer>
     );
@@ -88,7 +88,7 @@ export function ResponsiveModal({
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         {/* Only the content scrolls; sticky footers inside it stay visible. */}
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
+        <div className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain">{children}</div>
         <DialogClose
           render={
             <Button
