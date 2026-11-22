@@ -86,7 +86,7 @@ export function OrderDetailSheet({
               </SheetDescription>
             </SheetHeader>
 
-            <div className="flex-1 flex flex-col gap-5 overflow-y-auto p-4">
+            <div className="relative flex flex-1 flex-col gap-5 overflow-y-auto p-4">
               {/* First thing on the sheet (the notification opens it for this). */}
               <CancelRequestBanner order={show} storeId={storeId} canDecide={isManager} className="" />
               <section aria-label="Cliente" className="rounded-xl border p-3">

@@ -173,7 +173,7 @@ export function DataTableMobileToolbar<TData extends RowData>({
             )}
           </DrawerHeader>
 
-          <div className="flex flex-col gap-6 overflow-y-auto px-4 pb-2">
+          <div className="relative flex flex-col gap-6 overflow-y-auto px-4 pb-2">
             {shown === "filters" &&
               filterConfigs.map((config) => <FilterSection key={config.key} table={table} config={config} />)}
             {shown === "sort" && <SortSection table={table} />}

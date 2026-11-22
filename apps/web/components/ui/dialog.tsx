@@ -93,13 +93,17 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
 /**
  * Scrollable middle of a dialog: header and footer stay in place and only this
  * region scrolls (edge to edge, so the scrollbar sits on the dialog border).
+ * `relative` (a local change: keep it when updating) makes it the containing
+ * block of Base UI's hidden form inputs (`position: absolute` once a radio,
+ * checkbox, switch or select has a `name`): otherwise they overflow the popup,
+ * which then scrolls as a whole (footer included) and jumps on a click.
  */
 function DialogBody({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="dialog-body"
       className={cn(
-        "-mx-4 -my-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-1",
+        "relative -mx-4 -my-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-1",
         className
       )}
       {...props}

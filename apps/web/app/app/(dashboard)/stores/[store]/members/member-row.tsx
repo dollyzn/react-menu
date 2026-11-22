@@ -103,14 +103,15 @@ export function MemberRow({
           <Presence member={member} now={now} />
         </p>
       </div>
-      <div className="flex items-center gap-2">
+      {/* On phones the controls take their own line and share it (a partner's link and role select didn't fit). */}
+      <div className="flex w-full min-w-0 items-center gap-2 sm:w-auto">
         {member.role === "partner" ? (
           // A partner (ADR 0024) sells for one partner: to change it, remove and invite again.
           // Inside it, manager (sees the commission) or attendant.
           <>
             <Link
               href={`/app/stores/${storeId}/partners/${member.partner?.id ?? ""}`}
-              className="inline-flex h-8 max-w-48 items-center gap-1.5 rounded-lg border px-2.5 text-sm hover:bg-muted"
+              className="inline-flex h-8 min-w-0 max-w-48 items-center gap-1.5 rounded-lg border px-2.5 text-sm hover:bg-muted"
             >
               <Icon className="size-4 shrink-0 text-muted-foreground" />
               <span className="truncate">{member.partner?.name}</span>
@@ -120,7 +121,7 @@ export function MemberRow({
               value={member.partnerRole ?? "attendant"}
               onValueChange={(value) => actions.changePartnerRole(member, value as PartnerMemberRole)}
             >
-              <SelectTrigger className="w-48" aria-label={`Função de ${name} no parceiro`}>
+              <SelectTrigger className="min-w-0 flex-1 sm:w-48 sm:flex-none" aria-label={`Função de ${name} no parceiro`}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
