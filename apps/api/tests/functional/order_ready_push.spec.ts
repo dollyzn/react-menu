@@ -1,7 +1,6 @@
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
-import testUtils from '@adonisjs/core/services/test_utils'
 import type { BatchResponse } from 'firebase-admin/messaging'
 import StoreRole from '#enums/store_role'
 import NotifyOrderReady from '#jobs/notify_order_ready'
@@ -10,6 +9,7 @@ import OrderItem from '#models/order_item'
 import FcmClient from '#notifications/fcm_client'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
+import { emptyDatabase } from '#tests/helpers/database'
 
 /** FCM double: records sends; `configured: false` is a server without Firebase. */
 class FakeFcm extends FcmClient {
@@ -45,7 +45,7 @@ test.group('"Avise quando ficar pronto" (customer push)', (group) => {
     app.container.swap(FcmClient, () => fcm)
     return () => app.container.restore(FcmClient)
   })
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   async function setup() {
     const { store, carne } = await createMenuStore()

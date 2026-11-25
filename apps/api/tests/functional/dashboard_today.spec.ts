@@ -1,15 +1,15 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
 import Ingredient from '#models/ingredient'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const customer = { name: 'Ana', phone: '11987654321' }
 
 test.group('Dashboard today', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('sales, queue, stock alerts and menu health of today', async ({ client, assert }) => {
     const { store, carne, queijo, coca } = await createMenuStore()

@@ -1,6 +1,5 @@
 import { test } from '@japa/runner'
 import env from '#start/env'
-import testUtils from '@adonisjs/core/services/test_utils'
 import { randomUUID } from 'node:crypto'
 import User from '#models/user'
 import {
@@ -10,9 +9,10 @@ import {
   createStaff,
 } from '#tests/helpers/fixtures'
 import { signIn } from '#tests/helpers/sign_in'
+import { emptyDatabase } from '#tests/helpers/database'
 
 test.group('Store creation and deletion', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('user without create_store cannot create a store', async ({ client }) => {
     const user = await createUser()
@@ -77,7 +77,7 @@ test.group('Store creation and deletion', (group) => {
 })
 
 test.group('Users management', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('regular user cannot list, edit or delete users', async ({ client, assert }) => {
     const attacker = await createUser()
@@ -107,7 +107,7 @@ test.group('Users management', (group) => {
 })
 
 test.group('Auth', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('public registration is disabled', async ({ client }) => {
     const response = await client

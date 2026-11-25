@@ -1,13 +1,13 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import { randomUUID } from 'node:crypto'
 import transmit from '@adonisjs/transmit/services/main'
 import StoreStatus from '#enums/store_status'
 import { createStore, createUser } from '#tests/helpers/fixtures'
 import { openStream } from '#tests/helpers/transmit'
+import { emptyDatabase } from '#tests/helpers/database'
 
 test.group('Realtime (Transmit)', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('guests cannot subscribe to private channels', async ({ client, cleanup }) => {
     const store = await createStore()

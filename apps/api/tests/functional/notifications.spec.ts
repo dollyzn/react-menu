@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import app from '@adonisjs/core/services/app'
 import { randomUUID } from 'node:crypto'
 import StoreStatus from '#enums/store_status'
@@ -12,6 +11,7 @@ import type { BatchResponse } from 'firebase-admin/messaging'
 import NotificationService from '#services/notification_service'
 import { createStore, createUser } from '#tests/helpers/fixtures'
 import { openStream } from '#tests/helpers/transmit'
+import { emptyDatabase } from '#tests/helpers/database'
 
 async function announce(userIds: string[]) {
   const service = await app.container.make(NotificationService)
@@ -23,7 +23,7 @@ async function announce(userIds: string[]) {
 }
 
 test.group('Notifications', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('notify renders the template and stores one row per recipient', async ({ assert }) => {
     const [a, b] = [await createUser(), await createUser()]
@@ -114,7 +114,7 @@ test.group('Notifications', (group) => {
 })
 
 test.group('Push registrations (FCM)', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   const fid = () => `fid_${randomUUID().replaceAll('-', '')}`
 
@@ -226,7 +226,7 @@ test.group('Web push delivery (FCM)', (group) => {
     app.container.swap(FcmClient, () => fcm)
     return () => app.container.restore(FcmClient)
   })
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('notifications queue a push; FCM-forgotten installations are pruned', async ({ assert }) => {
     const queue = fakeQueue()

@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import type { ApiClient } from '@japa/api-client'
 import app from '@adonisjs/core/services/app'
 import StoreRole from '#enums/store_role'
@@ -18,6 +17,7 @@ import OrderService from '#services/order_service'
 import OrderChannel from '#enums/order_channel'
 import PaymentMethod from '#enums/payment_method'
 import { BALCAO, FakePoint, SECRET, TOKEN, signature } from '#tests/helpers/fake_point'
+import { emptyDatabase } from '#tests/helpers/database'
 
 /** The order's status as stored now. */
 async function statusOf(orderId: string) {
@@ -46,7 +46,7 @@ test.group('Mercado Pago Point (card machine)', (group) => {
     app.container.swap(MercadoPagoClient, () => fake)
     return () => app.container.restore(MercadoPagoClient)
   })
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   async function enable(
     client: ApiClient,

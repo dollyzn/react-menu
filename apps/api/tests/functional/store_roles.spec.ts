@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import StoreStatus from '#enums/store_status'
 import { createCategory, createStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 test.group('Store roles', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('attendants and kitchen staff read the catalog but cannot change it', async ({ client }) => {
     const store = await createStore()
@@ -116,7 +116,7 @@ test.group('Store roles', (group) => {
 })
 
 test.group('Store settings', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('managers update operational settings', async ({ client, assert }) => {
     const store = await createStore()

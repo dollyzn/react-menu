@@ -12,6 +12,9 @@ const dbConfig = defineConfig({
         user: env.get('DB_USER'),
         password: env.get('DB_PASSWORD'),
         database: env.get('DB_DATABASE'),
+        // Tests commit every write (no global transaction): not waiting for
+        // the disk on each commit keeps the suite fast. Never in production.
+        ...(env.get('NODE_ENV') === 'test' && { options: '-c synchronous_commit=off' }),
       },
       migrations: {
         naturalSort: true,

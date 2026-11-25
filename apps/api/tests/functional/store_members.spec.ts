@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import mail from '@adonisjs/mail/services/main'
 import StoreRole from '#enums/store_role'
 import User from '#models/user'
@@ -15,6 +14,7 @@ import {
   linkUser,
 } from '#tests/helpers/fixtures'
 import { SESSION_COOKIE, signIn } from '#tests/helpers/sign_in'
+import { emptyDatabase } from '#tests/helpers/database'
 
 async function storeWithManager() {
   const manager = await createUser({ name: 'Gerente' })
@@ -24,7 +24,7 @@ async function storeWithManager() {
 }
 
 test.group('Store members', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.setup(() => {
     mail.fake()
     return () => mail.restore()

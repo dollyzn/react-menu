@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import type { ApiClient } from '@japa/api-client'
 import app from '@adonisjs/core/services/app'
 import { createHmac } from 'node:crypto'
@@ -22,6 +21,7 @@ import SendOrderReceipt from '#jobs/send_order_receipt'
 import mail from '@adonisjs/mail/services/main'
 import OrderReceiptNotification from '#mails/order_receipt_notification'
 import OrderRefundNotification from '#mails/order_refund_notification'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const TOKEN = 'TEST-1234567890-abcdef'
 const PUBLIC_KEY = 'TEST-0b7c6a2e-3d4f-4a1b-9c8d-123456789abc'
@@ -199,7 +199,7 @@ test.group('Payments (in-app checkout)', (group) => {
     app.container.swap(MercadoPagoClient, () => fake)
     return () => app.container.restore(MercadoPagoClient)
   })
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   /** Places an online order and returns its public token. */
   async function placeOrder(

@@ -1,12 +1,12 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
 import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import env from '#start/env'
 import { uploadKey } from '#helpers/uploads'
 import { createStaff } from '#tests/helpers/fixtures'
 import { signIn } from '#tests/helpers/sign_in'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const COOKIE = env.get('AUTH_COOKIE_NAME')
 const CHROME_WINDOWS =
@@ -21,7 +21,7 @@ const PNG = Buffer.from(
 )
 
 test.group('Account', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   /** Signs in from a browser (both steps) and returns that session's cookie value. */
   async function signInFrom(client: ApiClient, email: string, password: string, userAgent: string) {

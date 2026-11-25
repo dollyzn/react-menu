@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import mail from '@adonisjs/mail/services/main'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
@@ -7,6 +6,7 @@ import PasswordResetToken from '#models/password_reset_token'
 import ResetPasswordNotification from '#mails/reset_password_notification'
 import { createStaff } from '#tests/helpers/fixtures'
 import { SESSION_COOKIE, TRUST_COOKIE, signIn } from '#tests/helpers/sign_in'
+import { emptyDatabase } from '#tests/helpers/database'
 
 /** Token from the link in the last queued reset e-mail. */
 function tokenFromMail(fake: ReturnType<typeof mail.fake>) {
@@ -16,7 +16,7 @@ function tokenFromMail(fake: ReturnType<typeof mail.fake>) {
 }
 
 test.group('Password reset', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.setup(() => {
     mail.fake()
     return () => mail.restore()

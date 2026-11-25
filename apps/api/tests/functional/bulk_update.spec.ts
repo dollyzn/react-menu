@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import type Addon from '#models/addon'
 import type Item from '#models/item'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const change = (row: Item | Addon, values: { price?: number; isAvailable?: boolean }) => ({
   id: row.id,
@@ -19,7 +19,7 @@ async function menuWithManager() {
 }
 
 test.group('Bulk edit (items and add-ons)', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('a manager changes prices and availability of many items at once', async ({
     client,

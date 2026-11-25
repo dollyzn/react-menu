@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import Notification from '#models/notification'
 import Order from '#models/order'
@@ -7,9 +6,10 @@ import ExpireUnpaidOrder from '#jobs/expire_unpaid_order'
 import RefundOrder from '#jobs/refund_order'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { failJob, fakeQueue } from '#tests/helpers/queue'
+import { emptyDatabase } from '#tests/helpers/database'
 
 test.group('Background job failures', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.setup(() => void fakeQueue())
 
   test('a job that gives up notifies the platform admins', async ({ assert }) => {

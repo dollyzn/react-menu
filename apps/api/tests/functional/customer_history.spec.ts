@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
 
@@ -11,7 +11,7 @@ const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
  * the device of their first order; knowing a phone number is never enough.
  */
 test.group('Customer order history', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('the first order links the device; the phone alone does not', async ({ client, assert }) => {
     const { store, carne } = await createMenuStore()
