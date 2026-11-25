@@ -1,10 +1,10 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreStatus from '#enums/store_status'
 import { createStore } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 test.group('Public store listing (sitemap)', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('lists menus for search engines, not stores under maintenance', async ({
     client,

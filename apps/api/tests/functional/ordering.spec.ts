@@ -1,8 +1,8 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import Category from '#models/category'
 import Item from '#models/item'
 import { createCategory, createItem, createStore, createUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 async function orderedNames(query: Promise<{ name: string }[]>) {
   const rows = await query
@@ -10,7 +10,7 @@ async function orderedNames(query: Promise<{ name: string }[]>) {
 }
 
 test.group('Ordering', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('categories are renumbered 1..N following the given ids', async ({ client, assert }) => {
     const member = await createUser()

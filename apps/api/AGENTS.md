@@ -87,7 +87,12 @@ Imports use subpath aliases (`#services/*`, `#models/*`, ...) declared in
 ## Tests
 
 Japa functional tests in `tests/functional`, using `.env.test`
-(database `react-menu-test`) and `testUtils.db().wrapInGlobalTransaction()`.
+(database `react-menu-test`, `synchronous_commit` off) and
+`group.each.setup(() => emptyDatabase)` (`tests/helpers/database.ts`: deletes
+the rows a test wrote, after it). Not a global transaction: independent
+queries run at the same time (`Promise.all`, the assistant's tool calls),
+which pg queues on a transaction's one connection and pg 9 refuses. Tools of
+one step finish in any order: read their outputs by tool name.
 Fixtures in `tests/helpers/fixtures.ts`; authenticate with `.loginAs(user)`.
 Transmit only subscribes a `uid` with an open event stream: use
 `openStream(cleanup)` from `tests/helpers/transmit.ts` in subscribe tests.

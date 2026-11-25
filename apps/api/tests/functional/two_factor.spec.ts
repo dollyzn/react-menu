@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import mail from '@adonisjs/mail/services/main'
 import { DateTime } from 'luxon'
@@ -7,6 +6,7 @@ import * as OTPAuth from 'otpauth'
 import SignInCodeNotification from '#mails/sign_in_code_notification'
 import { createStaff } from '#tests/helpers/fixtures'
 import { CHALLENGE_COOKIE, SESSION_COOKIE, TRUST_COOKIE, signIn } from '#tests/helpers/sign_in'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const PASSWORD = 'secret123'
 
@@ -17,7 +17,7 @@ const totpCode = (secret: string, offset = 0) =>
   })
 
 test.group('Two-factor sign-in', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.setup(() => () => mail.restore())
 
   test('the password alone opens a challenge; the e-mail code finishes it once', async ({

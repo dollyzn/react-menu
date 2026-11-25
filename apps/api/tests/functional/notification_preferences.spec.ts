@@ -1,5 +1,4 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import app from '@adonisjs/core/services/app'
 import mail from '@adonisjs/mail/services/main'
 import { DateTime } from 'luxon'
@@ -16,6 +15,7 @@ import { failJob, fakeQueue } from '#tests/helpers/queue'
 import SendEmail from '#jobs/send_email'
 import Notification from '#models/notification'
 import StoreAccessNotification from '#mails/store_access_notification'
+import { emptyDatabase } from '#tests/helpers/database'
 
 /** Push "configured", so notify() decides per person whether to queue it. */
 class ConfiguredFcm extends FcmClient {
@@ -30,7 +30,7 @@ class ConfiguredFcm extends FcmClient {
 const preferences = '/api/v1/account/notification-preferences'
 
 test.group('Notification preferences', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.setup(() => {
     app.container.swap(FcmClient, () => new ConfiguredFcm())
     return () => app.container.restore(FcmClient)

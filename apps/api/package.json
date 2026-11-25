@@ -75,7 +75,7 @@
     "@adonisjs/cors": "^3.0.0",
     "@adonisjs/drive": "^4.0.0",
     "@adonisjs/limiter": "^3.0.1",
-    "@adonisjs/lucid": "^22.4.2",
+    "@adonisjs/lucid": "^22.5.0",
     "@adonisjs/mail": "10.4.0",
     "@adonisjs/otel": "^1.3.0",
     "@adonisjs/queue": "0.7.0",

@@ -1,15 +1,15 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import { createStaff } from '#tests/helpers/fixtures'
 import { SESSION_COOKIE, signIn } from '#tests/helpers/sign_in'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const COOKIE = env.get('AUTH_COOKIE_NAME')
 
 test.group('Session', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('the session renews itself in its second half and keeps it otherwise', async ({
     client,
@@ -57,7 +57,7 @@ test.group('Session', (group) => {
 })
 
 test.group('Cookie writes from another origin', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('a write with the session cookie must come from the panel origin', async ({ client }) => {
     const user = await createStaff({ password: 'secret123' })

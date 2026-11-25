@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import Ingredient from '#models/ingredient'
 import Order from '#models/order'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const customer = { name: 'Ana', phone: '11987654321' }
 
@@ -45,7 +45,7 @@ async function stockedStore() {
 }
 
 test.group('Inventory', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('orders consume item and add-on recipes when they enter the kitchen', async ({
     client,

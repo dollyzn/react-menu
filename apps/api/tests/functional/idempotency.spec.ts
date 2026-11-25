@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
-import testUtils from '@adonisjs/core/services/test_utils'
 import OrderChannel from '#enums/order_channel'
 import PaymentMethod from '#enums/payment_method'
 import StoreRole from '#enums/store_role'
@@ -9,6 +8,7 @@ import Order from '#models/order'
 import OrderItem from '#models/order_item'
 import OrderService from '#services/order_service'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
 
@@ -17,7 +17,7 @@ const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
  * Idempotency-Key must never run the operation twice.
  */
 test.group('Idempotency', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('a retried public order returns the same order', async ({ client, assert }) => {
     const { store, carne } = await createMenuStore()

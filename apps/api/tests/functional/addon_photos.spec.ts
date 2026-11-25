@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import drive from '@adonisjs/drive/services/main'
 import StoreRole from '#enums/store_role'
 import { uploadKey } from '#helpers/uploads'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 /** A valid 1×1 PNG. */
 const PNG = Buffer.from(
@@ -19,7 +19,7 @@ async function managerStore() {
 }
 
 test.group('Add-on photos', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.setup(() => {
     drive.fake()
     return () => drive.restore()

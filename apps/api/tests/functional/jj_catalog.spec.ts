@@ -3,7 +3,6 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { test } from '@japa/runner'
 import drive from '@adonisjs/drive/services/main'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreStatus from '#enums/store_status'
 import Addon from '#models/addon'
 import Ingredient from '#models/ingredient'
@@ -12,6 +11,7 @@ import Order from '#models/order'
 import CatalogImportService, { photoSlug } from '#services/catalog_import_service'
 import { JJ_PASTEIS, JJ_PASTEIS_PROFILE } from '#catalog/jj_pasteis'
 import { createStore } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 type MenuOption = { id: string; name: string; price: number }
 type MenuGroup = {
@@ -65,7 +65,7 @@ async function jjStore(client: { get: (url: string) => Promise<{ body(): { data:
 }
 
 test.group('JJ Pastéis catalog (spec of 2026-11-06)', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   // Logo, banner and photos go to a fake disk, never the dev server's storage.
   group.each.setup(() => {
     drive.fake()

@@ -1,9 +1,9 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import Addon from '#models/addon'
 import Order from '#models/order'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const customer = { name: 'Ana', phone: '11987654321' }
 
@@ -22,7 +22,7 @@ async function storeWithCheeseChoice() {
 }
 
 test.group('Choice groups', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('managers create groups from the store add-ons and attach them to items', async ({
     client,
@@ -551,7 +551,7 @@ test.group('Choice groups', (group) => {
 })
 
 test.group('Choice groups | renaming the item', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('the cheese picked takes the place of "Queijo" on the kitchen and the board', async ({
     client,

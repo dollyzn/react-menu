@@ -1,6 +1,5 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import testUtils from '@adonisjs/core/services/test_utils'
 import type { ApiClient } from '@japa/api-client'
 import StoreRole from '#enums/store_role'
 import Ingredient from '#models/ingredient'
@@ -10,6 +9,7 @@ import type Store from '#models/store'
 import type User from '#models/user'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { fakeQueue } from '#tests/helpers/queue'
+import { emptyDatabase } from '#tests/helpers/database'
 
 async function counterStore() {
   const menu = await createMenuStore()
@@ -56,7 +56,7 @@ test.group('Orders | items added while in the queue', (group) => {
   group.each.setup(() => {
     fakeQueue()
   })
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('a paid order takes a drink paid on Pix: two receipts, paid, and the report splits them', async ({
     client,

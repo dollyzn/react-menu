@@ -1,6 +1,5 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import testUtils from '@adonisjs/core/services/test_utils'
 import app from '@adonisjs/core/services/app'
 import type { ApiClient } from '@japa/api-client'
 import mail from '@adonisjs/mail/services/main'
@@ -17,6 +16,7 @@ import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { BALCAO, FakePoint, RESERVA, SECRET, TOKEN, signature } from '#tests/helpers/fake_point'
 import { fakeQueue, runJob } from '#tests/helpers/queue'
 import { openStream } from '#tests/helpers/transmit'
+import { emptyDatabase } from '#tests/helpers/database'
 
 type Menu = Awaited<ReturnType<typeof createMenuStore>>
 
@@ -81,7 +81,7 @@ test.group('Partners (ADR 0024)', (group) => {
     app.container.swap(MercadoPagoClient, () => fake)
     return () => app.container.restore(MercadoPagoClient)
   })
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   /** Turns the second machine on and lends it to the partner. */
   async function lendMachine(client: ApiClient, menu: Menu, manager: User, partnerId: string) {

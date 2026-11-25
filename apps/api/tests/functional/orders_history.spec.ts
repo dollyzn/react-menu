@@ -1,11 +1,11 @@
 import { test } from '@japa/runner'
 import type { ApiClient } from '@japa/api-client'
-import testUtils from '@adonisjs/core/services/test_utils'
 import StoreRole from '#enums/store_role'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 test.group('Orders history', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   async function setup(client: ApiClient) {
     const attendant = await createUser({ name: 'Bia Atendente' })

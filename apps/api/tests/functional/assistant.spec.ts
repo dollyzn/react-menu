@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
-import testUtils from '@adonisjs/core/services/test_utils'
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
@@ -21,6 +20,7 @@ import type { AssistantProvider } from '@react-menu/contracts'
 import { say, scriptedModel, type ModelCall, type StreamPart } from '#assistant/scripted_model'
 import { DENIED_REASON, SKIPPED_REASON } from '#services/assistant_service'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 type Chunk = Record<string, any>
 const today = () => DateTime.now().setZone('America/Sao_Paulo').toISODate()!
@@ -74,6 +74,17 @@ async function field<T, K extends keyof T>(value: Promise<T>, key: K) {
   return resolved[key]
 }
 
+/** The outputs of a stream by tool name: the tools of one step finish in any order. */
+function outputsByTool(stream: Chunk[]) {
+  const nameOf = (id: string) =>
+    stream.find((c) => c.type === 'tool-input-available' && c.toolCallId === id)!.toolName
+  return new Map<string, any>(
+    stream
+      .filter((chunk) => chunk.type === 'tool-output-available')
+      .map((chunk) => [nameOf(chunk.toolCallId), chunk.output])
+  )
+}
+
 /** The tool results the model read in a call. */
 const toolResults = (call: ModelCall) =>
   call.prompt.flatMap((message) =>
@@ -116,7 +127,7 @@ function answer(id: string, first: Chunk[], approved: boolean) {
 }
 
 test.group('Store assistant', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
   group.each.teardown(() => app.container.restore(AssistantModels))
 
   test('managers connect providers and choose models; keys never come back', async ({
@@ -582,13 +593,7 @@ test.group('Store assistant', (group) => {
       client.post(`/api/v1/stores/${store.id}/assistant/chat`).json(ask('Tudo')).loginAs(manager)
     )
     assert.notExists(stream.find((chunk) => chunk.type === 'tool-output-error'))
-    const nameOf = (id: string) =>
-      stream.find((c) => c.type === 'tool-input-available' && c.toolCallId === id)!.toolName
-    const outputs = new Map<string, any>(
-      stream
-        .filter((chunk) => chunk.type === 'tool-output-available')
-        .map((chunk) => [nameOf(chunk.toolCallId), chunk.output])
-    )
+    const outputs = outputsByTool(stream)
     assert.equal(outputs.size, 7)
     assert.equal(outputs.get('sales_summary').summary.orders, 1)
     assert.equal(outputs.get('sales_summary').summary.revenue, 30)
@@ -683,9 +688,10 @@ test.group('Store assistant', (group) => {
         .loginAs(manager)
     )
     assert.notExists(reads.find((chunk) => chunk.type === 'tool-output-error'))
-    const [status, day, details] = reads
-      .filter((chunk) => chunk.type === 'tool-output-available')
-      .map((chunk) => chunk.output)
+    const outputs = outputsByTool(reads)
+    const status = outputs.get('store_status')
+    const day = outputs.get('today_overview')
+    const details = outputs.get('order_details')
     assert.include(status, { status: 'open', pickupEtaMinutes: 15 })
     assert.equal(day.sales.orders, 1)
     assert.notProperty(day, 'pace')
@@ -1206,12 +1212,9 @@ test.group('Store assistant', (group) => {
         .json(ask('Como estão os parceiros?'))
         .loginAs(manager)
     )
-    // The two reads run together: told apart by what they answer.
-    const outputs = reads
-      .filter((chunk) => chunk.type === 'tool-output-available')
-      .map((chunk) => chunk.output)
-    const partners = outputs.find((output) => 'partners' in output)
-    const requests = outputs.find((output) => 'requests' in output)
+    const outputs = outputsByTool(reads)
+    const partners = outputs.get('partners')
+    const requests = outputs.get('cancel_requests')
     assert.deepInclude(partners.partners[0], {
       name: 'Açaí da Praça',
       orders: 2,

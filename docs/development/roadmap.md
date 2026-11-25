@@ -36,6 +36,3 @@ picked from Product below, one PR at a time.
   "Connection is closed" (exit 1): `@boringnode/transmit` starts its bus
   `subscribe` with `void` and never catches it. Reported in
   [boringnode/bus#73](https://github.com/boringnode/bus/issues/73).
-- Lucid runs a query's preloads in parallel; inside one transaction pg
-  queues them and warns that pg 9 will refuse it. pg 9 isn't out; its
-  major is ignored by Dependabot until Lucid supports it.

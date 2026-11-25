@@ -1,8 +1,8 @@
 import { test } from '@japa/runner'
-import testUtils from '@adonisjs/core/services/test_utils'
 import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
+import { emptyDatabase } from '#tests/helpers/database'
 
 const ZONE = 'America/Sao_Paulo'
 const customer = { name: 'Ana', phone: '11987654321' }
@@ -20,7 +20,7 @@ async function storeWithManager() {
 }
 
 test.group('Opening hours', (group) => {
-  group.each.setup(() => testUtils.db().wrapInGlobalTransaction())
+  group.each.setup(() => emptyDatabase)
 
   test('managers set the schedule; invalid ones are refused', async ({ client }) => {
     const { store, manager } = await storeWithManager()
