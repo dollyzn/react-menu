@@ -62,21 +62,14 @@ test.group('WhatsApp connection (store page)', (group) => {
     assert.equal(waba, WABA_ID)
     assert.match(String(callback), /^https?:\/\/[^/]+\/api\/v1\/webhooks\/whatsapp$/)
     assert.equal(verifyToken, VERIFY_TOKEN)
-    // Every template submitted for review, in pt_BR.
-    const created = graph
-      .called('createTemplate')
-      .map((call) => call.args[2] as { name: string; language: string })
-    assert.sameMembers(
-      created.map((template) => template.name),
-      TEMPLATE_DEFINITIONS.map((definition) => definition.name)
-    )
-    assert.isTrue(created.every((template) => template.language === 'pt_BR'))
+    // The templates go to Meta in the job, not in this request (about 5 s each).
+    assert.lengthOf(graph.called('createTemplate'), 0)
     assert.isTrue(
       account.notices.every(
-        (notice: { template: { status: string } }) => notice.template.status === 'PENDING'
+        (notice: { template: { status: string } }) => notice.template.status === 'SUBMITTING'
       )
     )
-    assert.equal(account.loginTemplate.status, 'PENDING')
+    assert.equal(account.loginTemplate.status, 'SUBMITTING')
 
     // The token and PIN are encrypted at rest.
     const saved = await WhatsAppAccount.findByOrFail('storeId', store.id)
@@ -87,10 +80,24 @@ test.group('WhatsApp connection (store page)', (group) => {
       .first()
     assert.notInclude(raw!.access_token, 'business-token')
 
-    // The review is polled (its webhook goes to the app's default callback).
+    // The job submits every template right away, in pt_BR, then polls their
+    // review (its webhook goes to the app's default callback).
     queue.assertPushed('SyncWhatsAppTemplates')
+    const generation = saved.webhookSubscribedAt!.toMillis()
+    await runJob(SyncWhatsAppTemplates, { accountId: saved.id, round: 0, generation })
+    const created = graph
+      .called('createTemplate')
+      .map((call) => call.args[2] as { name: string; language: string })
+    assert.sameMembers(
+      created.map((template) => template.name),
+      TEMPLATE_DEFINITIONS.map((definition) => definition.name)
+    )
+    assert.isTrue(created.every((template) => template.language === 'pt_BR'))
+    await saved.refresh()
+    assert.equal(saved.templates[TEMPLATES.ORDER_READY].status, 'PENDING')
+
     meta.graph.approveAll()
-    await runJob(SyncWhatsAppTemplates, { accountId: saved.id, round: 0 })
+    await runJob(SyncWhatsAppTemplates, { accountId: saved.id, round: 1, generation })
     await saved.refresh()
     assert.isTrue(saved.templateApproved(TEMPLATES.ORDER_READY))
   })

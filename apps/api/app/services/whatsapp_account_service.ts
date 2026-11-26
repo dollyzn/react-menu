@@ -190,13 +190,13 @@ export default class WhatsAppAccountService {
       })
     }
 
-    // Templates are reviewed by Meta (minutes to a day): submitted now, their
-    // status polled by the job (their webhook isn't ours to receive).
-    await this.syncTemplates(account, { create: true }).catch((error) => {
-      logger.warn({ err: error, storeId: store.id }, 'could not submit the WhatsApp templates')
-    })
+    // Templates are submitted by the job, right away: one by one they take
+    // about 5 s each at Meta, far too long to keep the manager waiting. The
+    // job then polls their review (their webhook isn't ours to receive).
+    // The development fake answers at once (and e2e has no worker): inline.
+    if (whatsappConfig().fake) await this.syncTemplates(account, { create: true })
     const { default: SyncWhatsAppTemplates } = await import('#jobs/sync_whatsapp_templates')
-    await SyncWhatsAppTemplates.scheduleFor(account)
+    await SyncWhatsAppTemplates.scheduleFor(account, 0, { now: !whatsappConfig().fake })
 
     return account
   }
@@ -476,7 +476,8 @@ export default class WhatsAppAccountService {
     return {
       name,
       label,
-      status: state?.status ?? 'MISSING',
+      // Not read from Meta yet (just connected): the job is submitting it.
+      status: state?.status ?? (account.templatesCheckedAt ? 'MISSING' : 'SUBMITTING'),
       category: state?.category ?? null,
       reason: state?.reason ?? null,
     }

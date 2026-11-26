@@ -14,6 +14,7 @@ const TEMPLATE_STATUS: Record<string, { label: string; tone: string }> = {
   PAUSED: { label: "Pausado", tone: "bg-destructive/10 text-destructive" },
   DISABLED: { label: "Desativado", tone: "bg-destructive/10 text-destructive" },
   MISSING: { label: "Não criado", tone: "bg-muted text-muted-foreground" },
+  SUBMITTING: { label: "Enviando à Meta", tone: "bg-muted text-muted-foreground" },
 };
 
 /** Meta's review of a template, as a small pill. */
