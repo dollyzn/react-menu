@@ -93,10 +93,13 @@ export default class PublicMenuController {
   async startLogin({ params, request, response }: HttpContext) {
     const store = await this.menus.findBySlug(params.slug)
     const input = await request.validateUsing(customerLoginStartValidator)
+    // Its answer is never replayed (secrets): the key goes to the service,
+    // which returns the same challenge to a retry instead of starting another.
+    const key = request.header('idempotency-key')
     const challenge =
       input.method === 'code'
-        ? await this.login.startByCode(store, input.phone!)
-        : await this.login.startByMessage(store)
+        ? await this.login.startByCode(store, input.phone!, key)
+        : await this.login.startByMessage(store, key)
     // Carries the secret that claims the session: never replayed.
     noStore(response)
     return ok(challenge)
@@ -106,7 +109,13 @@ export default class PublicMenuController {
   async claimLogin({ params, request, response }: HttpContext) {
     const store = await this.menus.findBySlug(params.slug)
     const input = await request.validateUsing(customerLoginClaimValidator)
-    const result = await this.login.claim(store, params.challengeId, input.secret, input.code)
+    const result = await this.login.claim(
+      store,
+      params.challengeId,
+      input.secret,
+      input.code,
+      request.header('idempotency-key')
+    )
     noStore(response)
     return ok(result)
   }

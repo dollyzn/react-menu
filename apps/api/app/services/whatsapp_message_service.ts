@@ -81,6 +81,15 @@ export default class WhatsAppMessageService {
     const account = await this.accounts.forStore(order.storeId)
     if (!account || !account.isUsable || !account.notifyOrders) return null
     if (!account.templateApproved(notice.template)) return null
+    // "Cancelado" only for an order the customer was told was received: an
+    // unpaid Pix left to expire was never confirmed, and each notice is paid.
+    if (notice.kind === MessageKind.ORDER_CANCELLED) {
+      const told = await WhatsAppMessage.query()
+        .where({ dedupKey: `order:${order.id}:received` })
+        .whereNotIn('status', [MessageStatus.FAILED, MessageStatus.SKIPPED])
+        .first()
+      if (!told) return null
+    }
 
     // A new order's tracking token is the database's default: not on the model yet.
     if (!order.publicToken) await order.refresh()
@@ -106,7 +115,9 @@ export default class WhatsAppMessageService {
 
   /**
    * A row per message, at most once per key: a repeated change, a retried
-   * request or a second webhook never sends it twice. Null when it exists.
+   * request or a second webhook never sends it twice. A row already there
+   * and still queued (its dispatch failed: Redis down) is dispatched again;
+   * the job's dedup and `deliver`'s status check keep it to one send.
    */
   async queue(input: {
     storeId: string
@@ -133,11 +144,39 @@ export default class WhatsAppMessageService {
       .onConflict('dedup_key')
       .ignore()
       .returning('id')
-    if (!row) return null
-    const message = await WhatsAppMessage.findOrFail(row.id ?? row)
+    const message = row
+      ? await WhatsAppMessage.findOrFail(row.id ?? row)
+      : await WhatsAppMessage.findBy('dedupKey', input.dedupKey)
+    if (!message || message.status !== MessageStatus.QUEUED) return null
     const { default: SendWhatsAppMessage } = await import('#jobs/send_whatsapp_message')
     await SendWhatsAppMessage.dispatchFor(message)
     return message
+  }
+
+  /** The job gave up (Meta kept not answering): the row says so instead of staying queued. */
+  async giveUp(messageId: string, error: Error) {
+    await WhatsAppMessage.query()
+      .where({ id: messageId, status: MessageStatus.QUEUED })
+      .update({ status: MessageStatus.FAILED, errorTitle: error.message.slice(0, 300) })
+  }
+
+  /** The panel's list: the store's last messages (no contents: codes are never kept anyway). */
+  async recent(storeId: string, limit = 30) {
+    const rows = await WhatsAppMessage.query()
+      .where('storeId', storeId)
+      .preload('order', (order) => order.select('id', 'number'))
+      .orderBy('createdAt', 'desc')
+      .limit(limit)
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      to: row.to.replace(/^(\d{4})\d+(\d{4})$/, '$1•••••$2'),
+      status: row.status,
+      errorCode: row.errorCode,
+      errorTitle: row.errorTitle,
+      orderNumber: row.order?.number ?? null,
+      createdAt: row.createdAt.toISO()!,
+    }))
   }
 
   /**

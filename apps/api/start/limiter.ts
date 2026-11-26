@@ -64,3 +64,15 @@ export const customerLoginThrottle = limiter.define('customer_login', (ctx) => {
     .every('10 minutes')
     .usingKey(`customer_login_${ctx.request.ip()}`)
 })
+
+/**
+ * Claiming a sign-in (the page polls every 2.5 s for up to 10 minutes, and
+ * typed codes go here too). The five attempts per code are the real limit;
+ * this keeps one client from hammering challenges.
+ */
+export const customerLoginClaimThrottle = limiter.define('customer_login_claim', (ctx) => {
+  return limiter
+    .allowRequests(env.get('CUSTOMER_LOGIN_RATE_LIMIT', 10) * 30)
+    .every('10 minutes')
+    .usingKey(`customer_login_claim_${ctx.request.ip()}`)
+})

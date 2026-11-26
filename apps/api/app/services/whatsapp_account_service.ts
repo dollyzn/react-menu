@@ -104,6 +104,12 @@ export default class WhatsAppAccountService {
 
     const current = await this.forStore(store.id)
     const sameNumber = current?.phoneNumberId === input.phoneNumberId
+    // Another WABA than before: the old one stops sending us its events.
+    if (current && current.wabaId !== input.wabaId) {
+      await this.client.unsubscribeApp(current.accessToken, current.wabaId).catch((error) => {
+        logger.warn({ err: error, storeId: store.id }, 'could not unsubscribe the previous WABA')
+      })
+    }
     const pin =
       (sameNumber && current?.registerPin) || String(randomInt(0, 1_000_000)).padStart(6, '0')
     const coexistence = Boolean(input.coexistence)

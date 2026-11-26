@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto'
 import AppException from '#exceptions/app_exception'
 import { messageOnly, ok, updated } from '#helpers/api_response'
 import Store from '#models/store'
-import WhatsAppMessage from '#models/whatsapp_message'
 import WhatsAppAccountService from '#services/whatsapp_account_service'
+import WhatsAppMessageService from '#services/whatsapp_message_service'
 import { storeExistValidator } from '#validators/common'
 import {
   whatsappConnectValidator,
@@ -17,7 +17,10 @@ import { whatsappConfig } from '#whatsapp/config'
 /** The store's WhatsApp number (managers; ADR 0025). */
 @inject()
 export default class WhatsAppController {
-  constructor(private accounts: WhatsAppAccountService) {}
+  constructor(
+    private accounts: WhatsAppAccountService,
+    private messageLog: WhatsAppMessageService
+  ) {}
 
   async show({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
@@ -64,26 +67,10 @@ export default class WhatsAppController {
     return messageOnly('WhatsApp desconectado.')
   }
 
-  /** The last messages sent through the number, for the panel (no contents of codes). */
+  /** The last messages sent through the number, for the panel. */
   async messages({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
-    const rows = await WhatsAppMessage.query()
-      .where('storeId', storeId)
-      .preload('order', (order) => order.select('id', 'number'))
-      .orderBy('createdAt', 'desc')
-      .limit(30)
-    return ok(
-      rows.map((row) => ({
-        id: row.id,
-        kind: row.kind,
-        to: row.to.replace(/^(\d{4})\d+(\d{4})$/, '$1•••••$2'),
-        status: row.status,
-        errorCode: row.errorCode,
-        errorTitle: row.errorTitle,
-        orderNumber: row.order?.number ?? null,
-        createdAt: row.createdAt.toISO()!,
-      }))
-    )
+    return ok(await this.messageLog.recent(storeId))
   }
 
   private async connected(storeId: string) {

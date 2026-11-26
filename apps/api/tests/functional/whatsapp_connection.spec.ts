@@ -129,6 +129,20 @@ test.group('WhatsApp connection (store page)', (group) => {
     response.assertBodyContains({ code: 'E_WHATSAPP_NUMBER_IN_USE' })
   })
 
+  test('connecting another WABA unsubscribes the previous one', async ({ client, assert }) => {
+    const { store, manager } = await setup()
+    const previous = await connectStore(store, { wabaId: '555000111' })
+    const response = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json(signup)
+      .loginAs(manager)
+    response.assertStatus(200)
+    assert.deepEqual(meta.graph.called('unsubscribeApp')[0].args, [
+      previous.accessToken,
+      '555000111',
+    ])
+  })
+
   test('settings, refresh and disconnect', async ({ client, assert }) => {
     const { store, manager } = await setup()
     const account = await connectStore(store)

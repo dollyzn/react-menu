@@ -272,6 +272,94 @@ test.group('Customer order history', (group) => {
     otherStore.assertStatus(401)
   })
 
+  test('guesses sent at the same time still get five attempts in all', async ({
+    client,
+    assert,
+  }) => {
+    const { store } = await setup(client)
+    const start = await client
+      .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+      .json({ method: 'code', phone: customer.phone })
+    const challenge = start.body().data
+    const url = `/api/v1/public/menu/${store.slug}/customer-login/${challenge.id}`
+    const right = (
+      meta.graph.sent[0].body.template as { components: { parameters: { text: string }[] }[] }
+    ).components[0].parameters[0].text
+    const wrong = Array.from({ length: 12 }, (_, index) =>
+      String((Number(right) + index + 1) % 1_000_000).padStart(6, '0')
+    )
+
+    const answers = await Promise.all(
+      wrong.map((code) => client.post(url).json({ secret: challenge.secret, code }))
+    )
+    const statuses = answers.map((answer) => answer.status())
+    assert.equal(statuses.filter((status) => status === 422).length, 5)
+    assert.equal(statuses.filter((status) => status === 429).length, 7)
+    // Even the right code now: locked.
+    const late = await client.post(url).json({ secret: challenge.secret, code: right })
+    late.assertStatus(429)
+  })
+
+  test('the same Idempotency-Key again: the same challenge, no second code; a lost claim answer is handed out again', async ({
+    client,
+    assert,
+  }) => {
+    const { store } = await setup(client)
+    const start = () =>
+      client
+        .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+        .header('Idempotency-Key', 'start-key-1')
+        .json({ method: 'code', phone: customer.phone })
+    const first = await start()
+    const again = await start()
+    again.assertStatus(200)
+    assert.equal(again.body().data.id, first.body().data.id)
+    assert.notEqual(again.body().data.secret, first.body().data.secret)
+    assert.lengthOf(meta.graph.sent, 1)
+
+    // Only the newest secret works (the first answer never reached the browser).
+    const url = `/api/v1/public/menu/${store.slug}/customer-login/${first.body().data.id}`
+    const stale = await client.post(url).json({ secret: first.body().data.secret })
+    stale.assertStatus(404)
+
+    const code = (
+      meta.graph.sent[0].body.template as { components: { parameters: { text: string }[] }[] }
+    ).components[0].parameters[0].text
+    const claim = () =>
+      client
+        .post(url)
+        .header('Idempotency-Key', 'claim-key-1')
+        .json({ secret: again.body().data.secret, code })
+    const claimed = await claim()
+    claimed.assertStatus(200)
+    const retried = await claim()
+    retried.assertStatus(200)
+    const token = retried.body().data.customerToken as string
+    assert.notEqual(token, claimed.body().data.customerToken)
+    const history = await client
+      .get(`/api/v1/public/menu/${store.slug}/my-orders`)
+      .header('Customer-Token', token)
+    history.assertStatus(200)
+
+    // Another key (another browser holding the secret): still single use.
+    const other = await client
+      .post(url)
+      .header('Idempotency-Key', 'claim-key-2')
+      .json({ secret: again.body().data.secret, code })
+    other.assertStatus(410)
+  })
+
+  test('a code that could not be sent leaves nothing behind', async ({ client, assert }) => {
+    const { store } = await setup(client)
+    const { WhatsAppApiError } = await import('#whatsapp/client')
+    meta.graph.failNextSend = new WhatsAppApiError('Payment issue', 400, 131042)
+    const failed = await client
+      .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+      .json({ method: 'code', phone: customer.phone })
+    failed.assertStatus(502)
+    assert.lengthOf(await CustomerLoginChallenge.all(), 0)
+  })
+
   test('a device refreshes its own orders by public token', async ({ client, assert }) => {
     const { store, carne } = await createMenuStore()
     const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({

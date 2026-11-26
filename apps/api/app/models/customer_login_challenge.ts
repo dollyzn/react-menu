@@ -32,6 +32,17 @@ export default class CustomerLoginChallenge extends BaseModel {
   @column()
   declare phone: string | null
 
+  /** SHA-256 of the Idempotency-Key that started it (a repeat returns it again). */
+  @column({ serializeAs: null })
+  declare startKeyHash: string | null
+
+  /** SHA-256 of the Idempotency-Key that claimed it, and the session it opened. */
+  @column({ serializeAs: null })
+  declare claimKeyHash: string | null
+
+  @column({ serializeAs: null })
+  declare sessionId: string | null
+
   @column()
   declare attempts: number
 

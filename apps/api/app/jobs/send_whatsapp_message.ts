@@ -34,6 +34,11 @@ export default class SendWhatsAppMessage extends AppJob<Payload> {
     await this.messages.deliver(this.payload.messageId)
   }
 
+  async failed(error: Error) {
+    await this.messages.giveUp(this.payload.messageId, error)
+    await super.failed(error)
+  }
+
   /** A missed notice isn't worth an e-mail to the admins (the panel bell is enough). */
   protected notifyFailureByEmail = false
 }

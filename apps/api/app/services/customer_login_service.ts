@@ -1,5 +1,13 @@
-import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'node:crypto'
+import {
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+  randomUUID,
+  timingSafeEqual,
+} from 'node:crypto'
 import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import AppException from '#exceptions/app_exception'
 import { maskPhone, normalizeBrazilianPhone, phoneFromWaId, phoneVariants } from '#helpers/phone'
@@ -69,36 +77,87 @@ export default class CustomerLoginService {
   }
 
   /**
+   * The challenge an earlier request with the same Idempotency-Key started
+   * (its answer got lost and the client tried again), with a fresh secret:
+   * the first one never reached the browser. Null when there is none.
+   */
+  private async repeated(storeId: string, method: LoginMethod, key: string | undefined) {
+    if (!key) return null
+    const challenge = await CustomerLoginChallenge.query()
+      .where({ storeId, method, startKeyHash: sha256(key) })
+      .whereNull('claimedAt')
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .first()
+    if (!challenge) return null
+    const secret = randomBytes(32).toString('base64url')
+    challenge.secretHash = sha256(secret)
+    await challenge.save()
+    return { challenge, secret }
+  }
+
+  /** A challenge row; the same key at the same time loses the unique index and repeats. */
+  private async create(
+    attributes: Partial<CustomerLoginChallenge>,
+    storeId: string,
+    method: LoginMethod,
+    key: string | undefined
+  ) {
+    const secret = randomBytes(32).toString('base64url')
+    try {
+      const challenge = await CustomerLoginChallenge.create({
+        ...attributes,
+        storeId,
+        method,
+        secretHash: sha256(secret),
+        startKeyHash: key ? sha256(key) : null,
+        attempts: 0,
+      })
+      return { challenge, secret, created: true }
+    } catch (error) {
+      const again =
+        (error as { code?: string }).code === '23505' && (await this.repeated(storeId, method, key))
+      if (!again) throw error
+      return { ...again, created: false }
+    }
+  }
+
+  /**
    * "Entrar pelo WhatsApp": a code for the customer to send us from their
    * phone, and the wa.me link that writes it for them. Their message, from
-   * their number, proves the phone.
+   * their number, proves the phone. Safe to repeat with the same key.
    */
-  async startByMessage(store: Store) {
+  async startByMessage(store: Store, key?: string) {
     const account = await this.loginAccount(store)
-    const secret = randomBytes(32).toString('base64url')
-    const code = messageCode()
-    const challenge = await CustomerLoginChallenge.create({
-      storeId: store.id,
-      method: LoginMethod.MESSAGE,
-      code,
-      secretHash: sha256(secret),
-      attempts: 0,
-      expiresAt: DateTime.now().plus({ minutes: CHALLENGE_MINUTES }),
-    })
-    const text = `Quero ver meus pedidos na ${store.name}. Código: ${code}`
+    const { challenge, secret } =
+      (await this.repeated(store.id, LoginMethod.MESSAGE, key)) ??
+      (await this.create(
+        {
+          code: messageCode(),
+          expiresAt: DateTime.now().plus({ minutes: CHALLENGE_MINUTES }),
+        },
+        store.id,
+        LoginMethod.MESSAGE,
+        key
+      ))
+    const text = `Quero ver meus pedidos na ${store.name}. Código: ${challenge.code}`
     return {
       id: challenge.id,
       secret,
       method: LoginMethod.MESSAGE,
-      code,
+      code: challenge.code!,
       link: `https://wa.me/${account.waNumber}?text=${encodeURIComponent(text)}`,
       displayPhoneNumber: account.displayPhoneNumber,
       expiresAt: challenge.expiresAt.toISO()!,
     }
   }
 
-  /** "Receber um código": we send the authentication template to the phone typed. */
-  async startByCode(store: Store, phoneInput: string) {
+  /**
+   * "Receber um código": we send the authentication template to the phone
+   * typed. The same key again returns the same challenge without sending
+   * another (paid) code; a code that couldn't be sent leaves nothing behind,
+   * so it doesn't count against the phone's limit.
+   */
+  async startByCode(store: Store, phoneInput: string, key?: string) {
     const account = await this.loginAccount(store)
     if (!account.templateApproved(TEMPLATES.LOGIN_CODE)) {
       throw new AppException(
@@ -109,6 +168,9 @@ export default class CustomerLoginService {
     }
     const phone = normalizeBrazilianPhone(phoneInput)
     if (!phone) throw new AppException('Confira o número de celular.', 422, 'E_PHONE_INVALID')
+
+    const again = await this.repeated(store.id, LoginMethod.CODE, key)
+    if (again) return this.codeChallenge(again.challenge, again.secret)
 
     const recent = await CustomerLoginChallenge.query()
       .where({ storeId: store.id, method: LoginMethod.CODE })
@@ -124,25 +186,37 @@ export default class CustomerLoginService {
       )
     }
 
-    const secret = randomBytes(32).toString('base64url')
+    // The id first, so the row is written once with its code's HMAC.
+    const id = randomUUID()
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
-    const challenge = await CustomerLoginChallenge.create({
-      storeId: store.id,
-      method: LoginMethod.CODE,
-      secretHash: sha256(secret),
-      phone,
-      attempts: 0,
-      expiresAt: DateTime.now().plus({ minutes: LOGIN_CODE_MINUTES }),
-    })
-    challenge.codeHash = codeHash(challenge.id, code)
-    await challenge.save()
+    const { challenge, secret, created } = await this.create(
+      {
+        id,
+        phone,
+        codeHash: codeHash(id, code),
+        expiresAt: DateTime.now().plus({ minutes: LOGIN_CODE_MINUTES }),
+      },
+      store.id,
+      LoginMethod.CODE,
+      key
+    )
+    if (!created) return this.codeChallenge(challenge, secret)
 
-    await this.messages.sendCode(account, challenge.id, phone, code)
+    try {
+      await this.messages.sendCode(account, challenge.id, phone, code)
+    } catch (error) {
+      await challenge.delete()
+      throw error
+    }
+    return this.codeChallenge(challenge, secret)
+  }
+
+  private codeChallenge(challenge: CustomerLoginChallenge, secret: string) {
     return {
       id: challenge.id,
       secret,
       method: LoginMethod.CODE,
-      phone: maskPhone(phone),
+      phone: maskPhone(challenge.phone!),
       expiresAt: challenge.expiresAt.toISO()!,
     }
   }
@@ -196,70 +270,139 @@ export default class CustomerLoginService {
 
   /**
    * The browser that started it asks for its session (polling while the
-   * customer sends the message, or with the code typed). Single use.
+   * customer sends the message, or with the code typed). Once: a second
+   * claim gets 410, except the same Idempotency-Key again (the answer got
+   * lost), which gets that session with a fresh token.
    */
-  async claim(store: Store, challengeId: string, secret: string, code?: string | null) {
+  async claim(
+    store: Store,
+    challengeId: string,
+    secret: string,
+    code?: string | null,
+    key?: string
+  ) {
     const challenge = await CustomerLoginChallenge.query()
       .where({ id: challengeId, storeId: store.id })
       .first()
     if (!challenge || !sameHash(challenge.secretHash, sha256(secret))) {
       throw new AppException('Pedido de acesso não encontrado.', 404, 'E_LOGIN_NOT_FOUND')
     }
+    const expired = () =>
+      new AppException('Esse pedido de acesso expirou. Comece de novo.', 410, 'E_LOGIN_EXPIRED')
+
+    if (challenge.claimedAt) {
+      const sameRequest =
+        key &&
+        challenge.claimKeyHash &&
+        challenge.sessionId &&
+        sameHash(challenge.claimKeyHash, sha256(key))
+      if (!sameRequest) throw expired()
+      return await this.reissue(store, challenge)
+    }
     // A verified one may be claimed a little after it expired (the message
     // arrived just in time, the page was in the background).
     const over = challenge.verifiedAt
       ? challenge.verifiedAt < DateTime.now().minus({ minutes: 30 })
       : challenge.isExpired
-    if (challenge.claimedAt || over) {
-      throw new AppException(
-        'Esse pedido de acesso expirou. Comece de novo.',
-        410,
-        'E_LOGIN_EXPIRED'
-      )
-    }
+    if (over) throw expired()
 
     if (challenge.method === LoginMethod.CODE && !challenge.verifiedAt) {
-      if (challenge.attempts >= MAX_ATTEMPTS) {
-        throw new AppException('Muitas tentativas. Peça outro código.', 429, 'E_LOGIN_LOCKED')
+      if (!code) {
+        if (challenge.attempts >= MAX_ATTEMPTS) throw this.locked()
+        return { status: 'pending' as const }
       }
-      if (!code) return { status: 'pending' as const }
-      const right = challenge.codeHash && sameHash(challenge.codeHash, codeHash(challenge.id, code))
-      if (!right) {
-        await CustomerLoginChallenge.query().where('id', challenge.id).increment('attempts', 1)
-        throw new AppException('Código incorreto.', 422, 'E_LOGIN_CODE_INVALID', {
-          attemptsLeft: Math.max(0, MAX_ATTEMPTS - challenge.attempts - 1),
-        })
-      }
-      challenge.verifiedAt = DateTime.now()
-      await challenge.save()
+      await this.checkCode(challenge, code)
     }
 
     if (!challenge.verifiedAt || !challenge.phone) return { status: 'pending' as const }
 
-    // Conditional: two polls at once get one session.
-    const claimed = await CustomerLoginChallenge.query()
+    const token = `cs_${randomBytes(32).toString('base64url')}`
+    const opened = await db.transaction(async (trx) => {
+      // Conditional: two polls at once get one session.
+      const claimed = await CustomerLoginChallenge.query({ client: trx })
+        .where('id', challenge.id)
+        .whereNull('claimedAt')
+        .update({ claimedAt: DateTime.now().toJSDate(), claimKeyHash: key ? sha256(key) : null })
+      if (Number(claimed[0] ?? claimed) === 0) return false
+      const session = await CustomerSession.create(
+        {
+          storeId: store.id,
+          phone: challenge.phone!,
+          tokenHash: sha256(token),
+          expiresAt: DateTime.now().plus({ days: SESSION_DAYS }),
+        },
+        { client: trx }
+      )
+      await CustomerLoginChallenge.query({ client: trx })
+        .where('id', challenge.id)
+        .update({ sessionId: session.id })
+      return true
+    })
+    if (!opened) throw expired()
+    return {
+      status: 'verified' as const,
+      customerToken: token,
+      customer: await this.customerOf(store.id, challenge.phone),
+    }
+  }
+
+  private locked() {
+    return new AppException('Muitas tentativas. Peça outro código.', 429, 'E_LOGIN_LOCKED')
+  }
+
+  /**
+   * A typed code. Each guess takes one of the five attempts atomically
+   * before it is compared, so guesses sent at the same time can't share a
+   * count read before any of them was recorded.
+   */
+  private async checkCode(challenge: CustomerLoginChallenge, code: string) {
+    const [taken] = await db
+      .from('customer_login_challenges')
       .where('id', challenge.id)
-      .whereNull('claimedAt')
-      .update({ claimedAt: DateTime.now().toJSDate() })
-    if (Number(claimed[0] ?? claimed) === 0) {
+      .whereNull('verified_at')
+      .where('attempts', '<', MAX_ATTEMPTS)
+      .increment('attempts', 1)
+      .returning('attempts')
+    if (!taken) {
+      // Out of attempts, or a guess at the same time got it right.
+      await challenge.refresh()
+      if (challenge.verifiedAt) return
+      throw this.locked()
+    }
+    const attempts = Number((taken as { attempts: number }).attempts ?? taken)
+    const right = challenge.codeHash && sameHash(challenge.codeHash, codeHash(challenge.id, code))
+    if (!right) {
+      throw new AppException('Código incorreto.', 422, 'E_LOGIN_CODE_INVALID', {
+        attemptsLeft: Math.max(0, MAX_ATTEMPTS - attempts),
+      })
+    }
+    await CustomerLoginChallenge.query()
+      .where('id', challenge.id)
+      .whereNull('verifiedAt')
+      .update({ verifiedAt: DateTime.now().toJSDate() })
+    challenge.verifiedAt = DateTime.now()
+  }
+
+  /** The claim's answer got lost: the same session, with a new token (the old one never arrived). */
+  private async reissue(store: Store, challenge: CustomerLoginChallenge) {
+    const session = await CustomerSession.query()
+      .where({ id: challenge.sessionId!, storeId: store.id })
+      .where('expiresAt', '>', DateTime.now().toSQL()!)
+      .first()
+    if (!session) {
       throw new AppException(
         'Esse pedido de acesso expirou. Comece de novo.',
         410,
         'E_LOGIN_EXPIRED'
       )
     }
-
     const token = `cs_${randomBytes(32).toString('base64url')}`
-    await CustomerSession.create({
-      storeId: store.id,
-      phone: challenge.phone,
-      tokenHash: sha256(token),
-      expiresAt: DateTime.now().plus({ days: SESSION_DAYS }),
-    })
+    session.tokenHash = sha256(token)
+    await session.save()
     return {
       status: 'verified' as const,
       customerToken: token,
-      customer: await this.customerOf(store.id, challenge.phone),
+      customer: await this.customerOf(store.id, session.phone),
     }
   }
 

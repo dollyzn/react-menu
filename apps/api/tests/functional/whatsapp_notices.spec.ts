@@ -1,4 +1,6 @@
 import { test } from '@japa/runner'
+import app from '@adonisjs/core/services/app'
+import WhatsAppMessageService from '#services/whatsapp_message_service'
 import StoreRole from '#enums/store_role'
 import SendWhatsAppMessage from '#jobs/send_whatsapp_message'
 import Order from '#models/order'
@@ -8,7 +10,7 @@ import { WhatsAppApiError } from '#whatsapp/client'
 import { TEMPLATES } from '#whatsapp/templates'
 import { createMenuStore, createStaff, linkUser } from '#tests/helpers/fixtures'
 import { emptyDatabase } from '#tests/helpers/database'
-import { fakeQueue, runJob } from '#tests/helpers/queue'
+import { failJob, fakeQueue, runJob } from '#tests/helpers/queue'
 import { connectStore, useFakeGraph, VERIFY_TOKEN, webhookBody } from '#tests/helpers/fake_whatsapp'
 
 const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
@@ -127,6 +129,72 @@ test.group('WhatsApp order notices', (group) => {
       notifications: false,
       login: { message: true, code: true },
     })
+  })
+
+  test('"cancelado" only after "recebido": an unpaid order left to expire is not told', async ({
+    client,
+    assert,
+  }) => {
+    fakeQueue()
+    const { store, carne } = await setup()
+    const { default: OrderService } = await import('#services/order_service')
+    const orders = await app.container.make(OrderService)
+    const place = async () => {
+      const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+        customer,
+        paymentMethod: 'counter',
+        lines: [{ itemId: carne.id, quantity: 1 }],
+        whatsappOptIn: true,
+      })
+      return await Order.findByOrFail('publicToken', placed.body().data.publicToken)
+    }
+
+    // A Pix never paid: still pending_payment, never told it was received
+    // (the tests have no gateway, so it is set as such), cancelled without a word.
+    const unpaid = await place()
+    await WhatsAppMessage.query().where('orderId', unpaid.id).delete()
+    await Order.query().where('id', unpaid.id).update({ status: 'pending_payment' })
+    await orders.cancel(store.id, unpaid.id)
+    assert.lengthOf(await WhatsAppMessage.query().where('orderId', unpaid.id), 0)
+
+    // Received and told: cancelling it is told too.
+    const received = await place()
+    await sendQueued()
+    await orders.cancel(store.id, received.id)
+    const rows = await WhatsAppMessage.query().where('orderId', received.id)
+    const kinds = rows.map((row) => row.kind)
+    assert.sameMembers(kinds, ['order_received', 'order_cancelled'])
+  })
+
+  test('a notice whose dispatch failed goes out on the next change; a job that gives up says so', async ({
+    assert,
+  }) => {
+    const queue = fakeQueue()
+    const { store } = await setup()
+    // A row whose dispatch was lost (Redis down when it was queued).
+    const lost = await WhatsAppMessage.create({
+      storeId: store.id,
+      kind: 'order_received',
+      dedupKey: 'order:lost:received',
+      to: '5511987654321',
+      content: { type: 'template', name: TEMPLATES.ORDER_RECEIVED, params: {} },
+      status: 'queued',
+    })
+    const service = await app.container.make(WhatsAppMessageService)
+    const again = await service.queue({
+      storeId: store.id,
+      kind: 'order_received',
+      dedupKey: 'order:lost:received',
+      to: '5511987654321',
+      content: lost.content,
+    })
+    assert.equal(again?.id, lost.id)
+    queue.assertPushed('SendWhatsAppMessage', { payload: { messageId: lost.id } })
+
+    await failJob(SendWhatsAppMessage, { messageId: lost.id }, new Error('Meta did not answer'))
+    await lost.refresh()
+    assert.equal(lost.status, 'failed')
+    assert.equal(lost.errorTitle, 'Meta did not answer')
   })
 
   test('a payment problem is recorded and shown; the status webhook moves the message forward', async ({

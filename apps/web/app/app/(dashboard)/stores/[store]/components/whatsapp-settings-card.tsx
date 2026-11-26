@@ -138,6 +138,14 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         toast.error(signupEvent.data.error_message || "A Meta não concluiu a conexão. Tente de novo.");
         return;
       }
+      if (!signupEvent.data.phone_number_id || !signupEvent.data.waba_id) {
+        // Finished without a number (FINISH_ONLY_WABA): nothing to connect yet.
+        code.current = null;
+        session.current = {};
+        setOpening(false);
+        toast.info("A conta foi criada, mas nenhum número foi adicionado. Conecte de novo e escolha um número.");
+        return;
+      }
       session.current = {
         wabaId: signupEvent.data.waba_id,
         phoneNumberId: signupEvent.data.phone_number_id,
