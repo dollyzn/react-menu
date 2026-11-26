@@ -53,3 +53,14 @@ export const orderThrottle = limiter.define('public_orders', (ctx) => {
 export const paymentSyncThrottle = limiter.define('public_payment_sync', (ctx) => {
   return limiter.allowRequests(30).every('10 minutes').usingKey(`payment_sync_${ctx.request.ip()}`)
 })
+
+/**
+ * Starting a customer's history sign-in (ADR 0025): each "code" start sends
+ * a paid WhatsApp message (also limited per phone in CustomerLoginService).
+ */
+export const customerLoginThrottle = limiter.define('customer_login', (ctx) => {
+  return limiter
+    .allowRequests(env.get('CUSTOMER_LOGIN_RATE_LIMIT', 10))
+    .every('10 minutes')
+    .usingKey(`customer_login_${ctx.request.ip()}`)
+})

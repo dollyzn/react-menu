@@ -1,5 +1,5 @@
 import router from '@adonisjs/core/services/router'
-import { orderThrottle, paymentSyncThrottle, throttle } from '#start/limiter'
+import { customerLoginThrottle, orderThrottle, paymentSyncThrottle, throttle } from '#start/limiter'
 
 const PublicMenuController = () => import('#controllers/public_menu_controller')
 
@@ -17,6 +17,18 @@ export default function publicRoutes() {
       router
         .get('/menu/:slug/my-orders', [PublicMenuController, 'myOrders'])
         .as('public.orders.mine')
+      // History sign-in by WhatsApp (ADR 0025).
+      router
+        .post('/menu/:slug/customer-login', [PublicMenuController, 'startLogin'])
+        .as('public.customerLogin.start')
+        .use(customerLoginThrottle)
+      router
+        .post('/menu/:slug/customer-login/:challengeId', [PublicMenuController, 'claimLogin'])
+        .as('public.customerLogin.claim')
+        .where('challengeId', router.matchers.uuid())
+      router
+        .delete('/menu/:slug/customer-session', [PublicMenuController, 'signOut'])
+        .as('public.customerLogin.signOut')
       router.get('/orders', [PublicMenuController, 'lookupOrders']).as('public.orders.lookup')
       router
         .get('/orders/:token', [PublicMenuController, 'trackOrder'])

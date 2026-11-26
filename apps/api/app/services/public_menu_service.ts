@@ -11,9 +11,14 @@ import InventoryService from '#services/inventory_service'
 import PaymentService from '#services/payment_service'
 import PaymentMethod from '#enums/payment_method'
 import { cardFeePercents } from '#payments/card_fee'
+import WhatsAppAccountService from '#services/whatsapp_account_service'
 
 /** Public store fields; never includes credentials or internal settings. */
-export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
+export function publicStore(
+  store: Store,
+  paymentMethods: PaymentMethod[],
+  whatsapp: PublicWhatsApp = { notifications: false, login: null }
+) {
   return {
     id: store.id,
     name: store.name,
@@ -41,14 +46,19 @@ export function publicStore(store: Store, paymentMethods: PaymentMethod[]) {
     paymentMethods,
     /** Card fee the customer pays on top online (percent per type); null: none. */
     cardFees: paymentMethods.includes(PaymentMethod.CARD) ? cardFeePercents(store) : null,
+    /** WhatsApp (ADR 0025): notices at checkout, history sign-in ways (null: none). */
+    whatsapp,
   }
 }
+
+type PublicWhatsApp = ReturnType<WhatsAppAccountService['publicFeatures']>
 
 @inject()
 export default class PublicMenuService {
   constructor(
     private inventory: InventoryService,
-    private payments: PaymentService
+    private payments: PaymentService,
+    private whatsapp: WhatsAppAccountService
   ) {}
 
   /** Menus a search engine may list (sitemap): every store not under maintenance. */
@@ -111,7 +121,11 @@ export default class PublicMenuService {
     const left = await this.inventory.capacities(store)
 
     return {
-      store: publicStore(store, this.payments.checkoutMethods(store)),
+      store: publicStore(
+        store,
+        this.payments.checkoutMethods(store),
+        this.whatsapp.publicFeatures(await this.whatsapp.forStore(store.id))
+      ),
       categories: store.categories
         .map((category) => ({ category, items: category.items.filter(include) }))
         .filter(({ items }) => items.length > 0)

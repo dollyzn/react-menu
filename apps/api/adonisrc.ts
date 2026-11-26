@@ -64,6 +64,7 @@ export default defineConfig({
     () => import('@adonisjs/queue/queue_provider'),
     () => import('@adonisjs/mail/mail_provider'),
     () => import('#providers/otel_provider'),
+    () => import('#providers/whatsapp_provider'),
   ],
 
   /*

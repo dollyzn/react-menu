@@ -13,6 +13,7 @@ import OrderStatus from '#enums/order_status'
 import PaymentMethod, { isOnlinePayment } from '#enums/payment_method'
 import PaymentStatus from '#enums/payment_status'
 import { normalizeBrazilianPhone } from '#helpers/phone'
+import WhatsAppMessageService from '#services/whatsapp_message_service'
 import {
   broadcastOrderTracking,
   broadcastPartnerEvent,
@@ -93,6 +94,8 @@ export type CreateOrderInput = {
    * paid on the partner's machine.
    */
   partnerId?: string
+  /** Online: the customer asked for WhatsApp notices (ADR 0025). */
+  whatsappOptIn?: boolean
 }
 
 /** The order history's filters ("Histórico"): what the list endpoint validated. */
@@ -105,7 +108,8 @@ export default class OrderService {
     private inventory: InventoryService,
     private notifications: NotificationService,
     private push: PushService,
-    private partners: PartnerService
+    private partners: PartnerService,
+    private whatsapp: WhatsAppMessageService
   ) {}
 
   /**
@@ -205,6 +209,9 @@ export default class OrderService {
           customerName: input.customer.name,
           customerPhone: phone,
           channel: input.channel,
+          // Only online customers ask for notices, and only with a phone to send them to.
+          whatsappOptIn:
+            input.channel === OrderChannel.ONLINE && Boolean(input.whatsappOptIn && phone),
           status: OrderStatus.PENDING_PAYMENT,
           paymentMethod: input.paymentMethod,
           ...(input.counterMethod
@@ -1356,21 +1363,6 @@ export default class OrderService {
       .orderBy('createdAt', 'desc')
   }
 
-  /** A customer's latest orders in one store, newest first. */
-  async listForCustomer(
-    storeId: string,
-    customerId: string,
-    since: DateTime | null = null,
-    limit = 30
-  ) {
-    return await Order.query()
-      .where({ storeId, customerId })
-      .if(since, (query) => query.where('createdAt', '>=', since!.toSQL()!))
-      .preload('items', (items) => items.orderBy('id'))
-      .orderBy('createdAt', 'desc')
-      .limit(limit)
-  }
-
   private assertCanOrder(store: Store, input: CreateOrderInput) {
     if (input.lines.length === 0) {
       throw new AppException('Adicione pelo menos um item ao pedido.', 422)
@@ -1612,6 +1604,12 @@ export default class OrderService {
   private async customerAlerts(order: Order) {
     // Best effort: the change is already committed; a queue or DB hiccup here
     // must not answer 500 nor skip the rest of the post-commit work.
+    try {
+      // WhatsApp notice (ADR 0025): once per state, when the customer asked.
+      await this.whatsapp.queueOrderNotice(order)
+    } catch (error) {
+      logger.warn({ err: error, orderId: order.id }, 'could not queue the WhatsApp notice')
+    }
     try {
       if (order.status === OrderStatus.COMPLETED || order.status === OrderStatus.CANCELLED) {
         await this.push.forgetOrder(order.id)

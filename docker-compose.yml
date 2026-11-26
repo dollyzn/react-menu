@@ -89,6 +89,12 @@ services:
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       GOOGLE_CALLBACK_URL: ${PUBLIC_URL}/api/v1/auth/social/google/callback
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID:-}
+      # WhatsApp Cloud API (ADR 0025): off while any of these is empty.
+      WHATSAPP_APP_ID: ${WHATSAPP_APP_ID:-}
+      WHATSAPP_APP_SECRET: ${WHATSAPP_APP_SECRET:-}
+      WHATSAPP_CONFIG_ID: ${WHATSAPP_CONFIG_ID:-}
+      WHATSAPP_GRAPH_VERSION: ${WHATSAPP_GRAPH_VERSION:-v24.0}
+      WHATSAPP_WEBHOOK_VERIFY_TOKEN: ${WHATSAPP_WEBHOOK_VERIFY_TOKEN:-}
       # Store assistant: messages per store a day (model and key are set per store).
       ASSISTANT_DAILY_LIMIT: ${ASSISTANT_DAILY_LIMIT:-200}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL:-}

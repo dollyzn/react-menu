@@ -1,100 +1,271 @@
 import { randomUUID } from 'node:crypto'
 import { test } from '@japa/runner'
+import type { ApiClient } from '@japa/api-client'
 import StoreRole from '#enums/store_role'
+import CustomerLoginChallenge from '#models/customer_login_challenge'
+import WhatsAppMessage from '#models/whatsapp_message'
+import { TEMPLATES } from '#whatsapp/templates'
 import { createMenuStore, createUser, linkUser } from '#tests/helpers/fixtures'
 import { emptyDatabase } from '#tests/helpers/database'
+import { fakeQueue } from '#tests/helpers/queue'
+import { connectStore, useFakeGraph, webhookBody } from '#tests/helpers/fake_whatsapp'
 
 const customer = { name: 'Ana Souza', phone: '(11) 98765-4321' }
 
 /**
- * Customers have no account. Their order history follows a token handed to
- * the device of their first order; knowing a phone number is never enough.
+ * Customers have no account. A device follows the orders it placed by their
+ * public tokens; the whole history needs the phone proven by WhatsApp
+ * (ADR 0025): knowing a number is never enough.
  */
 test.group('Customer order history', (group) => {
   group.each.setup(() => emptyDatabase)
+  const meta = useFakeGraph(group)
 
-  test('the first order links the device; the phone alone does not', async ({ client, assert }) => {
+  async function setup(client: ApiClient) {
+    fakeQueue()
     const { store, carne } = await createMenuStore()
-    const body = { customer, paymentMethod: 'counter', lines: [{ itemId: carne.id, quantity: 1 }] }
-    const place = (token?: string) => {
-      const request = client.post(`/api/v1/public/menu/${store.slug}/orders`).json(body)
-      return token ? request.header('Customer-Token', token) : request
-    }
+    const account = await connectStore(store)
+    const place = (body: Record<string, unknown> = {}) =>
+      client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
+        customer,
+        paymentMethod: 'counter',
+        lines: [{ itemId: carne.id, quantity: 1 }],
+        ...body,
+      })
+    return { store, carne, account, place }
+  }
 
-    const first = await place()
-    const token = first.body().data.customerToken as string
-    assert.match(token, /^ct_/)
-
-    // Another device with the same phone: an order, but no access to history.
-    const stranger = await place()
-    assert.isNull(stranger.body().data.customerToken)
-
-    // The linked device keeps its token.
-    const again = await place(token)
-    assert.equal(again.body().data.customerToken, token)
-
-    const history = await client
-      .get(`/api/v1/public/menu/${store.slug}/my-orders`)
-      .header('Customer-Token', token)
-    history.assertStatus(200)
-    assert.equal(history.body().data.customer.name, 'Ana Souza')
-    assert.equal(history.body().data.customer.phone, '(11) •••••-4321')
-    assert.lengthOf(history.body().data.orders, 3)
-    assert.deepEqual(history.body().data.orders[0].items, [
-      { name: 'Pastel de Carne', quantity: 1 },
-    ])
+  test('placing an order no longer hands out a history token', async ({ client, assert }) => {
+    const { place } = await setup(client)
+    const placed = await place()
+    placed.assertStatus(200)
+    assert.notProperty(placed.body().data, 'customerToken')
   })
 
-  test('a phone first used at the counter: online, its earlier orders stay out of the history', async ({
+  test('by message: the code sent from the phone opens its history, counter orders too', async ({
     client,
     assert,
   }) => {
-    const { store, carne } = await createMenuStore()
+    const { store, carne, account, place } = await setup(client)
     const cashier = await createUser()
     await linkUser(store, cashier, StoreRole.ATTENDANT)
-    // Maria gave her phone at the counter (no token: the POS never issues one).
+    // An earlier counter order with the same phone, and one of someone else.
     await client
       .post(`/api/v1/stores/${store.id}/orders`)
       .json({
-        customer: { name: 'Maria', phone: customer.phone },
+        customer: { name: 'Ana', phone: customer.phone },
         lines: [{ itemId: carne.id, quantity: 1 }],
       })
       .loginAs(cashier)
+    await place({ customer: { name: 'Bia', phone: '(11) 91111-2222' } })
+    await place()
 
-    // Someone else orders online with her phone and gets the first token.
-    const online = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
-      customer: { name: 'Outra pessoa', phone: customer.phone },
-      paymentMethod: 'counter',
-      lines: [{ itemId: carne.id, quantity: 1 }],
+    const started = await client
+      .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+      .json({ method: 'message' })
+    started.assertStatus(200)
+    assert.equal(started.header('cache-control'), 'no-store')
+    const challenge = started.body().data
+    assert.match(challenge.code, /^[A-Z0-9]{6}$/)
+    assert.equal(challenge.link.split('?')[0], 'https://wa.me/551133334444')
+    assert.include(decodeURIComponent(challenge.link), challenge.code)
+
+    const claim = () =>
+      client
+        .post(`/api/v1/public/menu/${store.slug}/customer-login/${challenge.id}`)
+        .json({ secret: challenge.secret })
+    const waiting = await claim()
+    waiting.assertStatus(200)
+    assert.deepEqual(waiting.body().data, { status: 'pending' })
+
+    // The message arrives from an older id without the ninth digit.
+    const { payload, signature } = webhookBody(account.phoneNumberId, {
+      contacts: [{ wa_id: '551187654321', profile: { name: 'Ana' } }],
+      messages: [
+        {
+          from: '551187654321',
+          id: 'wamid.IN1',
+          timestamp: '1749416383',
+          type: 'text',
+          text: { body: `Quero ver meus pedidos na ${store.name}. Código: ${challenge.code}` },
+        },
+      ],
     })
-    const token = online.body().data.customerToken as string
-    assert.match(token, /^ct_/)
+    const delivered = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('x-hub-signature-256', signature)
+      .json(payload)
+    delivered.assertStatus(200)
+    // Delivered twice by Meta: still one reply.
+    await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('x-hub-signature-256', signature)
+      .json(payload)
+
+    const verified = await claim()
+    verified.assertStatus(200)
+    const { customerToken, customer: who } = verified.body().data
+    assert.match(customerToken, /^cs_/)
+    // The name the store knows (the counter's; online orders never rename a customer).
+    assert.deepEqual(who, { name: 'Ana', phone: '(11) •••••-4321' })
+    // Single use.
+    const reused = await claim()
+    reused.assertStatus(410)
 
     const history = await client
       .get(`/api/v1/public/menu/${store.slug}/my-orders`)
-      .header('Customer-Token', token)
-    // Only what this device ordered, not Maria's counter order; her name kept.
-    assert.lengthOf(history.body().data.orders, 1)
-    assert.equal(history.body().data.orders[0].publicToken, online.body().data.publicToken)
-    assert.equal(history.body().data.customer.name, 'Maria')
+      .header('Customer-Token', customerToken)
+    history.assertStatus(200)
+    assert.lengthOf(history.body().data.orders, 2)
+    assert.deepEqual(history.body().data.orders[0].items, [
+      { name: 'Pastel de Carne', quantity: 1 },
+    ])
+
+    const replies = await WhatsAppMessage.query().where('kind', 'login_reply')
+    assert.lengthOf(replies, 1)
+    assert.equal(replies[0].to, '551187654321')
+
+    // "Sair": the token stops working.
+    const signOut = await client
+      .delete(`/api/v1/public/menu/${store.slug}/customer-session`)
+      .header('Customer-Token', customerToken)
+    signOut.assertStatus(200)
+    const afterSignOut = await client
+      .get(`/api/v1/public/menu/${store.slug}/my-orders`)
+      .header('Customer-Token', customerToken)
+    afterSignOut.assertStatus(401)
   })
 
-  test('history needs a valid token of that store', async ({ client }) => {
-    const { store, carne } = await createMenuStore()
-    const other = await createMenuStore()
-    const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
-      customer,
-      paymentMethod: 'counter',
-      lines: [{ itemId: carne.id, quantity: 1 }],
+  test("a message without a pending code is the store's business: ignored", async ({
+    client,
+    assert,
+  }) => {
+    const { account } = await setup(client)
+    const { payload, signature } = webhookBody(account.phoneNumberId, {
+      messages: [
+        {
+          from: '5511987654321',
+          id: 'wamid.IN2',
+          timestamp: '1',
+          type: 'text',
+          text: { body: 'Vocês abrem hoje? ABCDEF' },
+        },
+      ],
     })
-    const token = placed.body().data.customerToken as string
+    const delivered = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('x-hub-signature-256', signature)
+      .json(payload)
+    delivered.assertStatus(200)
+    assert.lengthOf(await WhatsAppMessage.all(), 0)
+  })
 
-    const missing = await client.get(`/api/v1/public/menu/${store.slug}/my-orders`)
-    missing.assertStatus(401)
+  test('by code: sent to the phone, wrong codes counted, the right one opens the history', async ({
+    client,
+    assert,
+  }) => {
+    const { store, place } = await setup(client)
+    await place()
+
+    const started = await client
+      .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+      .json({ method: 'code', phone: customer.phone })
+    started.assertStatus(200)
+    const challenge = started.body().data
+    assert.equal(challenge.phone, '(11) •••••-4321')
+    assert.notProperty(challenge, 'code')
+
+    const [sent] = meta.graph.sent
+    assert.equal(sent.to, '5511987654321')
+    const template = sent.body.template as {
+      name: string
+      components: { parameters: { text: string }[] }[]
+    }
+    assert.equal(template.name, TEMPLATES.LOGIN_CODE)
+    const code = template.components[0].parameters[0].text
+    assert.match(code, /^\d{6}$/)
+    assert.equal(template.components[1].parameters[0].text, code)
+
+    const url = `/api/v1/public/menu/${store.slug}/customer-login/${challenge.id}`
     const wrong = await client
+      .post(url)
+      .json({ secret: challenge.secret, code: code === '000000' ? '111111' : '000000' })
+    wrong.assertStatus(422)
+    wrong.assertBodyContains({ code: 'E_LOGIN_CODE_INVALID', details: { attemptsLeft: 4 } })
+    // Someone else's secret: not found.
+    const stranger = await client.post(url).json({ secret: 'x'.repeat(43), code })
+    stranger.assertStatus(404)
+
+    const right = await client.post(url).json({ secret: challenge.secret, code })
+    right.assertStatus(200)
+    assert.equal(right.body().data.status, 'verified')
+    const history = await client
       .get(`/api/v1/public/menu/${store.slug}/my-orders`)
-      .header('Customer-Token', 'ct_not-a-real-token')
-    wrong.assertStatus(401)
+      .header('Customer-Token', right.body().data.customerToken)
+    assert.lengthOf(history.body().data.orders, 1)
+  })
+
+  test('codes are limited per phone and locked after five wrong tries', async ({
+    client,
+    assert,
+  }) => {
+    const { store } = await setup(client)
+    const start = () =>
+      client
+        .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+        .json({ method: 'code', phone: customer.phone })
+
+    const firstStart = await start()
+    const first = firstStart.body().data
+    await start()
+    await start()
+    const fourth = await start()
+    fourth.assertStatus(429)
+    fourth.assertBodyContains({ code: 'E_LOGIN_TOO_MANY' })
+    assert.lengthOf(meta.graph.sent, 3)
+
+    const url = `/api/v1/public/menu/${store.slug}/customer-login/${first.id}`
+    await CustomerLoginChallenge.query().where('id', first.id).update({ attempts: 5 })
+    const locked = await client.post(url).json({ secret: first.secret, code: '123456' })
+    locked.assertStatus(429)
+    locked.assertBodyContains({ code: 'E_LOGIN_LOCKED' })
+  })
+
+  test('history needs a valid session of that store; stores without WhatsApp offer none', async ({
+    client,
+    assert,
+  }) => {
+    const { store } = await setup(client)
+    const other = await createMenuStore()
+
+    const noToken = await client.get(`/api/v1/public/menu/${store.slug}/my-orders`)
+    noToken.assertStatus(401)
+    const badToken = await client
+      .get(`/api/v1/public/menu/${store.slug}/my-orders`)
+      .header('Customer-Token', 'cs_not-a-real-token')
+    badToken.assertStatus(401)
+
+    const menu = await client.get(`/api/v1/public/menu/${other.store.slug}`)
+    assert.deepEqual(menu.body().data.store.whatsapp, { notifications: false, login: null })
+    const refused = await client
+      .post(`/api/v1/public/menu/${other.store.slug}/customer-login`)
+      .json({ method: 'message' })
+    refused.assertStatus(409)
+    refused.assertBodyContains({ code: 'E_CUSTOMER_LOGIN_UNAVAILABLE' })
+
+    // A session of one store doesn't open another's.
+    const start = await client
+      .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+      .json({ method: 'code', phone: customer.phone })
+    const started = start.body().data
+    const code = (
+      meta.graph.sent[0].body.template as { components: { parameters: { text: string }[] }[] }
+    ).components[0].parameters[0].text
+    const claimed = await client
+      .post(`/api/v1/public/menu/${store.slug}/customer-login/${started.id}`)
+      .json({ secret: started.secret, code })
+    const token = claimed.body().data.customerToken
+    await connectStore(other.store)
     const otherStore = await client
       .get(`/api/v1/public/menu/${other.store.slug}/my-orders`)
       .header('Customer-Token', token)

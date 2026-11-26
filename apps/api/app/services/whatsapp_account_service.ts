@@ -1,0 +1,353 @@
+import { randomInt } from 'node:crypto'
+import { inject } from '@adonisjs/core'
+import logger from '@adonisjs/core/services/logger'
+import { DateTime } from 'luxon'
+import AppException from '#exceptions/app_exception'
+import WhatsAppAccount, { type TemplateState } from '#models/whatsapp_account'
+import type Store from '#models/store'
+import type User from '#models/user'
+import WhatsAppClient, { WhatsAppApiError } from '#whatsapp/client'
+import { whatsappConfig } from '#whatsapp/config'
+import { TEMPLATE_DEFINITIONS, TEMPLATE_LANGUAGE, TEMPLATES } from '#whatsapp/templates'
+import env from '#start/env'
+
+export type ConnectInput = {
+  /** Embedded Signup's code (5 minutes). */
+  code?: string
+  /** Or a token already in hand (`whatsapp:connect`, a system user of the app's business). */
+  token?: string
+  wabaId: string
+  phoneNumberId: string
+  businessId?: string | null
+  /** Finished as a WhatsApp Business app number (coexistence): not registered by us. */
+  coexistence?: boolean
+  /** The number is already on the Cloud API with a PIN we don't know (a test number). */
+  skipRegister?: boolean
+}
+
+/** Meta answered something that only the manager can fix: show its reason. */
+function refused(error: unknown, fallback: string): never {
+  if (error instanceof WhatsAppApiError) {
+    if (error.status === 0 || error.status >= 500) {
+      throw new AppException(
+        'O WhatsApp (Meta) não respondeu. Tente de novo em instantes.',
+        503,
+        'E_WHATSAPP_UNAVAILABLE'
+      )
+    }
+    throw new AppException(`${fallback} (${error.message})`, 422, 'E_WHATSAPP_REFUSED', {
+      metaCode: error.code,
+    })
+  }
+  throw error
+}
+
+/**
+ * A store's WhatsApp number (ADR 0025): connecting it through Embedded
+ * Signup, our templates in its WABA, the webhook override and the switches.
+ */
+@inject()
+export default class WhatsAppAccountService {
+  constructor(private client: WhatsAppClient) {}
+
+  async forStore(storeId: string) {
+    return await WhatsAppAccount.findBy('storeId', storeId)
+  }
+
+  assertEnabled() {
+    if (!whatsappConfig().enabled) {
+      // A configuration of the platform, not a hiccup to retry.
+      throw new AppException(
+        'O WhatsApp não está configurado neste servidor.',
+        409,
+        'E_WHATSAPP_DISABLED'
+      )
+    }
+  }
+
+  /**
+   * Finishes Embedded Signup: the business token, the number registered on
+   * the Cloud API, the app subscribed to the WABA with our callback, and our
+   * templates submitted for review. Doing it again (same or another number)
+   * replaces the store's connection.
+   */
+  async connect(store: Store, input: ConnectInput, actor?: User) {
+    this.assertEnabled()
+
+    const taken = await WhatsAppAccount.query()
+      .where('phoneNumberId', input.phoneNumberId)
+      .whereNot('storeId', store.id)
+      .first()
+    if (taken) {
+      throw new AppException(
+        'Este número já está conectado a outra loja.',
+        409,
+        'E_WHATSAPP_NUMBER_IN_USE'
+      )
+    }
+
+    let token = input.token
+    if (!token) {
+      try {
+        token = await this.client.exchangeCode(input.code ?? '')
+      } catch (error) {
+        refused(error, 'O cadastro no WhatsApp expirou ou foi recusado. Conecte de novo')
+      }
+    }
+
+    let info
+    try {
+      info = await this.client.phoneNumber(token, input.phoneNumberId)
+    } catch (error) {
+      refused(error, 'Não foi possível ler o número escolhido')
+    }
+
+    const current = await this.forStore(store.id)
+    const sameNumber = current?.phoneNumberId === input.phoneNumberId
+    const pin =
+      (sameNumber && current?.registerPin) || String(randomInt(0, 1_000_000)).padStart(6, '0')
+    const coexistence = Boolean(input.coexistence)
+
+    if (!coexistence && !input.skipRegister) {
+      try {
+        await this.client.registerPhone(token, input.phoneNumberId, pin)
+      } catch (error) {
+        refused(error, 'O WhatsApp recusou ativar o número na API')
+      }
+    }
+
+    const { webhookUrl, verifyToken } = whatsappConfig()
+    try {
+      await this.client.subscribeApp(token, input.wabaId, webhookUrl, verifyToken ?? '')
+    } catch (error) {
+      refused(error, 'O WhatsApp recusou o endereço de avisos (webhook)')
+    }
+
+    const account = current ?? new WhatsAppAccount()
+    account.merge({
+      storeId: store.id,
+      wabaId: input.wabaId,
+      phoneNumberId: input.phoneNumberId,
+      businessId: input.businessId ?? null,
+      displayPhoneNumber: info.display_phone_number,
+      verifiedName: info.verified_name ?? null,
+      accessToken: token,
+      // The PIN we registered with; kept only when we did register it.
+      registerPin:
+        coexistence || input.skipRegister ? (sameNumber ? current!.registerPin : null) : pin,
+      coexistence,
+      webhookSubscribedAt: DateTime.now(),
+      paymentIssueAt: null,
+      brokenAt: null,
+      lastError: null,
+      connectedById: actor?.id ?? current?.connectedById ?? null,
+      ...(!sameNumber && { templates: {}, templatesCheckedAt: null }),
+    })
+    if (!current) {
+      account.notifyOrders = true
+      account.customerLogin = true
+      account.templates = {}
+    }
+    await account.save()
+
+    // Templates are reviewed by Meta (minutes to a day): submitted now, their
+    // status polled by the job (their webhook isn't ours to receive).
+    await this.syncTemplates(account, { create: true }).catch((error) => {
+      logger.warn({ err: error, storeId: store.id }, 'could not submit the WhatsApp templates')
+    })
+    const { default: SyncWhatsAppTemplates } = await import('#jobs/sync_whatsapp_templates')
+    await SyncWhatsAppTemplates.scheduleFor(account)
+
+    return account
+  }
+
+  /**
+   * Reads our templates' status in the WABA and, with `create`, submits the
+   * missing ones. A token that stopped working marks the connection broken.
+   */
+  async syncTemplates(account: WhatsAppAccount, options: { create: boolean }) {
+    let existing
+    try {
+      existing = await this.client.listTemplates(account.accessToken, account.wabaId)
+    } catch (error) {
+      await this.noteFailure(account, error)
+      throw error
+    }
+
+    const frontendUrl = env.get('FRONTEND_URL').replace(/\/$/, '')
+    const templates: Record<string, TemplateState> = {}
+    for (const definition of TEMPLATE_DEFINITIONS) {
+      const found = existing.find(
+        (template) => template.name === definition.name && template.language === TEMPLATE_LANGUAGE
+      )
+      if (found) {
+        templates[definition.name] = {
+          id: found.id,
+          status: found.status,
+          category: found.category,
+          reason:
+            found.rejected_reason && found.rejected_reason !== 'NONE'
+              ? found.rejected_reason
+              : null,
+        }
+        continue
+      }
+      if (!options.create) {
+        templates[definition.name] = { id: null, status: 'MISSING', category: null, reason: null }
+        continue
+      }
+      try {
+        const created = await this.client.createTemplate(
+          account.accessToken,
+          account.wabaId,
+          definition.create(frontendUrl)
+        )
+        templates[definition.name] = {
+          id: created.id,
+          status: created.status ?? 'PENDING',
+          category: created.category ?? definition.category,
+          reason: null,
+        }
+      } catch (error) {
+        if (error instanceof WhatsAppApiError && error.transient) throw error
+        templates[definition.name] = {
+          id: null,
+          status: 'MISSING',
+          category: null,
+          reason: error instanceof Error ? error.message.slice(0, 200) : null,
+        }
+      }
+    }
+
+    account.templates = templates
+    account.templatesCheckedAt = DateTime.now()
+    await account.save()
+    return account
+  }
+
+  /** Applies the webhook override again (a new domain, or Meta lost it). */
+  async resubscribe(account: WhatsAppAccount) {
+    const { webhookUrl, verifyToken } = whatsappConfig()
+    try {
+      await this.client.subscribeApp(
+        account.accessToken,
+        account.wabaId,
+        webhookUrl,
+        verifyToken ?? ''
+      )
+    } catch (error) {
+      await this.noteFailure(account, error)
+      throw error
+    }
+    account.webhookSubscribedAt = DateTime.now()
+    await account.save()
+  }
+
+  /** "Atualizar" in the panel: the number's name, the templates and the override again. */
+  async refresh(account: WhatsAppAccount) {
+    this.assertEnabled()
+    try {
+      const info = await this.client.phoneNumber(account.accessToken, account.phoneNumberId)
+      account.displayPhoneNumber = info.display_phone_number
+      account.verifiedName = info.verified_name ?? account.verifiedName
+      await this.resubscribe(account)
+      await this.syncTemplates(account, { create: true })
+    } catch (error) {
+      await this.noteFailure(account, error)
+      refused(error, 'Não foi possível atualizar a conexão com o WhatsApp')
+    }
+    account.brokenAt = null
+    account.lastError = null
+    await account.save()
+    return account
+  }
+
+  async updateSettings(
+    account: WhatsAppAccount,
+    input: { notifyOrders?: boolean; customerLogin?: boolean }
+  ) {
+    account.merge(input)
+    await account.save()
+    return account
+  }
+
+  /**
+   * Disconnects the store: the app leaves the WABA (best effort: the number
+   * may already be gone) and the connection is forgotten. Sent messages stay.
+   */
+  async disconnect(account: WhatsAppAccount) {
+    try {
+      await this.client.unsubscribeApp(account.accessToken, account.wabaId)
+    } catch (error) {
+      logger.warn({ err: error, storeId: account.storeId }, 'could not unsubscribe from the WABA')
+    }
+    await account.delete()
+  }
+
+  /** A refusal that says something about the connection itself. */
+  async noteFailure(account: WhatsAppAccount, error: unknown) {
+    if (!(error instanceof WhatsAppApiError)) return
+    if (error.tokenInvalid) {
+      account.brokenAt = DateTime.now()
+      account.lastError = error.message.slice(0, 300)
+      await account.save()
+    } else if (error.paymentIssue && !account.paymentIssueAt) {
+      account.paymentIssueAt = DateTime.now()
+      await account.save()
+    }
+  }
+
+  /**
+   * What the public menu offers (PublicMenu `whatsapp`): the checkout's
+   * "avisos pelo WhatsApp" and the history sign-in ways.
+   */
+  publicFeatures(account: WhatsAppAccount | null) {
+    const usable = Boolean(account?.isUsable)
+    return {
+      notifications:
+        usable && account!.notifyOrders && account!.templateApproved(TEMPLATES.ORDER_RECEIVED),
+      login:
+        usable && account!.customerLogin
+          ? { message: true, code: account!.templateApproved(TEMPLATES.LOGIN_CODE) }
+          : null,
+    }
+  }
+
+  /** What the panel shows (WhatsAppConnection contract); never the token. */
+  present(account: WhatsAppAccount | null) {
+    const config = whatsappConfig()
+    return {
+      available: config.enabled,
+      signup: config.enabled
+        ? {
+            appId: config.appId,
+            configId: config.configId,
+            graphVersion: config.graphVersion,
+            fake: config.fake,
+          }
+        : null,
+      account: account
+        ? {
+            displayPhoneNumber: account.displayPhoneNumber,
+            verifiedName: account.verifiedName,
+            wabaId: account.wabaId,
+            coexistence: account.coexistence,
+            notifyOrders: account.notifyOrders,
+            customerLogin: account.customerLogin,
+            broken: Boolean(account.brokenAt),
+            lastError: account.lastError,
+            paymentIssue: Boolean(account.paymentIssueAt),
+            templates: TEMPLATE_DEFINITIONS.map((definition) => ({
+              name: definition.name,
+              label: definition.label,
+              status: account.templates?.[definition.name]?.status ?? 'MISSING',
+              category: account.templates?.[definition.name]?.category ?? null,
+              reason: account.templates?.[definition.name]?.reason ?? null,
+            })),
+            templatesCheckedAt: account.templatesCheckedAt?.toISO() ?? null,
+            connectedAt: account.createdAt.toISO()!,
+          }
+        : null,
+    }
+  }
+}

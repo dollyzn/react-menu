@@ -46,7 +46,8 @@
     "#transformers/*": "./app/transformers/*.js",
     "#jobs/*": "./app/jobs/*.js",
     "#assistant/*": "./app/assistant/*.js",
-    "#partners/*": "./app/partners/*.js"
+    "#partners/*": "./app/partners/*.js",
+    "#whatsapp/*": "./app/whatsapp/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.6.0",
