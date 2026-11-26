@@ -40,7 +40,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { addonLabels } from "@/lib/addon-label";
 import { clearCart, lineAddonsInput, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
-import { addRecentOrder, linkStore, rememberCustomer } from "@/redux/slices/customer";
+import { addRecentOrder, rememberCustomer, rememberWhatsAppOptIn } from "@/redux/slices/customer";
+import { Checkbox } from "@/components/ui/checkbox";
 import { usePlaceOrderMutation } from "@/redux/features/public/publicApi";
 import { isConnectionError } from "@/utils/get-error-message";
 import { releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
@@ -366,6 +367,8 @@ const CheckoutSchema = z.object({
     .refine((value) => [10, 11].includes(value.replace(/\D/g, "").length), "Informe DDD + número"),
   paymentMethod: z.enum(["pix", "card", "counter"]),
   notes: z.string().max(500).optional(),
+  /** "Receber avisos pelo WhatsApp" (ADR 0025): opt-in, remembered for next time. */
+  whatsappOptIn: z.boolean(),
 });
 type CheckoutValues = z.infer<typeof CheckoutSchema>;
 
@@ -412,6 +415,7 @@ function CheckoutFlow({
       phone: formatPhoneBR(customer.phone),
       paymentMethod: methods[0]?.value ?? "counter",
       notes: "",
+      whatsappOptIn: customer.whatsappOptIn ?? false,
     },
   });
 
@@ -421,10 +425,12 @@ function CheckoutFlow({
 
   const submit = async (values: CheckoutValues) => {
     setError(null);
+    const notices = store.whatsapp.notifications && values.whatsappOptIn;
     const input = {
       customer: { name: values.name, phone: values.phone },
       paymentMethod: values.paymentMethod,
       notes: values.notes || undefined,
+      ...(notices && { whatsappOptIn: true }),
       lines: lines.map((line) => ({
         itemId: line.itemId,
         quantity: line.quantity,
@@ -440,12 +446,11 @@ function CheckoutFlow({
         slug: store.slug,
         input,
         idempotencyKey: stableIdempotencyKey(keyScope, input),
-        customerToken: customer.tokens?.[store.slug],
       }).unwrap();
       releaseIdempotencyKey(keyScope);
 
       dispatch(rememberCustomer({ name: values.name, phone: values.phone }));
-      if (order.customerToken) dispatch(linkStore({ storeSlug: store.slug, token: order.customerToken }));
+      if (store.whatsapp.notifications) dispatch(rememberWhatsAppOptIn(values.whatsappOptIn));
       dispatch(
         addRecentOrder({
           publicToken: order.publicToken,
@@ -580,6 +585,30 @@ function CheckoutFlow({
               )}
             />
           </FieldSet>
+
+          {store.whatsapp.notifications && (
+            <Controller
+              name="whatsappOptIn"
+              control={form.control}
+              render={({ field }) => (
+                <FieldLabel htmlFor="checkout-whatsapp">
+                  <Field orientation="horizontal">
+                    <Checkbox
+                      id="checkout-whatsapp"
+                      checked={field.value}
+                      onCheckedChange={(checked) => field.onChange(checked === true)}
+                    />
+                    <FieldContent>
+                      <FieldTitle>Receber avisos pelo WhatsApp</FieldTitle>
+                      <FieldDescription>
+                        Quando a loja receber o pedido e quando ele ficar pronto, no {phone}.
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
+                </FieldLabel>
+              )}
+            />
+          )}
 
           <Controller
             name="notes"

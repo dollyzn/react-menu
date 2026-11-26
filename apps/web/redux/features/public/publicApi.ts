@@ -2,6 +2,9 @@ import { baseApi } from "@/redux/api/baseApi";
 import { IDEMPOTENCY_HEADER } from "@/lib/idempotency";
 import type {
   CreatePublicOrderInput,
+  CustomerLoginChallenge,
+  CustomerLoginClaim,
+  CustomerLoginStartInput,
   CustomerOrders,
   PlacedPublicOrder,
   PublicMenu,
@@ -10,7 +13,7 @@ import type {
   PublicPaymentRequest,
 } from "@react-menu/contracts";
 
-/** Header with the device's order-history token (see customer slice). */
+/** Header with the history session of a verified phone (see customer slice, ADR 0025). */
 const CUSTOMER_TOKEN_HEADER = "Customer-Token";
 
 /** Customer-facing endpoints (no login). */
@@ -27,21 +30,18 @@ export const publicApi = baseApi.injectEndpoints({
     /** `idempotencyKey`: keep it across taps/reloads so a lost response never duplicates the order. */
     placeOrder: build.mutation<
       PlacedPublicOrder,
-      { slug: string; input: CreatePublicOrderInput; idempotencyKey: string; customerToken?: string }
+      { slug: string; input: CreatePublicOrderInput; idempotencyKey: string }
     >({
-      query: ({ slug, input, idempotencyKey, customerToken }) => ({
+      query: ({ slug, input, idempotencyKey }) => ({
         url: `public/menu/${slug}/orders`,
         method: "POST",
         body: input,
-        headers: {
-          [IDEMPOTENCY_HEADER]: idempotencyKey,
-          ...(customerToken ? { [CUSTOMER_TOKEN_HEADER]: customerToken } : {}),
-        },
+        headers: { [IDEMPOTENCY_HEADER]: idempotencyKey },
       }),
       invalidatesTags: [{ type: "PublicOrder", id: "HISTORY" }],
     }),
 
-    /** All orders of the customer this device is linked to, in one store. */
+    /** Every order of the verified phone behind the session, in one store. */
     getMyOrders: build.query<CustomerOrders, { slug: string; token: string }>({
       query: ({ slug, token }) => ({
         url: `public/menu/${slug}/my-orders`,
@@ -52,8 +52,8 @@ export const publicApi = baseApi.injectEndpoints({
 
     /**
      * The customer's history on this device: orders placed here (by public
-     * token) plus, for linked stores, every order of that customer. Links
-     * the API no longer accepts come back in `staleLinks`.
+     * token) plus, for stores where the phone was verified, every order of
+     * that phone. Sessions the API no longer accepts come back in `staleLinks`.
      */
     getOrderHistory: build.query<
       { orders: PublicOrderSummary[]; customers: (CustomerOrders["customer"] & { storeSlug: string })[]; staleLinks: string[] },
@@ -87,6 +87,37 @@ export const publicApi = baseApi.injectEndpoints({
         return { data: { orders: sorted, customers, staleLinks } };
       },
       providesTags: [{ type: "PublicOrder", id: "HISTORY" }],
+    }),
+
+    /**
+     * History sign-in by WhatsApp: `message` gives a code and a wa.me link,
+     * `code` sends one to the phone. Errors are shown by the form itself.
+     */
+    startCustomerLogin: build.mutation<CustomerLoginChallenge, { slug: string; input: CustomerLoginStartInput }>({
+      query: ({ slug, input }) => ({ url: `public/menu/${slug}/customer-login`, method: "POST", body: input }),
+      extraOptions: { quiet: true },
+    }),
+    /** Pending until the message arrives (polled) or with the code typed; then the session, once. */
+    claimCustomerLogin: build.mutation<
+      CustomerLoginClaim,
+      { slug: string; id: string; secret: string; code?: string }
+    >({
+      query: ({ slug, id, secret, code }) => ({
+        url: `public/menu/${slug}/customer-login/${id}`,
+        method: "POST",
+        body: { secret, ...(code && { code }) },
+      }),
+      extraOptions: { quiet: true },
+    }),
+    /** "Sair" on the history: ends the session (the slice forgets it either way). */
+    signOutCustomer: build.mutation<void, { slug: string; token: string }>({
+      query: ({ slug, token }) => ({
+        url: `public/menu/${slug}/customer-session`,
+        method: "DELETE",
+        headers: { [CUSTOMER_TOKEN_HEADER]: token },
+      }),
+      extraOptions: { quiet: true, background: true },
+      invalidatesTags: [{ type: "PublicOrder", id: "HISTORY" }],
     }),
 
     /** Live status of the orders placed on this device. */
@@ -164,4 +195,7 @@ export const {
   useGetMyOrdersQuery,
   useLookupOrdersQuery,
   useGetOrderHistoryQuery,
+  useStartCustomerLoginMutation,
+  useClaimCustomerLoginMutation,
+  useSignOutCustomerMutation,
 } = publicApi;

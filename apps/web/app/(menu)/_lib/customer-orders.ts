@@ -25,10 +25,6 @@ export const PROGRESS: OrderStatus[] = ["received", "preparing", "ready", "compl
 export const isActiveOrder = (status: OrderStatus) =>
   status !== "completed" && status !== "cancelled";
 
-/** Link shared with another device to see the same order history. */
-export const linkUrl = (storeSlug: string, token: string) =>
-  `${window.location.origin}/pedidos?vincular=${encodeURIComponent(`${storeSlug}.${token}`)}`;
-
 /**
  * "Pedir de novo": rebuilds the bag from a past order using the current
  * menu (current prices; unavailable items and add-ons are skipped).

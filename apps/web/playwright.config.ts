@@ -50,6 +50,10 @@ export default defineConfig({
         PAYMENTS_FAKE_GATEWAY: "true",
         // The store assistant answers with the scripted model (no provider key).
         ASSISTANT_FAKE_MODEL: "true",
+        // WhatsApp without Meta (ADR 0025): a test number, messages kept in memory
+        // and read through the e2e hooks.
+        WHATSAPP_FAKE: "true",
+        CUSTOMER_LOGIN_RATE_LIMIT: "10000",
         // Jobs of the e2e run stay apart from the dev worker's queue.
         QUEUE_REDIS_PREFIX: "react-menu-e2e:",
         DRIVE_DISK: "fs",

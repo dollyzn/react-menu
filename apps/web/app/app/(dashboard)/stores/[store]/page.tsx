@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, Sparkles, Store as StoreIcon } from "lucide-react";
+import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, MessageCircle, Sparkles, Store as StoreIcon } from "lucide-react";
 import { useState } from "react";
 import Image from "@/components/app/image";
 import { Icons } from "@/components/app/icons";
@@ -27,12 +27,14 @@ import { StoreProfileForm } from "./components/store-profile-form";
 import { StoreStatusDropdown } from "./components/store-status-dropdown";
 import { UpdateBannerDialog } from "./components/update-banner-dialog";
 import { UpdatePhotoDialog } from "./components/update-photo-dialog";
+import { WhatsAppSettingsCard } from "./components/whatsapp-settings-card";
 
 const TABS = [
   { value: "perfil", label: "Perfil", icon: StoreIcon },
   { value: "cardapio", label: "Cardápio", icon: ListOrdered },
   { value: "funcionamento", label: "Funcionamento", icon: Clock },
   { value: "pagamentos", label: "Pagamentos", icon: CreditCard },
+  { value: "whatsapp", label: "WhatsApp", icon: MessageCircle },
   { value: "assistente", label: "Assistente", icon: Sparkles },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
@@ -154,7 +156,7 @@ export default function StorePage() {
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-4 md:p-6">
-      <PageHeader title="Loja" description="Perfil, cardápio, funcionamento, pagamentos e assistente da loja." />
+      <PageHeader title="Loja" description="Perfil, cardápio, funcionamento, pagamentos, WhatsApp e assistente da loja." />
 
       {loading || !data ? (
         <StorePageSkeleton />
@@ -196,6 +198,10 @@ export default function StorePage() {
               <PaymentSettingsCard store={data} />
               <CardFeeCard store={data} />
               <PointSettingsCard store={data} />
+            </TabsContent>
+            {/* Loads on its first visit (it asks the API for the connection). */}
+            <TabsContent value="whatsapp" className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
+              <WhatsAppSettingsCard store={data} />
             </TabsContent>
             <TabsContent value="assistente" keepMounted className="flex flex-col gap-4 text-base animate-in fade-in-0 duration-300 ease-out data-[activation-direction=right]:slide-in-from-right-4 data-[activation-direction=left]:slide-in-from-left-4 motion-reduce:animate-none">
               <AssistantSettingsCard store={data} />

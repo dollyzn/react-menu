@@ -11,8 +11,9 @@ export type RecentOrder = {
 
 /**
  * Menu customer identity (anota.ai style): just name and phone, remembered
- * on this device. Not a staff account. `tokens` (per store slug) link this
- * device to the customer's whole order history (see CustomerAccessService).
+ * on this device. Not a staff account. `tokens` (per store slug) are the
+ * history sessions of the phone the customer proved by WhatsApp (ADR 0025;
+ * `cs_…`). Tokens of the older device link (`ct_…`) no longer open anything.
  */
 interface CustomerState {
   name: string;
@@ -21,6 +22,8 @@ interface CustomerState {
   email?: string;
   recentOrders: RecentOrder[];
   tokens?: Record<string, string>;
+  /** The last answer to "Receber avisos pelo WhatsApp". */
+  whatsappOptIn?: boolean;
 }
 
 const initialState: CustomerState = { name: "", phone: "", recentOrders: [], tokens: {} };
@@ -36,13 +39,16 @@ const customerSlice = createSlice({
     rememberEmail(state, action: PayloadAction<string>) {
       state.email = action.payload;
     },
+    rememberWhatsAppOptIn(state, action: PayloadAction<boolean>) {
+      state.whatsappOptIn = action.payload;
+    },
     addRecentOrder(state, action: PayloadAction<RecentOrder>) {
       state.recentOrders = [
         action.payload,
         ...state.recentOrders.filter((o) => o.publicToken !== action.payload.publicToken),
       ].slice(0, 10);
     },
-    /** Links this device to a customer's history in one store. */
+    /** The history session of a verified phone in one store. */
     linkStore(state, action: PayloadAction<{ storeSlug: string; token: string }>) {
       state.tokens = { ...state.tokens, [action.payload.storeSlug]: action.payload.token };
     },
@@ -57,6 +63,13 @@ const customerSlice = createSlice({
   },
 });
 
-export const { rememberCustomer, rememberEmail, addRecentOrder, linkStore, unlinkStore, forgetCustomer } =
-  customerSlice.actions;
+export const {
+  rememberCustomer,
+  rememberEmail,
+  rememberWhatsAppOptIn,
+  addRecentOrder,
+  linkStore,
+  unlinkStore,
+  forgetCustomer,
+} = customerSlice.actions;
 export default customerSlice.reducer;

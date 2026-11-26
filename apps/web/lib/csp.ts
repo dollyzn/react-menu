@@ -2,7 +2,7 @@
  * The web's Content-Security-Policy (sent as Report-Only first: violations
  * go to /csp-report and nothing is blocked). Scripts need this request's
  * nonce ('strict-dynamic' lets them load what they load: the Mercado Pago
- * Brick, Firebase). Styles stay 'unsafe-inline' (Next, Tailwind and the UI
+ * Brick, Firebase, Facebook's SDK for WhatsApp's Embedded Signup). Styles stay 'unsafe-inline' (Next, Tailwind and the UI
  * libraries inject inline styles). Images come from anywhere over HTTPS
  * (item photos, DiceBear avatars, card brands); frames too, since 3-D Secure
  * opens the card issuer's own page.
@@ -15,8 +15,9 @@ export function contentSecurityPolicy(nonce: string, options: { dev: boolean; ap
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:" + (options.dev ? " http:" : ""),
     "font-src 'self' data: https:",
-    // The API (SSE included), Mercado Pago, Firebase push, dev hot reload.
-    `connect-src 'self'${api} https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://*.googleapis.com${options.dev ? " ws: http:" : ""}`,
+    // The API (SSE included), Mercado Pago, Firebase push, Facebook's SDK
+    // (WhatsApp Embedded Signup, store page), dev hot reload.
+    `connect-src 'self'${api} https://*.mercadopago.com https://*.mercadolibre.com https://*.mlstatic.com https://*.googleapis.com https://*.facebook.com https://*.facebook.net${options.dev ? " ws: http:" : ""}`,
     "frame-src 'self' https:",
     // Some libraries start workers from blob: URLs (order and settings pages).
     "worker-src 'self' blob:",
