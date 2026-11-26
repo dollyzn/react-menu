@@ -1,9 +1,10 @@
 "use client";
 
+import { Icons } from "@/components/app/icons";
 import { useState } from "react";
 import { format, formatDistanceToNowStrict, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Banknote, ChevronLeft, ChevronRight, MessageCircle, Phone } from "lucide-react";
+import { Banknote, ChevronLeft, ChevronRight, Phone } from "lucide-react";
 import { toast } from "sonner";
 import type { PayLaterCustomer, PayLaterCustomerSort, PayLaterOrder } from "@react-menu/contracts";
 import { SearchInput } from "@/components/app/search-input";
@@ -332,7 +333,7 @@ function CustomerCard({
               aria-label={`Cobrar ${customer.name} no WhatsApp`}
               className={icon}
             >
-              <MessageCircle />
+              <Icons.whatsapp />
             </a>
           </>
         )}

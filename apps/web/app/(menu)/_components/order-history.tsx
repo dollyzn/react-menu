@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { ChevronRight, RefreshCw, RotateCcw, ShoppingBag, Smartphone } from "lucide-react";
+import { ChevronRight, RefreshCw, RotateCcw, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import type { CustomerOrders, PublicOrderSummary } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
@@ -260,12 +260,5 @@ function StoreSignIn({
   const token = useAppSelector((state) => (data ? state.customer.tokens?.[data.store.slug] : undefined));
   if (!data || (!data.store.whatsapp.login && !token)) return null;
 
-  return (
-    <section className="mt-10 rounded-2xl border border-dashed p-4" aria-labelledby={`sign-in-${data.store.slug}`}>
-      <h2 id={`sign-in-${data.store.slug}`} className="mb-2 flex items-center gap-2 font-semibold">
-        <Smartphone className="size-4 text-primary" /> Seus pedidos em qualquer celular
-      </h2>
-      <WhatsAppSignIn store={data.store} signedIn={signedIn} />
-    </section>
-  );
+  return <WhatsAppSignIn store={data.store} signedIn={signedIn} className="mt-10" />;
 }

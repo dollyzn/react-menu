@@ -58,7 +58,7 @@ test("with the store's WhatsApp, customers ask for notices and open their histor
   // The history page offers the sign-in; the code goes by WhatsApp from the phone.
   await customer.goto("/pedidos");
   await expect(orderCard(customer, first.number)).toBeVisible();
-  await customer.getByRole("button", { name: "Entrar pelo WhatsApp" }).click();
+  await customer.getByRole("button", { name: "Continuar com WhatsApp" }).click();
   const code = (await customer.getByLabel(/^Código [A-Z0-9]{6}$/).textContent())!.trim();
   await expect(customer.getByRole("link", { name: "Abrir o WhatsApp" })).toHaveAttribute(
     "href",
@@ -69,12 +69,12 @@ test("with the store's WhatsApp, customers ask for notices and open their histor
     data: { slug: first.store.slug, from: waId, text: `Quero ver meus pedidos. Código: ${code}` },
   });
   expect((await inbound.json()).matched).toBe(true);
-  await expect(customer.getByText(/Vendo todos os seus pedidos na/)).toBeVisible();
+  await expect(customer.getByRole("heading", { name: "Conectado pelo WhatsApp" })).toBeVisible();
 
   // Another phone, nothing ordered on it: a code sent to the number opens the same history.
   const other = await device(browser);
   await other.goto("/pedidos");
-  await other.getByRole("button", { name: "Receber um código" }).click();
+  await other.getByRole("button", { name: "Prefiro receber um código" }).click();
   await other.getByLabel("Seu celular (WhatsApp)").fill(phone);
   await other.getByRole("button", { name: "Enviar código" }).click();
   await expect(other.getByText(/Mandamos um código pelo WhatsApp/)).toBeVisible();
@@ -83,8 +83,8 @@ test("with the store's WhatsApp, customers ask for notices and open their histor
   await expect(orderCard(other, first.number)).toBeVisible();
 
   // "Sair": back to the sign-in, and only this device's (none) orders.
-  await other.getByRole("button", { name: "Sair neste aparelho" }).click();
-  await expect(other.getByRole("button", { name: "Entrar pelo WhatsApp" })).toBeVisible();
+  await other.getByRole("button", { name: "Sair", exact: true }).click();
+  await expect(other.getByRole("button", { name: "Continuar com WhatsApp" })).toBeVisible();
   await expect(orderCard(other, first.number)).toHaveCount(0);
 
   // A device that only knows the phone sees only what it ordered.

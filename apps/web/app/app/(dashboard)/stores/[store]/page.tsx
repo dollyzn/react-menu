@@ -2,7 +2,7 @@
 
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, MessageCircle, Sparkles, Store as StoreIcon } from "lucide-react";
+import { Clock, Copy, CreditCard, ExternalLink, ImageIcon, ListOrdered, MapPin, Sparkles, Store as StoreIcon } from "lucide-react";
 import { useState } from "react";
 import Image from "@/components/app/image";
 import { Icons } from "@/components/app/icons";
@@ -34,7 +34,7 @@ const TABS = [
   { value: "cardapio", label: "Cardápio", icon: ListOrdered },
   { value: "funcionamento", label: "Funcionamento", icon: Clock },
   { value: "pagamentos", label: "Pagamentos", icon: CreditCard },
-  { value: "whatsapp", label: "WhatsApp", icon: MessageCircle },
+  { value: "whatsapp", label: "WhatsApp", icon: Icons.whatsapp },
   { value: "assistente", label: "Assistente", icon: Sparkles },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];

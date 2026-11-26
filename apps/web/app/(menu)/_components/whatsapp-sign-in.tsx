@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, KeyRound, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
+import { ArrowLeft, BadgeCheck, LogOut } from "lucide-react";
 import type { CustomerLoginChallenge, PublicMenu } from "@react-menu/contracts";
 import { CodeInput } from "@/components/app/auth/code-input";
+import { Icons } from "@/components/app/icons";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { linkStore, unlinkStore } from "@/redux/slices/customer";
 import {
@@ -24,49 +25,93 @@ type Store = Pick<PublicMenu["store"], "name" | "slug" | "whatsapp">;
 /** How often the page asks whether the customer's message arrived. */
 const POLL_MS = 2500;
 
+/** WhatsApp's green with dark text (white on it reads at ~2:1). */
+const WHATSAPP_BUTTON = "rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp-hover";
+
+/** The card around every state: WhatsApp's mark, a title and what it is about. */
+function Panel({
+  id,
+  title,
+  description,
+  className,
+  children,
+}: {
+  id: string;
+  title: string;
+  description: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className={cn("rounded-2xl border bg-card p-4 shadow-xs sm:p-5", className)} aria-labelledby={id}>
+      <div className="flex items-start gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-whatsapp/15 text-whatsapp">
+          <Icons.whatsapp className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 id={id} className="font-semibold">
+            {title}
+          </h2>
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </div>
+      </div>
+      <div className="mt-4 flex flex-col gap-3">{children}</div>
+    </section>
+  );
+}
+
 /**
- * "Ver todos os meus pedidos" in one store (ADR 0025): the customer proves
+ * "Veja todos os seus pedidos" in one store (ADR 0025): the customer proves
  * the phone by sending a code from their WhatsApp (free for the store), or
  * by typing a code the store sends. The session it opens is kept per store
  * on this device; the list of orders above fills in as the confirmation.
  */
-export function WhatsAppSignIn({ store, signedIn }: { store: Store; signedIn?: { name: string | null; phone: string } }) {
+export function WhatsAppSignIn({
+  store,
+  signedIn,
+  className,
+}: {
+  store: Store;
+  signedIn?: { name: string | null; phone: string };
+  className?: string;
+}) {
   const dispatch = useAppDispatch();
   const token = useAppSelector((state) => state.customer.tokens?.[store.slug]);
   const [signOut] = useSignOutCustomerMutation();
+  const id = `whatsapp-${store.slug}`;
 
   if (token) {
     return (
-      <div className="flex flex-col gap-3">
-        <p className="flex items-start gap-2 text-sm text-muted-foreground">
-          <ShieldCheck className="mt-0.5 size-4 shrink-0 text-success" />
-          <span>
-            Vendo todos os seus pedidos na <span className="font-medium text-foreground">{store.name}</span>
-            {signedIn && (
-              <>
-                {" "}
-                como <span className="font-medium text-foreground">{signedIn.name ?? "você"}</span> · {signedIn.phone}
-              </>
-            )}
-          </span>
-        </p>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="self-start rounded-full text-muted-foreground"
-          onClick={() => {
-            void signOut({ slug: store.slug, token });
-            dispatch(unlinkStore(store.slug));
-          }}
-        >
-          <LogOut /> Sair neste aparelho
-        </Button>
-      </div>
+      <Panel
+        id={id}
+        className={className}
+        title="Conectado pelo WhatsApp"
+        description={<>Todos os seus pedidos na {store.name} aparecem aqui, em qualquer celular.</>}
+      >
+        <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3">
+          <BadgeCheck className="size-5 shrink-0 text-success" />
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="truncate font-medium">{signedIn?.name ?? "Seu número"}</p>
+            {signedIn && <p className="text-muted-foreground tabular-nums">{signedIn.phone}</p>}
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="shrink-0 rounded-full text-muted-foreground"
+            onClick={() => {
+              void signOut({ slug: store.slug, token });
+              dispatch(unlinkStore(store.slug));
+            }}
+          >
+            <LogOut /> Sair
+          </Button>
+        </div>
+      </Panel>
     );
   }
 
   if (!store.whatsapp.login) return null;
-  return <SignInFlow store={store} codeAvailable={store.whatsapp.login.code} />;
+  return <SignInFlow id={id} className={className} store={store} codeAvailable={store.whatsapp.login.code} />;
 }
 
 type Step =
@@ -75,7 +120,17 @@ type Step =
   | { kind: "phone" }
   | { kind: "code"; challenge: Extract<CustomerLoginChallenge, { method: "code" }> };
 
-function SignInFlow({ store, codeAvailable }: { store: Store; codeAvailable: boolean }) {
+function SignInFlow({
+  id,
+  className,
+  store,
+  codeAvailable,
+}: {
+  id: string;
+  className?: string;
+  store: Store;
+  codeAvailable: boolean;
+}) {
   const dispatch = useAppDispatch();
   const rememberedPhone = useAppSelector((state) => state.customer.phone);
   const [start, { isLoading: starting }] = useStartCustomerLoginMutation();
@@ -98,6 +153,11 @@ function SignInFlow({ store, codeAvailable }: { store: Store; codeAvailable: boo
     setCode("");
     setError("O tempo para entrar acabou. Comece de novo.");
   }, []);
+
+  const goTo = (next: Step) => {
+    setError(null);
+    setStep(next);
+  };
 
   const byMessage = async () => {
     setError(null);
@@ -145,101 +205,111 @@ function SignInFlow({ store, codeAvailable }: { store: Store; codeAvailable: boo
     }
   };
 
-  return (
-    <div className="flex flex-col gap-3">
-      {step.kind === "idle" && (
-        <>
-          <p className="text-sm text-muted-foreground">
-            Entre com seu WhatsApp para ver aqui todos os seus pedidos na{" "}
-            <span className="font-medium text-foreground">{store.name}</span>, de qualquer celular, inclusive os
-            feitos no balcão.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <Button className="rounded-full" loading={starting} onClick={() => void byMessage()}>
-              <MessageCircle /> Entrar pelo WhatsApp
-            </Button>
-            {codeAvailable && (
-              <Button variant="ghost" className="rounded-full" onClick={() => setStep({ kind: "phone" })}>
-                <KeyRound /> Receber um código
-              </Button>
-            )}
-          </div>
-        </>
-      )}
+  const errorLine = error && <FieldError>{error}</FieldError>;
 
-      {step.kind === "message" && (
+  if (step.kind === "message") {
+    return (
+      <Panel id={id} className={className} title="Envie a mensagem no WhatsApp" description="É assim que confirmamos que o número é seu.">
         <MessageStep
           store={store}
           challenge={step.challenge}
           onVerified={signedIn}
           onExpired={expired}
-          onCancel={() => setStep({ kind: "idle" })}
+          onCancel={() => goTo({ kind: "idle" })}
         />
-      )}
+      </Panel>
+    );
+  }
 
-      {step.kind === "phone" && (
-        <form
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void sendCode();
-          }}
-        >
-          <Field data-invalid={Boolean(error)}>
-            <FieldLabel htmlFor="history-phone">Seu celular (WhatsApp)</FieldLabel>
-            <Input
-              id="history-phone"
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel-national"
-              placeholder="(11) 98765-4321"
-              value={phone}
-              onChange={(event) => setPhone(formatPhoneBR(event.target.value))}
-            />
-          </Field>
-          <div className="flex flex-wrap gap-2">
-            <Button type="submit" className="rounded-full" loading={starting}>
+  if (step.kind === "phone" || step.kind === "code") {
+    return (
+      <Panel
+        id={id}
+        className={className}
+        title="Receber um código"
+        description={
+          step.kind === "code"
+            ? `Mandamos um código pelo WhatsApp para ${step.challenge.phone}.`
+            : "A loja manda um código de 6 dígitos para o seu WhatsApp."
+        }
+      >
+        {step.kind === "phone" ? (
+          <form
+            className="flex flex-col gap-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void sendCode();
+            }}
+          >
+            <Field data-invalid={Boolean(error)}>
+              <FieldLabel htmlFor={`${id}-phone`}>Seu celular (WhatsApp)</FieldLabel>
+              <Input
+                id={`${id}-phone`}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel-national"
+                placeholder="(11) 98765-4321"
+                value={phone}
+                aria-invalid={Boolean(error)}
+                onChange={(event) => setPhone(formatPhoneBR(event.target.value))}
+              />
+              {errorLine}
+            </Field>
+            <Button type="submit" size="lg" className="h-11 w-full rounded-full" loading={starting}>
               Enviar código
             </Button>
-            <Button type="button" variant="ghost" className="rounded-full" onClick={() => setStep({ kind: "idle" })}>
-              <ArrowLeft /> Voltar
-            </Button>
-          </div>
-        </form>
-      )}
+          </form>
+        ) : (
+          <>
+            <CodeInput
+              value={code}
+              onChange={setCode}
+              onComplete={(value) => void checkCode(value)}
+              state={error ? "error" : "idle"}
+              shake={shake}
+              disabled={claiming}
+              autoFocus
+            />
+            {error && <p className="text-center text-sm text-destructive">{error}</p>}
+          </>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="self-center rounded-full text-muted-foreground"
+          onClick={() => goTo(step.kind === "code" ? { kind: "phone" } : { kind: "idle" })}
+        >
+          <ArrowLeft /> {step.kind === "code" ? "Trocar o número ou pedir outro" : "Voltar"}
+        </Button>
+      </Panel>
+    );
+  }
 
-      {step.kind === "code" && (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm text-muted-foreground">
-            Mandamos um código pelo WhatsApp para {step.challenge.phone}. Digite aqui:
-          </p>
-          <CodeInput
-            value={code}
-            onChange={setCode}
-            onComplete={(value) => void checkCode(value)}
-            state={error ? "error" : "idle"}
-            shake={shake}
-            disabled={claiming}
-            autoFocus
-          />
-          <Button
-            variant="ghost"
-            size="sm"
-            className="self-start rounded-full"
-            onClick={() => setStep({ kind: "phone" })}
-          >
-            <ArrowLeft /> Trocar o número ou pedir outro
-          </Button>
-        </div>
+  return (
+    <Panel
+      id={id}
+      className={className}
+      title="Veja todos os seus pedidos"
+      description={<>Na {store.name}, em qualquer celular, inclusive os feitos no balcão.</>}
+    >
+      <Button size="lg" className={cn("h-11 w-full", WHATSAPP_BUTTON)} loading={starting} onClick={() => void byMessage()}>
+        <Icons.whatsapp /> Continuar com WhatsApp
+      </Button>
+      {errorLine}
+      <p className="text-center text-xs text-muted-foreground">
+        Você manda uma mensagem pronta para a loja. Sem senha e sem cadastro.
+      </p>
+      {codeAvailable && (
+        <Button variant="link" size="sm" className="self-center" onClick={() => goTo({ kind: "phone" })}>
+          Prefiro receber um código
+        </Button>
       )}
-
-      {error && <FieldError>{error}</FieldError>}
-    </div>
+    </Panel>
   );
 }
 
 /**
- * The code to send and the button that writes it in WhatsApp; the page asks
+ * The code to send and the link that writes it in WhatsApp; the page asks
  * every few seconds (and as soon as it is visible again, coming back from
  * WhatsApp) whether it arrived.
  */
@@ -286,29 +356,44 @@ function MessageStep({
   }, [challenge.id, challenge.secret, claim, onExpired, onVerified, store.slug]);
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-muted-foreground">
-        Envie a mensagem que já vai escrita para a {store.name} ({challenge.displayPhoneNumber}). Ela confirma que o
-        número é seu.
-      </p>
-      <p className="text-center text-2xl font-black tracking-[0.3em] tabular-nums" aria-label={`Código ${challenge.code}`}>
-        {challenge.code}
-      </p>
+    <>
+      <ol className="flex flex-col gap-2 text-sm">
+        <li className="flex gap-2.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">1</span>
+          <span>
+            Toque em <span className="font-medium">Abrir o WhatsApp</span>: a mensagem para a {store.name} já vai
+            escrita.
+          </span>
+        </li>
+        <li className="flex gap-2.5">
+          <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">2</span>
+          <span>Envie e volte para esta tela. Ela atualiza sozinha.</span>
+        </li>
+      </ol>
+      <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/50 px-3 py-2">
+        <span className="text-xs text-muted-foreground">Código na mensagem</span>
+        <span className="font-mono text-lg font-bold tracking-[0.25em]" aria-label={`Código ${challenge.code}`}>
+          {challenge.code}
+        </span>
+      </div>
       {/* A real link (it leaves for WhatsApp in a new tab), styled as the main action. */}
       <a
         href={challenge.link}
         target="_blank"
         rel="noopener noreferrer"
-        className={cn(buttonVariants(), "rounded-full bg-[#25D366] text-white hover:bg-[#1ebe5b]")}
+        className={cn(buttonVariants({ size: "lg" }), "h-11 w-full", WHATSAPP_BUTTON)}
       >
-        <MessageCircle /> Abrir o WhatsApp
+        <Icons.whatsapp /> Abrir o WhatsApp
       </a>
-      <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
-        <Spinner /> Esperando sua mensagem…
-      </p>
-      <Button variant="ghost" size="sm" className="self-start rounded-full" onClick={onCancel}>
-        <ArrowLeft /> Voltar
-      </Button>
-    </div>
+      <div className="flex items-center justify-between gap-2">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+          <Spinner /> Esperando sua mensagem…
+        </p>
+        <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground" onClick={onCancel}>
+          Cancelar
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Número da loja: {challenge.displayPhoneNumber}</p>
+    </>
   );
 }

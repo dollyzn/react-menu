@@ -1,9 +1,10 @@
 "use client";
 
+import { Icons } from "@/components/app/icons";
 import { createContext, useContext } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Banknote, MessageCircle, Phone } from "lucide-react";
+import { Banknote, Phone } from "lucide-react";
 import type { PayLaterOrder } from "@react-menu/contracts";
 import type { ColumnDef, HeaderContext, Row } from "@/components/app/data-table/features";
 import type { ColumnsConfig } from "@/components/data-table";
@@ -52,7 +53,7 @@ function PayLaterRowActions({ order, size = "sm" }: { order: PayLaterOrder; size
             aria-label={`WhatsApp de ${order.customerName}`}
             className={icon}
           >
-            <MessageCircle />
+            <Icons.whatsapp />
           </a>
         </>
       )}

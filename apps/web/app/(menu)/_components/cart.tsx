@@ -42,6 +42,7 @@ import { addonLabels } from "@/lib/addon-label";
 import { clearCart, lineAddonsInput, lineTotal, setQuantity, type CartLine } from "@/redux/slices/cart";
 import { addRecentOrder, rememberCustomer, rememberWhatsAppOptIn } from "@/redux/slices/customer";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Icons } from "@/components/app/icons";
 import { usePlaceOrderMutation } from "@/redux/features/public/publicApi";
 import { isConnectionError } from "@/utils/get-error-message";
 import { releaseIdempotencyKey, stableIdempotencyKey } from "@/lib/idempotency";
@@ -599,7 +600,9 @@ function CheckoutFlow({
                       onCheckedChange={(checked) => field.onChange(checked === true)}
                     />
                     <FieldContent>
-                      <FieldTitle>Receber avisos pelo WhatsApp</FieldTitle>
+                      <FieldTitle>
+                        <Icons.whatsapp className="size-4 text-whatsapp" /> Receber avisos pelo WhatsApp
+                      </FieldTitle>
                       <FieldDescription>
                         Quando a loja receber o pedido e quando ele ficar pronto, no {phone}.
                       </FieldDescription>

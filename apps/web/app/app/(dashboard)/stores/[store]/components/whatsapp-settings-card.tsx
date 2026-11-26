@@ -1,5 +1,6 @@
 "use client";
 
+import { Icons } from "@/components/app/icons";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -8,7 +9,6 @@ import {
   CircleAlert,
   CreditCard,
   History,
-  MessageCircle,
   RefreshCw,
   Unplug,
 } from "lucide-react";
@@ -76,7 +76,7 @@ export function WhatsAppSettingsCard({ store }: { store: Store }) {
     <Card>
       <CardHeader>
         <CardTitle className="flex flex-wrap items-center gap-2">
-          <MessageCircle className="size-5 text-primary" /> WhatsApp da loja
+          <Icons.whatsapp className="size-5 text-whatsapp" /> WhatsApp da loja
           {data?.account && !data.account.broken && <Badge>Conectado</Badge>}
         </CardTitle>
         <CardDescription>
@@ -212,8 +212,12 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         Use um número que ainda não está no WhatsApp ou o número do WhatsApp Business da loja (ele continua
         funcionando no celular). A Meta pede os dados da empresa e uma forma de pagamento.
       </p>
-      <Button className="self-start rounded-full" loading={opening || connecting} onClick={() => void start()}>
-        <MessageCircle /> {signup.fake ? "Conectar número de teste" : "Conectar WhatsApp"}
+      <Button
+        className="self-start rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp-hover"
+        loading={opening || connecting}
+        onClick={() => void start()}
+      >
+        <Icons.whatsapp /> {signup.fake ? "Conectar número de teste" : "Conectar WhatsApp"}
       </Button>
     </div>
   );
@@ -234,8 +238,8 @@ function ConnectedPanel({
   return (
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border p-3">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white">
-          <MessageCircle className="size-5" />
+        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-whatsapp/15 text-whatsapp">
+          <Icons.whatsapp className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold tabular-nums">{account.displayPhoneNumber}</p>

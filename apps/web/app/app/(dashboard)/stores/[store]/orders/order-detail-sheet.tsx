@@ -1,10 +1,11 @@
 "use client";
 
+import { Icons } from "@/components/app/icons";
 import { lineName } from "@/lib/order-line";
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { AlertTriangle, Ban, Banknote, ExternalLink, MessageCircle, Phone, Undo2 } from "lucide-react";
+import { AlertTriangle, Ban, Banknote, ExternalLink, Phone, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -135,7 +136,7 @@ export function OrderDetailSheet({
                       rel="noreferrer"
                       className={buttonVariants({ variant: "outline", size: "sm" })}
                     >
-                      <MessageCircle /> WhatsApp
+                      <Icons.whatsapp /> WhatsApp
                     </a>
                   </div>
                 )}
