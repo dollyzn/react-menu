@@ -95,10 +95,10 @@ export default class WhatsAppAccountService {
 
     // Embedded Signup's window message names the WABA and number; when it
     // didn't reach the page, the token says which WABA it was granted.
-    const { wabaId, phoneNumberId } =
-      input.wabaId && input.phoneNumberId
-        ? { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId }
-        : await this.discover(token)
+    const fromWindow = Boolean(input.wabaId && input.phoneNumberId)
+    const { wabaId, phoneNumberId } = fromWindow
+      ? { wabaId: input.wabaId!, phoneNumberId: input.phoneNumberId! }
+      : await this.discover(token)
 
     const taken = await WhatsAppAccount.query()
       .where('phoneNumberId', phoneNumberId)
@@ -172,6 +172,17 @@ export default class WhatsAppAccountService {
       account.templates = {}
     }
     await account.save()
+    // Which way Embedded Signup gave the WABA and number (Grafana: this message).
+    logger.info(
+      {
+        storeId: store.id,
+        via: input.token ? 'command' : fromWindow ? 'window_message' : 'token_discovery',
+        wabaId,
+        phoneNumberId,
+        coexistence,
+      },
+      'WhatsApp connected'
+    )
 
     if (previous) {
       await this.client.unsubscribeApp(previous.token, previous.wabaId).catch((error) => {

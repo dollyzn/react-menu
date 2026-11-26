@@ -46,6 +46,27 @@ reach us. The API polls the templates instead (`SyncWhatsAppTemplates`, every
 learns about a revoked token (error 190) or a missing payment method (error
 131042) from the answers to its own calls.
 
+## Diagnosing a connection
+
+Embedded Signup ends with a code (the SDK's callback) and, normally, a
+window message naming the WABA and number. When that message doesn't reach
+the page, the panel sends the code alone after 8 s and the API finds them
+from the token. Which way it went:
+
+- **Grafana (Loki)**: `{service_name="react-menu-api"} |= "WhatsApp connected"`.
+  Each connection logs `via`: `window_message`, `token_discovery` or
+  `command` (`whatsapp:connect`), with the store, WABA and number. A refusal
+  logs "WhatsApp (Meta) refused a request" with Meta's `code`, `reason` and
+  `fbtraceId` (quote it to Meta's support).
+- **The browser**, while connecting: DevTools → Network → the `POST
+  …/whatsapp` request. A body with `wabaId` and `phoneNumberId` came from the
+  window message; only `code`, from the token. To see Meta's messages
+  themselves, run this in the console before clicking "Conectar WhatsApp":
+
+  ```js
+  addEventListener("message", (e) => e.origin.endsWith("facebook.com") && console.log(e.origin, e.data))
+  ```
+
 ## Development
 
 `WHATSAPP_FAKE=true` (never in production): "Conectar número de teste"
