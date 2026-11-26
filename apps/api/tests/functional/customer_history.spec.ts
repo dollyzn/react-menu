@@ -356,8 +356,50 @@ test.group('Customer order history', (group) => {
     const failed = await client
       .post(`/api/v1/public/menu/${store.slug}/customer-login`)
       .json({ method: 'code', phone: customer.phone })
-    failed.assertStatus(502)
+    // A refusal is final (422: the web doesn't retry it) and leaves nothing.
+    failed.assertStatus(422)
+    failed.assertBodyContains({ code: 'E_WHATSAPP_SEND' })
     assert.lengthOf(await CustomerLoginChallenge.all(), 0)
+  })
+
+  test('Meta not answering keeps the code valid: a retry gets the same challenge, no second code', async ({
+    client,
+    assert,
+  }) => {
+    const { store } = await setup(client)
+    const { WhatsAppApiError } = await import('#whatsapp/client')
+    meta.graph.failNextSend = new WhatsAppApiError('Meta did not answer', 0, null)
+    const start = () =>
+      client
+        .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+        .header('Idempotency-Key', 'timeout-key')
+        .json({ method: 'code', phone: customer.phone })
+    const first = await start()
+    // The code may have reached the phone: the customer goes on to type it.
+    first.assertStatus(200)
+    const retried = await start()
+    assert.equal(retried.body().data.id, first.body().data.id)
+    assert.lengthOf(await CustomerLoginChallenge.all(), 1)
+    assert.lengthOf(meta.graph.sent, 0)
+  })
+
+  test('parallel starts for one phone still send three codes at most', async ({
+    client,
+    assert,
+  }) => {
+    const { store } = await setup(client)
+    const answers = await Promise.all(
+      Array.from({ length: 6 }, (_, index) =>
+        client
+          .post(`/api/v1/public/menu/${store.slug}/customer-login`)
+          .header('Idempotency-Key', `parallel-${index}`)
+          .json({ method: 'code', phone: customer.phone })
+      )
+    )
+    const statuses = answers.map((answer) => answer.status())
+    assert.equal(statuses.filter((status) => status === 200).length, 3)
+    assert.equal(statuses.filter((status) => status === 429).length, 3)
+    assert.lengthOf(meta.graph.sent, 3)
   })
 
   test('a device refreshes its own orders by public token', async ({ client, assert }) => {

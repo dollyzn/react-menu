@@ -10,8 +10,9 @@ const graphId = vine
 export const whatsappConnectValidator = vine.create(
   vine.object({
     code: vine.string().trim().minLength(10).maxLength(1024),
-    wabaId: graphId,
-    phoneNumberId: graphId,
+    /** Left out when Meta's window message didn't reach the page: found from the token. */
+    wabaId: graphId.clone().optional().requiredIfExists('phoneNumberId'),
+    phoneNumberId: graphId.clone().optional().requiredIfExists('wabaId'),
     businessId: graphId.clone().optional(),
     /** FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING: a WhatsApp Business app number. */
     coexistence: vine.boolean().optional(),

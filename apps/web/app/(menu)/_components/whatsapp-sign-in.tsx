@@ -14,6 +14,7 @@ import { useAppDispatch, useAppSelector } from "@/redux/hooks";
 import { linkStore, unlinkStore } from "@/redux/slices/customer";
 import {
   useClaimCustomerLoginMutation,
+  usePollCustomerLoginMutation,
   useSignOutCustomerMutation,
   useStartCustomerLoginMutation,
 } from "@/redux/features/public/publicApi";
@@ -326,20 +327,24 @@ function MessageStep({
   onExpired: () => void;
   onCancel: () => void;
 }) {
-  const [claim] = useClaimCustomerLoginMutation();
+  const [poll] = usePollCustomerLoginMutation();
   const busy = useRef(false);
+  /** After a 429 the page waits before asking again (many customers on one IP). */
+  const resumeAt = useRef(0);
 
   useEffect(() => {
     let stopped = false;
     const check = async () => {
       if (busy.current || stopped || document.visibilityState !== "visible") return;
+      if (Date.now() < resumeAt.current) return;
       busy.current = true;
       try {
-        const result = await claim({ slug: store.slug, id: challenge.id, secret: challenge.secret }).unwrap();
+        const result = await poll({ slug: store.slug, id: challenge.id, secret: challenge.secret }).unwrap();
         if (!stopped && result.status === "verified") onVerified(result.customerToken);
       } catch (err) {
         const code = errorCode(err);
         if (!stopped && (code === "E_LOGIN_EXPIRED" || code === "E_LOGIN_NOT_FOUND")) onExpired();
+        if ((err as { status?: unknown })?.status === 429) resumeAt.current = Date.now() + 20_000;
         // Anything else (a dropped connection): the next round asks again.
       } finally {
         busy.current = false;
@@ -353,7 +358,7 @@ function MessageStep({
       clearInterval(timer);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [challenge.id, challenge.secret, claim, onExpired, onVerified, store.slug]);
+  }, [challenge.id, challenge.secret, poll, onExpired, onVerified, store.slug]);
 
   return (
     <>

@@ -172,39 +172,61 @@ export default class CustomerLoginService {
     const again = await this.repeated(store.id, LoginMethod.CODE, key)
     if (again) return this.codeChallenge(again.challenge, again.secret)
 
-    const recent = await CustomerLoginChallenge.query()
-      .where({ storeId: store.id, method: LoginMethod.CODE })
-      .whereIn('phone', phoneVariants(phone))
-      .where('createdAt', '>', DateTime.now().minus({ minutes: 15 }).toSQL()!)
-      .count('* as total')
-      .first()
-    if (Number(recent?.$extras.total ?? 0) >= SENDS_PER_PHONE) {
-      throw new AppException(
-        'Muitos códigos para este número. Espere alguns minutos ou entre pelo WhatsApp.',
-        429,
-        'E_LOGIN_TOO_MANY'
-      )
-    }
-
     // The id first, so the row is written once with its code's HMAC.
     const id = randomUUID()
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0')
-    const { challenge, secret, created } = await this.create(
-      {
-        id,
-        phone,
-        codeHash: codeHash(id, code),
-        expiresAt: DateTime.now().plus({ minutes: LOGIN_CODE_MINUTES }),
-      },
-      store.id,
-      LoginMethod.CODE,
-      key
-    )
-    if (!created) return this.codeChallenge(challenge, secret)
+    const secret = randomBytes(32).toString('base64url')
+    let challenge: CustomerLoginChallenge
+    try {
+      challenge = await db.transaction(async (trx) => {
+        // One start per phone at a time: parallel requests can't all read a
+        // count under the limit (each code is a paid message).
+        await trx.rawQuery('SELECT pg_advisory_xact_lock(hashtext(?))', [
+          `customer-login:${store.id}:${phone}`,
+        ])
+        const recent = await CustomerLoginChallenge.query({ client: trx })
+          .where({ storeId: store.id, method: LoginMethod.CODE })
+          .whereIn('phone', phoneVariants(phone))
+          .where('createdAt', '>', DateTime.now().minus({ minutes: 15 }).toSQL()!)
+          .count('* as total')
+          .first()
+        if (Number(recent?.$extras.total ?? 0) >= SENDS_PER_PHONE) {
+          throw new AppException(
+            'Muitos códigos para este número. Espere alguns minutos ou entre pelo WhatsApp.',
+            429,
+            'E_LOGIN_TOO_MANY'
+          )
+        }
+        return await CustomerLoginChallenge.create(
+          {
+            id,
+            storeId: store.id,
+            method: LoginMethod.CODE,
+            phone,
+            codeHash: codeHash(id, code),
+            secretHash: sha256(secret),
+            startKeyHash: key ? sha256(key) : null,
+            attempts: 0,
+            expiresAt: DateTime.now().plus({ minutes: LOGIN_CODE_MINUTES }),
+          },
+          { client: trx }
+        )
+      })
+    } catch (error) {
+      // The same key at the same time: the other request started it.
+      const repeat =
+        (error as { code?: string }).code === '23505' &&
+        (await this.repeated(store.id, LoginMethod.CODE, key))
+      if (repeat) return this.codeChallenge(repeat.challenge, repeat.secret)
+      throw error
+    }
 
     try {
+      // `unknown` (Meta didn't answer): the code may be on the phone, so the
+      // challenge stays; the customer types it or asks for another.
       await this.messages.sendCode(account, challenge.id, phone, code)
     } catch (error) {
+      // Refused for sure: nothing was sent, nothing counts against the phone.
       await challenge.delete()
       throw error
     }

@@ -327,6 +327,30 @@ test.group('WhatsApp webhook', (group) => {
   group.each.setup(() => emptyDatabase)
   useFakeGraph(group)
 
+  test('a status before our send saved its wamid: 500 so Meta delivers it again; old unknown ids are ignored', async ({
+    client,
+  }) => {
+    const { store } = await createMenuStore()
+    const account = await connectStore(store)
+    const status = (timestamp: number) =>
+      webhookBody(account.phoneNumberId, {
+        statuses: [{ id: 'wamid.NOT_SAVED_YET', status: 'failed', timestamp: String(timestamp) }],
+      })
+    const now = Math.floor(Date.now() / 1000)
+    const early = status(now)
+    const retried = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('x-hub-signature-256', early.signature)
+      .json(early.payload)
+    retried.assertStatus(500)
+    const old = status(now - 3600)
+    const ignored = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('x-hub-signature-256', old.signature)
+      .json(old.payload)
+    ignored.assertStatus(200)
+  })
+
   test("Meta's verification of our callback", async ({ client, assert }) => {
     const ok = await client.get('/api/v1/webhooks/whatsapp').qs({
       'hub.mode': 'subscribe',

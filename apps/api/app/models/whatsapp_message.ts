@@ -51,7 +51,10 @@ export type MessageStatus = (typeof MessageStatus)[keyof typeof MessageStatus]
 const RANK: Record<string, number> = { queued: 0, sent: 1, delivered: 2, read: 3 }
 export function isAfter(next: string, current: string) {
   if (current === MessageStatus.FAILED || current === MessageStatus.SKIPPED) return false
-  if (next === MessageStatus.FAILED) return true
+  // A late "failed" never undoes a message the customer already got.
+  if (next === MessageStatus.FAILED) {
+    return current === MessageStatus.QUEUED || current === MessageStatus.SENT
+  }
   return (RANK[next] ?? -1) > (RANK[current] ?? -1)
 }
 

@@ -1,6 +1,7 @@
 import { test } from '@japa/runner'
 import { isValidSignature, signBody } from '#whatsapp/webhook'
 import { templateComponents, templateText } from '#whatsapp/templates'
+import { isAfter } from '#models/whatsapp_message'
 
 test.group('WhatsApp webhook signature', () => {
   test('X-Hub-Signature-256 over the raw body with the app secret', ({ assert }) => {
@@ -32,5 +33,16 @@ test.group('WhatsApp template parameters', () => {
         parameters: [{ type: 'text', text: 'token-1' }],
       },
     ])
+  })
+})
+
+test.group('WhatsApp message statuses', () => {
+  test('only forward, and a late "failed" never undoes a delivered message', ({ assert }) => {
+    assert.isTrue(isAfter('delivered', 'sent'))
+    assert.isFalse(isAfter('sent', 'delivered'))
+    assert.isTrue(isAfter('failed', 'sent'))
+    assert.isFalse(isAfter('failed', 'delivered'))
+    assert.isFalse(isAfter('failed', 'read'))
+    assert.isFalse(isAfter('read', 'failed'))
   })
 })

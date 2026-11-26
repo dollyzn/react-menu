@@ -5,7 +5,8 @@ import AppJob from '#jobs/app_job'
 import WhatsAppAccount from '#models/whatsapp_account'
 import WhatsAppAccountService from '#services/whatsapp_account_service'
 
-type Payload = { accountId: string; round?: number }
+/** `generation`: the connection it polls for (a reconnect starts a new chain). */
+type Payload = { accountId: string; round?: number; generation?: number }
 
 /** Every 15 minutes for about two days: Meta reviews within 24 hours. */
 const EVERY = '15m'
@@ -25,14 +26,18 @@ export default class SyncWhatsAppTemplates extends AppJob<Payload> {
   }
 
   static async scheduleFor(account: WhatsAppAccount, round = 0) {
-    await SyncWhatsAppTemplates.dispatch({ accountId: account.id, round })
+    const generation = account.webhookSubscribedAt?.toMillis() ?? 0
+    await SyncWhatsAppTemplates.dispatch({ accountId: account.id, round, generation })
       .in(EVERY)
-      .dedup({ id: `${account.id}:${round}`, ttl: '1h' })
+      .dedup({ id: `${account.id}:${generation}:${round}`, ttl: '1h' })
   }
 
   async execute() {
     const account = await WhatsAppAccount.find(this.payload.accountId)
     if (!account || !account.isUsable) return
+    // Reconnected since: the new connection's own chain polls now.
+    const generation = account.webhookSubscribedAt?.toMillis() ?? 0
+    if (this.payload.generation !== undefined && this.payload.generation !== generation) return
     const round = this.payload.round ?? 0
 
     try {

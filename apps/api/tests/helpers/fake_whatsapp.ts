@@ -51,8 +51,28 @@ export class FakeGraph extends WhatsAppClient {
     }
   }
 
+  /** WABAs `debug_token` says the token was granted. */
+  granted = [WABA_ID]
+  /** Numbers of the granted WABA. */
+  numbers = [PHONE_NUMBER_ID]
+  /** `register` refuses (a number with someone else's PIN). */
+  refuseRegister = false
+
+  async grantedWabas(token: string) {
+    this.record('grantedWabas', token)
+    return this.granted
+  }
+
+  async phoneNumbers(token: string, wabaId: string) {
+    this.record('phoneNumbers', token, wabaId)
+    return this.numbers.map((id) => ({ id, display_phone_number: '+55 11 3333-4444' }))
+  }
+
   async registerPhone(token: string, phoneNumberId: string, pin: string) {
     this.record('registerPhone', token, phoneNumberId, pin)
+    if (this.refuseRegister) {
+      throw new WhatsAppApiError('Two-step verification PIN mismatch', 400, 133005)
+    }
   }
 
   async subscribeApp(token: string, wabaId: string, callbackUrl: string, verifyToken: string) {

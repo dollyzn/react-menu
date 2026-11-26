@@ -283,10 +283,18 @@ export default class WhatsAppMessageService {
   }
 
   /**
-   * A login code (authentication template), sent while the customer waits:
-   * its failure is the answer. The row keeps that it was sent, never the code.
+   * A login code (authentication template), sent while the customer waits.
+   * Answers `sent`, or `unknown` when Meta didn't answer (timeout, 5xx): the
+   * code may have reached the phone, so the caller keeps it valid. A
+   * definite refusal throws (422: nothing to retry). The row keeps that it
+   * was sent, never the code.
    */
-  async sendCode(account: WhatsAppAccount, challengeId: string, to: string, code: string) {
+  async sendCode(
+    account: WhatsAppAccount,
+    challengeId: string,
+    to: string,
+    code: string
+  ): Promise<'sent' | 'unknown'> {
     const message = await WhatsAppMessage.create({
       storeId: account.storeId,
       kind: MessageKind.LOGIN_CODE,
@@ -310,15 +318,15 @@ export default class WhatsAppMessageService {
       message.status = MessageStatus.SENT
       message.sentAt = DateTime.now()
       await message.save()
+      return 'sent'
     } catch (error) {
-      await this.fail(message, account, error)
-      if (error instanceof WhatsAppApiError && error.status === 0) {
-        throw new AppException(
-          'O WhatsApp não respondeu. Tente de novo em instantes.',
-          503,
-          'E_WHATSAPP_UNAVAILABLE'
-        )
+      if (error instanceof WhatsAppApiError && (error.status === 0 || error.status >= 500)) {
+        message.errorTitle = 'A Meta não respondeu: o código pode ter chegado.'
+        message.status = MessageStatus.SENT
+        await message.save()
+        return 'unknown'
       }
+      await this.fail(message, account, error)
       if (error instanceof WhatsAppApiError && error.code === 131026) {
         throw new AppException(
           'Esse número não recebe mensagens no WhatsApp. Confira o número.',
@@ -327,8 +335,8 @@ export default class WhatsAppMessageService {
         )
       }
       throw new AppException(
-        'Não foi possível enviar o código agora. Tente pelo outro jeito ou mais tarde.',
-        502,
+        'Não foi possível enviar o código agora. Entre pelo WhatsApp ou tente mais tarde.',
+        422,
         'E_WHATSAPP_SEND'
       )
     }
@@ -339,7 +347,16 @@ export default class WhatsAppMessageService {
     const message = await WhatsAppMessage.query()
       .where({ wamid: update.id, storeId: account.storeId })
       .first()
-    if (!message) return
+    if (!message) {
+      // Meta can tell a status before our send has saved its wamid: a recent
+      // one throws, so the webhook answers 500 and Meta delivers it again.
+      // Older unknown ids are messages that aren't ours (the store's app).
+      const age = Date.now() / 1000 - Number(update.timestamp)
+      if (Number.isFinite(age) && age < 120) {
+        throw new Error(`Status for a message not saved yet (${update.status})`)
+      }
+      return
+    }
 
     const next =
       update.status === 'failed'

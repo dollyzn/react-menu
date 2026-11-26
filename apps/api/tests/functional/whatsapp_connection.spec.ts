@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
 import SyncWhatsAppTemplates from '#jobs/sync_whatsapp_templates'
 import WhatsAppAccount from '#models/whatsapp_account'
@@ -144,6 +145,57 @@ test.group('WhatsApp connection (store page)', (group) => {
       previous.accessToken,
       '555000111',
     ])
+  })
+
+  test("with only the code (Meta's window message lost), the WABA and number come from the token", async ({
+    client,
+    assert,
+  }) => {
+    const { store, manager } = await setup()
+    const response = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json({ code: signup.code })
+      .loginAs(manager)
+    response.assertStatus(200)
+    const saved = await WhatsAppAccount.findByOrFail('storeId', store.id)
+    assert.equal(saved.wabaId, WABA_ID)
+    assert.equal(saved.phoneNumberId, PHONE_NUMBER_ID)
+
+    // Two numbers in the WABA: which one is the store's is the manager's to say.
+    meta.graph.numbers = [PHONE_NUMBER_ID, '999888777']
+    const ambiguous = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json({ code: signup.code })
+      .loginAs(manager)
+    ambiguous.assertStatus(422)
+    ambiguous.assertBodyContains({ code: 'E_WHATSAPP_CHOOSE_NUMBER' })
+  })
+
+  test('a refused reconnect keeps the working WABA subscribed', async ({ client, assert }) => {
+    const { store, manager } = await setup()
+    await connectStore(store, { wabaId: '555000111' })
+    meta.graph.refuseRegister = true
+    const response = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json(signup)
+      .loginAs(manager)
+    response.assertStatus(422)
+    assert.lengthOf(meta.graph.called('unsubscribeApp'), 0)
+    const kept = await WhatsAppAccount.findByOrFail('storeId', store.id)
+    assert.equal(kept.wabaId, '555000111')
+  })
+
+  test("after a reconnect, the old connection's review polling stops", async ({ assert }) => {
+    fakeQueue()
+    const { store } = await setup()
+    const account = await connectStore(store, { webhookSubscribedAt: DateTime.now() })
+    const before = account.webhookSubscribedAt!.minus({ hours: 1 }).toMillis()
+    await runJob(SyncWhatsAppTemplates, { accountId: account.id, round: 3, generation: before })
+    assert.lengthOf(meta.graph.called('listTemplates'), 0)
+    // The current connection's chain does poll.
+    const current = account.webhookSubscribedAt!.toMillis()
+    await runJob(SyncWhatsAppTemplates, { accountId: account.id, round: 0, generation: current })
+    assert.lengthOf(meta.graph.called('listTemplates'), 1)
   })
 
   test('settings, refresh and disconnect', async ({ client, assert }) => {

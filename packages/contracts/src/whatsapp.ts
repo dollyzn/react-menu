@@ -68,8 +68,9 @@ export type WhatsAppConnection = {
 export type WhatsAppConnectInput =
   | {
       code: string;
-      wabaId: string;
-      phoneNumberId: string;
+      /** Both left out when Meta's window message didn't arrive: the API finds them from the token. */
+      wabaId?: string;
+      phoneNumberId?: string;
       businessId?: string;
       coexistence?: boolean;
     }

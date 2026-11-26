@@ -98,6 +98,33 @@ export default class WhatsAppClient {
     return await this.request(token, 'GET', `/${encode(phoneNumberId)}?fields=${fields}`)
   }
 
+  /**
+   * The WABAs a business token was granted (its `whatsapp_business_management`
+   * scope), read with the app's own token (`debug_token`).
+   */
+  async grantedWabas(token: string): Promise<string[]> {
+    const { appId, appSecret } = whatsappConfig()
+    const query = new URLSearchParams({ input_token: token, access_token: `${appId}|${appSecret}` })
+    const result = await this.request<{
+      data?: { granular_scopes?: { scope: string; target_ids?: string[] }[] }
+    }>(null, 'GET', `/debug_token?${query}`)
+    const scope = result.data?.granular_scopes?.find(
+      (granted) => granted.scope === 'whatsapp_business_management'
+    )
+    return scope?.target_ids ?? []
+  }
+
+  /** The WABA's numbers. */
+  async phoneNumbers(token: string, wabaId: string): Promise<PhoneNumberInfo[]> {
+    const fields = 'display_phone_number,verified_name,platform_type'
+    const result = await this.request<{ data?: PhoneNumberInfo[] }>(
+      token,
+      'GET',
+      `/${encode(wabaId)}/phone_numbers?fields=${fields}`
+    )
+    return result.data ?? []
+  }
+
   /** Puts the number on the Cloud API; the PIN becomes its two-step verification PIN. */
   async registerPhone(token: string, phoneNumberId: string, pin: string) {
     await this.request(token, 'POST', `/${encode(phoneNumberId)}/register`, {
@@ -185,7 +212,7 @@ export default class WhatsAppClient {
     body?: unknown
   ): Promise<T> {
     const { graphVersion } = whatsappConfig()
-    // Never log the query: the code exchange carries the app secret there.
+    // Never log the query: the code exchange and debug_token carry the app secret.
     const logPath = path.split('?')[0]
     let response: Response
     try {

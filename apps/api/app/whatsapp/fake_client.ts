@@ -37,6 +37,14 @@ export default class FakeWhatsAppClient extends WhatsAppClient {
     }
   }
 
+  async grantedWabas(token: string) {
+    return [`9${token.replace(/\D/g, '').padEnd(12, '0').slice(0, 12)}`]
+  }
+
+  async phoneNumbers(token: string, wabaId: string): Promise<PhoneNumberInfo[]> {
+    return [await this.phoneNumber(token, `8${wabaId.slice(1)}`)]
+  }
+
   async registerPhone() {}
 
   async subscribeApp() {}

@@ -109,6 +109,18 @@ export const publicApi = baseApi.injectEndpoints({
       }),
       extraOptions: { quiet: true },
     }),
+    /**
+     * The same claim, asked every few seconds while the customer sends the
+     * message: in the background, so it never holds a reload or a link.
+     */
+    pollCustomerLogin: build.mutation<CustomerLoginClaim, { slug: string; id: string; secret: string }>({
+      query: ({ slug, id, secret }) => ({
+        url: `public/menu/${slug}/customer-login/${id}`,
+        method: "POST",
+        body: { secret },
+      }),
+      extraOptions: { quiet: true, background: true },
+    }),
     /** "Sair" on the history: ends the session (the slice forgets it either way). */
     signOutCustomer: build.mutation<void, { slug: string; token: string }>({
       query: ({ slug, token }) => ({
@@ -197,5 +209,6 @@ export const {
   useGetOrderHistoryQuery,
   useStartCustomerLoginMutation,
   useClaimCustomerLoginMutation,
+  usePollCustomerLoginMutation,
   useSignOutCustomerMutation,
 } = publicApi;

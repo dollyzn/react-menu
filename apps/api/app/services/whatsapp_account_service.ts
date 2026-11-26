@@ -25,8 +25,9 @@ export type ConnectInput = {
   code?: string
   /** Or a token already in hand (`whatsapp:connect`, a system user of the app's business). */
   token?: string
-  wabaId: string
-  phoneNumberId: string
+  /** Both left out: found from the token (`discover`). */
+  wabaId?: string
+  phoneNumberId?: string
   businessId?: string | null
   /** Finished as a WhatsApp Business app number (coexistence): not registered by us. */
   coexistence?: boolean
@@ -83,8 +84,24 @@ export default class WhatsAppAccountService {
   async connect(store: Store, input: ConnectInput, actor?: User) {
     this.assertEnabled()
 
+    let token = input.token
+    if (!token) {
+      try {
+        token = await this.client.exchangeCode(input.code ?? '')
+      } catch (error) {
+        refused(error, 'O cadastro no WhatsApp expirou ou foi recusado. Conecte de novo')
+      }
+    }
+
+    // Embedded Signup's window message names the WABA and number; when it
+    // didn't reach the page, the token says which WABA it was granted.
+    const { wabaId, phoneNumberId } =
+      input.wabaId && input.phoneNumberId
+        ? { wabaId: input.wabaId, phoneNumberId: input.phoneNumberId }
+        : await this.discover(token)
+
     const taken = await WhatsAppAccount.query()
-      .where('phoneNumberId', input.phoneNumberId)
+      .where('phoneNumberId', phoneNumberId)
       .whereNot('storeId', store.id)
       .first()
     if (taken) {
@@ -95,37 +112,28 @@ export default class WhatsAppAccountService {
       )
     }
 
-    let token = input.token
-    if (!token) {
-      try {
-        token = await this.client.exchangeCode(input.code ?? '')
-      } catch (error) {
-        refused(error, 'O cadastro no WhatsApp expirou ou foi recusado. Conecte de novo')
-      }
-    }
-
     let info
     try {
-      info = await this.client.phoneNumber(token, input.phoneNumberId)
+      info = await this.client.phoneNumber(token, phoneNumberId)
     } catch (error) {
       refused(error, 'Não foi possível ler o número escolhido')
     }
 
     const current = await this.forStore(store.id)
-    const sameNumber = current?.phoneNumberId === input.phoneNumberId
-    // Another WABA than before: the old one stops sending us its events.
-    if (current && current.wabaId !== input.wabaId) {
-      await this.client.unsubscribeApp(current.accessToken, current.wabaId).catch((error) => {
-        logger.warn({ err: error, storeId: store.id }, 'could not unsubscribe the previous WABA')
-      })
-    }
+    const sameNumber = current?.phoneNumberId === phoneNumberId
+    // Another WABA than before: unsubscribed only once the new one is saved,
+    // so a refused reconnect leaves the working one as it was.
+    const previous =
+      current && current.wabaId !== wabaId
+        ? { wabaId: current.wabaId, token: current.accessToken }
+        : null
     const pin =
       (sameNumber && current?.registerPin) || String(randomInt(0, 1_000_000)).padStart(6, '0')
     const coexistence = Boolean(input.coexistence)
 
     if (!coexistence && !input.skipRegister) {
       try {
-        await this.client.registerPhone(token, input.phoneNumberId, pin)
+        await this.client.registerPhone(token, phoneNumberId, pin)
       } catch (error) {
         refused(error, 'O WhatsApp recusou ativar o número na API')
       }
@@ -133,7 +141,7 @@ export default class WhatsAppAccountService {
 
     const { webhookUrl, verifyToken } = whatsappConfig()
     try {
-      await this.client.subscribeApp(token, input.wabaId, webhookUrl, verifyToken ?? '')
+      await this.client.subscribeApp(token, wabaId, webhookUrl, verifyToken ?? '')
     } catch (error) {
       refused(error, 'O WhatsApp recusou o endereço de avisos (webhook)')
     }
@@ -141,8 +149,8 @@ export default class WhatsAppAccountService {
     const account = current ?? new WhatsAppAccount()
     account.merge({
       storeId: store.id,
-      wabaId: input.wabaId,
-      phoneNumberId: input.phoneNumberId,
+      wabaId: wabaId,
+      phoneNumberId: phoneNumberId,
       businessId: input.businessId ?? null,
       displayPhoneNumber: info.display_phone_number,
       verifiedName: info.verified_name ?? null,
@@ -165,6 +173,12 @@ export default class WhatsAppAccountService {
     }
     await account.save()
 
+    if (previous) {
+      await this.client.unsubscribeApp(previous.token, previous.wabaId).catch((error) => {
+        logger.warn({ err: error, storeId: store.id }, 'could not unsubscribe the previous WABA')
+      })
+    }
+
     // Templates are reviewed by Meta (minutes to a day): submitted now, their
     // status polled by the job (their webhook isn't ours to receive).
     await this.syncTemplates(account, { create: true }).catch((error) => {
@@ -174,6 +188,46 @@ export default class WhatsAppAccountService {
     await SyncWhatsAppTemplates.scheduleFor(account)
 
     return account
+  }
+
+  /**
+   * The WABA and number a signup token was granted, when the page didn't
+   * get them from Meta's window: the token's WhatsApp scope names the WABA
+   * (`debug_token`), and the WABA must have exactly one number.
+   */
+  private async discover(token: string) {
+    let wabaIds: string[]
+    try {
+      wabaIds = await this.client.grantedWabas(token)
+    } catch (error) {
+      refused(error, 'Não foi possível ler a conta do WhatsApp escolhida')
+    }
+    if (wabaIds.length !== 1) {
+      throw new AppException(
+        wabaIds.length === 0
+          ? 'O cadastro terminou sem uma conta do WhatsApp. Conecte de novo e escolha uma.'
+          : 'Mais de uma conta do WhatsApp foi liberada. Conecte de novo escolhendo só a da loja.',
+        422,
+        'E_WHATSAPP_CHOOSE_ACCOUNT'
+      )
+    }
+    const wabaId = wabaIds[0]
+    let numbers
+    try {
+      numbers = await this.client.phoneNumbers(token, wabaId)
+    } catch (error) {
+      refused(error, 'Não foi possível ler os números da conta do WhatsApp')
+    }
+    if (numbers.length !== 1) {
+      throw new AppException(
+        numbers.length === 0
+          ? 'A conta do WhatsApp não tem número. Conecte de novo e adicione o da loja.'
+          : 'A conta do WhatsApp tem mais de um número. Conecte de novo escolhendo o da loja.',
+        422,
+        'E_WHATSAPP_CHOOSE_NUMBER'
+      )
+    }
+    return { wabaId, phoneNumberId: numbers[0].id }
   }
 
   /**

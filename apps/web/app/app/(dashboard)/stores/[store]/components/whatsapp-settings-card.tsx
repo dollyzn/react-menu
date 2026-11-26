@@ -13,7 +13,7 @@ import {
   Unplug,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { WhatsAppConnection } from "@react-menu/contracts";
+import type { WhatsAppConnectInput, WhatsAppConnection } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -76,6 +76,9 @@ export function WhatsAppSettingsCard({ store }: { store: Store }) {
   );
 }
 
+/** How long the page waits for Embedded Signup's message after the code. */
+const SESSION_WAIT_MS = 8_000;
+
 /** What the manager goes through in Meta's window. */
 const CONNECT_STEPS = [
   "Entre com o Facebook da empresa: a janela que abre é da Meta.",
@@ -93,19 +96,50 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
   const session = useRef<{ wabaId?: string; phoneNumberId?: string; businessId?: string; coexistence?: boolean }>({});
   const code = useRef<string | null>(null);
 
-  const finish = useCallback(async () => {
+  const fallback = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const send = useCallback(
+    async (input: WhatsAppConnectInput) => {
+      try {
+        await connect({ storeId, input }).unwrap();
+        toast.success("WhatsApp conectado. As mensagens foram enviadas para a análise da Meta.");
+      } catch {
+        // baseApi showed Meta's reason.
+      }
+    },
+    [connect, storeId]
+  );
+
+  /**
+   * The code (callback) and the chosen WABA and number (window message)
+   * come in any order. Both: connect. The code alone: wait a little for
+   * the message, then send the code by itself; the API finds the WABA and
+   * number from the token.
+   */
+  const finish = useCallback(() => {
+    const received = code.current;
+    if (!received) return;
     const { wabaId, phoneNumberId, businessId, coexistence } = session.current;
-    if (!code.current || !wabaId || !phoneNumberId) return;
-    const input = { code: code.current, wabaId, phoneNumberId, businessId, coexistence };
-    code.current = null;
-    session.current = {};
-    try {
-      await connect({ storeId, input }).unwrap();
-      toast.success("WhatsApp conectado. Os modelos de mensagem foram enviados para análise da Meta.");
-    } catch {
-      // baseApi showed Meta's reason.
+    if (wabaId && phoneNumberId) {
+      if (fallback.current) clearTimeout(fallback.current);
+      fallback.current = null;
+      code.current = null;
+      session.current = {};
+      void send({ code: received, wabaId, phoneNumberId, businessId, coexistence });
+      return;
     }
-  }, [connect, storeId]);
+    if (fallback.current) return;
+    fallback.current = setTimeout(() => {
+      fallback.current = null;
+      if (code.current !== received) return;
+      code.current = null;
+      void send({ code: received });
+    }, SESSION_WAIT_MS);
+  }, [send]);
+
+  useEffect(() => () => {
+    if (fallback.current) clearTimeout(fallback.current);
+  }, []);
 
   // Embedded Signup tells the page which WABA and number were chosen.
   useEffect(() => {
@@ -134,7 +168,7 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         businessId: signupEvent.data.business_id,
         coexistence: signupEvent.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING",
       };
-      void finish();
+      finish();
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
@@ -161,7 +195,7 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
           const received = response.authResponse?.code;
           if (!received) return;
           code.current = received;
-          void finish();
+          finish();
         },
         {
           config_id: signup.configId,

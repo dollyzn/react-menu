@@ -59,20 +59,27 @@ export const paymentSyncThrottle = limiter.define('public_payment_sync', (ctx) =
  * a paid WhatsApp message (also limited per phone in CustomerLoginService).
  */
 export const customerLoginThrottle = limiter.define('customer_login', (ctx) => {
-  return limiter
-    .allowRequests(env.get('CUSTOMER_LOGIN_RATE_LIMIT', 10))
-    .every('10 minutes')
-    .usingKey(`customer_login_${ctx.request.ip()}`)
+  return (
+    limiter
+      // Per IP, and many customers share one (the store's Wi-Fi, carrier NAT):
+      // the cost is limited per phone in CustomerLoginService.
+      .allowRequests(env.get('CUSTOMER_LOGIN_RATE_LIMIT', 30))
+      .every('10 minutes')
+      .usingKey(`customer_login_${ctx.request.ip()}`)
+  )
 })
 
 /**
  * Claiming a sign-in (the page polls every 2.5 s for up to 10 minutes, and
- * typed codes go here too). The five attempts per code are the real limit;
- * this keeps one client from hammering challenges.
+ * typed codes go here too), per IP and sign-in. The five attempts per code
+ * are the real limit; this keeps one client from hammering a challenge.
  */
 export const customerLoginClaimThrottle = limiter.define('customer_login_claim', (ctx) => {
-  return limiter
-    .allowRequests(env.get('CUSTOMER_LOGIN_RATE_LIMIT', 10) * 30)
-    .every('10 minutes')
-    .usingKey(`customer_login_claim_${ctx.request.ip()}`)
+  return (
+    limiter
+      .allowRequests(300)
+      .every('10 minutes')
+      // Per sign-in too: two customers polling from one IP don't share it.
+      .usingKey(`customer_login_claim_${ctx.request.ip()}_${ctx.params.challengeId}`)
+  )
 })
