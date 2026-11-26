@@ -19,7 +19,7 @@ an accepted ADR, supersede it with a new one.
 | [0011](0011-mercado-pago-per-store.md) | Online payment with Mercado Pago, per store | Superseded by 0015 |
 | [0012](0012-two-installable-apps.md) | Two installable apps: customer menu and staff panel | Accepted |
 | [0013](0013-idempotent-writes.md) | Idempotent writes for unstable networks | Accepted |
-| [0014](0014-customer-history-token.md) | Customer order history across devices without accounts | Accepted |
+| [0014](0014-customer-history-token.md) | Customer order history across devices without accounts | Superseded by 0025 |
 | [0015](0015-in-app-checkout.md) | In-app checkout with payment gateways (Pix, card) | Accepted (Mercado Pago API: 0017) |
 | [0016](0016-background-jobs.md) | Background jobs with @adonisjs/queue | Accepted |
 | [0017](0017-mercado-pago-orders-api.md) | Mercado Pago payments on the Orders API | Accepted |
@@ -30,6 +30,7 @@ an accepted ADR, supersede it with a new one.
 | [0022](0022-card-fee-pass-through.md) | Card fee passed on to the customer (online checkout) | Accepted |
 | [0023](0023-store-assistant.md) | Store assistant on the AI SDK, with each store's own model | Accepted |
 | [0024](0024-store-partners.md) | Partners who sell the store's menu (role, orders, commission) | Accepted |
+| [0025](0025-whatsapp-cloud.md) | WhatsApp Cloud API per store: order notices and phone-verified history | Accepted |
 
 ## Template
 

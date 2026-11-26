@@ -1,6 +1,6 @@
 # 0014. Customer order history across devices without accounts
 
-- Status: Accepted
+- Status: Superseded by 0025
 - Date: 2026-10-21
 
 ## Context
