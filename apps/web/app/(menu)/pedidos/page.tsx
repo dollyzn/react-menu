@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import type { Metadata } from "next";
 import { OrderHistory } from "../_components/order-history";
 import { fetchMenu } from "../_lib/fetch-menu";
@@ -13,12 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return store ? { ...base, ...storeMetadata(store, "/manifest.webmanifest") } : base;
 }
 
-/** The customer's orders on this device (and linked devices). */
+/** The customer's orders on this device, and every order of a phone verified by WhatsApp. */
 export default function OrderHistoryPage() {
-  // useSearchParams (?vincular=) needs a Suspense boundary on a static page.
-  return (
-    <Suspense>
-      <OrderHistory />
-    </Suspense>
-  );
+  return <OrderHistory />;
 }

@@ -1,10 +1,13 @@
 import type { Browser, Page } from "@playwright/test";
-import { test, expect } from "./fixtures";
+import { test, expect, login } from "./fixtures";
+import { API_URL } from "../playwright.config";
 
 const phone = "11912345678";
+/** The same phone as WhatsApp ids carry it. */
+const waId = "5511912345678";
 
 /** Orders one Pastel de Carne as `name`; returns the API response. */
-async function order(page: Page, name: string) {
+async function order(page: Page, name: string, options: { notices?: boolean } = {}) {
   await page.goto("/");
   await page.getByRole("button", { name: /^Pastel de Carne, R\$/ }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: /Adicionar/ }).click();
@@ -13,12 +16,14 @@ async function order(page: Page, name: string) {
   await page.getByLabel("Seu nome").fill(name);
   await page.getByLabel("Celular (WhatsApp)").fill(phone);
   await page.getByRole("button", { name: "Continuar" }).click();
+  if (options.notices) await page.getByRole("checkbox", { name: /Receber avisos pelo WhatsApp/ }).check();
   const placed = page.waitForResponse((r) => r.url().endsWith("/orders") && r.request().method() === "POST");
   await page.getByText("Pagar na retirada", { exact: true }).click();
   await page.getByRole("button", { name: /Fazer pedido/ }).click();
-  const body = await (await placed).json();
+  const response = await placed;
+  const body = await response.json();
   await expect(page).toHaveURL(/\/pedido\//);
-  return body.data as { number: number; customerToken: string | null; store: { slug: string } };
+  return { ...(body.data as { number: number; store: { slug: string } }), sent: response.request().postDataJSON() };
 }
 
 async function device(browser: Browser) {
@@ -26,29 +31,86 @@ async function device(browser: Browser) {
   return context.newPage();
 }
 
-test("the order history follows the customer to another device, never by phone alone", async ({
+const orderCard = (page: Page, number: number) =>
+  page.getByRole("article", { name: new RegExp(`Pedido ${number}:`) });
+
+test("with the store's WhatsApp, customers ask for notices and open their history by proving the phone", async ({
   page,
   browser,
 }) => {
-  const name = `Sync ${Date.now()}`;
-  const first = await order(page, name);
-  expect(first.customerToken).toMatch(/^ct_/);
+  // Four browsers (panel, customer, another phone, a stranger) and the whole flow.
+  test.slow();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  const menu = await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json();
+  const storeId = menu.data.store.id as string;
 
-  // Another device opens the link from "Usar em outro aparelho".
-  const linked = await device(browser);
-  await linked.goto(`/pedidos?vincular=${first.store.slug}.${first.customerToken}`);
-  await expect(linked).toHaveURL(/\/pedidos$/);
-  await expect(linked.getByRole("article", { name: new RegExp(`Pedido ${first.number}:`) })).toBeVisible();
-  await expect(linked.getByText(`Vinculado a ${name}`)).toBeVisible();
+  // The manager connects the number (development fake: no Meta popup).
+  await login(page);
+  await page.goto(`/app/stores/${storeId}?aba=whatsapp`);
+  await page.getByRole("button", { name: "Conectar número de teste" }).click();
+  await expect(page.getByText("+55 11 90000-0000")).toBeVisible();
+  // Five order notices, all approved (development fake); the message as the customer reads it.
+  const notices = page.getByRole("region", { name: "Avisos do pedido" });
+  await expect(notices.getByText("Aprovado", { exact: true })).toHaveCount(5);
+  await notices.getByRole("button", { name: "Ver mensagem" }).first().click();
+  await expect(notices.getByText("Recebemos o seu pedido nº 42")).toBeVisible();
+  // The history's two ways: the free reply and the code.
+  const history = page.getByRole("region", { name: "Histórico pelo WhatsApp" });
+  await expect(history.getByText("Grátis", { exact: true })).toBeVisible();
+  await history.getByRole("button", { name: "Ver mensagem" }).last().click();
+  await expect(history.getByText("é seu código de verificação", { exact: false })).toBeVisible();
 
-  // A device that only knows the phone gets an order, but not the history.
+  // A customer asks for notices at checkout.
+  const customer = await device(browser);
+  const name = `Zap ${Date.now()}`;
+  const first = await order(customer, name, { notices: true });
+  expect(first.sent.whatsappOptIn).toBe(true);
+
+  // The history page offers the sign-in; the code goes by WhatsApp from the phone.
+  await customer.goto("/pedidos");
+  await expect(orderCard(customer, first.number)).toBeVisible();
+  await customer.getByRole("button", { name: "Continuar com WhatsApp" }).click();
+  const code = (await customer.getByLabel(/^Código [A-Z0-9]{6}$/).textContent())!.trim();
+  await expect(customer.getByRole("link", { name: "Abrir o WhatsApp" })).toHaveAttribute(
+    "href",
+    new RegExp(`^https://wa\\.me/5511900000000\\?text=.*${code}`)
+  );
+  await expect(customer.getByText("Esperando sua mensagem…")).toBeVisible();
+  const inbound = await customer.request.post(`${API_URL}/api/v1/__e2e/whatsapp/inbound`, {
+    data: { slug: first.store.slug, from: waId, text: `Quero ver meus pedidos. Código: ${code}` },
+  });
+  expect((await inbound.json()).matched).toBe(true);
+  await expect(customer.getByRole("heading", { name: "Conectado pelo WhatsApp" })).toBeVisible();
+
+  // Another phone, nothing ordered on it: a code sent to the number opens the same history.
+  const other = await device(browser);
+  await other.goto("/pedidos");
+  await other.getByRole("button", { name: "Prefiro receber um código" }).click();
+  await other.getByLabel("Seu celular (WhatsApp)").fill(phone);
+  await other.getByRole("button", { name: "Enviar código" }).click();
+  await expect(other.getByText(/Mandamos um código pelo WhatsApp/)).toBeVisible();
+  const sent = await other.request.get(`${API_URL}/api/v1/__e2e/whatsapp/login-code`, { params: { phone: waId } });
+  await other.getByLabel("Código de 6 dígitos").fill((await sent.json()).code);
+  await expect(orderCard(other, first.number)).toBeVisible();
+
+  // "Sair": back to the sign-in, and only this device's (none) orders.
+  await other.getByRole("button", { name: "Sair", exact: true }).click();
+  await expect(other.getByRole("button", { name: "Continuar com WhatsApp" })).toBeVisible();
+  await expect(orderCard(other, first.number)).toHaveCount(0);
+
+  // A device that only knows the phone sees only what it ordered.
   const stranger = await device(browser);
   const strangerOrder = await order(stranger, name);
-  expect(strangerOrder.customerToken).toBeNull();
   await stranger.goto("/pedidos");
-  await expect(stranger.getByRole("article", { name: new RegExp(`Pedido ${strangerOrder.number}:`) })).toBeVisible();
-  await expect(stranger.getByRole("article", { name: new RegExp(`Pedido ${first.number}:`) })).toHaveCount(0);
+  await expect(orderCard(stranger, strangerOrder.number)).toBeVisible();
+  await expect(orderCard(stranger, first.number)).toHaveCount(0);
 
-  await linked.context().close();
-  await stranger.context().close();
+  // The panel lists the notice; then the store disconnects (the other tests run without it).
+  await page.reload();
+  await expect(page.getByRole("region", { name: "Últimas mensagens" }).getByText("Pedido recebido")).toBeVisible();
+  await page.getByRole("button", { name: "Desconectar" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Desconectar" }).click();
+  await expect(page.getByRole("button", { name: "Conectar número de teste" })).toBeVisible();
+
+  for (const p of [customer, other, stranger]) await p.context().close();
 });

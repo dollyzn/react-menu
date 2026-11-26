@@ -9,7 +9,10 @@ lives in `docs/architecture/` and `docs/decisions/` (ADRs).
 
 React Menu: digital menus and ordering for restaurants (pickup at the
 counter). Customers order from the public menu (`/`, `/[slug]`) identified
-only by name + phone and track the order live (`/pedido/[token]`). Staff
+only by name + phone and track the order live (`/pedido/[token]`). Stores
+that connect their WhatsApp (ADR 0025) send order notices to customers who
+ask for them, and customers open their whole history by proving the phone
+on WhatsApp. Staff
 work by store role: managers run catalog, inventory and settings;
 attendants use the POS and the orders board; cooks use the kitchen
 display, which batches identical pastries from nearby orders. Partners
@@ -107,7 +110,13 @@ Tests need Postgres and Redis reachable with `apps/api/.env`; see README.
    user may resubmit (orders) also persist the key, and repeating a state
    change already applied answers success. New endpoints must stay safe to
    repeat with the same key.
-12. **No secrets in git.** `.env` files are ignored; add new variables to the
+12. **WhatsApp goes through the store's own number** (ADR 0025): Graph API
+   calls only through `WhatsAppClient` (swapped in tests, fake in
+   development), every message a `whatsapp_messages` row once per
+   `dedup_key`, then a job. Our webhook is an override per WABA: never change
+   the Tech Provider app's default callback (it belongs to another product).
+   New message texts are new templates (`_vN`) in `app/whatsapp/templates.ts`.
+13. **No secrets in git.** `.env` files are ignored; add new variables to the
    relevant `.env.example` and to `apps/api/start/env.ts` / `apps/web/lib/env.ts`.
 
 ## How to add a feature (API → web)

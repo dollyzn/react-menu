@@ -235,15 +235,11 @@ export type PublicPaymentRequest = {
   amount?: number;
 };
 
-/** Response of placing a public order. */
-export type PlacedPublicOrder = PublicOrder & {
-  /**
-   * History token for this device (`Customer-Token` header): set on the
-   * customer's first order or when the device already holds it; null when
-   * the phone belongs to a customer this device is not linked to.
-   */
-  customerToken: string | null;
-};
+/**
+ * Response of placing a public order. The device follows it by its public
+ * token; the whole history needs a verified phone (ADR 0025).
+ */
+export type PlacedPublicOrder = PublicOrder;
 
 /** One order in a customer's history list. */
 export type PublicOrderSummary = Pick<
@@ -254,11 +250,57 @@ export type PublicOrderSummary = Pick<
   items: { name: string; quantity: number }[];
 };
 
-/** GET /public/menu/:slug/my-orders */
+/**
+ * GET /public/menu/:slug/my-orders with `Customer-Token` (a verified phone's
+ * session, ADR 0025): the store's orders of that phone, counter ones too.
+ */
 export type CustomerOrders = {
-  customer: { name: string; phone: string };
+  /** The name the store knows the phone by (null: no order yet); the phone masked. */
+  customer: { name: string | null; phone: string };
   orders: PublicOrderSummary[];
 };
+
+/** POST /public/menu/:slug/customer-login */
+export type CustomerLoginStartInput =
+  | { method: 'message' }
+  | { method: 'code'; phone: string };
+
+/** The answer of starting a sign-in; `secret` claims the session (keep it in memory only). */
+export type CustomerLoginChallenge =
+  | {
+      id: string;
+      secret: string;
+      method: 'message';
+      /** What the customer sends; the link already writes it. */
+      code: string;
+      /** wa.me link to the store's number with the message written. */
+      link: string;
+      displayPhoneNumber: string;
+      expiresAt: string;
+    }
+  | {
+      id: string;
+      secret: string;
+      method: 'code';
+      /** Where the code went, masked. */
+      phone: string;
+      expiresAt: string;
+    };
+
+/**
+ * POST /public/menu/:slug/customer-login/:id `{ secret, code? }`: pending
+ * until the message arrives (or without the code); then the session, once.
+ * 410 `E_LOGIN_EXPIRED`, 422 `E_LOGIN_CODE_INVALID` (`details.attemptsLeft`),
+ * 429 `E_LOGIN_LOCKED`.
+ */
+export type CustomerLoginClaim =
+  | { status: 'pending' }
+  | {
+      status: 'verified';
+      /** Sent as `Customer-Token` to my-orders. */
+      customerToken: string;
+      customer: CustomerOrders['customer'];
+    };
 
 /** One line of a new order. Prices are always computed by the API. */
 export type OrderLineInput = {
@@ -276,6 +318,8 @@ export type CreatePublicOrderInput = {
   paymentMethod: PaymentMethod;
   lines: OrderLineInput[];
   notes?: string;
+  /** "Receber avisos pelo WhatsApp" (only when the menu's `whatsapp.notifications`). */
+  whatsappOptIn?: boolean;
 };
 
 export type CreatePosOrderInput = {
@@ -446,6 +490,13 @@ export type PublicMenu = {
     paymentMethods: CheckoutPaymentMethod[];
     /** Card fee the customer pays on top online; null: none. */
     cardFees: CardFees | null;
+    /** WhatsApp of the store (ADR 0025). */
+    whatsapp: {
+      /** The checkout offers "Receber avisos pelo WhatsApp". */
+      notifications: boolean;
+      /** History sign-in ways; null: the store doesn't offer it. */
+      login: { message: boolean; code: boolean } | null;
+    };
   };
   categories: PublicMenuCategory[];
 };

@@ -36,6 +36,8 @@ const publicOrderValidator = vine.create(
     paymentMethod: vine.enum([PaymentMethod.PIX, PaymentMethod.CARD, PaymentMethod.COUNTER]),
     lines,
     notes,
+    /** "Receber avisos pelo WhatsApp" (ADR 0025); ignored where the store can't send them. */
+    whatsappOptIn: vine.boolean().optional(),
   })
 )
 

@@ -51,6 +51,11 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-success: var(--success);
+  /* WhatsApp's brand green (its logo and buttons), the same in both themes. */
+  --color-whatsapp: #25d366;
+  --color-whatsapp-hover: #1ebe5b;
+  /* Text on it: white would read at ~2:1, this dark green at ~9:1. */
+  --color-whatsapp-foreground: #052e16;
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);

@@ -69,6 +69,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   PUBLIC_RATE_LIMIT: Env.schema.number.optional(),
   /** Public orders per IP every 10 minutes (default 10). */
   PUBLIC_ORDER_RATE_LIMIT: Env.schema.number.optional(),
+  /** Customer history sign-ins started per IP every 10 minutes (default 30). */
+  CUSTOMER_LOGIN_RATE_LIMIT: Env.schema.number.optional(),
 
   /*
   |----------------------------------------------------------
@@ -82,6 +84,27 @@ export default await Env.create(new URL('../', import.meta.url), {
    * calls the tools by keyword, to try the assistant without a key.
    */
   ASSISTANT_FAKE_MODEL: Env.schema.boolean.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | WhatsApp Cloud API (ADR 0025): the Tech Provider app whose Embedded
+  | Signup connects each store's number. Off without app id, secret,
+  | configuration and verify token (or WHATSAPP_FAKE in development).
+  |----------------------------------------------------------
+  */
+  WHATSAPP_APP_ID: Env.schema.string.optional(),
+  /** Exchanges the signup code and checks X-Hub-Signature-256. */
+  WHATSAPP_APP_SECRET: Env.schema.string.optional(),
+  /** Facebook Login for Business configuration of Embedded Signup. */
+  WHATSAPP_CONFIG_ID: Env.schema.string.optional(),
+  /** Graph API version of every call (default v24.0). */
+  WHATSAPP_GRAPH_VERSION: Env.schema.string.optional(),
+  /** Answered to Meta's verification of our override callback. */
+  WHATSAPP_WEBHOOK_VERIFY_TOKEN: Env.schema.string.optional(),
+  /** Override callback (default <APP_URL>/api/v1/webhooks/whatsapp); a tunnel in development. */
+  WHATSAPP_WEBHOOK_URL: Env.schema.string.optional(),
+  /** Development and e2e only (ignored in production): no calls to Meta, messages only logged. */
+  WHATSAPP_FAKE: Env.schema.boolean.optional(),
 
   GOOGLE_CLIENT_ID: Env.schema.string.optional(),
   GOOGLE_CLIENT_SECRET: Env.schema.string.optional(),

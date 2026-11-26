@@ -6,3 +6,4 @@ export type * from './orders.ts';
 export type * from './partners.ts';
 export type * from './realtime.ts';
 export type * from './reports.ts';
+export type * from './whatsapp.ts';

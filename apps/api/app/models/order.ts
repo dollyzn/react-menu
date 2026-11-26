@@ -137,6 +137,10 @@ export default class Order extends BaseModel {
   @column.dateTime({ serializeAs: null })
   declare readyNotifiedAt: DateTime | null
 
+  /** The customer asked for WhatsApp notices at checkout (ADR 0025). */
+  @column({ serializeAs: null })
+  declare whatsappOptIn: boolean
+
   @column.dateTime()
   declare completedAt: DateTime | null
 

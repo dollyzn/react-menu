@@ -2,44 +2,49 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Check, ChevronRight, Link2, RefreshCw, RotateCcw, Share2, ShoppingBag, Smartphone, Unlink } from "lucide-react";
+import { ChevronRight, RefreshCw, RotateCcw, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
-import type { PublicOrderSummary } from "@react-menu/contracts";
-import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
+import type { CustomerOrders, PublicOrderSummary } from "@react-menu/contracts";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRehydrated } from "@/hooks/use-rehydrated";
 import { useAppDispatch, useAppSelector } from "@/redux/hooks";
-import { linkStore, unlinkStore } from "@/redux/slices/customer";
-import { useGetOrderHistoryQuery } from "@/redux/features/public/publicApi";
-import { useCopied } from "@/hooks/use-copied";
+import { unlinkStore } from "@/redux/slices/customer";
+import { useGetOrderHistoryQuery, useGetPublicMenuQuery } from "@/redux/features/public/publicApi";
 import { formatCurrencyBRL } from "@/utils/string";
 import { cn } from "@/lib/utils";
 import { CustomerShell } from "./customer-shell";
-import { ORDER_STATUS, PROGRESS, isActiveOrder, linkUrl, useReorder } from "../_lib/customer-orders";
+import { WhatsAppSignIn } from "./whatsapp-sign-in";
+import { ORDER_STATUS, PROGRESS, isActiveOrder, useReorder } from "../_lib/customer-orders";
 
-/** "Meus pedidos": live orders first, then history, plus the device link. */
+/** Sessions of a verified phone (ADR 0025); older device links (`ct_…`) open nothing now. */
+const isSession = (token: string) => token.startsWith("cs_");
+
+/** "Meus pedidos": live orders first, then history, plus the WhatsApp sign-in per store. */
 export function OrderHistory() {
   const rehydrated = useRehydrated();
   const dispatch = useAppDispatch();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const recent = useAppSelector((state) => state.customer.recentOrders);
   const tokenMap = useAppSelector((state) => state.customer.tokens);
 
   const tokens = recent.map((order) => order.publicToken);
-  const links = Object.entries(tokenMap ?? {}).map(([storeSlug, token]) => ({ storeSlug, token }));
+  const links = Object.entries(tokenMap ?? {})
+    .filter(([, token]) => isSession(token))
+    .map(([storeSlug, token]) => ({ storeSlug, token }));
   const nothingToLoad = tokens.length === 0 && links.length === 0;
+  // Stores this device knows (its orders, its sessions); none yet: the default one.
+  const storeSlugs = [...new Set([...recent.map((order) => order.storeSlug), ...links.map((link) => link.storeSlug)])];
 
   const { data, isLoading, isFetching, refetch } = useGetOrderHistoryQuery(
     { tokens, links },
     { skip: !rehydrated || nothingToLoad, refetchOnFocus: true }
   );
-  const orders = data?.orders ?? [];
+  // Skipped (nothing left to load, e.g. after "Sair"): the last result is no longer this device's.
+  const history = nothingToLoad ? undefined : data;
+  const orders = history?.orders ?? [];
   const active = orders.filter((order) => isActiveOrder(order.status));
   const past = orders.filter((order) => !isActiveOrder(order.status));
 
@@ -50,24 +55,19 @@ export function OrderHistory() {
     return () => clearInterval(timer);
   }, [active.length, refetch]);
 
-  // ?vincular=<store>.<token>: link opened from another device.
+  // Device links of before (ADR 0014) open nothing now: forget them quietly.
   useEffect(() => {
     if (!rehydrated) return;
-    const raw = searchParams.get("vincular");
-    if (!raw) return;
-    const dot = raw.indexOf(".");
-    if (dot > 0) {
-      // The list below fills with the orders: that is the confirmation.
-      dispatch(linkStore({ storeSlug: raw.slice(0, dot), token: raw.slice(dot + 1) }));
-    }
-    router.replace("/pedidos");
-  }, [dispatch, rehydrated, router, searchParams]);
+    Object.entries(tokenMap ?? {})
+      .filter(([, token]) => !isSession(token))
+      .forEach(([slug]) => dispatch(unlinkStore(slug)));
+  }, [dispatch, rehydrated, tokenMap]);
 
-  // Links revoked or from another database: forget them quietly.
+  // Sessions that ended (expired, signed out elsewhere): forget them and say so.
   useEffect(() => {
     if (!data?.staleLinks.length) return;
     data.staleLinks.forEach((slug) => dispatch(unlinkStore(slug)));
-    toast.info("O vínculo com seus pedidos de outro aparelho expirou neste celular.");
+    toast.info("Sua entrada no histórico expirou neste celular. Entre de novo pelo WhatsApp.");
   }, [data?.staleLinks, dispatch]);
 
   return (
@@ -127,7 +127,14 @@ export function OrderHistory() {
         </>
       )}
 
-      {rehydrated && <DeviceLink customers={data?.customers ?? []} />}
+      {rehydrated &&
+        (storeSlugs.length > 0 ? storeSlugs : [undefined]).map((slug) => (
+          <StoreSignIn
+            key={slug ?? "default"}
+            slug={slug}
+            signedIn={history?.customers.find((customer) => customer.storeSlug === slug)}
+          />
+        ))}
     </CustomerShell>
   );
 }
@@ -237,71 +244,21 @@ function EmptyHistory() {
   );
 }
 
-/** Share the history with another device, or stop sharing on this one. */
-function DeviceLink({ customers }: { customers: { name: string; phone: string; storeSlug: string }[] }) {
-  const dispatch = useAppDispatch();
-  const tokenMap = useAppSelector((state) => state.customer.tokens) ?? {};
-  const linked = customers.filter((customer) => tokenMap[customer.storeSlug]);
+/**
+ * All the orders of the phone in one store, by WhatsApp (ADR 0025). Shown
+ * for stores that offer it, or where this device is already signed in.
+ */
+function StoreSignIn({
+  slug,
+  signedIn,
+}: {
+  slug: string | undefined;
+  signedIn?: CustomerOrders["customer"];
+}) {
+  // `preview`: reading the store's options is not a visit to its menu.
+  const { data } = useGetPublicMenuQuery({ slug, preview: true });
+  const token = useAppSelector((state) => (data ? state.customer.tokens?.[data.store.slug] : undefined));
+  if (!data || (!data.store.whatsapp.login && !token)) return null;
 
-  const { copied, copy } = useCopied();
-  const share = async (storeSlug: string) => {
-    const url = linkUrl(storeSlug, tokenMap[storeSlug]);
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "Meus pedidos", text: "Abra no outro celular para ver seus pedidos:", url });
-        return;
-      } catch {
-        // Cancelled: fall back to copying.
-      }
-    }
-    await copy(url);
-  };
-
-  return (
-    <section className="mt-10 rounded-2xl border border-dashed p-4" aria-labelledby="device-link">
-      <h2 id="device-link" className="flex items-center gap-2 font-semibold">
-        <Smartphone className="size-4 text-primary" /> Seus pedidos em outro aparelho
-      </h2>
-      {linked.length === 0 ? (
-        <p className="mt-1 text-sm text-muted-foreground">
-          Para ver aqui também os pedidos feitos em outro celular, abra neste aparelho o link “Usar em outro
-          aparelho” do celular em que você fez seu primeiro pedido. Por segurança, só o seu telefone não basta.
-        </p>
-      ) : (
-        linked.map((customer) => (
-          <div key={customer.storeSlug} className="mt-2 flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              Vinculado a <span className="font-medium text-foreground">{customer.name}</span> · {customer.phone}
-            </p>
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" className="rounded-full" onClick={() => void share(customer.storeSlug)}>
-                {copied ? (
-                  <>
-                    <Check /> Link copiado: abra no outro aparelho
-                  </>
-                ) : (
-                  <>
-                    <Share2 /> Usar em outro aparelho
-                  </>
-                )}
-              </Button>
-              <AlertDialogDestructive
-                title="Desvincular este aparelho?"
-                description="Os pedidos feitos em outros aparelhos deixam de aparecer aqui. Você pode vincular de novo pelo link."
-                confirmLabel="Desvincular"
-                onConfirm={() => dispatch(unlinkStore(customer.storeSlug))}
-              >
-                <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground">
-                  <Unlink /> Desvincular
-                </Button>
-              </AlertDialogDestructive>
-            </div>
-            <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
-              <Link2 className="mt-0.5 size-3.5 shrink-0" /> Quem tiver esse link vê seus pedidos. Envie só para você.
-            </p>
-          </div>
-        ))
-      )}
-    </section>
-  );
+  return <WhatsAppSignIn store={data.store} signedIn={signedIn} className="mt-10" />;
 }

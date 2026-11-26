@@ -2,7 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import OrderChannel from '#enums/order_channel'
 import PaymentService from '#services/payment_service'
-import { messageOnly, ok } from '#helpers/api_response'
+import { messageOnly, noStore, ok } from '#helpers/api_response'
 import { publicOrder, publicOrderSummary } from '#orders/public_order'
 import OrderService from '#services/order_service'
 import PublicMenuService from '#services/public_menu_service'
@@ -14,7 +14,8 @@ import {
 } from '#validators/order'
 import type Order from '#models/order'
 import type Store from '#models/store'
-import CustomerAccessService from '#services/customer_access_service'
+import CustomerLoginService from '#services/customer_login_service'
+import { customerLoginClaimValidator, customerLoginStartValidator } from '#validators/whatsapp'
 import PushService from '#services/push_service'
 import AppException from '#exceptions/app_exception'
 import OrderStatus from '#enums/order_status'
@@ -27,7 +28,7 @@ export default class PublicMenuController {
     private menus: PublicMenuService,
     private orders: OrderService,
     private payments: PaymentService,
-    private access: CustomerAccessService,
+    private login: CustomerLoginService,
     private push: PushService
   ) {}
 
@@ -61,34 +62,69 @@ export default class PublicMenuController {
     if (order.status === OrderStatus.PENDING_PAYMENT) await ExpireUnpaidOrder.scheduleFor(order)
 
     await order.load('history')
-    // History token for this device (see CustomerAccessService).
-    const customerToken = await this.access.tokenFor(
-      order.customerId,
-      request.header('customer-token'),
-      order.createdAt
-    )
-    return ok({
-      ...publicOrder(order, store, await this.checkoutState(order, store)),
-      customerToken,
-    })
+    return ok(publicOrder(order, store, await this.checkoutState(order, store)))
   }
 
-  /** Every order of the customer behind the `Customer-Token` header. */
+  /**
+   * Every order of the verified phone behind the `Customer-Token` header
+   * (ADR 0025), counter orders included.
+   */
   async myOrders({ params, request }: HttpContext) {
     const store = await this.menus.findBySlug(params.slug)
-    const customer = await this.access.customerFor(store.id, request.header('customer-token'))
-    if (!customer) {
+    const session = await this.login.session(store.id, request.header('customer-token'))
+    if (!session) {
       throw new AppException(
-        'Este aparelho não está mais vinculado aos seus pedidos.',
+        'Entre de novo para ver seus pedidos.',
         401,
         'E_CUSTOMER_TOKEN_INVALID'
       )
     }
-    const orders = await this.orders.listForCustomer(store.id, customer.id, customer.historySince)
+    const orders = await this.login.history(store.id, session.phone)
     return ok({
-      customer: { name: customer.name, phone: maskPhone(customer.phone) },
+      customer: await this.login.customerOf(store.id, session.phone),
       orders: orders.map((order) => publicOrderSummary(order, store)),
     })
+  }
+
+  /**
+   * Starts the history sign-in: `message` gives a code and a wa.me link to
+   * send it from the customer's WhatsApp; `code` sends one to the phone.
+   */
+  async startLogin({ params, request, response }: HttpContext) {
+    const store = await this.menus.findBySlug(params.slug)
+    const input = await request.validateUsing(customerLoginStartValidator)
+    // Its answer is never replayed (secrets): the key goes to the service,
+    // which returns the same challenge to a retry instead of starting another.
+    const key = request.header('idempotency-key')
+    const challenge =
+      input.method === 'code'
+        ? await this.login.startByCode(store, input.phone!, key)
+        : await this.login.startByMessage(store, key)
+    // Carries the secret that claims the session: never replayed.
+    noStore(response)
+    return ok(challenge)
+  }
+
+  /** The browser asks for its session (polling, or with the code typed). */
+  async claimLogin({ params, request, response }: HttpContext) {
+    const store = await this.menus.findBySlug(params.slug)
+    const input = await request.validateUsing(customerLoginClaimValidator)
+    const result = await this.login.claim(
+      store,
+      params.challengeId,
+      input.secret,
+      input.code,
+      request.header('idempotency-key')
+    )
+    noStore(response)
+    return ok(result)
+  }
+
+  /** "Sair" on the history: the session ends (repeating it is harmless). */
+  async signOut({ params, request }: HttpContext) {
+    const store = await this.menus.findBySlug(params.slug)
+    await this.login.signOut(store.id, request.header('customer-token'))
+    return messageOnly('Você saiu do histórico neste aparelho.')
   }
 
   /** Live status of the orders this device placed (by their public tokens). */
@@ -172,10 +208,4 @@ export default class PublicMenuController {
       methods: this.payments.onlineMethods(store),
     }
   }
-}
-
-/** "(11) •••••-4321": enough to recognize, not to reveal. */
-function maskPhone(phone: string) {
-  const national = phone.replace(/^55/, '')
-  return `(${national.slice(0, 2)}) •••••-${national.slice(-4)}`
 }

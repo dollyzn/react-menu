@@ -1,5 +1,14 @@
 # pnpm
+/adopt-rtk-query
+/ai-sdk
+/build-slices-and-selectors
+/debug-redux-toolkit-apps
+/design-state-ownership
 /getting-started
+/handle-side-effects
+/migrate-to-modern-redux
 /migrate-v8-to-v9
+/modern-redux
+/redux-dataflow
 /table-state
 # pnpm end

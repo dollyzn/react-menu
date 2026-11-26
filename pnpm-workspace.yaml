@@ -22,7 +22,11 @@ overrides:
   '@types/react-dom': 19.3.0
 
 permissions:
+  '@reduxjs/toolkit':
+    skills: [modern-redux, redux-dataflow, debug-redux-toolkit-apps, migrate-to-modern-redux, adopt-rtk-query, build-slices-and-selectors, design-state-ownership, handle-side-effects]
   '@tanstack/react-table':
+    skills: true
+  ai:
     skills: true
 
 # Agent skills shipped by packages (approved above) are linked here, where

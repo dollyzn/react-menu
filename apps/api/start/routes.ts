@@ -19,6 +19,7 @@ import usersRoutes from '#routes/user'
 import notificationsRoutes from '#routes/notifications'
 import publicRoutes from '#routes/public'
 import paymentRoutes from '#routes/payments'
+import whatsappWebhookRoutes from '#routes/whatsapp'
 import registerStoreCreateRoute from '#routes/store/store_create'
 import registerStoreDetailRoutes from '#routes/store/store_detail'
 import registerStoreDashboardRoutes from '#routes/store/dashboard'
@@ -33,6 +34,7 @@ import registerStorePointRoutes from '#routes/store/point'
 import registerStoreAssistantRoutes from '#routes/store/assistant'
 import registerStorePartnerRoutes from '#routes/store/partners'
 import registerPartnerAreaRoutes from '#routes/store/partner_area'
+import registerStoreWhatsAppRoutes from '#routes/store/whatsapp'
 import { authThrottle } from '#routes/store/shared'
 
 healthRoutes()
@@ -54,6 +56,7 @@ router
 
         publicRoutes()
         paymentRoutes()
+        whatsappWebhookRoutes()
         registerStoreCreateRoute()
 
         router
@@ -70,6 +73,7 @@ router
             registerStorePointRoutes()
             registerStoreAssistantRoutes()
             registerStorePartnerRoutes()
+            registerStoreWhatsAppRoutes()
             registerPartnerAreaRoutes()
           })
           .prefix('/stores/:storeId')
