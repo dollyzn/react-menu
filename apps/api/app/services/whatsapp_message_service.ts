@@ -17,41 +17,60 @@ import WhatsAppMessage, {
 import WhatsAppAccountService from '#services/whatsapp_account_service'
 import WhatsAppClient, { WhatsAppApiError } from '#whatsapp/client'
 import {
+  bodyParams,
   codeComponents,
+  noticeOf,
+  type NoticeKind,
   TEMPLATE_LANGUAGE,
   TEMPLATES,
   templateComponents,
   templateText,
 } from '#whatsapp/templates'
+import OrderItem from '#models/order_item'
+import PaymentMethod from '#enums/payment_method'
+import PaymentStatus from '#enums/payment_status'
 import type { StatusUpdate } from '#whatsapp/webhook'
 
-/** Which notice an order's current state calls for, if any. */
-function orderNotice(order: Order) {
+/** Same as #services/order_service (it imports this service: no import back). */
+const BUSINESS_TIMEZONE = 'America/Sao_Paulo'
+
+const KIND: Record<NoticeKind, MessageKind> = {
+  received: MessageKind.ORDER_RECEIVED,
+  preparing: MessageKind.ORDER_PREPARING,
+  ready: MessageKind.ORDER_READY,
+  completed: MessageKind.ORDER_COMPLETED,
+  cancelled: MessageKind.ORDER_CANCELLED,
+}
+
+/** Which notice an order's current state calls for, and its dedup key. */
+function orderNotice(order: Order): { notice: NoticeKind; key: string } | null {
   switch (order.status) {
     case OrderStatus.RECEIVED:
-      return {
-        kind: MessageKind.ORDER_RECEIVED,
-        template: TEMPLATES.ORDER_RECEIVED,
-        key: `order:${order.id}:received`,
-      }
+      return { notice: 'received', key: `order:${order.id}:received` }
+    case OrderStatus.PREPARING:
+      return { notice: 'preparing', key: `order:${order.id}:preparing` }
     case OrderStatus.READY:
       // Once per time it became ready (an order sent back and done again is told again).
       return order.readyAt
-        ? {
-            kind: MessageKind.ORDER_READY,
-            template: TEMPLATES.ORDER_READY,
-            key: `order:${order.id}:ready:${order.readyAt.toMillis()}`,
-          }
+        ? { notice: 'ready', key: `order:${order.id}:ready:${order.readyAt.toMillis()}` }
         : null
+    case OrderStatus.COMPLETED:
+      return { notice: 'completed', key: `order:${order.id}:completed` }
     case OrderStatus.CANCELLED:
-      return {
-        kind: MessageKind.ORDER_CANCELLED,
-        template: TEMPLATES.ORDER_CANCELLED,
-        key: `order:${order.id}:cancelled`,
-      }
+      return { notice: 'cancelled', key: `order:${order.id}:cancelled` }
     default:
       return null
   }
+}
+
+const brl = (value: number) =>
+  value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }).replace(/\s/g, ' ')
+
+/** How the order is paid, in the customer's words. */
+function paymentLabel(order: Order) {
+  if (order.paymentMethod === PaymentMethod.COUNTER) return 'Pagamento na retirada'
+  const method = order.paymentMethod === PaymentMethod.PIX ? 'Pix' : 'Cartão'
+  return order.paymentStatus === PaymentStatus.PAID ? `${method} (pago)` : method
 }
 
 /**
@@ -75,15 +94,16 @@ export default class WhatsAppMessageService {
     if (!order.whatsappOptIn || order.channel !== OrderChannel.ONLINE || !order.customerPhone) {
       return null
     }
-    const notice = orderNotice(order)
-    if (!notice) return null
+    const next = orderNotice(order)
+    if (!next) return null
+    const notice = noticeOf(next.notice)
 
     const account = await this.accounts.forStore(order.storeId)
     if (!account || !account.isUsable || !account.notifyOrders) return null
-    if (!account.templateApproved(notice.template)) return null
+    if (!account.noticeOn(notice.kind) || !account.templateApproved(notice.name)) return null
     // "Cancelado" only for an order the customer was told was received: an
     // unpaid Pix left to expire was never confirmed, and each notice is paid.
-    if (notice.kind === MessageKind.ORDER_CANCELLED) {
+    if (notice.kind === 'cancelled') {
       const told = await WhatsAppMessage.query()
         .where({ dedupKey: `order:${order.id}:received` })
         .whereNotIn('status', [MessageStatus.FAILED, MessageStatus.SKIPPED])
@@ -94,21 +114,35 @@ export default class WhatsAppMessageService {
     // A new order's tracking token is the database's default: not on the model yet.
     if (!order.publicToken) await order.refresh()
     const store = await Store.findOrFail(order.storeId)
+    const values: Record<string, () => Promise<string> | string> = {
+      cliente: () => templateText(order.customerName.split(' ')[0] || order.customerName, 40),
+      numero: () => String(order.number),
+      loja: () => templateText(store.name, 60),
+      itens: async () => {
+        const lines = await OrderItem.query().where('orderId', order.id).orderBy('id')
+        const text = lines
+          .map((line) => `${line.quantity}x ${line.displayName ?? line.name}`)
+          .join(', ')
+        return templateText(text, 400)
+      },
+      pagamento: () => paymentLabel(order),
+      total: () => brl(order.total),
+      previsao: () => `fica pronto em cerca de ${store.pickupEtaMinutes} minutos`,
+    }
+    const params: Record<string, string> = {}
+    for (const param of bodyParams(notice.body)) params[param] = await values[param]()
+
     return await this.queue({
       storeId: order.storeId,
       orderId: order.id,
-      kind: notice.kind,
-      dedupKey: notice.key,
+      kind: KIND[notice.kind],
+      dedupKey: next.key,
       to: order.customerPhone,
       content: {
         type: 'template',
-        name: notice.template,
-        params: {
-          cliente: templateText(order.customerName.split(' ')[0] ?? order.customerName, 40),
-          numero: String(order.number),
-          loja: templateText(store.name, 60),
-        },
-        urlSuffix: order.publicToken,
+        name: notice.name,
+        params,
+        ...(notice.button && { urlSuffix: order.publicToken }),
       },
     })
   }
@@ -160,23 +194,45 @@ export default class WhatsAppMessageService {
       .update({ status: MessageStatus.FAILED, errorTitle: error.message.slice(0, 300) })
   }
 
-  /** The panel's list: the store's last messages (no contents: codes are never kept anyway). */
+  /**
+   * The panel's list: the store's last messages (no contents: codes are
+   * never kept anyway), and today's count per status.
+   */
   async recent(storeId: string, limit = 30) {
     const rows = await WhatsAppMessage.query()
       .where('storeId', storeId)
-      .preload('order', (order) => order.select('id', 'number'))
+      .preload('order', (order) => order.select('id', 'number', 'customerName'))
       .orderBy('createdAt', 'desc')
       .limit(limit)
-    return rows.map((row) => ({
-      id: row.id,
-      kind: row.kind,
-      to: row.to.replace(/^(\d{4})\d+(\d{4})$/, '$1•••••$2'),
-      status: row.status,
-      errorCode: row.errorCode,
-      errorTitle: row.errorTitle,
-      orderNumber: row.order?.number ?? null,
-      createdAt: row.createdAt.toISO()!,
-    }))
+    const startOfDay = DateTime.now().setZone(BUSINESS_TIMEZONE).startOf('day')
+    const counts = await db
+      .from('whatsapp_messages')
+      .where('store_id', storeId)
+      .where('created_at', '>=', startOfDay.toJSDate())
+      .groupBy('status')
+      .select('status')
+      .count('* as total')
+    const today = Object.fromEntries(
+      Object.values(MessageStatus).map((status) => [
+        status,
+        Number(counts.find((row) => row.status === status)?.total ?? 0),
+      ])
+    ) as Record<MessageStatus, number>
+    return {
+      today,
+      messages: rows.map((row) => ({
+        id: row.id,
+        kind: row.kind,
+        to: row.to.replace(/^(\d{4})\d+(\d{4})$/, '$1•••••$2'),
+        status: row.status,
+        errorCode: row.errorCode,
+        errorTitle: row.errorTitle,
+        orderNumber: row.order?.number ?? null,
+        customerName: row.order?.customerName ?? null,
+        createdAt: row.createdAt.toISO()!,
+        updatedAt: row.updatedAt.toISO()!,
+      })),
+    }
   }
 
   /**

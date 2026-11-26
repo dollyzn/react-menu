@@ -70,7 +70,8 @@ export default class WhatsAppController {
   /** The last messages sent through the number, for the panel. */
   async messages({ params }: HttpContext) {
     const storeId = await storeExistValidator.validate(params.storeId)
-    return ok(await this.messageLog.recent(storeId))
+    const { messages, today } = await this.messageLog.recent(storeId)
+    return ok(messages, { today })
   }
 
   private async connected(storeId: string) {

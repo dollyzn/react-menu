@@ -3,6 +3,7 @@ import type {
   WhatsAppConnectInput,
   WhatsAppConnection,
   WhatsAppMessageLog,
+  WhatsAppMessagesMeta,
   WhatsAppSettingsInput,
 } from "@react-menu/contracts";
 
@@ -38,7 +39,13 @@ export const whatsappApi = baseApi.injectEndpoints({
       async onQueryStarted({ storeId, input }, { dispatch, queryFulfilled }) {
         const patch = dispatch(
           whatsappApi.util.updateQueryData("getWhatsApp", storeId, (draft) => {
-            if (draft.account) Object.assign(draft.account, input);
+            if (!draft.account) return;
+            const { notices, ...switches } = input;
+            Object.assign(draft.account, switches);
+            for (const notice of draft.account.notices) {
+              const on = notices?.[notice.kind];
+              if (on !== undefined) notice.enabled = on;
+            }
           })
         );
         try {
@@ -53,7 +60,8 @@ export const whatsappApi = baseApi.injectEndpoints({
       query: (storeId) => ({ url: `stores/${storeId}/whatsapp`, method: "DELETE" }),
       invalidatesTags: (_res, _err, storeId) => [tag(storeId), messagesTag(storeId)],
     }),
-    getWhatsAppMessages: build.query<WhatsAppMessageLog[], string>({
+    /** The last messages and, in `meta.today`, today's count per status. */
+    getWhatsAppMessages: build.query<{ data: WhatsAppMessageLog[]; meta: WhatsAppMessagesMeta }, string>({
       query: (storeId) => `stores/${storeId}/whatsapp/messages`,
       providesTags: (_res, _err, storeId) => [messagesTag(storeId)],
       extraOptions: { quiet: true },

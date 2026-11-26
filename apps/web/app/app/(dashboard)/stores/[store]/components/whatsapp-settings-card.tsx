@@ -13,7 +13,7 @@ import {
   Unplug,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { WhatsAppConnection, WhatsAppMessageLog, WhatsAppTemplate } from "@react-menu/contracts";
+import type { WhatsAppConnection } from "@react-menu/contracts";
 import { AlertDialogDestructive } from "@/components/app/alert-dialog-destructive";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,43 +26,19 @@ import { embeddedSignupEvent, loadFacebookSdk } from "@/lib/facebook-sdk";
 import {
   useConnectWhatsAppMutation,
   useDisconnectWhatsAppMutation,
-  useGetWhatsAppMessagesQuery,
   useGetWhatsAppQuery,
   useRefreshWhatsAppMutation,
   useUpdateWhatsAppSettingsMutation,
 } from "@/redux/features/whatsapp/whatsappApi";
 import { getErrorMessage } from "@/utils/get-error-message";
-import { cn } from "@/lib/utils";
+import { NoticeList, TemplateStatus } from "./whatsapp-notices";
+import { WhatsAppMessageLog } from "./whatsapp-message-log";
 
 /** WhatsApp Manager, where the store adds a payment method (Meta charges the store). */
 const WHATSAPP_MANAGER = "https://business.facebook.com/wa/manage/home/";
 
-const TEMPLATE_STATUS: Record<string, { label: string; tone: string }> = {
-  APPROVED: { label: "Aprovado", tone: "bg-success/15 text-success" },
-  PENDING: { label: "Em análise", tone: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  IN_APPEAL: { label: "Em recurso", tone: "bg-amber-500/15 text-amber-700 dark:text-amber-300" },
-  REJECTED: { label: "Recusado", tone: "bg-destructive/10 text-destructive" },
-  PAUSED: { label: "Pausado", tone: "bg-destructive/10 text-destructive" },
-  DISABLED: { label: "Desativado", tone: "bg-destructive/10 text-destructive" },
-  MISSING: { label: "Não criado", tone: "bg-muted text-muted-foreground" },
-};
 
-const MESSAGE_KIND: Record<WhatsAppMessageLog["kind"], string> = {
-  order_received: "Pedido recebido",
-  order_ready: "Pedido pronto",
-  order_cancelled: "Pedido cancelado",
-  login_code: "Código de acesso",
-  login_reply: "Confirmação de acesso",
-};
 
-const MESSAGE_STATUS: Record<WhatsAppMessageLog["status"], string> = {
-  queued: "Na fila",
-  sent: "Enviada",
-  delivered: "Entregue",
-  read: "Lida",
-  failed: "Falhou",
-  skipped: "Não enviada",
-};
 
 /**
  * The store's own WhatsApp number (ADR 0025), connected through Meta's
@@ -241,10 +217,12 @@ function ConnectedPanel({
   const [save] = useUpdateWhatsAppSettingsMutation();
   const [refresh, { isLoading: refreshing }] = useRefreshWhatsAppMutation();
   const [disconnect, { isLoading: disconnecting }] = useDisconnectWhatsAppMutation();
-  const pending = account.templates.some((template) => template.status === "PENDING");
+  const pending = [...account.notices.map((notice) => notice.template), account.loginTemplate].some(
+    (template) => template.status === "PENDING"
+  );
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border p-3">
         <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-whatsapp/15 text-whatsapp">
           <Icons.whatsapp className="size-5" />
@@ -285,53 +263,57 @@ function ConnectedPanel({
         </Alert>
       )}
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <FieldLabel htmlFor="whatsapp-notify">
-          <Field orientation="horizontal">
-            <FieldContent>
-              <FieldTitle>Avisos do pedido</FieldTitle>
-              <FieldDescription>O checkout oferece receber avisos pelo WhatsApp.</FieldDescription>
-            </FieldContent>
+      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <section aria-labelledby="whatsapp-notices" className="flex min-w-0 flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 id="whatsapp-notices" className="font-semibold">
+                Avisos do pedido
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                Para quem marcar “Receber avisos pelo WhatsApp” no checkout. Cada mensagem é cobrada pela Meta.
+              </p>
+            </div>
             <Switch
-              id="whatsapp-notify"
               checked={account.notifyOrders}
+              aria-label="Enviar avisos do pedido"
               onCheckedChange={(checked) => void save({ storeId, input: { notifyOrders: checked } })}
             />
-          </Field>
-        </FieldLabel>
-        <FieldLabel htmlFor="whatsapp-login">
-          <Field orientation="horizontal">
-            <FieldContent>
-              <FieldTitle>Histórico pelo WhatsApp</FieldTitle>
-              <FieldDescription>Em “Meus pedidos”, o cliente entra pelo WhatsApp.</FieldDescription>
-            </FieldContent>
-            <Switch
-              id="whatsapp-login"
-              checked={account.customerLogin}
-              onCheckedChange={(checked) => void save({ storeId, input: { customerLogin: checked } })}
-            />
-          </Field>
-        </FieldLabel>
+          </div>
+          <NoticeList
+            notices={account.notices}
+            disabled={!account.notifyOrders}
+            onToggle={(notice, on) => void save({ storeId, input: { notices: { [notice.kind]: on } } })}
+          />
+          <p className="text-xs text-muted-foreground">
+            A Meta analisa cada mensagem antes do primeiro envio (de minutos a um dia).{" "}
+            {pending && "Conferimos de tempos em tempos; “Atualizar” confere agora."}
+            {account.templatesCheckedAt &&
+              ` Última conferência ${formatDistanceToNow(parseISO(account.templatesCheckedAt), { addSuffix: true, locale: ptBR })}.`}
+          </p>
+
+          <FieldLabel htmlFor="whatsapp-login" className="mt-2">
+            <Field orientation="horizontal">
+              <FieldContent>
+                <FieldTitle>
+                  Histórico pelo WhatsApp <TemplateStatus template={account.loginTemplate} />
+                </FieldTitle>
+                <FieldDescription>
+                  Em “Meus pedidos”, o cliente entra mandando uma mensagem (grátis) ou recebendo um código (quando o
+                  modelo estiver aprovado).
+                </FieldDescription>
+              </FieldContent>
+              <Switch
+                id="whatsapp-login"
+                checked={account.customerLogin}
+                onCheckedChange={(checked) => void save({ storeId, input: { customerLogin: checked } })}
+              />
+            </Field>
+          </FieldLabel>
+        </section>
+
+        <WhatsAppMessageLog storeId={storeId} />
       </div>
-
-      <section aria-labelledby="whatsapp-templates" className="flex flex-col gap-2">
-        <h3 id="whatsapp-templates" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Modelos de mensagem
-        </h3>
-        <p className="text-sm text-muted-foreground">
-          A Meta analisa cada modelo antes do primeiro envio (de minutos a um dia).{" "}
-          {pending && "Conferimos de tempos em tempos; “Atualizar” confere agora."}
-          {account.templatesCheckedAt &&
-            ` Última conferência ${formatDistanceToNow(parseISO(account.templatesCheckedAt), { addSuffix: true, locale: ptBR })}.`}
-        </p>
-        <ul className="divide-y rounded-2xl border">
-          {account.templates.map((template) => (
-            <TemplateRow key={template.name} template={template} />
-          ))}
-        </ul>
-      </section>
-
-      <RecentMessages storeId={storeId} />
 
       <AlertDialogDestructive
         title="Desconectar o WhatsApp?"
@@ -349,58 +331,5 @@ function ConnectedPanel({
         </Button>
       </AlertDialogDestructive>
     </div>
-  );
-}
-
-function TemplateRow({ template }: { template: WhatsAppTemplate }) {
-  const status = TEMPLATE_STATUS[template.status] ?? { label: template.status, tone: "bg-muted text-muted-foreground" };
-  return (
-    <li className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
-      <span className="min-w-0">
-        <span className="font-medium">{template.label}</span>
-        {template.category === "MARKETING" && (
-          <span className="block text-xs text-amber-700 dark:text-amber-300">
-            A Meta classificou como marketing (custa mais).
-          </span>
-        )}
-        {template.reason && <span className="block text-xs text-muted-foreground">{template.reason}</span>}
-      </span>
-      <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", status.tone)}>{status.label}</span>
-    </li>
-  );
-}
-
-/** The last messages through the number: what went out, what Meta refused. */
-function RecentMessages({ storeId }: { storeId: string }) {
-  const { data } = useGetWhatsAppMessagesQuery(storeId, { pollingInterval: 60_000 });
-  if (!data?.length) return null;
-  return (
-    <section aria-labelledby="whatsapp-messages" className="flex flex-col gap-2">
-      <h3 id="whatsapp-messages" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-        Últimas mensagens
-      </h3>
-      <ul className="divide-y rounded-2xl border text-sm">
-        {data.slice(0, 10).map((message) => (
-          <li key={message.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 p-3">
-            <span className="min-w-0">
-              <span className="font-medium">{MESSAGE_KIND[message.kind]}</span>
-              {message.orderNumber !== null && <span className="text-muted-foreground"> · #{message.orderNumber}</span>}
-              <span className="block text-xs text-muted-foreground tabular-nums">
-                {message.to} · {formatDistanceToNow(parseISO(message.createdAt), { addSuffix: true, locale: ptBR })}
-              </span>
-              {message.errorTitle && <span className="block text-xs text-destructive">{message.errorTitle}</span>}
-            </span>
-            <span
-              className={cn(
-                "rounded-full px-2 py-0.5 text-xs font-medium",
-                message.status === "failed" ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
-              )}
-            >
-              {MESSAGE_STATUS[message.status]}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </section>
   );
 }

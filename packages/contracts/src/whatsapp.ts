@@ -14,6 +14,9 @@ export type WhatsAppTemplateStatus =
   | 'PENDING_DELETION'
   | 'MISSING';
 
+/** The order notices a store can send, in the order they happen. */
+export type WhatsAppNoticeKind = 'received' | 'preparing' | 'ready' | 'completed' | 'cancelled';
+
 export type WhatsAppTemplate = {
   name: string;
   /** What it is for ("Pedido pronto"). */
@@ -50,7 +53,10 @@ export type WhatsAppConnection = {
     lastError: string | null;
     /** Meta refused a message for the payment method (add one in WhatsApp Manager). */
     paymentIssue: boolean;
-    templates: WhatsAppTemplate[];
+    /** The order notices: whether the store sends each, its template's review and a preview. */
+    notices: WhatsAppNotice[];
+    /** The template of "Receber um código" (history sign-in). */
+    loginTemplate: WhatsAppTemplate;
     templatesCheckedAt: string | null;
     connectedAt: string;
   } | null;
@@ -67,15 +73,29 @@ export type WhatsAppConnectInput =
     }
   | { fake: true };
 
+export type WhatsAppNotice = {
+  kind: WhatsAppNoticeKind;
+  label: string;
+  /** When it goes out. */
+  when: string;
+  enabled: boolean;
+  template: WhatsAppTemplate;
+  /** The text with example values (WhatsApp's *bold*), and its link button, if any. */
+  preview: { text: string; button: string | null };
+};
+
 /** PUT /stores/:storeId/whatsapp/settings */
 export type WhatsAppSettingsInput = {
   notifyOrders?: boolean;
   customerLogin?: boolean;
+  notices?: Partial<Record<WhatsAppNoticeKind, boolean>>;
 };
 
 export type WhatsAppMessageKind =
   | 'order_received'
+  | 'order_preparing'
   | 'order_ready'
+  | 'order_completed'
   | 'order_cancelled'
   | 'login_code'
   | 'login_reply';
@@ -90,5 +110,13 @@ export type WhatsAppMessageLog = {
   errorCode: number | null;
   errorTitle: string | null;
   orderNumber: number | null;
+  customerName: string | null;
   createdAt: string;
+  /** The last status change (sent, delivered, read). */
+  updatedAt: string;
+};
+
+/** `meta` of GET /stores/:storeId/whatsapp/messages: today's messages per status. */
+export type WhatsAppMessagesMeta = {
+  today: Record<WhatsAppMessageLog['status'], number>;
 };

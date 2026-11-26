@@ -49,15 +49,21 @@ the cost per message matters little; who pays it does.
   the connection broken; a payment problem (131042) marks it in the panel
   until a message gets through.
 - **Templates are ours, created in each WABA** (prefix `rm_`, version
-  suffix: a changed text is a new template). Utility, pt_BR, named body
-  parameters and a "track your order" URL button:
-  `rm_pedido_recebido_v1`, `rm_pedido_pronto_v1`, `rm_pedido_cancelado_v1`;
-  authentication with a copy-code button: `rm_codigo_acesso_v1`.
+  suffix: a changed text is a new template), utility, pt_BR, named body
+  parameters, in the tone of the delivery apps customers know: "recebido"
+  carries the order (items on one line, payment, total, pickup time) and no
+  link; "em preparo" carries the "Acompanhar pedido" link; "pronto",
+  "retirado" and "cancelado" are plain text (`rm_pedido_recebido_v2`,
+  `rm_pedido_preparo_v1`, `rm_pedido_pronto_v2`, `rm_pedido_retirado_v1`,
+  `rm_pedido_cancelado_v2`). Each store turns each notice on or off
+  ("retirado" starts off: every message is paid). Authentication with a
+  copy-code button: `rm_codigo_acesso_v1`.
 - **Order notices are opt-in per order** (`orders.whatsapp_opt_in`, a
   checkbox at checkout, offered only when the store's notices can go out).
   Online orders only. Every notice is a `whatsapp_messages` row with a
-  unique `dedup_key` (received once, ready once per `ready_at`, cancelled
-  once), then a `SendWhatsAppMessage` job; status webhooks update the row.
+  unique `dedup_key` (each step once, ready once per `ready_at`, cancelled
+  only after "recebido" was told), then a `SendWhatsAppMessage` job; status
+  webhooks update the row.
 - **History needs a verified phone**, per store, two ways:
   - *Message* (default, free): the menu shows a code and opens
     `wa.me/<store number>?text=…<code>`; the customer's message arrives on

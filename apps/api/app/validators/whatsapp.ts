@@ -25,6 +25,16 @@ export const whatsappSettingsValidator = vine.create(
   vine.object({
     notifyOrders: vine.boolean().optional(),
     customerLogin: vine.boolean().optional(),
+    /** Per order notice: on or off (received, preparing, ready, completed, cancelled). */
+    notices: vine
+      .object({
+        received: vine.boolean().optional(),
+        preparing: vine.boolean().optional(),
+        ready: vine.boolean().optional(),
+        completed: vine.boolean().optional(),
+        cancelled: vine.boolean().optional(),
+      })
+      .optional(),
   })
 )
 

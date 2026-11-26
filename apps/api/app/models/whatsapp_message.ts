@@ -24,7 +24,9 @@ export type MessageContent = TemplateContent | TextContent | CodeContent
 
 export const MessageKind = {
   ORDER_RECEIVED: 'order_received',
+  ORDER_PREPARING: 'order_preparing',
   ORDER_READY: 'order_ready',
+  ORDER_COMPLETED: 'order_completed',
   ORDER_CANCELLED: 'order_cancelled',
   LOGIN_CODE: 'login_code',
   LOGIN_REPLY: 'login_reply',

@@ -24,13 +24,13 @@ test.group('WhatsApp order notices', (group) => {
   const meta = useFakeGraph(group)
 
   async function setup() {
-    const { store, carne } = await createMenuStore()
+    const { store, carne, coca } = await createMenuStore()
     const account = await connectStore(store)
     const cook = await createStaff()
     await linkUser(store, cook, StoreRole.KITCHEN)
     const cashier = await createStaff()
     await linkUser(store, cashier, StoreRole.ATTENDANT)
-    return { store, carne, account, cook, cashier }
+    return { store, carne, coca, account, cook, cashier }
   }
 
   async function sendQueued() {
@@ -38,56 +38,123 @@ test.group('WhatsApp order notices', (group) => {
     for (const message of queued) await runJob(SendWhatsAppMessage, { messageId: message.id })
   }
 
-  test('received and ready, once each, with the order link', async ({ client, assert }) => {
+  test('every step of the order, once each: the order on "recebido", the link on "em preparo", "pronto" without one', async ({
+    client,
+    assert,
+  }) => {
     fakeQueue()
-    const { store, carne, cook } = await setup()
-
+    const { store, carne, coca, cook, cashier, account } = await setup()
     const placed = await client.post(`/api/v1/public/menu/${store.slug}/orders`).json({
       customer,
       paymentMethod: 'counter',
-      lines: [{ itemId: carne.id, quantity: 1 }],
+      lines: [
+        { itemId: carne.id, quantity: 2 },
+        { itemId: coca.id, quantity: 1 },
+      ],
       whatsappOptIn: true,
     })
     placed.assertStatus(200)
     const order = await Order.findByOrFail('publicToken', placed.body().data.publicToken)
     assert.isTrue(order.whatsappOptIn)
+    // The pickup time is the database's default: not on the fixture's model.
+    await store.refresh()
 
-    await sendQueued()
-    assert.lengthOf(meta.graph.sent, 1)
-    const [received] = meta.graph.sent
-    assert.equal(received.to, '5511987654321')
-    const template = received.body.template as {
+    type Sent = {
       name: string
       language: { code: string }
       components: { type: string; parameters: { parameter_name?: string; text: string }[] }[]
     }
-    assert.equal(template.name, TEMPLATES.ORDER_RECEIVED)
-    assert.equal(template.language.code, 'pt_BR')
-    // Named parameters: any order (jsonb keeps its own).
-    assert.sameDeepMembers(template.components[0].parameters, [
+    const sent = (index: number) => meta.graph.sent[index].body.template as Sent
+
+    await sendQueued()
+    assert.lengthOf(meta.graph.sent, 1)
+    assert.equal(meta.graph.sent[0].to, '5511987654321')
+    const received = sent(0)
+    assert.equal(received.name, TEMPLATES.ORDER_RECEIVED)
+    assert.equal(received.language.code, 'pt_BR')
+    // Named parameters: any order (jsonb keeps its own). No button: the order is in the text.
+    assert.sameDeepMembers(received.components[0].parameters, [
       { type: 'text', parameter_name: 'cliente', text: 'Ana' },
       { type: 'text', parameter_name: 'numero', text: String(order.number) },
       { type: 'text', parameter_name: 'loja', text: store.name },
+      { type: 'text', parameter_name: 'itens', text: '2x Pastel de Carne, 1x Coca-Cola' },
+      { type: 'text', parameter_name: 'pagamento', text: 'Pagamento na retirada' },
+      { type: 'text', parameter_name: 'total', text: 'R$ 36,00' },
+      {
+        type: 'text',
+        parameter_name: 'previsao',
+        text: `fica pronto em cerca de ${store.pickupEtaMinutes} minutos`,
+      },
     ] as never)
-    assert.deepEqual(template.components[1].parameters, [
+    assert.lengthOf(received.components, 1)
+
+    // The kitchen makes one of the two pastries: "em preparo", with the link.
+    const line = await OrderItem.query()
+      .where({ orderId: order.id, itemId: carne.id })
+      .firstOrFail()
+    const prepare = () =>
+      client
+        .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
+        .json({ units: [{ lineId: line.id, quantity: 1 }] })
+        .loginAs(cook)
+    const first = await prepare()
+    first.assertStatus(200)
+    await sendQueued()
+    const preparing = sent(1)
+    assert.equal(preparing.name, TEMPLATES.ORDER_PREPARING)
+    assert.deepEqual(preparing.components[0].parameters, [
+      { type: 'text', parameter_name: 'numero', text: String(order.number) },
+    ] as never)
+    assert.deepEqual(preparing.components[1].parameters, [
       { type: 'text', text: order.publicToken },
     ] as never)
 
-    // The kitchen finishes it: "ready" is told.
-    const line = await OrderItem.findByOrFail('orderId', order.id)
-    const made = await client
-      .post(`/api/v1/stores/${store.id}/kitchen/prepare`)
-      .json({ units: [{ lineId: line.id, quantity: 1 }] })
-      .loginAs(cook)
-    made.assertStatus(200)
+    // The second one: "pronto", no link.
+    const second = await prepare()
+    second.assertStatus(200)
     await sendQueued()
-    assert.lengthOf(meta.graph.sent, 2)
-    assert.equal((meta.graph.sent[1].body.template as { name: string }).name, TEMPLATES.ORDER_READY)
+    const ready = sent(2)
+    assert.equal(ready.name, TEMPLATES.ORDER_READY)
+    assert.lengthOf(ready.components, 1)
+
+    // "Retirado" is off until the store turns it on.
+    const manager = await createStaff()
+    await linkUser(store, manager, StoreRole.MANAGER)
+    const toggled = await client
+      .put(`/api/v1/stores/${store.id}/whatsapp/settings`)
+      .json({ notices: { completed: true, preparing: false } })
+      .loginAs(manager)
+    toggled.assertStatus(200)
+    const notices = toggled.body().data.account.notices as { kind: string; enabled: boolean }[]
+    assert.deepEqual(Object.fromEntries(notices.map((notice) => [notice.kind, notice.enabled])), {
+      received: true,
+      preparing: false,
+      ready: true,
+      completed: true,
+      cancelled: true,
+    })
+    await account.refresh()
+    // Only what differs from the defaults is kept.
+    assert.deepEqual(account.notices, { completed: true, preparing: false })
+
+    // Paid at the counter, then handed over.
+    const paid = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/payment`)
+      .json({ method: 'cash' })
+      .loginAs(cashier)
+    paid.assertStatus(200)
+    const delivered = await client
+      .post(`/api/v1/stores/${store.id}/orders/${order.id}/complete`)
+      .loginAs(cashier)
+    delivered.assertStatus(200)
+    await sendQueued()
+    assert.equal(sent(3).name, TEMPLATES.ORDER_COMPLETED)
 
     // Nothing is sent twice, whatever runs again.
     const rows = await WhatsAppMessage.query().where('orderId', order.id)
+    assert.lengthOf(rows, 4)
     for (const row of rows) await runJob(SendWhatsAppMessage, { messageId: row.id })
-    assert.lengthOf(meta.graph.sent, 2)
+    assert.lengthOf(meta.graph.sent, 4)
   })
 
   test('nothing without the opt-in, at the POS, or with the template not approved', async ({

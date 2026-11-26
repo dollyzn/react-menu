@@ -8,7 +8,14 @@ import type Store from '#models/store'
 import type User from '#models/user'
 import WhatsAppClient, { WhatsAppApiError } from '#whatsapp/client'
 import { whatsappConfig } from '#whatsapp/config'
-import { TEMPLATE_DEFINITIONS, TEMPLATE_LANGUAGE, TEMPLATES } from '#whatsapp/templates'
+import {
+  NOTICES,
+  type NoticeKind,
+  previewOf,
+  TEMPLATE_DEFINITIONS,
+  TEMPLATE_LANGUAGE,
+  TEMPLATES,
+} from '#whatsapp/templates'
 import env from '#start/env'
 
 export type ConnectInput = {
@@ -270,9 +277,25 @@ export default class WhatsAppAccountService {
 
   async updateSettings(
     account: WhatsAppAccount,
-    input: { notifyOrders?: boolean; customerLogin?: boolean }
+    input: {
+      notifyOrders?: boolean
+      customerLogin?: boolean
+      notices?: Partial<Record<NoticeKind, boolean>>
+    }
   ) {
-    account.merge(input)
+    const { notices, ...switches } = input
+    account.merge(switches)
+    if (notices) {
+      // Only what differs from each notice's default is kept.
+      const next = { ...account.notices }
+      for (const notice of NOTICES) {
+        const on = notices[notice.kind]
+        if (on === undefined) continue
+        if (on === notice.defaultOn) delete next[notice.kind]
+        else next[notice.kind] = on
+      }
+      account.notices = next
+    }
     await account.save()
     return account
   }
@@ -310,8 +333,13 @@ export default class WhatsAppAccountService {
   publicFeatures(account: WhatsAppAccount | null) {
     const usable = Boolean(account?.isUsable)
     return {
+      // Offered when at least one notice the store sends can go out.
       notifications:
-        usable && account!.notifyOrders && account!.templateApproved(TEMPLATES.ORDER_RECEIVED),
+        usable &&
+        account!.notifyOrders &&
+        NOTICES.some(
+          (notice) => account!.noticeOn(notice.kind) && account!.templateApproved(notice.name)
+        ),
       login:
         usable && account!.customerLogin
           ? { message: true, code: account!.templateApproved(TEMPLATES.LOGIN_CODE) }
@@ -343,17 +371,30 @@ export default class WhatsAppAccountService {
             broken: Boolean(account.brokenAt),
             lastError: account.lastError,
             paymentIssue: Boolean(account.paymentIssueAt),
-            templates: TEMPLATE_DEFINITIONS.map((definition) => ({
-              name: definition.name,
-              label: definition.label,
-              status: account.templates?.[definition.name]?.status ?? 'MISSING',
-              category: account.templates?.[definition.name]?.category ?? null,
-              reason: account.templates?.[definition.name]?.reason ?? null,
+            notices: NOTICES.map((notice) => ({
+              kind: notice.kind,
+              label: notice.label,
+              when: notice.when,
+              enabled: account.noticeOn(notice.kind),
+              template: this.templateState(account, notice.name, notice.label),
+              preview: { text: previewOf(notice), button: notice.button?.text ?? null },
             })),
+            loginTemplate: this.templateState(account, TEMPLATES.LOGIN_CODE, 'Código de acesso'),
             templatesCheckedAt: account.templatesCheckedAt?.toISO() ?? null,
             connectedAt: account.createdAt.toISO()!,
           }
         : null,
+    }
+  }
+
+  private templateState(account: WhatsAppAccount, name: string, label: string) {
+    const state = account.templates?.[name]
+    return {
+      name,
+      label,
+      status: state?.status ?? 'MISSING',
+      category: state?.category ?? null,
+      reason: state?.reason ?? null,
     }
   }
 }

@@ -71,8 +71,11 @@ test.group('WhatsApp connection (store page)', (group) => {
     )
     assert.isTrue(created.every((template) => template.language === 'pt_BR'))
     assert.isTrue(
-      account.templates.every((template: { status: string }) => template.status === 'PENDING')
+      account.notices.every(
+        (notice: { template: { status: string } }) => notice.template.status === 'PENDING'
+      )
     )
+    assert.equal(account.loginTemplate.status, 'PENDING')
 
     // The token and PIN are encrypted at rest.
     const saved = await WhatsAppAccount.findByOrFail('storeId', store.id)
@@ -167,12 +170,10 @@ test.group('WhatsApp connection (store page)', (group) => {
     }))
     const refreshed = await client.post(`${base}/refresh`).loginAs(manager)
     refreshed.assertStatus(200)
-    const login = refreshed
-      .body()
-      .data.account.templates.find(
-        (template: { name: string }) => template.name === TEMPLATES.LOGIN_CODE
-      )
-    assert.deepInclude(login, { status: 'REJECTED', reason: 'INVALID_FORMAT' })
+    assert.deepInclude(refreshed.body().data.account.loginTemplate, {
+      status: 'REJECTED',
+      reason: 'INVALID_FORMAT',
+    })
     assert.lengthOf(meta.graph.called('subscribeApp'), 1)
 
     const gone = await client.delete(base).loginAs(manager)

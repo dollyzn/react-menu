@@ -47,7 +47,12 @@ test("with the store's WhatsApp, customers ask for notices and open their histor
   await page.goto(`/app/stores/${storeId}?aba=whatsapp`);
   await page.getByRole("button", { name: "Conectar número de teste" }).click();
   await expect(page.getByText("+55 11 90000-0000")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Modelos de mensagem" }).getByText("Aprovado")).toHaveCount(4);
+  // Five order notices and the sign-in code, all approved (development fake).
+  const notices = page.getByRole("region", { name: "Avisos do pedido" });
+  await expect(notices.getByText("Aprovado", { exact: true })).toHaveCount(6);
+  // The message as the customer reads it.
+  await notices.getByRole("button", { name: "Ver mensagem" }).first().click();
+  await expect(notices.getByText("Recebemos o seu pedido nº 42")).toBeVisible();
 
   // A customer asks for notices at checkout.
   const customer = await device(browser);

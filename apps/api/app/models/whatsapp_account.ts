@@ -3,6 +3,7 @@ import encryption from '@adonisjs/core/services/encryption'
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import Store from '#models/store'
+import { noticeOf, type NoticeKind } from '#whatsapp/templates'
 
 const encrypt = (value: string | null) => (value ? encryption.encrypt(value) : null)
 const decrypt = (value: string | null) =>
@@ -65,6 +66,10 @@ export default class WhatsAppAccount extends BaseModel {
   @column({ prepare: (value: Record<string, TemplateState>) => JSON.stringify(value ?? {}) })
   declare templates: Record<string, TemplateState>
 
+  /** The store's choices per order notice that differ from the defaults. */
+  @column({ prepare: (value: Partial<Record<NoticeKind, boolean>>) => JSON.stringify(value ?? {}) })
+  declare notices: Partial<Record<NoticeKind, boolean>>
+
   @column.dateTime()
   declare templatesCheckedAt: DateTime | null
 
@@ -95,6 +100,11 @@ export default class WhatsAppAccount extends BaseModel {
   /** Messages can go out (the token works). */
   get isUsable() {
     return !this.brokenAt
+  }
+
+  /** The store sends this notice (its choice, else the notice's default). */
+  noticeOn(kind: NoticeKind) {
+    return this.notices?.[kind] ?? noticeOf(kind).defaultOn
   }
 
   templateApproved(name: string) {
