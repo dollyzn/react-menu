@@ -117,7 +117,7 @@ export function WhatsAppSignIn({
 
 type Step =
   | { kind: "idle" }
-  | { kind: "message"; challenge: Extract<CustomerLoginChallenge, { method: "message" }> }
+  | { kind: "message"; challenge: Extract<CustomerLoginChallenge, { method: "message" }>; opened: boolean }
   | { kind: "phone" }
   | { kind: "code"; challenge: Extract<CustomerLoginChallenge, { method: "code" }> };
 
@@ -160,12 +160,24 @@ function SignInFlow({
     setStep(next);
   };
 
+  /**
+   * One tap: the tab for WhatsApp opens right in the tap (after the request
+   * the browser would block it) and goes to the wa.me link once the code
+   * exists. Blocked anyway, the step's "Abrir o WhatsApp" is still there.
+   */
   const byMessage = async () => {
     setError(null);
+    const tab = window.open("", "_blank");
     try {
       const challenge = await start({ slug: store.slug, input: { method: "message" } }).unwrap();
-      if (challenge.method === "message") setStep({ kind: "message", challenge });
+      if (challenge.method !== "message") return tab?.close();
+      if (tab && !tab.closed) {
+        tab.opener = null;
+        tab.location.href = challenge.link;
+      }
+      setStep({ kind: "message", challenge, opened: Boolean(tab) });
     } catch (err) {
+      tab?.close();
       setError(getErrorMessage(err, "Não foi possível começar agora. Tente de novo."));
     }
   };
@@ -214,6 +226,7 @@ function SignInFlow({
         <MessageStep
           store={store}
           challenge={step.challenge}
+          opened={step.opened}
           onVerified={signedIn}
           onExpired={expired}
           onCancel={() => goTo({ kind: "idle" })}
@@ -317,12 +330,15 @@ function SignInFlow({
 function MessageStep({
   store,
   challenge,
+  opened,
   onVerified,
   onExpired,
   onCancel,
 }: {
   store: Store;
   challenge: Extract<CustomerLoginChallenge, { method: "message" }>;
+  /** The WhatsApp tab was opened by the first tap. */
+  opened: boolean;
   onVerified: (token: string) => void;
   onExpired: () => void;
   onCancel: () => void;
@@ -365,10 +381,17 @@ function MessageStep({
       <ol className="flex flex-col gap-2 text-sm">
         <li className="flex gap-2.5">
           <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">1</span>
-          <span>
-            Toque em <span className="font-medium">Abrir o WhatsApp</span>: a mensagem para a {store.name} já vai
-            escrita.
-          </span>
+          {opened ? (
+            <span>
+              O WhatsApp abriu com a mensagem para a {store.name} já escrita. Não abriu? Toque em{" "}
+              <span className="font-medium">Abrir o WhatsApp</span>.
+            </span>
+          ) : (
+            <span>
+              Toque em <span className="font-medium">Abrir o WhatsApp</span>: a mensagem para a {store.name} já vai
+              escrita.
+            </span>
+          )}
         </li>
         <li className="flex gap-2.5">
           <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold">2</span>
@@ -386,7 +409,11 @@ function MessageStep({
         href={challenge.link}
         target="_blank"
         rel="noopener noreferrer"
-        className={cn(buttonVariants({ size: "lg" }), "h-11 w-full", WHATSAPP_BUTTON)}
+        className={cn(
+          buttonVariants({ size: "lg", variant: opened ? "outline" : "default" }),
+          "h-11 w-full rounded-full",
+          !opened && WHATSAPP_BUTTON
+        )}
       >
         <Icons.whatsapp /> Abrir o WhatsApp
       </a>
