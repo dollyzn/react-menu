@@ -38,6 +38,8 @@ test("with the store's WhatsApp, customers ask for notices and open their histor
   page,
   browser,
 }) => {
+  // Four browsers (panel, customer, another phone, a stranger) and the whole flow.
+  test.slow();
   await page.setViewportSize({ width: 1280, height: 900 });
   const menu = await (await page.request.get(`${API_URL}/api/v1/public/menu`)).json();
   const storeId = menu.data.store.id as string;
