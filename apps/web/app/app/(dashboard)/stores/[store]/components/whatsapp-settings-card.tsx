@@ -225,7 +225,7 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         <div className="flex flex-col items-stretch gap-2 md:w-56 md:items-center">
           <Button
             size="lg"
-            className="h-11 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp-hover"
+            className="h-12 rounded-full bg-whatsapp px-7 text-base text-whatsapp-foreground hover:bg-whatsapp-hover"
             loading={opening || connecting}
             onClick={() => void start()}
           >
