@@ -76,6 +76,13 @@ export function WhatsAppSettingsCard({ store }: { store: Store }) {
   );
 }
 
+/** What the manager goes through in Meta's window. */
+const CONNECT_STEPS = [
+  "Entre com o Facebook da empresa: a janela que abre é da Meta.",
+  "Escolha um número novo ou o do WhatsApp Business da loja, que continua funcionando no celular.",
+  "Pronto: as mensagens vão para a análise da Meta, que leva de minutos a um dia.",
+];
+
 /**
  * "Conectar WhatsApp": Meta's flow in a popup. It ends with a code (the
  * callback) and the chosen number (a window message); the API needs both.
@@ -170,14 +177,14 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
   };
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <ul className="grid gap-3 text-sm sm:grid-cols-2">
         <li className="flex gap-3 rounded-2xl border p-3">
           <BellRing className="mt-0.5 size-5 shrink-0 text-primary" />
           <span>
             <span className="font-medium">Avisos do pedido</span>
             <span className="block text-muted-foreground">
-              Recebido, pronto para retirar e cancelado, para quem pedir no checkout.
+              Recebido, em preparo, pronto para retirar e mais, para quem pedir no checkout.
             </span>
           </span>
         </li>
@@ -191,17 +198,46 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
           </span>
         </li>
       </ul>
-      <p className="text-sm text-muted-foreground">
-        Use um número que ainda não está no WhatsApp ou o número do WhatsApp Business da loja (ele continua
-        funcionando no celular). A Meta pede os dados da empresa e uma forma de pagamento.
-      </p>
-      <Button
-        className="self-start rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp-hover"
-        loading={opening || connecting}
-        onClick={() => void start()}
-      >
-        <Icons.whatsapp /> {signup.fake ? "Conectar número de teste" : "Conectar WhatsApp"}
-      </Button>
+      <div className="grid gap-5 rounded-2xl border border-whatsapp/30 bg-whatsapp/5 p-4 md:grid-cols-[1fr_auto] md:items-center md:gap-8 md:p-5">
+        <div className="flex flex-col gap-3">
+          <h3 className="font-semibold">Como conectar</h3>
+          {signup.fake ? (
+            <p className="text-sm text-muted-foreground">
+              Modo de desenvolvimento: conecta um número de teste na hora, sem passar pela Meta. As mensagens só
+              aparecem no log da API.
+            </p>
+          ) : (
+            <ol className="flex flex-col gap-2.5 text-sm">
+              {CONNECT_STEPS.map((step, index) => (
+                <li key={step} className="flex gap-3">
+                  <span
+                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-whatsapp/15 text-xs font-semibold text-whatsapp"
+                    aria-hidden
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="pt-0.5">{step}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+        <div className="flex flex-col items-stretch gap-2 md:w-56 md:items-center">
+          <Button
+            size="lg"
+            className="h-11 rounded-full bg-whatsapp text-whatsapp-foreground hover:bg-whatsapp-hover"
+            loading={opening || connecting}
+            onClick={() => void start()}
+          >
+            <Icons.whatsapp /> {signup.fake ? "Conectar número de teste" : "Conectar WhatsApp"}
+          </Button>
+          {!signup.fake && (
+            <p className="text-center text-xs text-muted-foreground">
+              Leva uns 5 minutos. A Meta pede os dados da empresa e um cartão: as mensagens são cobradas da loja.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
