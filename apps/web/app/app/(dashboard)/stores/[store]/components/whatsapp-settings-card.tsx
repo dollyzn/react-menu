@@ -19,7 +19,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, FieldContent, FieldDescription, FieldLabel, FieldTitle } from "@/components/ui/field";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { embeddedSignupEvent, loadFacebookSdk } from "@/lib/facebook-sdk";
@@ -31,7 +30,7 @@ import {
   useUpdateWhatsAppSettingsMutation,
 } from "@/redux/features/whatsapp/whatsappApi";
 import { getErrorMessage } from "@/utils/get-error-message";
-import { NoticeList, TemplateStatus } from "./whatsapp-notices";
+import { LoginStepList, NoticeList } from "./whatsapp-notices";
 import { WhatsAppMessageLog } from "./whatsapp-message-log";
 
 /** WhatsApp Manager, where the store adds a payment method (Meta charges the store). */
@@ -263,56 +262,61 @@ function ConnectedPanel({
         </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
-        <section aria-labelledby="whatsapp-notices" className="flex min-w-0 flex-col gap-3">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <h3 id="whatsapp-notices" className="font-semibold">
-                Avisos do pedido
-              </h3>
-              <p className="text-sm text-muted-foreground">
-                Para quem marcar “Receber avisos pelo WhatsApp” no checkout. Cada mensagem é cobrada pela Meta.
-              </p>
-            </div>
-            <Switch
-              checked={account.notifyOrders}
-              aria-label="Enviar avisos do pedido"
-              onCheckedChange={(checked) => void save({ storeId, input: { notifyOrders: checked } })}
-            />
-          </div>
-          <NoticeList
-            notices={account.notices}
-            disabled={!account.notifyOrders}
-            onToggle={(notice, on) => void save({ storeId, input: { notices: { [notice.kind]: on } } })}
-          />
-          <p className="text-xs text-muted-foreground">
-            A Meta analisa cada mensagem antes do primeiro envio (de minutos a um dia).{" "}
-            {pending && "Conferimos de tempos em tempos; “Atualizar” confere agora."}
-            {account.templatesCheckedAt &&
-              ` Última conferência ${formatDistanceToNow(parseISO(account.templatesCheckedAt), { addSuffix: true, locale: ptBR })}.`}
-          </p>
-
-          <FieldLabel htmlFor="whatsapp-login" className="mt-2">
-            <Field orientation="horizontal">
-              <FieldContent>
-                <FieldTitle>
-                  Histórico pelo WhatsApp <TemplateStatus template={account.loginTemplate} />
-                </FieldTitle>
-                <FieldDescription>
-                  Em “Meus pedidos”, o cliente entra mandando uma mensagem (grátis) ou recebendo um código (quando o
-                  modelo estiver aprovado).
-                </FieldDescription>
-              </FieldContent>
+      <div className="grid items-start gap-6 lg:grid-cols-[1.2fr_1fr]">
+        <div className="flex min-w-0 flex-col gap-8">
+          <section aria-labelledby="whatsapp-notices" className="flex min-w-0 flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 id="whatsapp-notices" className="font-semibold">
+                  Avisos do pedido
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Para quem marcar “Receber avisos pelo WhatsApp” no checkout. Cada mensagem é cobrada pela Meta.
+                </p>
+              </div>
               <Switch
-                id="whatsapp-login"
+                checked={account.notifyOrders}
+                aria-label="Enviar avisos do pedido"
+                onCheckedChange={(checked) => void save({ storeId, input: { notifyOrders: checked } })}
+              />
+            </div>
+            <NoticeList
+              notices={account.notices}
+              disabled={!account.notifyOrders}
+              onToggle={(notice, on) => void save({ storeId, input: { notices: { [notice.kind]: on } } })}
+            />
+            <p className="text-xs text-muted-foreground">
+              A Meta analisa cada mensagem antes do primeiro envio (de minutos a um dia).{" "}
+              {pending && "Conferimos de tempos em tempos; “Atualizar” confere agora."}
+              {account.templatesCheckedAt &&
+                ` Última conferência ${formatDistanceToNow(parseISO(account.templatesCheckedAt), { addSuffix: true, locale: ptBR })}.`}
+            </p>
+          </section>
+
+          <section aria-labelledby="whatsapp-login" className="flex min-w-0 flex-col gap-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 id="whatsapp-login" className="font-semibold">
+                  Histórico pelo WhatsApp
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Em “Meus pedidos”, o cliente prova que o número é dele e vê todos os pedidos, de qualquer celular.
+                </p>
+              </div>
+              <Switch
                 checked={account.customerLogin}
+                aria-label="Oferecer o histórico pelo WhatsApp"
                 onCheckedChange={(checked) => void save({ storeId, input: { customerLogin: checked } })}
               />
-            </Field>
-          </FieldLabel>
-        </section>
+            </div>
+            <LoginStepList steps={account.loginSteps} active={account.customerLogin} />
+          </section>
+        </div>
 
-        <WhatsAppMessageLog storeId={storeId} />
+        {/* Beside the lists on wide screens, following the page as it scrolls. */}
+        <div className="min-w-0 lg:sticky lg:top-4">
+          <WhatsAppMessageLog storeId={storeId} />
+        </div>
       </div>
 
       <AlertDialogDestructive

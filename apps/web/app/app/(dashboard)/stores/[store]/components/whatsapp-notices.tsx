@@ -1,7 +1,7 @@
 "use client";
 
-import { ChevronDown, ExternalLink } from "lucide-react";
-import type { WhatsAppNotice, WhatsAppTemplate } from "@react-menu/contracts";
+import { ChevronDown, Copy, ExternalLink, KeyRound, MessageCircleReply } from "lucide-react";
+import type { WhatsAppLoginStep, WhatsAppNotice, WhatsAppTemplate } from "@react-menu/contracts";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -51,11 +51,80 @@ function MessagePreview({ preview }: { preview: WhatsAppNotice["preview"] }) {
         </p>
         {preview.button && (
           <p className="flex items-center justify-center gap-1.5 border-t border-black/10 py-2 font-medium text-[#008069] dark:border-white/10 dark:text-[#00a884]">
-            <ExternalLink className="size-4" /> {preview.button}
+            {preview.button === "Copiar código" ? <Copy className="size-4" /> : <ExternalLink className="size-4" />}{" "}
+            {preview.button}
           </p>
         )}
       </div>
     </div>
+  );
+}
+
+/** The panel grows and shrinks with its content (the system's collapsible pattern). */
+export const GROW =
+  "h-(--collapsible-panel-height) overflow-hidden transition-[height] duration-200 ease-out motion-reduce:transition-none data-ending-style:h-0 data-starting-style:h-0";
+
+/**
+ * One message the store sends: a marker, what it is and when it goes out,
+ * its template's review (when it has one), an optional switch, and "Ver
+ * mensagem", which grows into the message as the customer reads it.
+ */
+function MessageRow({
+  marker,
+  active,
+  label,
+  when,
+  template,
+  badge,
+  preview,
+  control,
+}: {
+  marker: React.ReactNode;
+  active: boolean;
+  label: string;
+  when: string;
+  template: WhatsAppTemplate | null;
+  badge?: React.ReactNode;
+  preview: WhatsAppNotice["preview"];
+  control?: React.ReactNode;
+}) {
+  return (
+    <li className={cn("p-3 transition-colors", !active && "bg-muted/30")}>
+      <Collapsible>
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
+              active ? "bg-whatsapp/15 text-whatsapp" : "bg-muted text-muted-foreground"
+            )}
+            aria-hidden
+          >
+            {marker}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+              {label} {template ? <TemplateStatus template={template} /> : badge}
+            </p>
+            <p className="text-xs text-muted-foreground">{when}</p>
+            {template?.reason && <p className="text-xs text-destructive">{template.reason}</p>}
+            {template?.category === "MARKETING" && (
+              <p className="text-xs text-warning">A Meta classificou como marketing (custa mais).</p>
+            )}
+            <CollapsibleTrigger className="group mt-1 inline-flex items-center gap-1 rounded text-xs font-medium text-primary outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
+              Ver mensagem
+              <ChevronDown className="size-3.5 transition-transform duration-200 group-data-[panel-open]:rotate-180 motion-reduce:transition-none" />
+            </CollapsibleTrigger>
+          </div>
+          {control}
+        </div>
+        <CollapsibleContent className={GROW}>
+          {/* Spacing inside the panel, so it grows from nothing. */}
+          <div className="pt-3 pl-9">
+            <MessagePreview preview={preview} />
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </li>
   );
 }
 
@@ -75,47 +144,46 @@ export function NoticeList({
   return (
     <ol className="divide-y rounded-2xl border">
       {notices.map((notice, index) => (
-        <li key={notice.kind} className={cn("p-3", (disabled || !notice.enabled) && "bg-muted/30")}>
-          <Collapsible>
-            <div className="flex items-start gap-3">
-              <span
-                className={cn(
-                  "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                  notice.enabled && !disabled ? "bg-whatsapp/15 text-whatsapp" : "bg-muted text-muted-foreground"
-                )}
-                aria-hidden
-              >
-                {index + 1}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
-                  {notice.label} <TemplateStatus template={notice.template} />
-                </p>
-                <p className="text-xs text-muted-foreground">{notice.when}</p>
-                {notice.template.reason && (
-                  <p className="text-xs text-destructive">{notice.template.reason}</p>
-                )}
-                {notice.template.category === "MARKETING" && (
-                  <p className="text-xs text-warning">A Meta classificou como marketing (custa mais).</p>
-                )}
-                <CollapsibleTrigger className="group mt-1 inline-flex items-center gap-1 rounded text-xs font-medium text-primary outline-none focus-visible:ring-3 focus-visible:ring-ring/50">
-                  Ver mensagem
-                  <ChevronDown className="size-3.5 transition-transform group-data-[panel-open]:rotate-180" />
-                </CollapsibleTrigger>
-              </div>
-              <Switch
-                checked={notice.enabled}
-                disabled={disabled}
-                aria-label={`Enviar "${notice.label}"`}
-                onCheckedChange={(checked) => onToggle(notice, checked)}
-              />
-            </div>
-            <CollapsibleContent className="mt-3 pl-9">
-              <MessagePreview preview={notice.preview} />
-            </CollapsibleContent>
-          </Collapsible>
-        </li>
+        <MessageRow
+          key={notice.kind}
+          marker={index + 1}
+          active={!disabled && notice.enabled}
+          label={notice.label}
+          when={notice.when}
+          template={notice.template}
+          preview={notice.preview}
+          control={
+            <Switch
+              checked={notice.enabled}
+              disabled={disabled}
+              aria-label={`Enviar "${notice.label}"`}
+              onCheckedChange={(checked) => onToggle(notice, checked)}
+            />
+          }
+        />
       ))}
     </ol>
+  );
+}
+
+/** The two ways of the history sign-in, with what the customer receives. */
+export function LoginStepList({ steps, active }: { steps: WhatsAppLoginStep[]; active: boolean }) {
+  return (
+    <ul className="divide-y rounded-2xl border">
+      {steps.map((step) => (
+        <MessageRow
+          key={step.kind}
+          marker={step.kind === "message" ? <MessageCircleReply className="size-3.5" /> : <KeyRound className="size-3.5" />}
+          active={active && (!step.template || step.template.status === "APPROVED")}
+          label={step.label}
+          when={step.when}
+          template={step.template}
+          badge={
+            <span className="rounded-full bg-success/15 px-2 py-0.5 text-[11px] font-medium text-success">Grátis</span>
+          }
+          preview={step.preview}
+        />
+      ))}
+    </ul>
   );
 }

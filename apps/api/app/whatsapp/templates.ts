@@ -130,6 +130,24 @@ export const NOTICES: NoticeDefinition[] = [
   },
 ]
 
+/**
+ * The reply to "Entrar pelo WhatsApp": free text (the customer just wrote
+ * to us, so no template), confirming the sign-in on the menu.
+ */
+export function loginReply(storeName: string) {
+  return `Pronto! ✅ Pode voltar ao cardápio da ${storeName}: seus pedidos já aparecem lá. 😉`
+}
+
+/**
+ * How the authentication template reads (its text is Meta's, in pt_BR, with
+ * the security line and the expiry footer): the panel's preview.
+ */
+export const LOGIN_CODE_PREVIEW = [
+  '*123456* é seu código de verificação. Para sua segurança, não compartilhe este código.',
+  '',
+  `Este código expira em ${LOGIN_CODE_MINUTES} minutos.`,
+].join('\n')
+
 export type TemplateDefinition = {
   name: TemplateName
   category: 'UTILITY' | 'AUTHENTICATION'

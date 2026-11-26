@@ -9,6 +9,8 @@ import type User from '#models/user'
 import WhatsAppClient, { WhatsAppApiError } from '#whatsapp/client'
 import { whatsappConfig } from '#whatsapp/config'
 import {
+  LOGIN_CODE_PREVIEW,
+  loginReply,
   NOTICES,
   type NoticeKind,
   previewOf,
@@ -380,6 +382,23 @@ export default class WhatsAppAccountService {
               preview: { text: previewOf(notice), button: notice.button?.text ?? null },
             })),
             loginTemplate: this.templateState(account, TEMPLATES.LOGIN_CODE, 'Código de acesso'),
+            // The two ways of the history sign-in, as the customer reads them.
+            loginSteps: [
+              {
+                kind: 'message' as const,
+                label: 'Entrar pelo WhatsApp',
+                when: 'O cliente manda a mensagem pronta para a loja; a resposta confirma a entrada. Grátis: quem escreveu foi o cliente.',
+                template: null,
+                preview: { text: loginReply(account.verifiedName ?? 'loja'), button: null },
+              },
+              {
+                kind: 'code' as const,
+                label: 'Receber um código',
+                when: 'O cliente digita o celular e recebe um código de 6 dígitos (mensagem cobrada).',
+                template: this.templateState(account, TEMPLATES.LOGIN_CODE, 'Código de acesso'),
+                preview: { text: LOGIN_CODE_PREVIEW, button: 'Copiar código' },
+              },
+            ],
             templatesCheckedAt: account.templatesCheckedAt?.toISO() ?? null,
             connectedAt: account.createdAt.toISO()!,
           }

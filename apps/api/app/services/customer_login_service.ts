@@ -21,7 +21,7 @@ import { MessageKind } from '#models/whatsapp_message'
 import WhatsAppAccountService from '#services/whatsapp_account_service'
 import WhatsAppMessageService from '#services/whatsapp_message_service'
 import env from '#start/env'
-import { LOGIN_CODE_MINUTES, TEMPLATES } from '#whatsapp/templates'
+import { LOGIN_CODE_MINUTES, loginReply, TEMPLATES } from '#whatsapp/templates'
 
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex')
 
@@ -262,7 +262,7 @@ export default class CustomerLoginService {
       to: from,
       content: {
         type: 'text',
-        body: `Pronto! Pode voltar ao cardápio da ${store.name}: seus pedidos já aparecem lá.`,
+        body: loginReply(store.name),
       },
     })
     return true

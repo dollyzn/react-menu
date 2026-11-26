@@ -57,6 +57,8 @@ export type WhatsAppConnection = {
     notices: WhatsAppNotice[];
     /** The template of "Receber um código" (history sign-in). */
     loginTemplate: WhatsAppTemplate;
+    /** The two ways of the history sign-in, with what the customer reads. */
+    loginSteps: WhatsAppLoginStep[];
     templatesCheckedAt: string | null;
     connectedAt: string;
   } | null;
@@ -82,6 +84,15 @@ export type WhatsAppNotice = {
   template: WhatsAppTemplate;
   /** The text with example values (WhatsApp's *bold*), and its link button, if any. */
   preview: { text: string; button: string | null };
+};
+
+export type WhatsAppLoginStep = {
+  kind: 'message' | 'code';
+  label: string;
+  when: string;
+  /** Null: no template (a free reply to the customer's own message). */
+  template: WhatsAppTemplate | null;
+  preview: WhatsAppNotice['preview'];
 };
 
 /** PUT /stores/:storeId/whatsapp/settings */
