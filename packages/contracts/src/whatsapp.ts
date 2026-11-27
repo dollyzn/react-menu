@@ -1,7 +1,11 @@
 /** WhatsApp Cloud API per store (ADR 0025). */
 
-/** Meta's template review status, or MISSING (not created in the WABA). */
+/**
+ * Meta's template review status, MISSING (not created in the WABA) or
+ * SUBMITTING (just connected: the job is sending it to Meta).
+ */
 export type WhatsAppTemplateStatus =
+  | 'SUBMITTING'
   | 'APPROVED'
   | 'PENDING'
   | 'REJECTED'

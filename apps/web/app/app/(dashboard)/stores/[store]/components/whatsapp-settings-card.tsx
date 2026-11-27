@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { embeddedSignupEvent, loadFacebookSdk } from "@/lib/facebook-sdk";
 import {
@@ -45,7 +46,15 @@ const WHATSAPP_MANAGER = "https://business.facebook.com/wa/manage/home/";
  * and the customers' history sign-in. Meta charges the store per message.
  */
 export function WhatsAppSettingsCard({ store }: { store: Store }) {
-  const { data, isLoading } = useGetWhatsAppQuery(store.id);
+  const [submitting, setSubmitting] = useState(false);
+  // Right after connecting, the templates go to Meta in the background: the
+  // tab asks again every few seconds until they are all there.
+  const { data, isLoading } = useGetWhatsAppQuery(store.id, { pollingInterval: submitting ? 5_000 : 0 });
+  const nowSubmitting = Boolean(
+    data?.account?.notices.some((notice) => notice.template.status === "SUBMITTING") ||
+      data?.account?.loginTemplate.status === "SUBMITTING"
+  );
+  if (nowSubmitting !== submitting) setSubmitting(nowSubmitting);
 
   return (
     <Card>
@@ -265,10 +274,19 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
           >
             <Icons.whatsapp /> {signup.fake ? "Conectar número de teste" : "Conectar WhatsApp"}
           </Button>
-          {!signup.fake && (
-            <p className="text-center text-xs text-muted-foreground">
-              Leva uns 5 minutos. A Meta pede os dados da empresa e um cartão: as mensagens são cobradas da loja.
+          {opening || connecting ? (
+            <p className="flex items-start justify-center gap-2 text-center text-xs text-muted-foreground" role="status">
+              <Spinner className="mt-0.5 shrink-0" />
+              {connecting
+                ? "Ativando o número na Meta. Leva uns 20 segundos: não feche nem recarregue esta página."
+                : "Termine o cadastro na janela da Meta."}
             </p>
+          ) : (
+            !signup.fake && (
+              <p className="text-center text-xs text-muted-foreground">
+                Leva uns 5 minutos. A Meta pede os dados da empresa e um cartão: as mensagens são cobradas da loja.
+              </p>
+            )
           )}
         </div>
       </div>

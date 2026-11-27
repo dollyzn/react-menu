@@ -14,6 +14,7 @@ const TEMPLATE_STATUS: Record<string, { label: string; tone: string }> = {
   PAUSED: { label: "Pausado", tone: "bg-destructive/10 text-destructive" },
   DISABLED: { label: "Desativado", tone: "bg-destructive/10 text-destructive" },
   MISSING: { label: "Não criado", tone: "bg-muted text-muted-foreground" },
+  SUBMITTING: { label: "Enviando à Meta", tone: "bg-muted text-muted-foreground" },
 };
 
 /** Meta's review of a template, as a small pill. */
@@ -89,7 +90,9 @@ function MessageRow({
   control?: React.ReactNode;
 }) {
   return (
-    <li className={cn("p-3 transition-colors", !active && "bg-muted/30")}>
+    // The first and last rows follow the list's rounded corners, so a dimmed
+    // row's background stays inside its border.
+    <li className={cn("p-3 transition-colors first:rounded-t-2xl last:rounded-b-2xl", !active && "bg-muted/30")}>
       <Collapsible>
         <div className="flex items-start gap-3">
           <span

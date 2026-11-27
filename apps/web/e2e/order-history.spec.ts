@@ -69,8 +69,14 @@ test("with the store's WhatsApp, customers ask for notices and open their histor
   // The history page offers the sign-in; the code goes by WhatsApp from the phone.
   await customer.goto("/pedidos");
   await expect(orderCard(customer, first.number)).toBeVisible();
+  // One tap opens WhatsApp with the message written (wa.me answered here, offline).
+  await customer.context().route("https://wa.me/**", (route) => route.fulfill({ body: "WhatsApp" }));
+  const opened = customer.waitForEvent("popup");
   await customer.getByRole("button", { name: "Continuar com WhatsApp" }).click();
+  const whatsapp = await opened;
   const code = (await customer.getByLabel(/^Código [A-Z0-9]{6}$/).textContent())!.trim();
+  await expect.poll(() => whatsapp.url()).toMatch(new RegExp(`^https://wa\\.me/5511900000000\\?text=.*${code}`));
+  await whatsapp.close();
   await expect(customer.getByRole("link", { name: "Abrir o WhatsApp" })).toHaveAttribute(
     "href",
     new RegExp(`^https://wa\\.me/5511900000000\\?text=.*${code}`)

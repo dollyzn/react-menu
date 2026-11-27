@@ -25,11 +25,14 @@ export default class SyncWhatsAppTemplates extends AppJob<Payload> {
     super()
   }
 
-  static async scheduleFor(account: WhatsAppAccount, round = 0) {
+  /** The next round in 15 minutes; `now` for the first (submitting them right after connecting). */
+  static async scheduleFor(account: WhatsAppAccount, round = 0, options: { now?: boolean } = {}) {
     const generation = account.webhookSubscribedAt?.toMillis() ?? 0
-    await SyncWhatsAppTemplates.dispatch({ accountId: account.id, round, generation })
-      .in(EVERY)
-      .dedup({ id: `${account.id}:${generation}:${round}`, ttl: '1h' })
+    const job = SyncWhatsAppTemplates.dispatch({ accountId: account.id, round, generation })
+    await (options.now ? job : job.in(EVERY)).dedup({
+      id: `${account.id}:${generation}:${round}`,
+      ttl: '1h',
+    })
   }
 
   async execute() {
