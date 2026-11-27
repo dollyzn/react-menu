@@ -10,11 +10,13 @@ import { INGREDIENT_ICON_COLORS } from '#kitchen/ingredient_icons'
  */
 const iconLabel = vine.createRule((value, _options, field) => {
   if (value === false) return
-  if (typeof value !== 'string' || !/^[\p{L}\p{N}]{1,3}$/u.test(value.trim())) {
+  // Checked upper-cased: that is what is stored, and it can grow ("ß" → "SS").
+  const tag = typeof value === 'string' ? value.trim().toLocaleUpperCase('pt-BR') : null
+  if (tag === null || !/^[\p{L}\p{N}]{1,3}$/u.test(tag)) {
     field.report('Use até 3 letras ou números.', 'iconLabel', field)
     return
   }
-  field.mutate(value.trim().toLocaleUpperCase('pt-BR'), field)
+  field.mutate(tag, field)
 })
 
 /** The badge: null = automatic from the name. */

@@ -166,7 +166,7 @@ export function IngredientBadgeEditor({
               const typed = event.target.value.replace(/[^\p{L}\p{N}]/gu, "").toLocaleUpperCase("pt-BR");
               set({ iconLabel: typed || null });
             }}
-            placeholder={fallback.label ?? "Ex.: CAT"}
+            placeholder={value.iconLabel === false ? "" : (fallback.label ?? "Ex.: CAT")}
           />
           <label className="flex items-center gap-2 text-sm">
             <Checkbox

@@ -39,7 +39,7 @@ test("an ingredient's badge: automatic from the name, then an icon found by sear
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Nome").fill(name);
   // The automatic badge follows the name: Catupiry gets its own tag.
-  const tag = dialog.getByLabel("Sigla");
+  const tag = dialog.getByRole("textbox", { name: "Sigla" });
   await expect(tag).toHaveAttribute("placeholder", "CAT");
   await expect(dialog.getByText("Automático pelo nome")).toBeVisible();
 

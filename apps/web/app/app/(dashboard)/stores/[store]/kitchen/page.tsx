@@ -497,13 +497,14 @@ const LAYOUT_SPRING = { type: "spring", stiffness: 300, damping: 32 } as const;
 
 /**
  * The filling at a glance: the ingredients' badges except the dough every
- * pastry has, one per look (emoji + tag), so Catupiry and Mussarela both show.
+ * pastry has, one per look (emoji, color and tag), so Catupiry and Mussarela
+ * both show.
  */
 function fillingIcons(batch: ProductionBatch) {
   const seen = new Set<string>();
   return batch.ingredients
     .filter(({ badge }) => {
-      const look = `${badge.emoji}|${badge.label ?? ""}`;
+      const look = `${badge.emoji}|${badge.color}|${badge.label ?? ""}`;
       if (!badge.emoji || badge.emoji === "🥟" || seen.has(look)) return false;
       seen.add(look);
       return true;

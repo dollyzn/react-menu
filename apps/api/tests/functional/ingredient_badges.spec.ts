@@ -74,6 +74,13 @@ test.group('Ingredient badges', (group) => {
       .json({ name: 'Catupiry', unit: 'g', iconLabel: 'CATU' })
       .loginAs(user)
     label.assertStatus(422)
+
+    // "ß" passes as one letter but grows to "SS" upper-cased: too long, not a 500.
+    const grown = await client
+      .post(url)
+      .json({ name: 'Catupiry', unit: 'g', iconLabel: 'aßb' })
+      .loginAs(user)
+    grown.assertStatus(422)
   })
 
   test('managers preview the automatic badge of a name', async ({ client, assert }) => {

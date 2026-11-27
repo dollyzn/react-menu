@@ -20,6 +20,7 @@ import type {
   AssistantToolName,
 } from "@react-menu/contracts";
 import { Delta } from "@/components/app/stat-tile";
+import { IngredientBadge } from "@/components/app/ingredient-badge";
 import { RankedList } from "@/components/app/ranked-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -238,9 +239,11 @@ export function StockCard({ data }: { data: AssistantStockForecast }) {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="max-w-32 truncate font-medium">
-                {row.icon && <span className="mr-1 font-emoji">{row.icon}</span>}
-                {row.name}
+              <TableCell className="max-w-32 font-medium">
+                <span className="flex min-w-0 items-center gap-1.5">
+                  <IngredientBadge badge={row.badge} size="xs" />
+                  <span className="truncate">{row.name}</span>
+                </span>
               </TableCell>
               <TableCell className="text-right tabular-nums">{formatQuantity(row.stock, row.unit)}</TableCell>
               <TableCell className="text-right tabular-nums">{formatQuantity(row.need, row.unit)}</TableCell>

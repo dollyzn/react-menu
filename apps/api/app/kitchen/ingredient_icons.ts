@@ -33,6 +33,8 @@ const KEYWORDS: [RegExp, string, IngredientIconColor, string?][] = [
   [/\bcha\b/, '🍵', 'green'],
   [/refrigerante|coca|guarana|fanta|sprite|schweppes|h2o|guaraviton|soda/, '🥤', 'red'],
   [/gelo/, '🧊', 'sky'],
+  // Bread named first ("Pão de alho", "Pão de hambúrguer": the bun, not the patty).
+  [/^pao\b/, '🍞', 'amber'],
   // Before meats: "pimenta calabresa" is a spice, not sausage.
   [/pimentao/, '🫑', 'green'],
   [/pimenta/, '🌶️', 'red'],
@@ -82,7 +84,7 @@ const KEYWORDS: [RegExp, string, IngredientIconColor, string?][] = [
   [/batata frita|fritas/, '🍟', 'yellow'],
   [/batata doce/, '🍠', 'orange'],
   [/batata/, '🥔', 'amber'],
-  [/mandioca|aipim/, '🥔', 'orange', 'MAN'],
+  [/mandioca|aipim|macaxeira/, '🥔', 'orange', 'MAN'],
   [/cenoura/, '🥕', 'orange'],
   [/pepino|picles/, '🥒', 'green'],
   [/ervilha/, '🫛', 'lime'],
@@ -113,7 +115,8 @@ const KEYWORDS: [RegExp, string, IngredientIconColor, string?][] = [
   [/abacaxi/, '🍍', 'yellow'],
   [/limao/, '🍋', 'lime'],
   [/laranja/, '🍊', 'orange'],
-  [/maca/, '🍎', 'red'],
+  // Whole word: "macarrão", "macaxeira" and "macadâmia" aren't apples.
+  [/\bmacas?\b/, '🍎', 'red'],
   [/uva/, '🍇', 'violet'],
   [/manga/, '🥭', 'orange'],
   [/maracuja/, '🍈', 'yellow'],
@@ -123,9 +126,10 @@ const KEYWORDS: [RegExp, string, IngredientIconColor, string?][] = [
   [/castanha|nozes/, '🌰', 'orange'],
   [/canela/, '🍬', 'orange', 'CAN'],
   [/acucar/, '🍬', 'gray', 'AÇU'],
-  [/pao/, '🍞', 'amber'],
+  [/\bpao\b/, '🍞', 'amber'],
   [/embalagem|caixa|sacola/, '📦', 'gray'],
   [/guardanapo/, '🧻', 'gray'],
+  [/macarrao|espaguete|talharim|lasanha|penne/, '🍝', 'amber'],
   [/massa|pastel/, '🥟', 'amber'],
 ]
 

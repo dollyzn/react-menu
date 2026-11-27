@@ -20,6 +20,13 @@ test.group('Ingredient icons', () => {
     assert.equal(suggestIngredientIcon('Batata palha'), '🥔')
     assert.equal(suggestIngredientIcon('Sal grosso'), '🧂')
     assert.equal(suggestIngredientIcon('Salsicha'), '🌭')
+    // Whole words and bread first: no apple for pasta, no garlic or patty for bread.
+    assert.equal(suggestIngredientIcon('Macarrão'), '🍝')
+    assert.equal(suggestIngredientIcon('Macaxeira'), '🥔')
+    assert.equal(suggestIngredientIcon('Maçã verde'), '🍎')
+    assert.equal(suggestIngredientIcon('Pão de alho'), '🍞')
+    assert.equal(suggestIngredientIcon('Pão de hambúrguer'), '🍞')
+    assert.equal(suggestIngredientIcon('Hambúrguer'), '🍔')
   })
 
   test('accents and case do not matter; unknown names get none', ({ assert }) => {

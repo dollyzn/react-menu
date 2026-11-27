@@ -75,7 +75,8 @@ function IngredientForm({
   // The automatic badge follows the name: asked once typing pauses.
   const [previewName, setPreviewName] = useState(name.trim());
   useDebouncedEffect(() => setPreviewName(name.trim()), [name], 300);
-  const { data: autoBadge } = useGetIngredientBadgeQuery({ storeId, name: previewName }, { skip: !previewName });
+  // currentData: never the previous name's badge while (or if) the new one loads.
+  const { currentData: autoBadge } = useGetIngredientBadgeQuery({ storeId, name: previewName }, { skip: !previewName });
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
