@@ -90,7 +90,9 @@ function MessageRow({
   control?: React.ReactNode;
 }) {
   return (
-    <li className={cn("p-3 transition-colors", !active && "bg-muted/30")}>
+    // The first and last rows follow the list's rounded corners, so a dimmed
+    // row's background stays inside its border.
+    <li className={cn("p-3 transition-colors first:rounded-t-2xl last:rounded-b-2xl", !active && "bg-muted/30")}>
       <Collapsible>
         <div className="flex items-start gap-3">
           <span
