@@ -7,6 +7,10 @@ const RecipesController = () => import('#controllers/recipes_controller')
 export default function registerStoreInventoryRoutes() {
   router.get('/ingredients', [IngredientsController, 'index']).as('ingredients.index')
   router
+    .get('/ingredients/badge', [IngredientsController, 'badge'])
+    .as('ingredients.badge')
+    .use(managersOnly)
+  router
     .post('/ingredients', [IngredientsController, 'store'])
     .as('ingredients.store')
     .use(managersOnly)

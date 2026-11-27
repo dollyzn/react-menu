@@ -2,6 +2,7 @@
 
 import type { Ingredient } from "@react-menu/contracts";
 import { Badge } from "@/components/ui/badge";
+import { IngredientBadge } from "@/components/app/ingredient-badge";
 import { cn } from "@/lib/utils";
 import { formatQuantity } from "@/utils/units";
 import { IngredientMenu, StockMoves } from "./ingredient-actions";
@@ -25,9 +26,7 @@ export function IngredientCard({ ingredient }: { ingredient: Ingredient }) {
       )}
     >
       <div className="flex items-start justify-between gap-2">
-        <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted font-emoji text-2xl">
-          {ingredient.icon ?? "•"}
-        </span>
+        <IngredientBadge badge={ingredient.badge} size="md" />
         <div className="min-w-0 flex-1">
           <p className="font-semibold">{ingredient.name}</p>
           <p className="text-xs text-muted-foreground">Mínimo {formatQuantity(ingredient.minStock, ingredient.unit)}</p>

@@ -4,6 +4,7 @@ import { DateTime } from 'luxon'
 import OrderStatus from '#enums/order_status'
 import StockMovementType from '#enums/stock_movement_type'
 import { BUSINESS_TIMEZONE } from '#services/order_service'
+import { ingredientBadge } from '#kitchen/ingredient_icons'
 
 /** Orders that count as sales: they reached the kitchen (paid online, or taken at the counter). */
 const NOT_SALES = [OrderStatus.PENDING_PAYMENT, OrderStatus.CANCELLED]
@@ -140,9 +141,23 @@ export default class ReportService {
           period.from,
           period.to,
         ])
-        .select('ingredients.id', 'ingredients.name', 'ingredients.unit', 'ingredients.icon')
+        .select(
+          'ingredients.id',
+          'ingredients.name',
+          'ingredients.unit',
+          'ingredients.icon',
+          'ingredients.icon_color',
+          'ingredients.icon_label'
+        )
         .select(db.raw('-sum(stock_movements.quantity) as consumed'))
-        .groupBy('ingredients.id', 'ingredients.name', 'ingredients.unit', 'ingredients.icon')
+        .groupBy(
+          'ingredients.id',
+          'ingredients.name',
+          'ingredients.unit',
+          'ingredients.icon',
+          'ingredients.icon_color',
+          'ingredients.icon_label'
+        )
         .havingRaw('-sum(stock_movements.quantity) > 0')
         .orderBy('consumed', 'desc'),
     ])
@@ -193,7 +208,11 @@ export default class ReportService {
         ingredientId: row.id,
         name: row.name,
         unit: row.unit,
-        icon: row.icon,
+        badge: ingredientBadge(row.name, {
+          icon: row.icon,
+          iconColor: row.icon_color,
+          iconLabel: row.icon_label,
+        }),
         consumed: Math.round(Number(row.consumed) * 1000) / 1000,
       })),
     }

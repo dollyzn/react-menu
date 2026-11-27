@@ -14,7 +14,6 @@ import Store from '#models/store'
 import IngredientRepository, {
   type IngredientListOptions,
 } from '#repositories/ingredient_repository'
-import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 
 type RecipeLine = { ingredientId: number; quantity: number }
 
@@ -48,6 +47,8 @@ export default class InventoryService {
       name: string
       unit: Ingredient['unit']
       icon?: string | null
+      iconColor?: string | null
+      iconLabel?: string | false | null
       minStock?: number
       stockQuantity?: number
     },
@@ -66,7 +67,9 @@ export default class InventoryService {
           storeId,
           name: data.name,
           unit: data.unit,
-          icon: data.icon ?? suggestIngredientIcon(data.name),
+          icon: data.icon ?? null,
+          iconColor: data.iconColor ?? null,
+          iconLabel: data.iconLabel ?? null,
           minStock: data.minStock ?? 0,
         },
         { client: trx }
@@ -84,12 +87,13 @@ export default class InventoryService {
   async update(
     storeId: string,
     id: number,
-    data: Partial<Pick<Ingredient, 'name' | 'unit' | 'minStock' | 'icon'>>
+    data: Partial<
+      Pick<Ingredient, 'name' | 'unit' | 'minStock' | 'icon' | 'iconColor' | 'iconLabel'>
+    >
   ) {
     const ingredient = await this.repo.findInStore(storeId, id)
+    // Badge parts left null stay automatic: they follow a rename.
     ingredient.merge(data)
-    // Cleared icon: back to the suggestion for the (possibly new) name.
-    if (data.icon === null) ingredient.icon = suggestIngredientIcon(ingredient.name)
     await ingredient.save()
     return ingredient
   }

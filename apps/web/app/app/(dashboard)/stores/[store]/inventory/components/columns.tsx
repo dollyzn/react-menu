@@ -8,6 +8,7 @@ import type { ColumnsConfig } from "@/components/data-table";
 import { DataTableColumnHeader } from "@/components/app/data-table/data-table-column-header";
 import DataTableColumnCell from "@/components/app/data-table/data-table-column-cell";
 import { cellButtonSize } from "@/components/app/data-table/density";
+import { IngredientBadge } from "@/components/app/ingredient-badge";
 import { formatQuantity, unitLabels } from "@/utils/units";
 import { IngredientMenu, StockMoves } from "./ingredient-actions";
 import { IngredientCard, LowStockBadge } from "./ingredient-card";
@@ -31,9 +32,7 @@ export const columns: ColumnDef<Ingredient>[] = [
     cell: ({ row }) => (
       <DataTableColumnCell>
         <div className="flex min-w-45 items-center gap-3">
-          <span aria-hidden className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted font-emoji text-lg">
-            {row.original.icon ?? "•"}
-          </span>
+          <IngredientBadge badge={row.original.badge} />
           <span className="font-medium">{row.original.name}</span>
         </div>
       </DataTableColumnCell>

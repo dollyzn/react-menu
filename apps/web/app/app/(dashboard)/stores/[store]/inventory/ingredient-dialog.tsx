@@ -13,15 +13,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldGroup, FieldLabel, FieldLegend, FieldSet } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import {
   useCreateIngredientMutation,
+  useGetIngredientBadgeQuery,
   useUpdateIngredientMutation,
 } from "@/redux/features/inventory/inventoryApi";
+import useDebouncedEffect from "@/hooks/use-debonced-effect";
 import { unitLabels } from "@/utils/units";
-import { IngredientIconPicker } from "./ingredient-icon-picker";
+import { IngredientBadgeEditor, type BadgePicks } from "./ingredient-badge-editor";
 import { useLastValue } from "@/hooks/use-last-value";
 
 interface IngredientDialogProps {
@@ -41,7 +43,7 @@ export function IngredientDialog({ storeId, open, ingredient, onOpenChange }: In
   if (open && !present) setPresent(true);
   return (
     <Dialog open={open} onOpenChange={onOpenChange} onOpenChangeComplete={(next) => !next && setPresent(false)}>
-      <DialogContent>
+      <DialogContent className="sm:max-w-lg">
         {present && (
           <IngredientForm key={shown?.id ?? "new"} storeId={storeId} ingredient={shown} onDone={() => onOpenChange(false)} />
         )}
@@ -65,11 +67,20 @@ function IngredientForm({
   const [unit, setUnit] = useState<IngredientUnit>(ingredient?.unit ?? "g");
   const [minStock, setMinStock] = useState(String(ingredient?.minStock ?? ""));
   const [stock, setStock] = useState("");
-  const [icon, setIcon] = useState<string | null>(ingredient?.icon ?? null);
+  const [picks, setPicks] = useState<BadgePicks>({
+    icon: ingredient?.icon ?? null,
+    iconColor: ingredient?.iconColor ?? null,
+    iconLabel: ingredient?.iconLabel ?? null,
+  });
+  // The automatic badge follows the name: asked once typing pauses.
+  const [previewName, setPreviewName] = useState(name.trim());
+  useDebouncedEffect(() => setPreviewName(name.trim()), [name], 300);
+  // currentData: never the previous name's badge while (or if) the new one loads.
+  const { currentData: autoBadge } = useGetIngredientBadgeQuery({ storeId, name: previewName }, { skip: !previewName });
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const data = { name: name.trim(), unit, icon, minStock: minStock ? toNumber(minStock) : 0 };
+    const data = { name: name.trim(), unit, ...picks, minStock: minStock ? toNumber(minStock) : 0 };
     if (ingredient) {
       await update({ storeId, id: ingredient.id, data }).unwrap();
       toast.success("Ingrediente atualizado");
@@ -108,11 +119,11 @@ function IngredientForm({
             <Input id="ingredient-stock" inputMode="decimal" value={stock} onChange={(e) => setStock(e.target.value)} placeholder="0" />
           </Field>
         )}
-        <Field>
-          <FieldLabel>Ícone na cozinha</FieldLabel>
-          <IngredientIconPicker value={icon} onChange={setIcon} />
+        <FieldSet>
+          <FieldLegend variant="label">Ícone na cozinha</FieldLegend>
           <FieldDescription>Ajuda a cozinha a reconhecer o recheio de relance.</FieldDescription>
-        </Field>
+          <IngredientBadgeEditor name={name} auto={previewName ? (autoBadge ?? null) : null} value={picks} onChange={setPicks} />
+        </FieldSet>
         <Field>
           <FieldLabel htmlFor="ingredient-min">Estoque mínimo ({unit})</FieldLabel>
           <Input id="ingredient-min" inputMode="decimal" value={minStock} onChange={(e) => setMinStock(e.target.value)} placeholder="0" />

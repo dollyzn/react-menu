@@ -1,5 +1,6 @@
 import type { StoreStatus } from './entities.ts';
 import type {
+  IngredientBadge,
   IngredientUnit,
   OrderChannel,
   OrderStatus,
@@ -306,7 +307,7 @@ export interface AssistantStockForecast {
     id: number;
     name: string;
     unit: IngredientUnit;
-    icon: string | null;
+    badge: IngredientBadge;
     stock: number;
     minStock: number;
     /** Average a day in the base period. */

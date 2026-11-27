@@ -1,5 +1,11 @@
 import { baseApi } from "@/redux/api/baseApi";
-import type { Ingredient, IngredientUnit, StockMovement } from "@react-menu/contracts";
+import type {
+  Ingredient,
+  IngredientBadge,
+  IngredientIconColor,
+  IngredientUnit,
+  StockMovement,
+} from "@react-menu/contracts";
 import { buildStoreListUrl, type StoreScopedListArg } from "@/redux/api/listQueryParams";
 import type { PaginatedList } from "@/types/paginated-list";
 
@@ -8,8 +14,11 @@ const listTag = (storeId: string) => ({ type: "Ingredient" as const, id: `store-
 type IngredientInput = {
   name: string;
   unit: IngredientUnit;
-  /** Emoji for the kitchen; null = suggested from the name. */
+  /** The badge's parts; null = automatic from the name (follows renames). */
   icon?: string | null;
+  iconColor?: IngredientIconColor | null;
+  /** false = no tag. */
+  iconLabel?: string | false | null;
   minStock?: number;
   stockQuantity?: number;
 };
@@ -22,6 +31,12 @@ export const inventoryApi = baseApi.injectEndpoints({
       query: ({ storeId, filters, pagination, sort, facets }) =>
         buildStoreListUrl(storeId, "ingredients", { filters, pagination, sort, facets }),
       providesTags: (_res, _err, { storeId }) => [listTag(storeId)],
+    }),
+    /** The automatic badge for a name (the form's preview). */
+    getIngredientBadge: build.query<IngredientBadge, { storeId: string; name: string }>({
+      query: ({ storeId, name }) => ({ url: `stores/${storeId}/ingredients/badge`, params: { name } }),
+      keepUnusedDataFor: 300,
+      extraOptions: { quiet: true },
     }),
     createIngredient: build.mutation<Ingredient, { storeId: string; data: IngredientInput }>({
       query: ({ storeId, data }) => ({ url: `stores/${storeId}/ingredients`, method: "POST", body: data }),
@@ -66,6 +81,7 @@ export const inventoryApi = baseApi.injectEndpoints({
 
 export const {
   useGetIngredientsQuery,
+  useGetIngredientBadgeQuery,
   useCreateIngredientMutation,
   useUpdateIngredientMutation,
   useDeleteIngredientMutation,

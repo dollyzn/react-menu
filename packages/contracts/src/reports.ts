@@ -1,4 +1,4 @@
-import type { CounterPaymentMethod, IngredientUnit, OrderChannel, PaymentMethod } from './orders.ts';
+import type { CounterPaymentMethod, IngredientBadge, IngredientUnit, OrderChannel, PaymentMethod } from './orders.ts';
 
 /** `GET /stores/:id/reports/sales?from=YYYY-MM-DD&to=YYYY-MM-DD` (business days, inclusive). */
 export interface SalesReport {
@@ -35,7 +35,7 @@ export interface SalesReport {
   }[];
   channels: { channel: OrderChannel; orders: number; revenue: number }[];
   /** Net stock the sales took (cancellations put back). */
-  stock: { ingredientId: string; name: string; unit: IngredientUnit; icon: string | null; consumed: number }[];
+  stock: { ingredientId: string; name: string; unit: IngredientUnit; badge: IngredientBadge; consumed: number }[];
 }
 
 /** `GET /stores/:id/dashboard/today`: the store today, live. */
@@ -68,7 +68,7 @@ export interface DashboardToday {
   };
   topItems: { name: string; quantity: number }[];
   /** Ingredients at or below their minimum (stores that track stock). */
-  lowStock: { id: number; name: string; unit: IngredientUnit; icon: string | null; stockQuantity: number; minStock: number }[];
+  lowStock: { id: number; name: string; unit: IngredientUnit; badge: IngredientBadge; stockQuantity: number; minStock: number }[];
   menu: { items: number; paused: number; soldOut: number; withoutPhoto: number };
   store: { isOpen: boolean; closesAt: string | null; opensAt: string | null };
 }

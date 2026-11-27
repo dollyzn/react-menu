@@ -27,6 +27,7 @@ import { useGetStoreByIdQuery } from "@/redux/features/store/storeApi";
 import { formatQuantity } from "@/utils/units";
 import { SwipeCard } from "./swipe-card";
 import { cn } from "@/lib/utils";
+import { IngredientBadge } from "@/components/app/ingredient-badge";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 
 /**
@@ -69,7 +70,10 @@ export default function KitchenPage() {
         action: {
           label: "Desfazer",
           onClick: () =>
-            prepare({ storeId, units: units.map((u) => ({ ...u, quantity: -u.quantity })) }),
+            prepare({
+              storeId,
+              units: units.map((u) => ({ ...u, quantity: -u.quantity })),
+            }),
         },
       });
     },
@@ -80,7 +84,13 @@ export default function KitchenPage() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement;
-      if (event.code !== "Space" || !current || saving || target.closest("button, input, textarea")) return;
+      if (
+        event.code !== "Space" ||
+        !current ||
+        saving ||
+        target.closest("button, input, textarea")
+      )
+        return;
       event.preventDefault();
       void markDone(current, true);
     };
@@ -101,280 +111,379 @@ export default function KitchenPage() {
 
   return (
     <MotionConfig reducedMotion="user">
-    {/* A card flying off to the side (swipe) or growing out of its queue
+      {/* A card flying off to the side (swipe) or growing out of its queue
         card passes the page's edges for a moment: clipped, so the page never
         scrolls. `clip` makes no scroll container (sticky parts keep working);
         `relative` makes it the containing block of the leaving card, which
         AnimatePresence's popLayout positions absolutely (else the clip
         wouldn't reach it). */}
-    <div
-      className={cn(
-        "relative flex min-h-[calc(100svh-3rem)] flex-col gap-4 overflow-x-clip p-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:p-6",
-        growing && "overflow-hidden"
-      )}
-    >
-      <header className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <ChefHat className="size-6 text-primary" />
-          <h1 className="text-xl font-bold">Cozinha</h1>
-          <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium tabular-nums">
-            {batches.reduce((sum, batch) => sum + batch.quantity, 0)} na fila
-          </span>
-          {store && (
-            <span className="hidden items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground sm:flex">
-              <Layers className="size-3.5" />
-              {store.kitchenBatchLookahead === 0
-                ? "Ordem de chegada"
-                : `Agrupa até ${store.kitchenBatchLookahead} ${store.kitchenBatchLookahead === 1 ? "pedido" : "pedidos"} à frente`}
+      <div
+        className={cn(
+          "relative flex min-h-[calc(100svh-3rem)] flex-col gap-4 overflow-x-clip p-4 lg:h-[calc(100svh-3rem)] lg:min-h-0 lg:p-6",
+          growing && "overflow-hidden"
+        )}
+      >
+        <header className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <ChefHat className="size-6 text-primary" />
+            <h1 className="text-xl font-bold">Cozinha</h1>
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-sm font-medium tabular-nums">
+              {batches.reduce((sum, batch) => sum + batch.quantity, 0)} na fila
             </span>
-          )}
-        </div>
-        <div className="flex items-center gap-1">
-          {/* A fixed name; "pressed" says whether it is on. */}
-          <Toggle variant="outline" aria-label="Som de novos pedidos" pressed={soundOn} onPressedChange={setSoundOn}>
-            {soundOn ? <Bell /> : <BellOff />}
-          </Toggle>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
-            onClick={toggleFullscreen}
-          >
-            {fullscreen ? <Shrink /> : <Expand />}
-          </Button>
-        </div>
-      </header>
+            {store && (
+              <span className="hidden items-center gap-1 rounded-full border px-2.5 py-0.5 text-sm text-muted-foreground sm:flex">
+                <Layers className="size-3.5" />
+                {store.kitchenBatchLookahead === 0
+                  ? "Ordem de chegada"
+                  : `Agrupa até ${store.kitchenBatchLookahead} ${store.kitchenBatchLookahead === 1 ? "pedido" : "pedidos"} à frente`}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-1">
+            {/* A fixed name; "pressed" says whether it is on. */}
+            <Toggle
+              variant="outline"
+              aria-label="Som de novos pedidos"
+              pressed={soundOn}
+              onPressedChange={setSoundOn}
+            >
+              {soundOn ? <Bell /> : <BellOff />}
+            </Toggle>
+            <Button
+              variant="outline"
+              size="icon"
+              aria-label={fullscreen ? "Sair da tela cheia" : "Tela cheia"}
+              onClick={toggleFullscreen}
+            >
+              {fullscreen ? <Shrink /> : <Expand />}
+            </Button>
+          </div>
+        </header>
 
-      {isLoading ? (
-        <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
-          <Skeleton className="min-h-80 rounded-3xl lg:col-span-2" />
-          <Skeleton className="min-h-80 rounded-3xl" />
-        </div>
-      ) : !current ? (
-        <EmptyKitchen />
-      ) : (
-        <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={batchId(current)}
-              // Above the queue column while it grows out of it.
-              style={{ zIndex: growing ? 10 : undefined, position: "relative" }}
-              // The finished card steps aside at once when the next one morphs
-              // over it (two animations at the same spot read as a flicker).
-              exit={morph ? { opacity: 0, transition: { duration: 0.08 } } : { opacity: 0, scale: 0.98 }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              className="lg:col-span-2 lg:min-h-0"
-            >
-            <SwipeCard
-              className="h-full"
-              disabled={saving}
-              rightLabel={current.quantity > 1 ? `Fiz todos (${current.quantity})` : "Pronto"}
-              onSwipeRight={() => markDone(current, true)}
-              leftLabel="Fiz 1"
-              onSwipeLeft={() => markDone(current, false)}
-              staysAfter={(direction) => direction === -1 && current.quantity > 1}
-            >
-            {/* Shares its layoutId with the batch's card in "Próximos": the small
+        {isLoading ? (
+          <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
+            <Skeleton className="min-h-80 rounded-3xl lg:col-span-2" />
+            <Skeleton className="min-h-80 rounded-3xl" />
+          </div>
+        ) : !current ? (
+          <EmptyKitchen />
+        ) : (
+          <div className="grid flex-1 gap-4 lg:min-h-0 lg:grid-cols-3 lg:grid-rows-1">
+            <AnimatePresence mode="popLayout">
+              <motion.div
+                key={batchId(current)}
+                // Above the queue column while it grows out of it.
+                style={{
+                  zIndex: growing ? 10 : undefined,
+                  position: "relative",
+                }}
+                // The finished card steps aside at once when the next one morphs
+                // over it (two animations at the same spot read as a flicker).
+                exit={
+                  morph
+                    ? { opacity: 0, transition: { duration: 0.08 } }
+                    : { opacity: 0, scale: 0.98 }
+                }
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="lg:col-span-2 lg:min-h-0"
+              >
+                <SwipeCard
+                  className="h-full"
+                  disabled={saving}
+                  rightLabel={
+                    current.quantity > 1
+                      ? `Fiz todos (${current.quantity})`
+                      : "Pronto"
+                  }
+                  onSwipeRight={() => markDone(current, true)}
+                  leftLabel="Fiz 1"
+                  onSwipeLeft={() => markDone(current, false)}
+                  staysAfter={(direction) =>
+                    direction === -1 && current.quantity > 1
+                  }
+                >
+                  {/* Shares its layoutId with the batch's card in "Próximos": the small
                 card grows into this one. Its content fades in as the box grows, so
                 the text is never seen stretched. */}
-            <motion.section
-              layoutId={morph ? batchId(current) : undefined}
-              // Morphing from the queue card: no fade on top of it (phones fade in instead).
-              initial={morph ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={LAYOUT_SPRING}
-              // While it grows: the content is revealed by the box (no
-              // scrollbars from content bigger than the box yet).
-              onLayoutAnimationStart={() => setGrowing(true)}
-              onLayoutAnimationComplete={() => setGrowing(false)}
-              style={{ borderRadius: 24 }}
-              aria-label="Fazer agora"
-              className={cn(
-                "flex h-full flex-col border-2 border-primary/40 bg-card shadow-lg lg:min-h-0",
-                growing ? "overflow-hidden" : "lg:overflow-y-auto"
-              )}
-            >
-            <motion.div
-              // With the morph the content rides along with `layout` (the
-              // scale is corrected, so the text never looks stretched); on
-              // phones it fades in.
-              layout={morph}
-              initial={morph ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={morph ? LAYOUT_SPRING : { duration: 0.2, delay: 0.15 }}
-              className="flex flex-1 flex-col p-5 lg:p-8"
-            >
-              <p className="flex items-center justify-between gap-2 text-sm font-semibold tracking-wider text-primary uppercase">
-                Fazer agora
-                <span className="hidden text-xs font-normal tracking-normal text-muted-foreground normal-case sm:inline">
-                  Arraste → pronto · ← fiz 1
-                </span>
-              </p>
-              <div className="mt-2 flex items-baseline gap-4">
-                <span className="text-7xl font-black tabular-nums lg:text-8xl">{current.quantity}×</span>
-                <h2 className="text-3xl leading-tight font-bold text-balance lg:text-5xl">{current.name}</h2>
-              </div>
-              {fillingIcons(current).length > 0 && (
-                <p className="mt-2 font-emoji text-5xl tracking-widest lg:text-6xl" aria-hidden>
-                  {fillingIcons(current).join(" ")}
-                </p>
-              )}
-
-              {/* The group once, small, then its picks in strong text on a neutral chip:
-                  the orange on orange read poorly, and "Recheio extra:" before every pick was noise. */}
-              {(current.addonGroups ?? []).length > 0 && (
-                <dl className="mt-4 flex flex-col gap-2.5">
-                  {(current.addonGroups ?? []).map(({ group, items }) => (
-                    <div key={group ?? ""} className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                      <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
-                        {group ?? "Adicionais"}
-                      </dt>
-                      {items.map((item) => (
-                        <dd
-                          key={item}
-                          className="rounded-full border border-foreground/15 bg-muted px-3 py-1 text-lg font-semibold text-foreground"
-                        >
-                          {item}
-                        </dd>
-                      ))}
-                    </div>
-                  ))}
-                </dl>
-              )}
-
-              {current.notes && (
-                <p className="mt-4 flex items-start gap-2 rounded-2xl bg-warning/20 p-4 text-xl font-semibold text-warning">
-                  <MessageSquareWarning className="mt-0.5 size-6 shrink-0" /> {current.notes}
-                </p>
-              )}
-
-              {current.ingredients.length > 0 && (
-                <div className="mt-6">
-                  <p className="mb-2 text-sm font-semibold tracking-wider text-muted-foreground uppercase">
-                    Separe para {current.quantity === 1 ? "este pastel" : `os ${current.quantity}`}
-                  </p>
-                  <ul className="grid gap-2 sm:grid-cols-2">
-                    {current.ingredients.map((ingredient) => (
-                      <li
-                        key={ingredient.name}
-                        className="flex items-center gap-3 rounded-2xl bg-muted/60 px-3 py-3"
-                      >
-                        <span
-                          aria-hidden
-                          className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-background font-emoji text-3xl shadow-sm"
-                        >
-                          {ingredient.icon ?? "•"}
-                        </span>
-                        <span className="flex-1 text-xl font-medium">{ingredient.name}</span>
-                        <span className="text-2xl font-bold tabular-nums">
-                          {formatQuantity(ingredient.quantity, ingredient.unit)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="mt-6 flex flex-wrap gap-2" aria-label="Pedidos deste lote">
-                {current.units.map((unit) => (
-                  <span
-                    key={unit.lineId}
-                    className={cn(
-                      "rounded-xl border px-3 py-1.5 text-lg font-semibold tabular-nums",
-                      unit.cancelRequested && "border-destructive bg-destructive/10 text-destructive"
-                    )}
-                  >
-                    #{unit.orderNumber}
-                    {unit.quantity > 1 && <span className="text-muted-foreground"> · {unit.quantity}×</span>}
-                    {/* A partner's order (ADR 0024): whose it is. */}
-                    {unit.partnerName && <span className="text-sm font-medium text-partner"> · {unit.partnerName}</span>}
-                    {unit.cancelRequested && <span className="text-sm font-medium"> · cancelamento pedido, segure</span>}
-                  </span>
-                ))}
-              </div>
-
-              {/* Always reachable: sticks to the screen (phones) or the card (large screens).
-                  Its bottom follows the card's corners (rounded-3xl inside a 2px border). */}
-              <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 rounded-b-[calc(1.5rem-2px)] bg-card px-5 pt-6 pb-5 sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
-                {current.quantity > 1 && (
-                  <Button
-                    variant="outline"
-                    className="h-16 rounded-2xl text-xl"
-                    disabled={saving}
-                    onClick={() => markDone(current, false)}
-                  >
-                    <Check className="size-6" /> Fiz 1
-                  </Button>
-                )}
-                <Button
-                  className={cn("h-16 rounded-2xl text-xl", current.quantity === 1 && "sm:col-span-2")}
-                  disabled={saving}
-                  onClick={() => markDone(current, true)}
-                >
-                  <CheckCheck className="size-6" />
-                  {current.quantity > 1 ? `Fiz todos (${current.quantity})` : "Pronto"}
-                </Button>
-              </div>
-            </motion.div>
-            </motion.section>
-            </SwipeCard>
-            </motion.div>
-          </AnimatePresence>
-
-          <aside aria-label="Próximos" className="flex flex-col gap-3 lg:min-h-0">
-            <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
-              Próximos {next.length > 0 && `(${next.length})`}
-            </h2>
-            {next.length === 0 && (
-              <p className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground">
-                Nada depois deste lote.
-              </p>
-            )}
-            {/* overflow-x-hidden: entering and leaving cards must not scroll it sideways. */}
-            <motion.ul layoutScroll={morph} className="flex flex-col gap-2 overflow-x-hidden lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y">
-              <AnimatePresence initial={false}>
-                {next.map((batch, index) => (
-                  <motion.li
-                    key={batchId(batch)}
-                    layoutId={morph ? batchId(batch) : undefined}
-                    layout={morph}
-                    initial={{ opacity: 0, scale: 0.96 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    // The card that becomes "Fazer agora" hands over to the morph at once.
-                    exit={morph ? { opacity: 0, transition: { duration: 0 } } : { opacity: 0 }}
+                  <motion.section
+                    layoutId={morph ? batchId(current) : undefined}
+                    // Morphing from the queue card: no fade on top of it (phones fade in instead).
+                    initial={morph ? false : { opacity: 0 }}
+                    animate={{ opacity: 1 }}
                     transition={LAYOUT_SPRING}
-                    style={{ borderRadius: 16 }}
-                    className={cn("border bg-card p-4", index === 0 && "border-primary/30")}
-                  >
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-black tabular-nums">{batch.quantity}×</span>
-                      <span className="flex-1 text-lg font-semibold">{batch.name}</span>
-                      {fillingIcons(batch).length > 0 && (
-                        <span className="font-emoji text-2xl" aria-hidden>
-                          {fillingIcons(batch).join("")}
-                        </span>
-                      )}
-                    </div>
-                    {(batch.addons.length > 0 || batch.notes) && (
-                      <p className="mt-1 text-sm text-foreground/80">
-                        {/* Small: the full labels, so "Retirar: Cebola" never reads as extra onion. */}
-                        {batch.addons.join(", ")}
-                        {batch.notes && <span className="font-medium text-warning"> “{batch.notes}”</span>}
-                      </p>
+                    // While it grows: the content is revealed by the box (no
+                    // scrollbars from content bigger than the box yet).
+                    onLayoutAnimationStart={() => setGrowing(true)}
+                    onLayoutAnimationComplete={() => setGrowing(false)}
+                    style={{ borderRadius: 24 }}
+                    aria-label="Fazer agora"
+                    className={cn(
+                      "flex h-full flex-col border-2 border-primary/40 bg-card shadow-lg lg:min-h-0",
+                      growing ? "overflow-hidden" : "lg:overflow-y-auto"
                     )}
-                    <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-                      {batch.units
-                        .map((u) => `#${u.orderNumber}${u.partnerName ? ` (${u.partnerName})` : ""}${u.cancelRequested ? " ⚠ cancelamento pedido" : ""}`)
-                        .join(" · ")}
-                    </p>
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </motion.ul>
-          </aside>
-        </div>
-      )}
-    </div>
+                  >
+                    <motion.div
+                      // With the morph the content rides along with `layout` (the
+                      // scale is corrected, so the text never looks stretched); on
+                      // phones it fades in.
+                      layout={morph}
+                      initial={morph ? false : { opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={
+                        morph ? LAYOUT_SPRING : { duration: 0.2, delay: 0.15 }
+                      }
+                      className="flex flex-1 flex-col p-5 lg:p-8"
+                    >
+                      <p className="flex items-center justify-between gap-2 text-sm font-semibold tracking-wider text-primary uppercase">
+                        Fazer agora
+                        <span className="hidden text-xs font-normal tracking-normal text-muted-foreground normal-case sm:inline">
+                          Arraste → pronto · ← fiz 1
+                        </span>
+                      </p>
+                      <div className="mt-2 flex items-baseline gap-4">
+                        <span className="text-7xl font-black tabular-nums lg:text-8xl">
+                          {current.quantity}×
+                        </span>
+                        <h2 className="text-3xl leading-tight font-bold text-balance lg:text-5xl">
+                          {current.name}
+                        </h2>
+                      </div>
+                      {fillingIcons(current).length > 0 && (
+                        <p className="mt-3 flex flex-wrap gap-3" aria-hidden>
+                          {fillingIcons(current).map((ingredient) => (
+                            <IngredientBadge
+                              key={ingredient.name}
+                              badge={ingredient.badge}
+                              size="xl"
+                            />
+                          ))}
+                        </p>
+                      )}
+
+                      {/* The group once, small, then its picks in strong text on a neutral chip:
+                  the orange on orange read poorly, and "Recheio extra:" before every pick was noise. */}
+                      {(current.addonGroups ?? []).length > 0 && (
+                        <dl className="mt-4 flex flex-col gap-2.5">
+                          {(current.addonGroups ?? []).map(
+                            ({ group, items }) => (
+                              <div
+                                key={group ?? ""}
+                                className="flex flex-wrap items-center gap-x-3 gap-y-2"
+                              >
+                                <dt className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">
+                                  {group ?? "Adicionais"}
+                                </dt>
+                                {items.map((item) => (
+                                  <dd
+                                    key={item}
+                                    className="rounded-full border border-foreground/15 bg-muted px-3 py-1 text-lg font-semibold text-foreground"
+                                  >
+                                    {item}
+                                  </dd>
+                                ))}
+                              </div>
+                            )
+                          )}
+                        </dl>
+                      )}
+
+                      {current.notes && (
+                        // The tinted box, with the note in the main text color: the gold text alone read faint.
+                        <p className="mt-4 flex items-start gap-2.5 rounded-2xl border border-warning/50 bg-warning/15 p-4 text-2xl font-semibold text-foreground">
+                          <MessageSquareWarning className="mt-0.5 size-7 shrink-0 text-warning" />{" "}
+                          {current.notes}
+                        </p>
+                      )}
+
+                      {current.ingredients.length > 0 && (
+                        <div className="mt-6">
+                          <p className="mb-2 text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+                            Separe para{" "}
+                            {current.quantity === 1
+                              ? "este pastel"
+                              : `os ${current.quantity}`}
+                          </p>
+                          <ul className="grid gap-2 sm:grid-cols-2">
+                            {current.ingredients.map((ingredient) => (
+                              <li
+                                key={ingredient.name}
+                                className="flex items-center gap-3 rounded-2xl bg-muted/60 px-3 py-3"
+                              >
+                                <IngredientBadge
+                                  badge={ingredient.badge}
+                                  size="lg"
+                                  className="shadow-sm"
+                                />
+                                <span className="flex-1 text-xl font-medium">
+                                  {ingredient.name}
+                                </span>
+                                <span className="text-2xl font-bold tabular-nums">
+                                  {formatQuantity(
+                                    ingredient.quantity,
+                                    ingredient.unit
+                                  )}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      <div
+                        className="mt-6 flex flex-wrap gap-2"
+                        aria-label="Pedidos deste lote"
+                      >
+                        {current.units.map((unit) => (
+                          <span
+                            key={unit.lineId}
+                            className={cn(
+                              "rounded-xl border px-3 py-1.5 text-lg font-semibold tabular-nums",
+                              unit.cancelRequested &&
+                                "border-destructive bg-destructive/10 text-destructive"
+                            )}
+                          >
+                            #{unit.orderNumber}
+                            {unit.quantity > 1 && (
+                              <span className="text-muted-foreground">
+                                {" "}
+                                · {unit.quantity}×
+                              </span>
+                            )}
+                            {/* A partner's order (ADR 0024): whose it is. */}
+                            {unit.partnerName && (
+                              <span className="text-sm font-medium text-partner">
+                                {" "}
+                                · {unit.partnerName}
+                              </span>
+                            )}
+                            {unit.cancelRequested && (
+                              <span className="text-sm font-medium">
+                                {" "}
+                                · cancelamento pedido, segure
+                              </span>
+                            )}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Always reachable: sticks to the screen (phones) or the card (large screens).
+                  Its bottom follows the card's corners (rounded-3xl inside a 2px border). */}
+                      <div className="sticky bottom-0 z-10 -mx-5 mt-auto -mb-5 grid gap-3 rounded-b-[calc(1.5rem-2px)] bg-card px-5 pt-6 pb-5 sm:grid-cols-2 lg:-mx-8 lg:-mb-8 lg:px-8 lg:pb-8">
+                        {current.quantity > 1 && (
+                          <Button
+                            variant="outline"
+                            className="h-16 rounded-2xl text-xl"
+                            disabled={saving}
+                            onClick={() => markDone(current, false)}
+                          >
+                            <Check className="size-6" /> Fiz 1
+                          </Button>
+                        )}
+                        <Button
+                          className={cn(
+                            "h-16 rounded-2xl text-xl",
+                            current.quantity === 1 && "sm:col-span-2"
+                          )}
+                          disabled={saving}
+                          onClick={() => markDone(current, true)}
+                        >
+                          <CheckCheck className="size-6" />
+                          {current.quantity > 1
+                            ? `Fiz todos (${current.quantity})`
+                            : "Pronto"}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  </motion.section>
+                </SwipeCard>
+              </motion.div>
+            </AnimatePresence>
+
+            <aside
+              aria-label="Próximos"
+              className="flex flex-col gap-3 lg:min-h-0"
+            >
+              <h2 className="text-sm font-semibold tracking-wider text-muted-foreground uppercase">
+                Próximos {next.length > 0 && `(${next.length})`}
+              </h2>
+              {next.length === 0 && (
+                <p className="rounded-2xl border border-dashed p-6 text-center text-muted-foreground">
+                  Nada depois deste lote.
+                </p>
+              )}
+              {/* overflow-x-hidden: entering and leaving cards must not scroll it sideways. */}
+              <motion.ul
+                layoutScroll={morph}
+                className="flex flex-col gap-2 overflow-x-hidden lg:min-h-0 lg:flex-1 lg:overflow-y-auto lg:scroll-fade-y"
+              >
+                <AnimatePresence initial={false}>
+                  {next.map((batch, index) => (
+                    <motion.li
+                      key={batchId(batch)}
+                      layoutId={morph ? batchId(batch) : undefined}
+                      layout={morph}
+                      initial={{ opacity: 0, scale: 0.96 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      // The card that becomes "Fazer agora" hands over to the morph at once.
+                      exit={
+                        morph
+                          ? { opacity: 0, transition: { duration: 0 } }
+                          : { opacity: 0 }
+                      }
+                      transition={LAYOUT_SPRING}
+                      style={{ borderRadius: 16 }}
+                      className={cn(
+                        "border bg-card p-4",
+                        index === 0 && "border-primary/30"
+                      )}
+                    >
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-black tabular-nums">
+                          {batch.quantity}×
+                        </span>
+                        <span className="flex-1 text-lg font-semibold">
+                          {batch.name}
+                        </span>
+                        {fillingIcons(batch).length > 0 && (
+                          <span className="flex gap-1.5 pb-1" aria-hidden>
+                            {fillingIcons(batch).map((ingredient) => (
+                              <IngredientBadge
+                                key={ingredient.name}
+                                badge={ingredient.badge}
+                                size="sm"
+                              />
+                            ))}
+                          </span>
+                        )}
+                      </div>
+                      {(batch.addons.length > 0 || batch.notes) && (
+                        <p className="mt-1 text-sm text-foreground/80">
+                          {/* Small: the full labels, so "Retirar: Cebola" never reads as extra onion. */}
+                          {batch.addons.join(", ")}
+                          {batch.notes && (
+                            <span className="font-medium text-warning">
+                              {" "}
+                              “{batch.notes}”
+                            </span>
+                          )}
+                        </p>
+                      )}
+                      <p className="mt-1 text-sm text-muted-foreground tabular-nums">
+                        {batch.units
+                          .map(
+                            (u) =>
+                              `#${u.orderNumber}${u.partnerName ? ` (${u.partnerName})` : ""}${u.cancelRequested ? " ⚠ cancelamento pedido" : ""}`
+                          )
+                          .join(" · ")}
+                      </p>
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </motion.ul>
+            </aside>
+          </div>
+        )}
+      </div>
     </MotionConfig>
   );
 }
@@ -386,15 +495,21 @@ function batchId(batch: ProductionBatch) {
 
 const LAYOUT_SPRING = { type: "spring", stiffness: 300, damping: 32 } as const;
 
-/** The filling at a glance: ingredient emoji except the dough every pastry has. */
+/**
+ * The filling at a glance: the ingredients' badges except the dough every
+ * pastry has, one per look (emoji, color and tag), so Catupiry and Mussarela
+ * both show.
+ */
 function fillingIcons(batch: ProductionBatch) {
-  return [
-    ...new Set(
-      batch.ingredients.flatMap((ingredient) =>
-        ingredient.icon && ingredient.icon !== "🥟" ? [ingredient.icon] : []
-      )
-    ),
-  ].slice(0, 4);
+  const seen = new Set<string>();
+  return batch.ingredients
+    .filter(({ badge }) => {
+      const look = `${badge.emoji}|${badge.color}|${badge.label ?? ""}`;
+      if (!badge.emoji || badge.emoji === "🥟" || seen.has(look)) return false;
+      seen.add(look);
+      return true;
+    })
+    .slice(0, 4);
 }
 
 function EmptyKitchen() {
@@ -406,7 +521,9 @@ function EmptyKitchen() {
     >
       <ChefHat className="size-16 text-primary" />
       <p className="text-2xl font-bold">Tudo pronto por aqui!</p>
-      <p className="text-muted-foreground">Os próximos pedidos aparecem sozinhos nesta tela.</p>
+      <p className="text-muted-foreground">
+        Os próximos pedidos aparecem sozinhos nesta tela.
+      </p>
     </motion.div>
   );
 }
@@ -416,7 +533,9 @@ function useNewBatchChime(batches: ProductionBatch[], enabled: boolean) {
   const known = useRef<Set<string> | null>(null);
 
   useEffect(() => {
-    const keys = new Set(batches.flatMap((b) => b.units.map((u) => `${u.lineId}`)));
+    const keys = new Set(
+      batches.flatMap((b) => b.units.map((u) => `${u.lineId}`))
+    );
     const previous = known.current;
     known.current = keys;
     if (!enabled || !previous) return;

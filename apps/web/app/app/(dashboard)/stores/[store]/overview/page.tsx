@@ -29,6 +29,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { formatWhen } from "@/lib/opening-hours";
 import { formatWeekday } from "@/lib/report-period";
 import { cn } from "@/lib/utils";
+import { IngredientBadge } from "@/components/app/ingredient-badge";
 import { useGetDashboardTodayQuery } from "@/redux/features/report/reportApi";
 import { formatQuantity } from "@/utils/units";
 import { formatCurrencyBRL } from "@/utils/string";
@@ -241,9 +242,9 @@ function AttentionCard({ data, base }: { data: DashboardToday; base: string }) {
             <ul className="grid gap-1.5" aria-label="Ingredientes no estoque mínimo">
               {lowStock.slice(0, 5).map((row) => (
                 <li key={row.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate">
-                    {row.icon && <span className="mr-1.5 font-emoji">{row.icon}</span>}
-                    {row.name}
+                  <span className="flex min-w-0 items-center gap-2">
+                    <IngredientBadge badge={row.badge} size="xs" />
+                    <span className="truncate">{row.name}</span>
                   </span>
                   <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
                     <span className={cn("font-semibold", row.stockQuantity <= 0 ? "text-destructive" : "text-foreground")}>
