@@ -29,8 +29,11 @@ the cost per message matters little; who pays it does.
   `POST /stores/:id/whatsapp`, and the API exchanges the code for the
   business's token (`GET /oauth/access_token`, server to server), registers
   the number (`/register` with a random PIN kept encrypted; skipped for a
-  WhatsApp Business app number, "coexistence") and subscribes the app to the
-  WABA. **The store pays Meta** with its own payment method; a Tech Provider
+  WhatsApp Business app number, "coexistence", told by the signup's event or
+  the number's `is_on_biz_app`) and subscribes the app to the WABA. The
+  panel asks for coexistence (`featureType`), and a coexistence onboarding
+  is followed by Meta's one-time sync of the app's contacts and history
+  (`SyncWhatsAppBusinessApp`, within 24 hours). **The store pays Meta** with its own payment method; a Tech Provider
   can't lend a credit line. App id, secret and the Facebook Login for Business
   configuration come from the env (`WHATSAPP_*`).
 - **Webhook override, never the app's callback.** The API subscribes the app

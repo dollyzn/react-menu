@@ -34,7 +34,12 @@ export default class FakeWhatsAppClient extends WhatsAppClient {
       verified_name: 'Loja de teste',
       quality_rating: 'GREEN',
       platform_type: 'CLOUD_API',
+      is_on_biz_app: false,
     }
+  }
+
+  async syncAppData() {
+    return { request_id: `fake-${randomUUID()}` }
   }
 
   async grantedWabas(token: string) {

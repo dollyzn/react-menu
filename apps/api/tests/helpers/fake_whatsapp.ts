@@ -48,6 +48,7 @@ export class FakeGraph extends WhatsAppClient {
       display_phone_number: '+55 11 3333-4444',
       verified_name: 'JJ Pastéis',
       platform_type: 'CLOUD_API',
+      is_on_biz_app: this.onBizApp,
     }
   }
 
@@ -57,6 +58,20 @@ export class FakeGraph extends WhatsAppClient {
   numbers = [PHONE_NUMBER_ID]
   /** `register` refuses (a number with someone else's PIN). */
   refuseRegister = false
+  /** The number is also on the WhatsApp Business app (coexistence). */
+  onBizApp: boolean | undefined = false
+  /** The next coexistence sync call fails with this error (then clears). */
+  failNextSync: WhatsAppApiError | null = null
+
+  async syncAppData(token: string, phoneNumberId: string, syncType: string) {
+    this.record('syncAppData', token, phoneNumberId, syncType)
+    if (this.failNextSync) {
+      const error = this.failNextSync
+      this.failNextSync = null
+      throw error
+    }
+    return { request_id: `req-${syncType}` }
+  }
 
   async grantedWabas(token: string) {
     this.record('grantedWabas', token)
