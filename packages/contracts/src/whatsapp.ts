@@ -50,6 +50,15 @@ export type WhatsAppConnection = {
     wabaId: string;
     /** A WhatsApp Business app number also used on the phone. */
     coexistence: boolean;
+    /**
+     * Coexistence only: Meta's one-time sync of the app's contacts and chat
+     * history (within 24 hours of connecting); null for other numbers.
+     */
+    appSync: {
+      contacts: 'pending' | 'done' | 'failed';
+      history: 'pending' | 'done' | 'failed';
+      error: string | null;
+    } | null;
     notifyOrders: boolean;
     customerLogin: boolean;
     /** The token stopped working: connect again. */

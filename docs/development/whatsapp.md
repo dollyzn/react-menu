@@ -46,6 +46,40 @@ reach us. The API polls the templates instead (`SyncWhatsAppTemplates`, every
 learns about a revoked token (error 190) or a missing payment method (error
 131042) from the answers to its own calls.
 
+## Coexistence (the store's WhatsApp Business app number)
+
+The panel asks Embedded Signup for it (`featureType:
+"whatsapp_business_app_onboarding"`, `sessionInfoVersion: "3"`), so Meta's
+window offers the store's WhatsApp Business app number next to a new one.
+The number keeps working on the phone. What happens:
+
+- The window's event is `FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING`, often
+  with only `waba_id`: the API takes that account's only number, and never
+  calls `/register` (Meta forbids it). The API also reads `is_on_biz_app`
+  from the number, so the code-only path can't register it by mistake.
+- Within 24 hours Meta requires the app's contacts and then its chat
+  history to be synced (`POST /<number>/smb_app_data`, `smb_app_state_sync`
+  then `history`, each **once**). The `SyncWhatsAppBusinessApp` job does it
+  right after connecting; the tab shows its state. Missed or refused: the
+  store must disconnect and connect again.
+- Disconnecting only unsubscribes the app; a coexistence number is never
+  deregistered.
+
+Requirements on the store's side: WhatsApp Business app 2.24.17 or newer;
+connected devices are logged out during onboarding (up to 4 afterwards,
+not WhatsApp for Windows or WearOS); 20 messages/s; broadcast lists turn
+read-only and disappearing, view-once and live location messages are off
+in 1:1 chats; groups aren't synced.
+
+Meta's webhook topics for it (`history`, `smb_app_state_sync`,
+`smb_message_echoes`, `account_update`) are subscribed **per app** in
+App Dashboard > WhatsApp > Configuration: turning them on also sends them
+to the app's default callback, which belongs to another product. The API
+only logs the ones that reach our override; nothing depends on them. Not
+confirmed by Meta's pages: whether a v4 configuration still offers a new
+number in the same window (check it in WhatsApp > Embedded Signup Builder >
+"Check a launch config").
+
 ## Diagnosing a connection
 
 Embedded Signup ends with a code (the SDK's callback) and, normally, a

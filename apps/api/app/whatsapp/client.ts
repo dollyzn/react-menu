@@ -49,6 +49,8 @@ export type PhoneNumberInfo = {
   code_verification_status?: string
   /** CLOUD_API once registered on the Cloud API. */
   platform_type?: string
+  /** Also used in the WhatsApp Business app (coexistence): never registered by us. */
+  is_on_biz_app?: boolean
 }
 
 export type TemplateInfo = {
@@ -95,7 +97,34 @@ export default class WhatsAppClient {
   async phoneNumber(token: string, phoneNumberId: string): Promise<PhoneNumberInfo> {
     const fields =
       'display_phone_number,verified_name,quality_rating,code_verification_status,platform_type'
-    return await this.request(token, 'GET', `/${encode(phoneNumberId)}?fields=${fields}`)
+    const path = `/${encode(phoneNumberId)}?fields=${fields}`
+    try {
+      return await this.request(token, 'GET', `${path},is_on_biz_app`)
+    } catch (error) {
+      // A Graph version without the field refuses the whole read (#100): read the rest.
+      if (error instanceof WhatsAppApiError && error.code === 100) {
+        return await this.request(token, 'GET', path)
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Coexistence: shares the WhatsApp Business app's contacts
+   * (`smb_app_state_sync`) or its chat history (`history`) with the Cloud
+   * API. Each once per onboarding, within 24 hours of it.
+   */
+  async syncAppData(
+    token: string,
+    phoneNumberId: string,
+    syncType: 'smb_app_state_sync' | 'history'
+  ) {
+    return await this.request<{ request_id?: string }>(
+      token,
+      'POST',
+      `/${encode(phoneNumberId)}/smb_app_data`,
+      { messaging_product: 'whatsapp', sync_type: syncType }
+    )
   }
 
   /**

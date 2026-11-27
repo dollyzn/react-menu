@@ -2,6 +2,8 @@ import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import StoreRole from '#enums/store_role'
 import SyncWhatsAppTemplates from '#jobs/sync_whatsapp_templates'
+import SyncWhatsAppBusinessApp from '#jobs/sync_whatsapp_business_app'
+import { WhatsAppApiError } from '#whatsapp/client'
 import WhatsAppAccount from '#models/whatsapp_account'
 import { TEMPLATE_DEFINITIONS, TEMPLATES } from '#whatsapp/templates'
 import { createMenuStore, createStaff, linkUser } from '#tests/helpers/fixtures'
@@ -203,6 +205,102 @@ test.group('WhatsApp connection (store page)', (group) => {
     const current = account.webhookSubscribedAt!.toMillis()
     await runJob(SyncWhatsAppTemplates, { accountId: account.id, round: 0, generation: current })
     assert.lengthOf(meta.graph.called('listTemplates'), 1)
+  })
+
+  test('a WhatsApp Business app onboarding with only the WABA: its number, never registered, contacts then history synced once', async ({
+    client,
+    assert,
+  }) => {
+    const queue = fakeQueue()
+    const { store, manager } = await setup()
+    meta.graph.onBizApp = true
+    const response = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json({ code: signup.code, wabaId: WABA_ID, coexistence: true })
+      .loginAs(manager)
+    response.assertStatus(200)
+    assert.deepInclude(response.body().data.account, {
+      coexistence: true,
+      appSync: { contacts: 'pending', history: 'pending', error: null },
+    })
+    assert.lengthOf(meta.graph.called('registerPhone'), 0)
+    // The WABA came from the event: only its numbers were read.
+    assert.lengthOf(meta.graph.called('grantedWabas'), 0)
+    assert.deepEqual(meta.graph.called('phoneNumbers')[0].args.slice(1), [WABA_ID])
+
+    queue.assertPushed('SyncWhatsAppBusinessApp')
+    const saved = await WhatsAppAccount.findByOrFail('storeId', store.id)
+    const generation = saved.webhookSubscribedAt!.toMillis()
+    await runJob(SyncWhatsAppBusinessApp, { accountId: saved.id, generation })
+    assert.deepEqual(
+      meta.graph.called('syncAppData').map((call) => call.args[2]),
+      ['smb_app_state_sync', 'history']
+    )
+    // Once only: Meta allows each step a single time.
+    await runJob(SyncWhatsAppBusinessApp, { accountId: saved.id, generation })
+    assert.lengthOf(meta.graph.called('syncAppData'), 2)
+    await saved.refresh()
+    assert.equal(saved.appSync.contacts?.requestId, 'req-smb_app_state_sync')
+  })
+
+  test('the number tells it is on the app even without the event: the code-only path never registers it', async ({
+    client,
+    assert,
+  }) => {
+    fakeQueue()
+    const { store, manager } = await setup()
+    meta.graph.onBizApp = true
+    const response = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json({ code: signup.code })
+      .loginAs(manager)
+    response.assertStatus(200)
+    assert.isTrue(response.body().data.account.coexistence)
+    assert.lengthOf(meta.graph.called('registerPhone'), 0)
+
+    // A number without its WABA is refused.
+    const orphan = await client
+      .post(`/api/v1/stores/${store.id}/whatsapp`)
+      .json({ code: signup.code, phoneNumberId: PHONE_NUMBER_ID })
+      .loginAs(manager)
+    orphan.assertStatus(422)
+  })
+
+  test('the app sync: Meta not answering is retried, a refusal or the 24-hour deadline is recorded', async ({
+    assert,
+  }) => {
+    const { store } = await setup()
+    const account = await connectStore(store, {
+      coexistence: true,
+      webhookSubscribedAt: DateTime.now(),
+    })
+    const generation = account.webhookSubscribedAt!.toMillis()
+
+    meta.graph.failNextSync = new WhatsAppApiError('Meta did not answer', 0, null)
+    await assert.rejects(() =>
+      runJob(SyncWhatsAppBusinessApp, { accountId: account.id, generation })
+    )
+    await account.refresh()
+    assert.isUndefined(account.appSync.contacts)
+
+    meta.graph.failNextSync = new WhatsAppApiError('Sync not allowed', 400, 100)
+    await runJob(SyncWhatsAppBusinessApp, { accountId: account.id, generation })
+    await account.refresh()
+    assert.equal(account.appSync.contacts?.error, 'Sync not allowed')
+    assert.isUndefined(account.appSync.history)
+
+    // A day later: too late to sync.
+    const other = await createMenuStore()
+    const late = await connectStore(other.store, {
+      coexistence: true,
+      webhookSubscribedAt: DateTime.now().minus({ hours: 25 }),
+    })
+    await runJob(SyncWhatsAppBusinessApp, {
+      accountId: late.id,
+      generation: late.webhookSubscribedAt!.toMillis(),
+    })
+    await late.refresh()
+    assert.match(String(late.appSync.contacts?.error), /24 horas/)
   })
 
   test('settings, refresh and disconnect', async ({ client, assert }) => {

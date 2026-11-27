@@ -6,6 +6,7 @@ import { formatDistanceToNow, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   BellRing,
+  CheckCircle2,
   CircleAlert,
   CreditCard,
   History,
@@ -47,12 +48,16 @@ const WHATSAPP_MANAGER = "https://business.facebook.com/wa/manage/home/";
  */
 export function WhatsAppSettingsCard({ store }: { store: Store }) {
   const [submitting, setSubmitting] = useState(false);
-  // Right after connecting, the templates go to Meta in the background: the
-  // tab asks again every few seconds until they are all there.
+  // Right after connecting, the templates (and a WhatsApp Business app
+  // number's sync) go to Meta in the background: the tab asks again every
+  // few seconds until they are done.
   const { data, isLoading } = useGetWhatsAppQuery(store.id, { pollingInterval: submitting ? 5_000 : 0 });
+  const appSync = data?.account?.appSync;
   const nowSubmitting = Boolean(
     data?.account?.notices.some((notice) => notice.template.status === "SUBMITTING") ||
-      data?.account?.loginTemplate.status === "SUBMITTING"
+      data?.account?.loginTemplate.status === "SUBMITTING" ||
+      // Coexistence: the contacts and history sync is running.
+      (appSync && (appSync.contacts === "pending" || appSync.history === "pending") && !appSync.error)
   );
   if (nowSubmitting !== submitting) setSubmitting(nowSubmitting);
 
@@ -129,7 +134,7 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
     const received = code.current;
     if (!received) return;
     const { wabaId, phoneNumberId, businessId, coexistence } = session.current;
-    if (wabaId && phoneNumberId) {
+    if (wabaId) {
       if (fallback.current) clearTimeout(fallback.current);
       fallback.current = null;
       code.current = null;
@@ -163,19 +168,21 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         toast.error(signupEvent.data.error_message || "A Meta não concluiu a conexão. Tente de novo.");
         return;
       }
-      if (!signupEvent.data.phone_number_id || !signupEvent.data.waba_id) {
-        // Finished without a number (FINISH_ONLY_WABA): nothing to connect yet.
+      const data = signupEvent.data;
+      if (!data.waba_id) {
         code.current = null;
         session.current = {};
         setOpening(false);
-        toast.info("A conta foi criada, mas nenhum número foi adicionado. Conecte de novo e escolha um número.");
+        toast.info("O cadastro terminou sem uma conta do WhatsApp. Conecte de novo e escolha uma.");
         return;
       }
+      // A WhatsApp Business app number (coexistence) may come with only the
+      // account: the API uses its only number and never registers it.
       session.current = {
-        wabaId: signupEvent.data.waba_id,
-        phoneNumberId: signupEvent.data.phone_number_id,
-        businessId: signupEvent.data.business_id,
-        coexistence: signupEvent.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING",
+        wabaId: data.waba_id,
+        phoneNumberId: data.phone_number_id,
+        businessId: data.business_id,
+        coexistence: signupEvent.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" || data.is_on_biz_app === true,
       };
       finish();
     };
@@ -210,7 +217,9 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
           config_id: signup.configId,
           response_type: "code",
           override_default_response_type: true,
-          extras: { setup: {} },
+          // Offers the store's WhatsApp Business app number too (coexistence),
+          // next to a new number; session info v3 brings the chosen account.
+          extras: { setup: {}, featureType: "whatsapp_business_app_onboarding", sessionInfoVersion: "3" },
         }
       );
     } catch (error) {
@@ -326,6 +335,8 @@ function ConnectedPanel({
         </Button>
       </div>
 
+      {account.appSync && <AppSyncStatus sync={account.appSync} />}
+
       {account.broken && (
         <Alert variant="destructive">
           <CircleAlert />
@@ -423,5 +434,37 @@ function ConnectedPanel({
         </Button>
       </AlertDialogDestructive>
     </div>
+  );
+}
+
+/**
+ * Coexistence: Meta's one-time sync of the WhatsApp Business app's contacts
+ * and chat history, required within 24 hours of connecting.
+ */
+function AppSyncStatus({ sync }: { sync: NonNullable<NonNullable<WhatsAppConnection["account"]>["appSync"]> }) {
+  if (sync.contacts === "failed" || sync.history === "failed") {
+    return (
+      <Alert variant="destructive">
+        <CircleAlert />
+        <AlertTitle>A sincronização com o app WhatsApp Business falhou</AlertTitle>
+        <AlertDescription>
+          {sync.error ?? "A Meta recusou a sincronização."} A Meta só permite sincronizar nas primeiras 24 horas: se
+          passou disso, desconecte e conecte o número de novo.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  const done = sync.contacts === "done" && sync.history === "done";
+  return (
+    <p className="flex items-start gap-2 rounded-xl bg-muted/50 p-3 text-sm text-muted-foreground" role="status">
+      {done ? (
+        <CheckCircle2 className="mt-0.5 size-4 shrink-0 text-success" />
+      ) : (
+        <Spinner className="mt-0.5 shrink-0" />
+      )}
+      {done
+        ? "Contatos e conversas do app WhatsApp Business enviados à Meta. O número continua funcionando no celular."
+        : "Sincronizando os contatos e as conversas do app WhatsApp Business com a Meta (feito uma vez, nas primeiras 24 horas)."}
+    </p>
   );
 }

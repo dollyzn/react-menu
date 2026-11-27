@@ -9,6 +9,12 @@ const encrypt = (value: string | null) => (value ? encryption.encrypt(value) : n
 const decrypt = (value: string | null) =>
   value ? (encryption.decrypt<string>(value) ?? null) : null
 
+/** One step of a coexistence sync: Meta's request id, or why it failed. */
+export type AppSyncStep = { requestId: string | null; error: string | null; at: string }
+
+/** Coexistence: contacts (`smb_app_state_sync`) then history, each once. */
+export type AppSync = Partial<Record<'contacts' | 'history', AppSyncStep>>
+
 /** What the last poll saw of one of our templates in the store's WABA. */
 export type TemplateState = {
   id: string | null
@@ -65,6 +71,9 @@ export default class WhatsAppAccount extends BaseModel {
 
   @column({ prepare: (value: Record<string, TemplateState>) => JSON.stringify(value ?? {}) })
   declare templates: Record<string, TemplateState>
+
+  @column({ prepare: (value: AppSync) => JSON.stringify(value ?? {}) })
+  declare appSync: AppSync
 
   /** The store's choices per order notice that differ from the defaults. */
   @column({ prepare: (value: Partial<Record<NoticeKind, boolean>>) => JSON.stringify(value ?? {}) })

@@ -3,7 +3,7 @@ import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import AppException from '#exceptions/app_exception'
-import WhatsAppAccount, { type TemplateState } from '#models/whatsapp_account'
+import WhatsAppAccount, { type AppSyncStep, type TemplateState } from '#models/whatsapp_account'
 import type Store from '#models/store'
 import type User from '#models/user'
 import WhatsAppClient, { WhatsAppApiError } from '#whatsapp/client'
@@ -93,12 +93,13 @@ export default class WhatsAppAccountService {
       }
     }
 
-    // Embedded Signup's window message names the WABA and number; when it
-    // didn't reach the page, the token says which WABA it was granted.
+    // Embedded Signup's window message names the WABA and number. A WhatsApp
+    // Business app onboarding names only the WABA (its only number is used),
+    // and when no message reached the page the token says which WABA it was.
     const fromWindow = Boolean(input.wabaId && input.phoneNumberId)
     const { wabaId, phoneNumberId } = fromWindow
       ? { wabaId: input.wabaId!, phoneNumberId: input.phoneNumberId! }
-      : await this.discover(token)
+      : await this.discover(token, input.wabaId)
 
     const taken = await WhatsAppAccount.query()
       .where('phoneNumberId', phoneNumberId)
@@ -129,7 +130,10 @@ export default class WhatsAppAccountService {
         : null
     const pin =
       (sameNumber && current?.registerPin) || String(randomInt(0, 1_000_000)).padStart(6, '0')
-    const coexistence = Boolean(input.coexistence)
+    // A WhatsApp Business app number is already registered (and must stay
+    // on the phone): told by the signup's event, or by Meta itself, so the
+    // code-only path can't register it by mistake.
+    const coexistence = Boolean(input.coexistence || info.is_on_biz_app)
 
     if (!coexistence && !input.skipRegister) {
       try {
@@ -165,6 +169,8 @@ export default class WhatsAppAccountService {
       lastError: null,
       connectedById: actor?.id ?? current?.connectedById ?? null,
       ...(!sameNumber && { templates: {}, templatesCheckedAt: null }),
+      // Each onboarding allows (and needs) its own contacts and history sync.
+      appSync: {},
     })
     if (!current) {
       account.notifyOrders = true
@@ -197,6 +203,12 @@ export default class WhatsAppAccountService {
     if (whatsappConfig().fake) await this.syncTemplates(account, { create: true })
     const { default: SyncWhatsAppTemplates } = await import('#jobs/sync_whatsapp_templates')
     await SyncWhatsAppTemplates.scheduleFor(account, 0, { now: !whatsappConfig().fake })
+    // Coexistence: contacts and history are synced right away (Meta allows
+    // it once, within 24 hours of the onboarding).
+    if (coexistence) {
+      const { default: SyncWhatsAppBusinessApp } = await import('#jobs/sync_whatsapp_business_app')
+      await SyncWhatsAppBusinessApp.dispatchFor(account)
+    }
 
     return account
   }
@@ -206,12 +218,16 @@ export default class WhatsAppAccountService {
    * get them from Meta's window: the token's WhatsApp scope names the WABA
    * (`debug_token`), and the WABA must have exactly one number.
    */
-  private async discover(token: string) {
+  private async discover(token: string, knownWabaId?: string) {
     let wabaIds: string[]
-    try {
-      wabaIds = await this.client.grantedWabas(token)
-    } catch (error) {
-      refused(error, 'Não foi possível ler a conta do WhatsApp escolhida')
+    if (knownWabaId) {
+      wabaIds = [knownWabaId]
+    } else {
+      try {
+        wabaIds = await this.client.grantedWabas(token)
+      } catch (error) {
+        refused(error, 'Não foi possível ler a conta do WhatsApp escolhida')
+      }
     }
     if (wabaIds.length !== 1) {
       throw new AppException(
@@ -433,6 +449,7 @@ export default class WhatsAppAccountService {
             verifiedName: account.verifiedName,
             wabaId: account.wabaId,
             coexistence: account.coexistence,
+            appSync: account.coexistence ? this.appSyncState(account) : null,
             notifyOrders: account.notifyOrders,
             customerLogin: account.customerLogin,
             broken: Boolean(account.brokenAt),
@@ -480,6 +497,17 @@ export default class WhatsAppAccountService {
       status: state?.status ?? (account.templatesCheckedAt ? 'MISSING' : 'SUBMITTING'),
       category: state?.category ?? null,
       reason: state?.reason ?? null,
+    }
+  }
+
+  /** Each coexistence sync step as the panel shows it. */
+  private appSyncState(account: WhatsAppAccount) {
+    const step = (state: AppSyncStep | undefined) =>
+      !state ? ('pending' as const) : state.error ? ('failed' as const) : ('done' as const)
+    return {
+      contacts: step(account.appSync?.contacts),
+      history: step(account.appSync?.history),
+      error: account.appSync?.contacts?.error ?? account.appSync?.history?.error ?? null,
     }
   }
 }

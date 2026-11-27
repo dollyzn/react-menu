@@ -60,7 +60,11 @@ export type EmbeddedSignupEvent =
   | {
       type: "WA_EMBEDDED_SIGNUP";
       event: "FINISH" | "FINISH_ONLY_WABA" | "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING";
-      data: { phone_number_id?: string; waba_id?: string; business_id?: string };
+      /**
+       * A WhatsApp Business app onboarding (coexistence) may bring only
+       * `waba_id`; `is_on_biz_app` comes with newer flows.
+       */
+      data: { phone_number_id?: string; waba_id?: string; business_id?: string; is_on_biz_app?: boolean };
     }
   | { type: "WA_EMBEDDED_SIGNUP"; event: "CANCEL"; data: { current_step?: string } }
   | { type: "WA_EMBEDDED_SIGNUP"; event: "ERROR"; data: { error_message?: string; error_code?: number | string } };

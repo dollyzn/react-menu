@@ -5,6 +5,12 @@ import CustomerLoginService from '#services/customer_login_service'
 import WhatsAppMessageService from '#services/whatsapp_message_service'
 import type { InboundMessage, WebhookPayload } from '#whatsapp/webhook'
 
+/**
+ * Coexistence topics: `history` and `smb_app_state_sync` report the sync,
+ * `smb_message_echoes` are messages the store sent from the app.
+ */
+const COEXISTENCE_FIELDS = new Set(['history', 'smb_app_state_sync', 'smb_message_echoes'])
+
 /** The text a customer sent (a typed message, or a button's label). */
 function textOf(message: InboundMessage) {
   if (message.type === 'text') return message.text?.body ?? ''
@@ -35,7 +41,17 @@ export default class WhatsAppWebhookService {
     this.#failed = false
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
-        if (change.field !== 'messages' || !change.value) continue
+        if (!change.value) continue
+        // Coexistence fields (Messaging account topics, when they reach us):
+        // nothing to act on yet, logged so a sync can be followed in Grafana.
+        if (COEXISTENCE_FIELDS.has(change.field ?? '')) {
+          logger.info(
+            { field: change.field, wabaId: entry.id, errors: change.value.errors },
+            'WhatsApp coexistence webhook'
+          )
+          continue
+        }
+        if (change.field !== 'messages') continue
         const phoneNumberId = change.value.metadata?.phone_number_id
         if (!phoneNumberId) continue
         // Another product's number on the same app: not ours.
