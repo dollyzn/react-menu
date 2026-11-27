@@ -308,7 +308,7 @@ const stockForecast: ToolDefinition = {
             id: ingredient.id,
             name: ingredient.name,
             unit: ingredient.unit,
-            icon: ingredient.icon,
+            icon: ingredient.badge.emoji,
             stock,
             minStock: ingredient.minStock,
             dailyUse,

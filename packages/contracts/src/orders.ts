@@ -405,13 +405,40 @@ export type ReceivePaymentInput = {
   amount?: number;
 };
 
+/** Tile colors of an ingredient's badge (the web maps each to its classes). */
+export type IngredientIconColor =
+  | 'gray'
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'yellow'
+  | 'lime'
+  | 'green'
+  | 'teal'
+  | 'sky'
+  | 'blue'
+  | 'violet'
+  | 'pink';
+
+/**
+ * How an ingredient shows at a glance: emoji on a colored tile, plus a short
+ * tag ("CAT", "MUS") where ingredients share an emoji. Already resolved: the
+ * manager's picks over the suggestion for the name.
+ */
+export type IngredientBadge = { emoji: string | null; color: IngredientIconColor; label: string | null };
+
 export type Ingredient = {
   id: number;
   storeId: string;
   name: string;
   unit: IngredientUnit;
-  /** Emoji shown in the kitchen. */
+  /** The manager's picks; null = automatic from the name (follows renames). */
   icon: string | null;
+  iconColor: IngredientIconColor | null;
+  /** Up to 3 letters or digits; false = no tag, null = automatic. */
+  iconLabel: string | false | null;
+  /** What to show. */
+  badge: IngredientBadge;
   stockQuantity: number;
   minStock: number;
   isLowStock: boolean;
@@ -454,7 +481,7 @@ export type ProductionBatch = {
     cancelRequested: boolean;
   }[];
   /** Total ingredients for the whole batch. */
-  ingredients: { name: string; unit: IngredientUnit; icon: string | null; quantity: number }[];
+  ingredients: { name: string; unit: IngredientUnit; badge: IngredientBadge; quantity: number }[];
 };
 
 /** GET /public/menu[/:slug]: what customers see (no private store fields). */

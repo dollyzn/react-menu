@@ -3,6 +3,7 @@ import { BaseModel, belongsTo, column, computed } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import type IngredientUnit from '#enums/ingredient_unit'
 import { decimal } from '#helpers/columns'
+import { ingredientBadge } from '#kitchen/ingredient_icons'
 import Store from '#models/store'
 
 export default class Ingredient extends BaseModel {
@@ -18,9 +19,21 @@ export default class Ingredient extends BaseModel {
   @column()
   declare unit: IngredientUnit
 
-  /** Emoji for the kitchen display (see #kitchen/ingredient_icons). */
+  /**
+   * The manager's picks for the badge (see #kitchen/ingredient_icons); null =
+   * automatic from the name. A label of `false` = no tag (stored as "").
+   */
   @column()
   declare icon: string | null
+
+  @column()
+  declare iconColor: string | null
+
+  @column({
+    prepare: (value: string | false | null) => (value === false ? '' : value),
+    consume: (value: string | null) => (value === '' ? false : value),
+  })
+  declare iconLabel: string | false | null
 
   @column(decimal)
   declare stockQuantity: number
@@ -36,6 +49,12 @@ export default class Ingredient extends BaseModel {
 
   @belongsTo(() => Store)
   declare store: BelongsTo<typeof Store>
+
+  /** What the panel and the kitchen show. */
+  @computed()
+  get badge() {
+    return ingredientBadge(this.name, this)
+  }
 
   @computed()
   get isLowStock() {

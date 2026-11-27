@@ -17,6 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { downloadCsv } from "@/lib/csv";
 import { businessToday, customPeriod, formatPeriod, lastDays, type ReportPeriod } from "@/lib/report-period";
 import { cn } from "@/lib/utils";
+import { IngredientBadge } from "@/components/app/ingredient-badge";
 import { useGetSalesReportQuery } from "@/redux/features/report/reportApi";
 import { formatQuantity } from "@/utils/units";
 import { formatCurrencyBRL } from "@/utils/string";
@@ -212,10 +213,10 @@ function Report({ report }: { report: SalesReport }) {
   const stock: RankedRow[] = report.stock.map((row) => ({
     key: row.ingredientId,
     label: (
-      <>
-        {row.icon && <span className="mr-1.5 font-emoji">{row.icon}</span>}
+      <span className="inline-flex items-center gap-2 align-middle">
+        <IngredientBadge badge={row.badge} size="xs" />
         {row.name}
-      </>
+      </span>
     ),
     amount: row.consumed,
     value: formatQuantity(row.consumed, row.unit),

@@ -16,7 +16,6 @@ import OptionGroup from '#models/option_group'
 import StockMovement from '#models/stock_movement'
 import type Store from '#models/store'
 import env from '#start/env'
-import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
 import type { Catalog, CatalogStoreProfile, RecipeLine } from '#catalog/types'
 import { blurPlaceholder } from '#helpers/image_placeholder'
 import { deleteUpload } from '#helpers/uploads'
@@ -68,7 +67,6 @@ export default class CatalogImportService {
             storeId: store.id,
             name,
             unit,
-            icon: suggestIngredientIcon(name),
             minStock: min,
             stockQuantity: stock,
           },

@@ -3,11 +3,13 @@ import { inject } from '@adonisjs/core'
 import InventoryService from '#services/inventory_service'
 import { numberValidator, storeExistValidator } from '#validators/common'
 import {
+  badgePreviewValidator,
   ingredientValidator,
   stockMovementValidator,
   updateIngredientValidator,
 } from '#validators/inventory'
 import { created, messageOnly, ok, updated } from '#helpers/api_response'
+import { suggestIngredientBadge } from '#kitchen/ingredient_icons'
 import {
   parsePagination,
   parseSort,
@@ -40,6 +42,14 @@ export default class IngredientsController {
     const facets = wantsFacets(q) ? await this.inventory.facets(storeId, options) : undefined
 
     return ok(ingredients.all(), { ...ingredients.getMeta(), facets })
+  }
+
+  /** The automatic badge for a name, so the form previews it while typing. */
+  async badge({ params, request }: HttpContext) {
+    await storeExistValidator.validate(params.storeId)
+    const { name } = await badgePreviewValidator.validate(request.qs())
+
+    return ok(suggestIngredientBadge(name))
   }
 
   async store({ params, request, auth }: HttpContext) {

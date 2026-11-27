@@ -1,10 +1,10 @@
 import { addonGroups, addonLabels } from '#models/order_item_addon'
 import db from '@adonisjs/lucid/services/db'
-import type { ProductionBatch } from '@react-menu/contracts'
+import type { IngredientBadge, ProductionBatch } from '@react-menu/contracts'
 import OrderStatus from '#enums/order_status'
 import type IngredientUnit from '#enums/ingredient_unit'
 import { buildProductionQueue, type PendingUnit } from '#kitchen/production_queue'
-import { suggestIngredientIcon } from '#kitchen/ingredient_icons'
+import { ingredientBadge } from '#kitchen/ingredient_icons'
 import Order from '#models/order'
 import Store from '#models/store'
 
@@ -13,6 +13,8 @@ type RecipeRow = {
   name: string
   unit: IngredientUnit
   icon: string | null
+  icon_color: string | null
+  icon_label: string | null
   quantity: string
 }
 
@@ -74,13 +76,17 @@ export default class KitchenService {
 
       const totals = new Map<
         string,
-        { name: string; unit: IngredientUnit; icon: string | null; quantity: number }
+        { name: string; unit: IngredientUnit; badge: IngredientBadge; quantity: number }
       >()
       for (const row of rows) {
         const current = totals.get(row.name) ?? {
           name: row.name,
           unit: row.unit,
-          icon: row.icon ?? suggestIngredientIcon(row.name),
+          badge: ingredientBadge(row.name, {
+            icon: row.icon,
+            iconColor: row.icon_color,
+            iconLabel: row.icon_label,
+          }),
           quantity: 0,
         }
         current.quantity = round3(current.quantity + Number(row.quantity) * batch.quantity)
@@ -105,14 +111,30 @@ export default class KitchenService {
           .from('item_ingredients as r')
           .join('ingredients as i', 'i.id', 'r.ingredient_id')
           .whereIn('r.item_id', itemIds)
-          .select('r.item_id as owner_id', 'i.name', 'i.unit', 'i.icon', 'r.quantity')
+          .select(
+            'r.item_id as owner_id',
+            'i.name',
+            'i.unit',
+            'i.icon',
+            'i.icon_color',
+            'i.icon_label',
+            'r.quantity'
+          )
       : []
     const addonRows: RecipeRow[] = addonIds.length
       ? await db
           .from('addon_ingredients as r')
           .join('ingredients as i', 'i.id', 'r.ingredient_id')
           .whereIn('r.addon_id', addonIds)
-          .select('r.addon_id as owner_id', 'i.name', 'i.unit', 'i.icon', 'r.quantity')
+          .select(
+            'r.addon_id as owner_id',
+            'i.name',
+            'i.unit',
+            'i.icon',
+            'i.icon_color',
+            'i.icon_label',
+            'r.quantity'
+          )
       : []
 
     const group = (rows: RecipeRow[]) => {

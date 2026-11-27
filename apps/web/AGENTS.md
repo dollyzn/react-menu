@@ -206,8 +206,13 @@ Read the root `AGENTS.md` first. This file only covers the web app.
   reloads the whole app).
 - Navigation is a `<Link>` styled with `buttonVariants`, not `Button`
   `render={<Link/>}` (Base UI gives it role="button").
-- Ingredient emoji use the `font-emoji` class (Noto Color Emoji), so they
-  render on devices without an emoji font.
+- Ingredients show as `IngredientBadge` (`components/app/ingredient-badge.tsx`):
+  the API's resolved `badge` (emoji on a color, plus a tag like "CAT" where
+  ingredients share an emoji); never the raw `icon`, which is only the
+  manager's pick (null = automatic). Its emoji use the `font-emoji` class
+  (Noto Color Emoji), so they render on devices without an emoji font. The
+  picker's emoji live in `inventory/ingredient-icon-catalog.ts` and must
+  include every one the API suggests (`#kitchen/ingredient_icons`).
 
 ## Tests
 

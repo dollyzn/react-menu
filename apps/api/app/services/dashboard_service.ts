@@ -5,6 +5,7 @@ import { inject } from '@adonisjs/core'
 import OrderStatus from '#enums/order_status'
 import Store from '#models/store'
 import InventoryService from '#services/inventory_service'
+import { ingredientBadge } from '#kitchen/ingredient_icons'
 
 const money = (value: unknown) => Math.round(Number(value ?? 0) * 100) / 100
 /** Orders that count as sales: they reached the kitchen. */
@@ -130,7 +131,16 @@ export default class DashboardService {
             .where('store_id', storeId)
             .where('min_stock', '>', 0)
             .whereRaw('stock_quantity <= min_stock')
-            .select('id', 'name', 'unit', 'icon', 'stock_quantity', 'min_stock')
+            .select(
+              'id',
+              'name',
+              'unit',
+              'icon',
+              'icon_color',
+              'icon_label',
+              'stock_quantity',
+              'min_stock'
+            )
             .orderByRaw('stock_quantity / min_stock asc')
         : Promise.resolve([]),
       db
@@ -198,7 +208,11 @@ export default class DashboardService {
         id: row.id,
         name: row.name,
         unit: row.unit,
-        icon: row.icon,
+        badge: ingredientBadge(row.name, {
+          icon: row.icon,
+          iconColor: row.icon_color,
+          iconLabel: row.icon_label,
+        }),
         stockQuantity: Number(row.stock_quantity),
         minStock: Number(row.min_stock),
       })),
