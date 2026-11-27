@@ -103,7 +103,9 @@ export default class WhatsAppClient {
     } catch (error) {
       // A Graph version without the field refuses the whole read (#100): read the rest.
       if (error instanceof WhatsAppApiError && error.code === 100) {
-        return await this.request(token, 'GET', path)
+        // `is_on_biz_app` stays undefined: unknown, not false.
+        const info = await this.request<PhoneNumberInfo>(token, 'GET', path)
+        return { ...info, is_on_biz_app: undefined }
       }
       throw error
     }

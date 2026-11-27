@@ -59,7 +59,7 @@ export class FakeGraph extends WhatsAppClient {
   /** `register` refuses (a number with someone else's PIN). */
   refuseRegister = false
   /** The number is also on the WhatsApp Business app (coexistence). */
-  onBizApp = false
+  onBizApp: boolean | undefined = false
   /** The next coexistence sync call fails with this error (then clears). */
   failNextSync: WhatsAppApiError | null = null
 

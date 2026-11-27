@@ -36,7 +36,7 @@ export default class SyncWhatsAppBusinessApp extends AppJob<Payload> {
   }
 
   static async dispatchFor(account: WhatsAppAccount) {
-    const generation = account.webhookSubscribedAt?.toMillis() ?? 0
+    const generation = account.appOnboardedAt?.toMillis() ?? 0
     await SyncWhatsAppBusinessApp.dispatch({ accountId: account.id, generation }).dedup({
       id: `${account.id}:${generation}`,
       ttl: '1d',
@@ -45,13 +45,23 @@ export default class SyncWhatsAppBusinessApp extends AppJob<Payload> {
 
   async execute() {
     const account = await WhatsAppAccount.find(this.payload.accountId)
-    if (!account || !account.coexistence || !account.isUsable) return
-    // Reconnected since: that onboarding has its own sync.
-    const generation = account.webhookSubscribedAt?.toMillis() ?? 0
-    if (this.payload.generation !== undefined && this.payload.generation !== generation) return
+    if (!account || !account.coexistence || !account.appOnboardedAt) return
+    // Onboarded again since: that onboarding has its own sync.
+    const onboardedAt = account.appOnboardedAt
+    if (
+      this.payload.generation !== undefined &&
+      this.payload.generation !== onboardedAt.toMillis()
+    ) {
+      return
+    }
 
     const sync: AppSync = { ...account.appSync }
-    const onboardedAt = account.webhookSubscribedAt ?? account.createdAt
+    if (!account.isUsable) {
+      // The token stopped working: nothing can sync; the panel says so.
+      this.markPending(sync, 'A conexão com o WhatsApp parou de funcionar antes de sincronizar.')
+      await this.save(account, onboardedAt, sync)
+      return
+    }
     for (const step of STEPS) {
       // Done (even without a request id): Meta allows each step only once.
       const state = sync[step.key]
@@ -80,8 +90,7 @@ export default class SyncWhatsAppBusinessApp extends AppJob<Payload> {
         }
       } catch (error) {
         if (error instanceof WhatsAppApiError && error.transient) {
-          account.appSync = sync
-          await account.save()
+          await this.save(account, onboardedAt, sync)
           throw error
         }
         logger.warn(
@@ -96,8 +105,38 @@ export default class SyncWhatsAppBusinessApp extends AppJob<Payload> {
         break
       }
     }
-    account.appSync = sync
-    await account.save()
+    await this.save(account, onboardedAt, sync)
+  }
+
+  /**
+   * Saved only while the account is still that onboarding: a reconnect
+   * meanwhile (new `app_onboarded_at`, sync reset) is never overwritten.
+   */
+  private async save(account: WhatsAppAccount, onboardedAt: DateTime, sync: AppSync) {
+    await WhatsAppAccount.query()
+      .where('id', account.id)
+      .where('appOnboardedAt', onboardedAt.toJSDate())
+      .update({ appSync: JSON.stringify(sync) })
+  }
+
+  /** The steps not done yet fail with this reason (the panel stops waiting). */
+  private markPending(sync: AppSync, error: string) {
+    for (const step of STEPS) {
+      if (sync[step.key] && !sync[step.key]!.error) continue
+      sync[step.key] = { requestId: null, error, at: DateTime.now().toISO()! }
+      break
+    }
+  }
+
+  /** Meta kept not answering: the step waiting fails, so the panel tells to reconnect. */
+  async failed(error: Error) {
+    const account = await WhatsAppAccount.find(this.payload.accountId)
+    if (account?.appOnboardedAt && account.appOnboardedAt.toMillis() === this.payload.generation) {
+      const sync: AppSync = { ...account.appSync }
+      this.markPending(sync, 'O WhatsApp (Meta) não respondeu a tempo para sincronizar.')
+      await this.save(account, account.appOnboardedAt, sync)
+    }
+    await super.failed(error)
   }
 
   protected notifyFailureByEmail = false

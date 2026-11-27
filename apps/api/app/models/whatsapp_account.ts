@@ -75,6 +75,10 @@ export default class WhatsAppAccount extends BaseModel {
   @column({ prepare: (value: AppSync) => JSON.stringify(value ?? {}) })
   declare appSync: AppSync
 
+  /** Coexistence: when Embedded Signup onboarded the app number (the sync's 24 hours start here). */
+  @column.dateTime()
+  declare appOnboardedAt: DateTime | null
+
   /** The store's choices per order notice that differ from the defaults. */
   @column({ prepare: (value: Partial<Record<NoticeKind, boolean>>) => JSON.stringify(value ?? {}) })
   declare notices: Partial<Record<NoticeKind, boolean>>

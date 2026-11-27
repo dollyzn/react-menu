@@ -169,11 +169,15 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         return;
       }
       const data = signupEvent.data;
-      if (!data.waba_id) {
+      const appNumber =
+        signupEvent.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" || data.is_on_biz_app === true;
+      // Only the app onboarding may finish without the number; any other
+      // finish without one (FINISH_ONLY_WABA) has nothing to connect.
+      if (!data.waba_id || (!data.phone_number_id && !appNumber)) {
         code.current = null;
         session.current = {};
         setOpening(false);
-        toast.info("O cadastro terminou sem uma conta do WhatsApp. Conecte de novo e escolha uma.");
+        toast.info("O cadastro terminou sem um número do WhatsApp. Conecte de novo e escolha o número da loja.");
         return;
       }
       // A WhatsApp Business app number (coexistence) may come with only the
@@ -182,7 +186,7 @@ function ConnectPanel({ storeId, signup }: { storeId: string; signup: NonNullabl
         wabaId: data.waba_id,
         phoneNumberId: data.phone_number_id,
         businessId: data.business_id,
-        coexistence: signupEvent.event === "FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING" || data.is_on_biz_app === true,
+        coexistence: appNumber,
       };
       finish();
     };

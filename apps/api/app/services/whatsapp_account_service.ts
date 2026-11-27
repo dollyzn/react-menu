@@ -96,6 +96,16 @@ export default class WhatsAppAccountService {
     // Embedded Signup's window message names the WABA and number. A WhatsApp
     // Business app onboarding names only the WABA (its only number is used),
     // and when no message reached the page the token says which WABA it was.
+    // Only the app onboarding's event comes without the number; any other
+    // signup that ended without one has nothing to connect (and taking the
+    // WABA's existing number would register it away from its current use).
+    if (input.wabaId && !input.phoneNumberId && !input.coexistence) {
+      throw new AppException(
+        'O cadastro terminou sem um número. Conecte de novo e escolha o número da loja.',
+        422,
+        'E_WHATSAPP_CHOOSE_NUMBER'
+      )
+    }
     const fromWindow = Boolean(input.wabaId && input.phoneNumberId)
     const { wabaId, phoneNumberId } = fromWindow
       ? { wabaId: input.wabaId!, phoneNumberId: input.phoneNumberId! }
@@ -134,6 +144,17 @@ export default class WhatsAppAccountService {
     // on the phone): told by the signup's event, or by Meta itself, so the
     // code-only path can't register it by mistake.
     const coexistence = Boolean(input.coexistence || info.is_on_biz_app)
+    const onboarding = coexistence && !input.token
+    // Only the code arrived and Meta couldn't say whether the number is on
+    // the app (a Graph version without the field): registering an app number
+    // would take it off the phone, so ask to connect again instead.
+    if (!input.token && !input.coexistence && !fromWindow && info.is_on_biz_app === undefined) {
+      throw new AppException(
+        'Não foi possível confirmar o tipo do número com a Meta. Conecte de novo.',
+        422,
+        'E_WHATSAPP_UNKNOWN_NUMBER'
+      )
+    }
 
     if (!coexistence && !input.skipRegister) {
       try {
@@ -169,8 +190,10 @@ export default class WhatsAppAccountService {
       lastError: null,
       connectedById: actor?.id ?? current?.connectedById ?? null,
       ...(!sameNumber && { templates: {}, templatesCheckedAt: null }),
-      // Each onboarding allows (and needs) its own contacts and history sync.
-      appSync: {},
+      // Each Embedded Signup onboarding of an app number allows (and needs)
+      // its own contacts and history sync; a token reconnect keeps the last.
+      ...(onboarding && { appSync: {}, appOnboardedAt: DateTime.now() }),
+      ...(!coexistence && { appSync: {}, appOnboardedAt: null }),
     })
     if (!current) {
       account.notifyOrders = true
@@ -182,7 +205,13 @@ export default class WhatsAppAccountService {
     logger.info(
       {
         storeId: store.id,
-        via: input.token ? 'command' : fromWindow ? 'window_message' : 'token_discovery',
+        via: input.token
+          ? 'command'
+          : fromWindow
+            ? 'window_message'
+            : input.wabaId
+              ? 'window_waba_only'
+              : 'token_discovery',
         wabaId,
         phoneNumberId,
         coexistence,
@@ -205,7 +234,7 @@ export default class WhatsAppAccountService {
     await SyncWhatsAppTemplates.scheduleFor(account, 0, { now: !whatsappConfig().fake })
     // Coexistence: contacts and history are synced right away (Meta allows
     // it once, within 24 hours of the onboarding).
-    if (coexistence) {
+    if (onboarding) {
       const { default: SyncWhatsAppBusinessApp } = await import('#jobs/sync_whatsapp_business_app')
       await SyncWhatsAppBusinessApp.dispatchFor(account)
     }
@@ -449,7 +478,9 @@ export default class WhatsAppAccountService {
             verifiedName: account.verifiedName,
             wabaId: account.wabaId,
             coexistence: account.coexistence,
-            appSync: account.coexistence ? this.appSyncState(account) : null,
+            // Tracked only for onboardings since the sync exists.
+            appSync:
+              account.coexistence && account.appOnboardedAt ? this.appSyncState(account) : null,
             notifyOrders: account.notifyOrders,
             customerLogin: account.customerLogin,
             broken: Boolean(account.brokenAt),
